@@ -17,13 +17,14 @@ pub const DOMAIN_COMMITMENT: &[u8] = b"near-escrow/v1/commitment";
 pub const DOMAIN_COMMIT_CLAIM: &[u8] = b"near-escrow/v1/commit-claim";
 
 /// Gas attached to each call. `claim` and `refund` check a Pallas scalar multiplication
-/// (about 16 Tgas measured); `commit_claim` checks one ed25519 signature (about 2 Tgas).
+/// (16.8 Tgas burnt, measured by the contract's sandbox test); `commit_claim` checks one
+/// ed25519 signature (about 2 Tgas). A taker `withdraw` into Intents burns 42.4 Tgas.
 /// The taker's stipend must cover the prepaid gas of its calls.
 pub const GAS_OPEN: u64 = 100 * TGAS;
 pub const GAS_SET_READY: u64 = 10 * TGAS;
 pub const GAS_COMMIT: u64 = 15 * TGAS;
 pub const GAS_REVEAL: u64 = 40 * TGAS;
-pub const GAS_WITHDRAW: u64 = 120 * TGAS;
+pub const GAS_WITHDRAW: u64 = 100 * TGAS;
 pub const GAS_STORAGE: u64 = 10 * TGAS;
 
 /// `sha256(DOMAIN_SWAP_ID ‖ len(maker) as u8 ‖ maker ‖ salt)`.

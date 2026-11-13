@@ -19,6 +19,7 @@ their checks.
 |---|---|---|
 | CD. Shared core crate and NEAR adapter | 02:50 | `crates/`, `node/` (uncommitted until reviewed) |
 | F. Website | 02:50 | `web/` (uncommitted until reviewed) |
+| G. Exit through Intents | 03:02 | `crates/zecret-intents/`, `docs/INTENTS.md` (uncommitted until reviewed) |
 
 ## Next
 
