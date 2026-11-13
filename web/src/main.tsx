@@ -1,6 +1,5 @@
 import { lazy, StrictMode, Suspense, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@fontsource-variable/fraunces/opsz.css';
 import './styles/tokens.css';
 import './styles/app.css';
 import { useRoute } from './app/route';

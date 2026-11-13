@@ -23,6 +23,29 @@ async function shot(page: Page, name: string, opts: { phone?: boolean; full?: bo
   await page.setViewportSize(DESKTOP);
 }
 
+// The landing page and the swap form at 390 and 1440 px, at twice the pixel density, full
+// page: screenshots/<landing|swap-form>-<theme>-<width>@2x.png
+for (const scheme of ['light', 'dark'] as const) {
+  test.describe(`high density, ${scheme}`, () => {
+    test.use({ deviceScaleFactor: 2, colorScheme: scheme, reducedMotion: 'reduce' });
+    for (const width of [390, 1440]) {
+      test(`landing page and swap form, ${width} px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await mockOneClick(page);
+        await page.goto('/');
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
+        await page.screenshot({ path: `${DIR}/landing-${scheme}-${width}@2x.png`, fullPage: true, animations: 'disabled' });
+        await open(page);
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await expect(page.locator('.token-select-text')).toContainText('USDC');
+        await page.evaluate(() => document.fonts.ready);
+        await page.screenshot({ path: `${DIR}/swap-form-${scheme}-${width}@2x.png`, fullPage: true, animations: 'disabled' });
+      });
+    }
+  });
+}
+
 async function skip(page: Page) {
   await openDemoControls(page);
   await page.getByRole('button', { name: 'Skip this wait' }).click();

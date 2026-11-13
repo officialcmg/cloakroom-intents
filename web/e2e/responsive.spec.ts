@@ -1,5 +1,5 @@
-// No horizontal scroll on narrow phones, on every main screen and on error states with
-// long unbroken strings (keys, account ids, addresses).
+// No horizontal scroll on phones (320, 390 px) and tablets (768, 1024 px), on every main
+// screen and on error states with long unbroken strings (keys, account ids, addresses).
 import { expect, test, type Page } from '@playwright/test';
 import { mockOneClick } from './oneclick-mock';
 import { createAndSave, fillForm, nearWithoutMakerKey, open, openDemoControls, pay } from './helpers';
@@ -10,7 +10,7 @@ async function noHorizontalScroll(page: Page, what: string) {
   expect(scroll, `${what}: page is ${scroll}px wide in a ${client}px viewport`).toBeLessThanOrEqual(client);
 }
 
-for (const width of [320, 390]) {
+for (const width of [320, 390, 768, 1024]) {
   test.describe(`${width} px wide`, () => {
     test.use({ viewport: { width, height: 740 } });
 

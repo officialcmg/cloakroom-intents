@@ -8,7 +8,7 @@ test('the landing page loads no engine; "Start a swap" opens the app at /swap, a
   const requests: string[] = [];
   page.on('request', (r) => requests.push(new URL(r.url()).pathname));
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: /Swap shielded ZEC for USDC/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Swap from fully shielded ZEC to 30+ chains' })).toBeVisible();
   for (const h of ['How a swap works', 'Who holds the money', 'What stays private and what is public', 'If something goes wrong', 'Status', 'Questions'])
     await expect(page.getByRole('heading', { level: 2, name: h })).toBeVisible();
   await page.waitForTimeout(500);
@@ -19,7 +19,7 @@ test('the landing page loads no engine; "Start a swap" opens the app at /swap, a
   await expect(page).toHaveURL(/\/swap$/);
   await expect(page.getByRole('heading', { name: /Swap shielded ZEC for a token/ })).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole('heading', { level: 1, name: /Swap shielded ZEC for USDC/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Swap from fully shielded ZEC to 30+ chains' })).toBeVisible();
 });
 
 test('the demo link and old links with app settings open the app', async ({ page }) => {

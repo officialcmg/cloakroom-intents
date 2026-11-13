@@ -111,8 +111,14 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
 
   return (
     <div className="stack-lg">
-      <header className="hero">
-        <h1 className="display">Swap shielded ZEC for a token on another chain</h1>
+      <header className="app-hero">
+        <p className="badge badge-soft">
+          <span className="badge-dot" aria-hidden="true" />
+          Swap
+        </p>
+        <h1 className="display">
+          Swap shielded ZEC for a token <em className="serif">on another chain</em>
+        </h1>
         <p className="lede">Pay once from your own Zcash wallet. Your browser runs the swap with the maker and sends the tokens to your address. There is no custodian and nothing to install.</p>
       </header>
 

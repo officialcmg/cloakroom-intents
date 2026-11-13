@@ -124,6 +124,7 @@ the page ends the worker and starts a new one, which resumes from storage.
 | `recovering`, `recovered` | Core `Recovering`, `Recovered`. |
 | `refunding`, `refunded` | After `Recovered` or `Aborted`: `returnLeftover` to the return address; `refunded` once that transaction is mined. A core `Aborted` reason that starts with `MAKER REFUSED` (the maker's signed refusal memo: over its limit, under its minimum, busy, unsupported) becomes `refund.reason` and `lastError` `MAKER_CHECK_FAILED`, with the maker's reason in the message. |
 | `exiting`, `exit_retry`, `done` | The exit (1Click or direct) after `Completed`. |
+| `paid_out`, `done` with `exit.doneElsewhere` | Core `Claimed` or `PayoutPending`, while the escrow shows the payout made (swap state `Claimed`, the taker's Intents credit 0) and the taker key's Verifier balance reads 0, at one final block, for 30 s: the exit happened before this browser followed the swap (a restore after the exit). `payout.usdc` is the escrow's amount; `deliveredAmount` and the delivery transaction are not set. The leftover step follows. |
 
 Activities: `proving` before each proof (from the core's `activity` event, and before a
 refund), `waiting` while the swap waits on a chain or the maker, `syncing` after a reload or
@@ -151,7 +152,7 @@ stage: `taker` steps need the page open; `network` steps happen anyway.
 | `claimed` | The claim is final. The maker sends `withdraw`; if it does not within 5 minutes, a `waiting` activity names the call that any NEAR account can send. | network (maker) | may close |
 | `paid_out` | USDC is in `intents.near` under the taker key (`payout`). The engine starts the exit by itself. | taker | may close |
 | `exiting` | The exit runs; `exit.phase` says where (below). | taker, then 1Click | may close |
-| `done` | Delivered (`exit.deliveredAmount`). A `leftover` may follow to the return address. | – | – |
+| `done` | Delivered (`exit.deliveredAmount`), or `exit.doneElsewhere`: the exit happened before a restore, and the engine did not see the delivery. A `leftover` may follow to the return address; a reload at `done` sends it if it was not sent. | – | – |
 
 Failure paths:
 
@@ -177,7 +178,7 @@ step; the page only shows `exit.phase` and decides in `exit_retry`.
 | `signing` | Quote signature and field check, `generate-intent`, payload check, one ed25519 signature. A failed check: `exit_retry` with `EXIT_REFUSED`. | – |
 | `submitted` | `submit-intent` returned `intentHash` (checked against the signed payload). | `intentHash`, a `TxRef` |
 | `delivering` | Polling `GET /v0/status` until final. `SUCCESS`: `done`. `REFUNDED` / `FAILED`: `exit_retry`, `EXIT_FAILED`, `exit.phase: 'refunded' \| 'failed'`. | – |
-| `done` | Delivered. | `deliveredAmount`, a `destination` `TxRef` |
+| `done` | Delivered. | `deliveredAmount`, a `destination` `TxRef`; or `doneElsewhere: true` without them (see "How the real engine makes the website's stages") |
 
 `exit.approvedMinimum` starts as `params.minDestinationAmount`. `exit.attempts` counts
 firm quotes. A signed exit stays valid for about 72 hours; the real engine keeps polling
@@ -273,8 +274,9 @@ blocks while it reconciles the record with the chains (`Taker::reconcile` in the
 a mined send of the wallet means the request went out; a send at or after the quote's
 height means the acceptance went out; a note at the joint address means the funding went
 out. Only then does it act, so nothing is sent twice. A transaction that is still in the
-mempool after those two blocks is not seen. Restoring a swap whose exit already finished
-is not supported (nothing is left to do).
+mempool after those two blocks is not seen. A swap restored after its exit finished goes
+to `done` with `exit.doneElsewhere` (the escrow paid the taker key and the tokens left it)
+and then sends the leftover ZEC, if any, to the return address.
 
 ## The simulated engine
 

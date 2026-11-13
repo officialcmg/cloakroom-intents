@@ -16,6 +16,15 @@ their checks.
   `withdraw` itself (the app shows the payout-pending state with the exact call). See
   `docs/security/`.
 
+## Before submission (do not skip)
+
+- [ ] **Screenshots in the README.** Judges skim. Add 3 or 4 near the top of `README.md`:
+  the landing page, the swap form, the progress screen, the finished screen. Take them
+  from the live site after the redesign is deployed, at desktop width, and keep each
+  file small. Owner asked for this on 2026-11-13.
+- [ ] Docs name the site as `https://zecret.chrismg.dev`.
+- [ ] Owner: NEAR mainnet payout account, repository public, demo video, post, form.
+
 ## Hand-over: where the build is (2026-11-13 13:05 UTC)
 
 Read this section first if you continue the build. Then `CLAUDE.md`, `docs/BUILD_PLAN.md`.

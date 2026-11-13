@@ -40,6 +40,7 @@ import { validateDestinationAddress } from '../../lib/address/chains';
 import { paymentUri } from '../../lib/zip321';
 import { coreNetwork, explorerUrl, safeLink, type NetworkConfig } from '../../lib/netconfig';
 import { StaleWriteError, type RecordStore } from './idb';
+import { GONE_STABLE_MS, judgePayout, readPayoutFacts, type PayoutReader } from './payoutCheck';
 import { abortReason, coreStageName, loadWasm, type CoreEvent, type CoreSwap, type WasmModule, type WasmTaker } from './wasm';
 
 const STATE = 'web/state';
@@ -122,6 +123,10 @@ export class RealEngine implements EngineBackend {
   private directCheckSince?: number;
   /** Since when the taker's Verifier balance reads 0 in the direct exit's `delivering`. */
   private directEmptySince?: number;
+  /** When the claimed swap's payout was last checked against the escrow and the Verifier. */
+  private payoutCheckedAt?: number;
+  /** Since when the escrow shows the payout made and the taker key's Verifier balance reads 0. */
+  private payoutGoneSince?: number;
   /**
    * Records a failed write did not store (review 3, H1). Until they are written, the engine
    * calls nothing in the core: every call first retries this write.
@@ -132,11 +137,13 @@ export class RealEngine implements EngineBackend {
   private readonly store: RecordStore;
   private readonly base: string;
   private readonly load: (base: string) => Promise<WasmModule>;
+  private readonly readPayout: PayoutReader;
 
-  constructor(store: RecordStore, base = '/', load: (base: string) => Promise<WasmModule> = loadWasm) {
+  constructor(store: RecordStore, base = '/', load: (base: string) => Promise<WasmModule> = loadWasm, readPayout: PayoutReader = readPayoutFacts) {
     this.store = store;
     this.base = base;
     this.load = load;
+    this.readPayout = readPayout;
   }
 
   attach(emit: (event: EngineEvent) => void): void {
@@ -466,7 +473,8 @@ export class RealEngine implements EngineBackend {
       this.state = { ...this.state, activity: terminal ? null : { kind: 'syncing', label: 'Catching up with the Zcash and NEAR networks', startedAt: now(), estimatedMs: 3_000 } };
       await this.persist();
       this.emitWire({ type: 'swap', swap: this.state });
-      if (!terminal) this.schedule(0);
+      // A swap that reached `done` may still owe the leftover ZEC to the return address.
+      if (!terminal || (this.state.stage === 'done' && !this.meta.leftoverDone)) this.schedule(0);
       return this.state;
     });
   }
@@ -776,6 +784,7 @@ export class RealEngine implements EngineBackend {
       if (tickMs > 3_000) log(`tick took ${tickMs} ms`);
       await this.applyCoreEvents(r.events);
       await this.afterTick();
+      if (await this.exitedBeforeThisBrowser()) return 0;
       if (r.next.kind === 'done') {
         const core = this.coreSwap();
         const name = core ? coreStageName(core.stage) : '';
@@ -1006,6 +1015,71 @@ export class RealEngine implements EngineBackend {
     }
   }
 
+  /**
+   * A claimed swap whose payout already left the taker key (a swap restored after its exit
+   * finished). The core waits in `Claimed` for the price to appear in the Verifier, which
+   * never happens then. When the escrow shows the payout made (state `Claimed`, Intents
+   * credit 0) and the taker key's Verifier balance reads 0, at final blocks, for
+   * GONE_STABLE_MS, the exit happened before: the swap moves to `done` (with
+   * `exit.doneElsewhere`), and the leftover step follows. Returns true when it moved.
+   */
+  private async exitedBeforeThisBrowser(): Promise<boolean> {
+    const s = this.state!;
+    const m = this.meta!;
+    if (s.stage !== 'claimed') return false;
+    const core = this.coreSwap();
+    if (!core?.escrow_id || !core.taker_account || !['Claimed', 'PayoutPending'].includes(coreStageName(core.stage))) return false;
+    if (this.payoutCheckedAt !== undefined && now() - this.payoutCheckedAt < 10_000) return false;
+    this.payoutCheckedAt = now();
+    const { cfg } = this.need();
+    let facts;
+    try {
+      facts = await this.readPayout({ rpc: cfg.near.rpc, escrow: cfg.near.escrow, verifier: cfg.near.verifier, token: cfg.near.token, swapId: core.escrow_id, taker: core.taker_account });
+    } catch (e) {
+      log(`payout check: ${(e as Error).message}`);
+      return false;
+    }
+    if (judgePayout(facts) !== 'gone') {
+      this.payoutGoneSince = undefined;
+      return false;
+    }
+    if (this.payoutGoneSince === undefined) {
+      this.payoutGoneSince = now();
+      log('payout check: the escrow paid the taker key and its Verifier balance is 0; checking again before concluding that the exit already happened');
+    }
+    if (now() - this.payoutGoneSince < GONE_STABLE_MS) return false;
+    this.payoutGoneSince = undefined;
+    log(`payout check: the escrow paid ${facts.amount ?? '?'} to ${core.taker_account} and the tokens left that key: the exit happened before this browser followed the swap`);
+    m.coreDone = true;
+    await this.persist();
+    const direct = cfg.exit.mode === 'direct';
+    await this.emit({
+      type: 'stage',
+      swapId: s.id,
+      stage: 'paid_out',
+      at: now(),
+      patch: { payout: { usdc: this.toMicro(facts.amount ?? core.quote?.price ?? '0'), intentsAccount: core.taker_account } },
+    });
+    await this.emit({
+      type: 'stage',
+      swapId: s.id,
+      stage: 'done',
+      at: now(),
+      patch: {
+        exit: {
+          attempts: s.exit?.attempts ?? 0,
+          phase: 'done',
+          approvedMinimum: s.exit?.approvedMinimum ?? s.params.minDestinationAmount,
+          doneElsewhere: true,
+          ...(direct ? { direct: { nearAccount: s.params.directExit!.nearAccount, token: cfg.near.token, symbol: cfg.near.tokenSymbol, decimals: cfg.near.tokenDecimals } } : {}),
+        },
+        needs: null,
+        lastError: null,
+      },
+    });
+    return true;
+  }
+
   // ------------------------------------------------------------ restore
 
   private async restoreStep(): Promise<number> {
@@ -1126,7 +1200,16 @@ export class RealEngine implements EngineBackend {
       return null;
     }
     await this.activity({ kind: 'proving', label: 'Sending the leftover ZEC to your return address', startedAt: now(), estimatedMs: PROOF_MS });
-    const txid = taker.returnLeftover(to);
+    let txid: string;
+    try {
+      txid = taker.returnLeftover(to);
+    } catch (e) {
+      // For example a send of the same notes from before a restore, not yet mined: the
+      // node refuses this one, and the balance reads 0 once the earlier send is mined.
+      log(`leftover failed: ${(e as Error).message}`);
+      await this.activity(null);
+      return 10_000;
+    }
     m.leftoverTxid = txid;
     await this.persist();
     await this.stage('done', { leftover: { amountZats: String(bal - fee), toAddress: to }, needs: null, addTxs: [this.zcashTx('leftover', 'Leftover ZEC to your return address', txid)] });

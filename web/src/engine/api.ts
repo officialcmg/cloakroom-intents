@@ -246,6 +246,12 @@ export interface SwapState {
     /** A firm quote below the approved minimum, offered to the user. */
     offered?: { amountOut: string; minAmountOut: string };
     deliveredAmount?: string;
+    /**
+     * The exit happened before this browser followed it (a swap restored after its exit):
+     * the escrow had paid the taker key and the tokens had already left it. The engine did
+     * not see the delivery, so `deliveredAmount` and the delivery transaction are not set.
+     */
+    doneElsewhere?: boolean;
   };
   refund?: { reason: ErrorCode; amountZats?: string; toAddress?: string };
   leftover?: { amountZats: string; toAddress?: string };
