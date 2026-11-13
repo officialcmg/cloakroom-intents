@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-13 05:56 UTC. Deadline: 2026-11-14 23:59 UTC.
+Updated: 2026-11-13 06:58 UTC. Deadline: 2026-11-14 23:59 UTC.
 
 Any session can resume from this file. Read `docs/BUILD_PLAN.md` for the packages and
 their checks.
@@ -9,6 +9,7 @@ their checks.
 
 | Package | Result |
 |---|---|
+| K. README, submission notes, demo script | Written. The agent ran every "do X, see Y" step in the README (escrow tests incl. real USDC, one scenario and the full 19, testnet `verify`, the simulated website, the Intents tests). The main session read the opening sections but did not rerun the steps. The README's Status table must be updated when package E finishes. |
 | S2-fix (maker side) | PASS, rerun by the main session: core 26 unit tests, 11 bounds tests, the review's proof of concept, node tests, and scenarios s1 and s3 with the new escrow. F2-04 fixed: with 3,000 stuck requests a maker tick takes about 20 ms and 3 to 6 RPC calls, and the refund still goes out. Also: a Zcash sync failure no longer stops the maker's NEAR duties; the file store writes owner-only files atomically; the test-only `misbehave` setting is refused without a cargo feature; a `premium_check` setting refuses a premium worth less than the stipend and costs; `withdraw` uses 200 Tgas and the maker calls `sweep` before a retry. One clippy lint in `taker.rs:576` is open. See `docs/security/fixes-2-core.md`. |
 | T. A swap on public test networks | Done. The native maker and taker swapped 0.1 testnet ZEC for 3 test USDC on Zcash testnet and NEAR testnet through `escrow2`, then the taker's signed withdrawal moved the tokens out of the stand-in verifier. Taker finished in 222 s, 322 s with the exit. The main session checked on NEAR by RPC: the claim was sent by the taker's own key and succeeded, and the escrow shows the swap as Claimed for 3,000,000 units. The Zcash side was checked by the agent only (6 transactions, all fully shielded). Testnet ZEC came from the Zcash Foundation faucet. Evidence: `docs/TESTNET.md`, `testnet/EVIDENCE.json`. The two wallets in `.tools/testnet/` (untracked) still hold funds. |
 | NV-02 fix. Two-step payout | PASS, rerun by the main session: 57 unit tests, 6 sandbox tests, and 8 tests against the USDC code from mainnet (pause, blocklist and races between delivery and resolve: the taker is paid exactly once). The old escrow fails the same tests. New testnet escrow: `escrow2.zecret-3f109eea1e.testnet`, code hash `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1`, no access keys (checked by RPC). `withdraw` now needs 200 Tgas. Still open: the client code and configs in `crates/` use 100 Tgas and the old escrow id. See `docs/security/fixes-2.md`. |
@@ -29,7 +30,7 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 | E. Taker engine in the browser, wired into the website | 04:44 | `crates/zecret-wasm/`, `web/`, `harness/` |
-| K. README, submission notes, demo script | 05:58 | root `README.md`, `docs/README.md`, `docs/SUBMISSION.md`, `docs/DEMO_SCRIPT.md` |
+| K2. Bring stale documents in line with the facts | 06:58 | `docs/`, `README.md`, `BASELINE.md` |
 
 ## Next
 
@@ -44,6 +45,14 @@ Plan change: packages C and D are merged into one (CD), because the browser spik
 - From the testnet swap: the maker sends no answer to a request above its limit, so the taker waits the full quote timeout (`maker.rs` around line 440); the maker's directory entry should publish its limits; a wrong "0 spendable zats" warning in the maker log.
 - The taker can never pay for `withdraw` (200 Tgas needs about 0.2 NEAR). If the maker stops after the claim, the USDC waits in the escrow until any account sends `withdraw`. Decide: a larger stipend, or say it plainly in the app and docs.
 - Zcash testnet blocks arrive every 23 s on average; the configs are sized for 75 s blocks.
+
+## For the owner
+
+- The repository is private. It must be public before 2026-11-14 23:59 UTC.
+- The build environment cannot push git tags. The baseline commit `2f8e2f7` is pushed as branch `pre-hackathon-baseline`, and the README's diff link uses it. The tag `pre-hackathon` exists only in the build clone.
+- The README has one sentence saying parts of the code and documentation were written with AI coding assistance (hackathon rule Q-005 asks for this). It names no product. Keep, reword or remove.
+- Decide how the taker's `withdraw` should be paid if the maker stops after a claim (see "Next fix round").
+- Public hosting of the website and the maker, and anything on mainnet, wait for approval.
 
 ## Blocked or skipped
 

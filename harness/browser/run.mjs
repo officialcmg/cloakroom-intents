@@ -741,6 +741,7 @@ async function main() {
   const results = {};
   try {
     if (serve) {
+      fs.mkdirSync(path.join(EVID, 'local'), { recursive: true });
       const maker = new Maker('local');
       maker.start();
       const url = writeRun('local', maker, '30');
