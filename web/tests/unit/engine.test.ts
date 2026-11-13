@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import sample from '../../public/maker-directory.json';
 import type { CreateSwapParams, EngineEvent, Stage, SwapState, SimFailure } from '../../src/engine/api';
-import { EngineError } from '../../src/engine/api';
+import { EngineError, leftoverPending } from '../../src/engine/api';
 import { applyPatch, reduceSwap } from '../../src/engine/reducer';
 import { connectEngine, serveEngine, type EngineClient } from '../../src/engine/rpc';
 import { SimEngine } from '../../src/engine/sim/simEngine';
@@ -329,5 +329,47 @@ describe('simulated engine', () => {
     await client.forget();
     expect(await client.getState()).toBeNull();
     close();
+  });
+
+  it('keeps a finished swap while its leftover ZEC has no return address, unless the user discards it', async () => {
+    const { client, close, t } = await started();
+    await client.createSwap(PARAMS);
+    await client.sim.pay('150000000');
+    const done = await t.until(at('done'));
+    expect(done.needs).toBe('return_address');
+    expect(leftoverPending(done)).toBe(true);
+    await expect(client.forget()).rejects.toMatchObject({ code: 'LEFTOVER_PENDING', message: expect.stringContaining('0.4999 ZEC') });
+    await expect(client.createSwap(PARAMS)).rejects.toMatchObject({ code: 'LEFTOVER_PENDING' });
+    expect((await client.getState())?.stage).toBe('done');
+    await client.forget({ discardLeftover: true });
+    expect(await client.getState()).toBeNull();
+    close();
+  });
+
+  it('allows a new swap once the leftover reached the return address', async () => {
+    const { client, close, t } = await started();
+    await client.createSwap({ ...PARAMS, returnAddress: RETURN });
+    await client.sim.pay('150000000');
+    const done = await t.until((x) => x.stage === 'done' && !!x.leftover?.returned);
+    expect(done.leftover).toMatchObject({ toAddress: RETURN, returned: true });
+    expect(leftoverPending(done)).toBe(false);
+    await client.forget();
+    expect(await client.getState()).toBeNull();
+    close();
+  });
+});
+
+describe('leftoverPending', () => {
+  const done = (patch: Partial<SwapState>): SwapState => ({ ...baseState(), stage: 'done', ...patch });
+  it('is true at done while the leftover has no address or is not mined', () => {
+    expect(leftoverPending(done({ leftover: { amountZats: '5' }, needs: 'return_address' }))).toBe(true);
+    expect(leftoverPending(done({ leftover: { amountZats: '5', toAddress: RETURN } }))).toBe(true);
+    expect(leftoverPending(done({ leftover: { amountZats: '5', toAddress: RETURN, returned: true } }))).toBe(false);
+  });
+  it('is false without a leftover, for a leftover below the fee, and before the end', () => {
+    expect(leftoverPending(done({}))).toBe(false);
+    expect(leftoverPending(done({ leftover: { amountZats: '-5000' } }))).toBe(false);
+    expect(leftoverPending({ ...baseState(), stage: 'refunding', needs: 'return_address' })).toBe(false);
+    expect(leftoverPending({ ...baseState(), stage: 'refunded' })).toBe(false);
   });
 });

@@ -384,8 +384,10 @@ cargo clippy --all-targets -- -D warnings
 cargo clippy --target wasm32-unknown-unknown --release -- -D warnings
 ```
 
-Without `usdc.near.wasm`, each test in `tests/usdc.rs` prints `SKIPPED` and the
-file name, and returns. `fetch-usdc-wasm.sh` reads the code with `view_code` from
+Without `usdc.near.wasm`, each test in `tests/usdc.rs` fails with a message that names
+the missing file and `fetch-usdc-wasm.sh`. To skip them on purpose, set
+`ZECRET_SKIP_USDC=1`: each test then prints `SKIPPED` and passes, and the run tested
+nothing. `fetch-usdc-wasm.sh` reads the code with `view_code` from
 `https://free.rpc.fastnear.com` (set `NEAR_MAINNET_RPC` to use another) and writes the
 file only if its code hash is `DVJx7F3dHEHJYwpYPwXHu8K9Uo7h4kXFcALucY5oNX8q`.
 `tests/usdc.rs` also builds `test-receiver/` (a test-only stand-in for the Intents

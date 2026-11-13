@@ -122,7 +122,7 @@ export function connectEngine(port: PortLike, onDispose?: () => void): EngineCli
     exportRecovery: () => call('exportRecovery'),
     importRecovery: (text) => call('importRecovery', text),
     exit: (request) => call('exit', request),
-    forget: () => call('forget'),
+    forget: (options) => call('forget', options),
     dispose() {
       port.removeEventListener('message', onMessage);
       for (const p of pending.values()) p.reject(new EngineError('INTERNAL', 'The engine was closed.'));

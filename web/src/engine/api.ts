@@ -12,6 +12,7 @@
 // On a network where a stand-in token replaces USDC (local: wNEAR with 24 decimals), the
 // "micro-USDC" amounts are that token's amounts scaled to 6 decimals; the engine converts.
 import type { NetworkConfig } from '../lib/netconfig';
+import { formatZec } from '../lib/units';
 
 export type Network = 'mainnet' | 'testnet' | 'regtest';
 export type EngineKind = 'simulated' | 'wasm';
@@ -59,6 +60,7 @@ export const ERROR_CODES = [
   'INVALID_PARAMS', // createSwap or exit arguments are wrong
   'INVALID_ADDRESS', // an address failed the engine's own check
   'SWAP_EXISTS', // this browser already holds an unfinished swap
+  'LEFTOVER_PENDING', // the finished swap still owes leftover ZEC to the return address; deleting it now would leave that ZEC only in the recovery file
   'NO_SWAP', // the call needs a swap and there is none
   'WRONG_STAGE', // the call is not allowed in the current stage
   'RECOVERY_INVALID', // the recovery file cannot be read
@@ -254,7 +256,8 @@ export interface SwapState {
     doneElsewhere?: boolean;
   };
   refund?: { reason: ErrorCode; amountZats?: string; toAddress?: string };
-  leftover?: { amountZats: string; toAddress?: string };
+  /** ZEC paid above what the swap needed. `returned` is set when its transaction to the return address is mined. */
+  leftover?: { amountZats: string; toAddress?: string; returned?: boolean };
   /** What the engine needs from the user, if anything. */
   needs?: 'return_address' | 'exit_decision' | null;
   activity?: Activity | null;
@@ -307,6 +310,34 @@ export interface ExitRequest {
   acceptMinimum?: string;
 }
 
+export interface ForgetOptions {
+  /** The user confirmed that the leftover ZEC may stay behind (only the recovery file can then recover it). */
+  discardLeftover?: boolean;
+}
+
+/**
+ * True while a finished swap holds leftover ZEC that has not reached the return address:
+ * there is no return address yet, or the leftover transaction is not mined. Deleting the
+ * swap then deletes the keys of that ZEC from this browser.
+ */
+export function leftoverPending(s: SwapState): boolean {
+  if (!TERMINAL_STAGES.includes(s.stage)) return false;
+  if (s.needs === 'return_address') return true;
+  return s.stage === 'done' && !!s.leftover && BigInt(s.leftover.amountZats) > 0n && !s.leftover.returned;
+}
+
+/** The engines' refusal while `leftoverPending(s)`. */
+export function leftoverPendingError(s: SwapState): EngineError {
+  const zats = s.leftover ? BigInt(s.leftover.amountZats) : 0n;
+  const amount = zats > 0n ? `${formatZec(zats)} ZEC` : 'Leftover ZEC';
+  return new EngineError(
+    'LEFTOVER_PENDING',
+    s.needs === 'return_address'
+      ? `${amount} from this swap is still in its temporary wallet. Enter a return address to get it back. Deleting the swap now leaves it recoverable only with the recovery file.`
+      : `${amount} from this swap is still being sent back to your return address. Wait until it is sent. Deleting the swap now leaves it recoverable only with the recovery file.`,
+  );
+}
+
 // ---------------------------------------------------------------- the interface
 
 export interface Engine {
@@ -329,8 +360,12 @@ export interface Engine {
    * when the USDC is paid out; the page calls this only from exit_retry.
    */
   exit(request?: ExitRequest): Promise<SwapState>;
-  /** Deletes the stored swap. Allowed before any payment arrives, and after done or refunded. */
-  forget(): Promise<void>;
+  /**
+   * Deletes the stored swap. Allowed before any payment arrives, and after done or refunded.
+   * While leftover ZEC has not reached the return address (`leftoverPending`), it refuses
+   * with LEFTOVER_PENDING unless `discardLeftover` is set.
+   */
+  forget(options?: ForgetOptions): Promise<void>;
   dispose(): void;
 }
 

@@ -2,7 +2,12 @@ import { defineConfig, devices } from '@playwright/test';
 
 // Chromium is preinstalled at /opt/pw-browsers (PLAYWRIGHT_BROWSERS_PATH). The 1Click API
 // is mocked in every test (e2e/oneclick-mock.ts), so the tests need no network.
+//
+// The default run uses Chromium only. ZECRET_BROWSERS=all adds the same desktop tests in
+// Firefox and WebKit (projects `firefox` and `webkit`). Those browsers must be installed
+// first: npx playwright install firefox webkit.
 const PORT = 4173;
+const ALL_BROWSERS = process.env.ZECRET_BROWSERS === 'all';
 
 export default defineConfig({
   testDir: './e2e',
@@ -39,5 +44,19 @@ export default defineConfig({
       testMatch: /screenshots\.spec/,
       use: { ...devices['Desktop Chrome'] },
     },
+    ...(ALL_BROWSERS
+      ? [
+          {
+            name: 'firefox',
+            testIgnore: /screenshots\.spec/,
+            use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 900 } },
+          },
+          {
+            name: 'webkit',
+            testIgnore: /screenshots\.spec/,
+            use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 900 } },
+          },
+        ]
+      : []),
   ],
 });

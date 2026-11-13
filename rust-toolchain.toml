@@ -1,0 +1,9 @@
+# The Rust version that built and tested every workspace in this repository
+# (crates/, contracts/near-escrow/, deploy/, testnet/tools/). rustup reads this file in
+# any subfolder and installs the toolchain and targets on first use.
+# The deployed escrow's code hash depends on this version (docs/DEPLOY.md).
+[toolchain]
+channel = "1.97.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown", "wasm32-wasip1"]

@@ -18,12 +18,15 @@ import {
   EngineError,
   STAGES,
   TERMINAL_STAGES,
+  leftoverPending,
+  leftoverPendingError,
   type Activity,
   type CreateSwapParams,
   type EngineConfig,
   type EngineEvent,
   type ErrorCode,
   type ExitRequest,
+  type ForgetOptions,
   type InitStatus,
   type RecoveryFile,
   type Stage,
@@ -466,6 +469,9 @@ export class RealEngine implements EngineBackend {
       }
       this.state = parse<SwapState>(st);
       this.meta = parse<Meta>(mt);
+      // Records stored before `leftover.returned` existed.
+      if (this.state.stage === 'done' && this.meta.leftoverDone && this.state.leftover && !this.state.leftover.returned && this.meta.leftoverTxid)
+        this.state = { ...this.state, leftover: { ...this.state.leftover, returned: true } };
       const core = records.filter(([k]) => !k.startsWith('web/'));
       this.openTaker(core);
       await this.persistCore();
@@ -489,6 +495,7 @@ export class RealEngine implements EngineBackend {
     return this.run(async () => {
       const { wasm, cfg, terms } = this.need();
       if (this.state && !TERMINAL_STAGES.includes(this.state.stage)) throw new EngineError('SWAP_EXISTS', 'This browser already has a swap in progress.');
+      this.refuseIfLeftoverOwed();
       if (!isUint(params.amountZats) || !isUint(params.minUsdc) || !isUint(params.minDestinationAmount) || !isUint(params.shown?.premiumZats))
         throw new EngineError('INVALID_PARAMS', 'Amounts must be whole numbers of base units.');
       const amount = BigInt(params.amountZats);
@@ -632,6 +639,7 @@ export class RealEngine implements EngineBackend {
       // again as createSwap checks them, and the payment address and link are computed from
       // the file's wallet key below.
       const restored = this.checkRestoredState(web.state, web.meta, file.swapId);
+      this.refuseIfLeftoverOwed();
       if (this.state) await this.wipe();
       this.meta = { ...web.meta, restoreHeight: undefined, restoreDone: false };
       this.state = { ...restored, activity: null, recoveryExportedAt: now(), restoredAt: now() };
@@ -720,12 +728,13 @@ export class RealEngine implements EngineBackend {
     });
   }
 
-  async forget(): Promise<void> {
+  async forget(options: ForgetOptions = {}): Promise<void> {
     return this.run(async () => {
       const s = this.state;
       if (s) {
         const unpaid = s.stage === 'awaiting_deposit' && s.deposit.receivedZats === '0';
         if (!unpaid && !TERMINAL_STAGES.includes(s.stage)) throw new EngineError('WRONG_STAGE', 'A swap with money in it cannot be deleted. Let it finish or refund.');
+        if (!options.discardLeftover) this.refuseIfLeftoverOwed();
         if (unpaid && this.taker) {
           // A payment may have arrived since the last look.
           this.taker.sync();
@@ -735,6 +744,19 @@ export class RealEngine implements EngineBackend {
       await this.wipe();
       this.emitWire({ type: 'swap', swap: null });
     });
+  }
+
+  /**
+   * A finished swap whose leftover ZEC has not reached the return address keeps its keys
+   * (LEFTOVER_PENDING). At `done` the engine also waits until its leftover step has looked
+   * at the wallet once, because until then it does not know whether ZEC is left over.
+   */
+  private refuseIfLeftoverOwed(): void {
+    const s = this.state;
+    if (!s || !TERMINAL_STAGES.includes(s.stage)) return;
+    if (leftoverPending(s)) throw leftoverPendingError(s);
+    if (s.stage === 'done' && !this.meta?.leftoverDone)
+      throw new EngineError('LEFTOVER_PENDING', 'The engine is still checking whether ZEC is left over from this swap. Try again in a few seconds.', true);
   }
 
   private async wipe(): Promise<void> {
@@ -1201,6 +1223,7 @@ export class RealEngine implements EngineBackend {
       if (taker.txHeight(m.leftoverTxid) === undefined) return 3_000;
       m.leftoverDone = true;
       await this.persist();
+      await this.stage('done', { leftover: { returned: true } });
       return null;
     }
     taker.sync();

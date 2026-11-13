@@ -64,6 +64,8 @@ class Core {
   chain: PayoutFacts = facts(PRICE, '0');
   walletZats = 95_000_000;
   leftoverTx?: string;
+  /** Whether the leftover transaction is in a block. */
+  leftoverMined = true;
   /** Sends the node refuses; a refused send leaves the notes reserved in that taker, as the wallet does. */
   refuse = 0;
   takers = 0;
@@ -98,7 +100,7 @@ class Core {
       swap = () => swap();
       facts = () => JSON.stringify({ balance: core.leftoverTx || this.reserved ? 0 : core.walletZats, height: 10, fundHeight: 5, sweepHeight: null });
       sync = () => 10;
-      txHeight = (txid: string) => (txid === core.leftoverTx ? 11 : undefined);
+      txHeight = (txid: string) => (txid === core.leftoverTx && core.leftoverMined ? 11 : undefined);
       escrowState = () => core.chain.escrowState;
       intentsBalance = () => core.chain.verifierBalance;
       tokenBalance = () => '0';
@@ -232,7 +234,7 @@ describe('a restored claimed swap', () => {
     expect(s.exit?.deliveredAmount).toBeUndefined();
     expect(s.txs.find((t) => t.id === 'delivery')).toBeUndefined();
     expect(core.leftoverTx).toBe('leftovertx');
-    expect(s.leftover).toEqual({ amountZats: String(95_000_000 - 10_000), toAddress: UA });
+    expect(s.leftover).toEqual({ amountZats: String(95_000_000 - 10_000), toAddress: UA, returned: true });
     expect(s.txs.find((t) => t.id === 'leftover')?.hash).toBe('leftovertx');
   });
 
@@ -287,5 +289,64 @@ describe('a refused leftover send', () => {
     expect(core.takers).toBe(2);
     expect(core.leftoverTx).toBe('leftovertx');
     expect((await engine.getState())!.leftover?.toAddress).toBe(UA);
+  });
+});
+
+describe('the leftover guard', () => {
+  const finished = () => stored('done', { coreDone: true });
+
+  it('refuses to delete the swap or start another until the engine has looked for a leftover', async () => {
+    const core = new Core();
+    core.stage = 'Completed';
+    const { engine } = await start(core, finished());
+    // resume() scheduled the leftover step; it has not run yet.
+    await expect(engine.forget()).rejects.toMatchObject({ code: 'LEFTOVER_PENDING', transient: true });
+    await expect(engine.createSwap(params)).rejects.toMatchObject({ code: 'LEFTOVER_PENDING' });
+    expect((await engine.getState())?.stage).toBe('done');
+  });
+
+  it('keeps the keys while the leftover transaction is not mined, and allows a new swap after', async () => {
+    const core = new Core();
+    core.stage = 'Completed';
+    core.leftoverMined = false;
+    const { engine } = await start(core, finished());
+    await vi.advanceTimersByTimeAsync(10_000);
+    let s = (await engine.getState())!;
+    expect(s.leftover).toEqual({ amountZats: String(95_000_000 - 10_000), toAddress: UA });
+    await expect(engine.forget()).rejects.toMatchObject({ code: 'LEFTOVER_PENDING', message: expect.stringContaining('0.9499 ZEC') });
+    await expect(engine.createSwap(params)).rejects.toMatchObject({ code: 'LEFTOVER_PENDING' });
+    core.leftoverMined = true;
+    await vi.advanceTimersByTimeAsync(5_000);
+    s = (await engine.getState())!;
+    expect(s.leftover?.returned).toBe(true);
+    await engine.forget();
+    expect(await engine.getState()).toBeNull();
+  });
+
+  it('without a return address: refuses, then deletes when the user discards the leftover', async () => {
+    const core = new Core();
+    core.stage = 'Completed';
+    const records = finished();
+    const st = JSON.parse(records.get('web/state')!) as SwapState;
+    records.set('web/state', JSON.stringify({ ...st, params: { ...st.params, returnAddress: undefined } }));
+    const { engine } = await start(core, records);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect((await engine.getState())!.needs).toBe('return_address');
+    await expect(engine.forget()).rejects.toMatchObject({ code: 'LEFTOVER_PENDING', message: expect.stringContaining('Enter a return address') });
+    await engine.forget({ discardLeftover: true });
+    expect(await engine.getState()).toBeNull();
+    expect(core.leftoverTx).toBeUndefined();
+  });
+
+  it('a swap stored before `returned` existed, with its leftover mined, can be deleted', async () => {
+    const core = new Core();
+    core.stage = 'Completed';
+    const records = stored('done', { coreDone: true, leftoverDone: true, leftoverTxid: 'leftovertx' });
+    const st = JSON.parse(records.get('web/state')!) as SwapState;
+    records.set('web/state', JSON.stringify({ ...st, leftover: { amountZats: '94990000', toAddress: UA } }));
+    const { engine } = await start(core, records);
+    expect((await engine.getState())!.leftover?.returned).toBe(true);
+    await engine.forget();
+    expect(await engine.getState()).toBeNull();
   });
 });

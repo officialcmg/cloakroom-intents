@@ -274,3 +274,55 @@ test('theme toggle switches and remembers the theme', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.getByRole('button', { name: 'Use light theme' })).toBeVisible();
 });
+
+/** A recovery file of a finished demo swap that was paid 0.5 ZEC too much and has no return address. */
+function finishedWithLeftover(filePath: string): Buffer {
+  const file = JSON.parse(readFileSync(filePath, 'utf8'));
+  const st = file.simulatedChain.state;
+  const at = Date.now();
+  file.simulatedChain.state = {
+    ...st,
+    stage: 'done',
+    stageAt: at,
+    history: [...st.history, { stage: 'done', at }],
+    deposit: { ...st.deposit, receivedZats: '150000000' },
+    exit: { attempts: 1, phase: 'done', approvedMinimum: st.params.minDestinationAmount, deliveredAmount: st.params.shown.destinationExpected },
+    leftover: { amountZats: '49990000' },
+    needs: 'return_address',
+  };
+  return Buffer.from(JSON.stringify(file));
+}
+
+test('leftover ZEC: no new swap until it is back, unless the user leaves it behind', async ({ page, browser }) => {
+  await open(page, 'speed=100');
+  await fillForm(page);
+  const buffer = finishedWithLeftover(await createAndSave(page));
+
+  for (const discard of [false, true]) {
+    const ctx = await browser.newContext();
+    const other = await ctx.newPage();
+    await open(other, 'speed=100');
+    await other.getByRole('button', { name: /Restore a swap/ }).click();
+    await other.getByTestId('recovery-input').setInputFiles({ name: 'leftover.json', mimeType: 'application/json', buffer });
+    await expect(other.getByTestId('done-title')).toBeVisible();
+    const start = other.getByRole('button', { name: 'Start a new swap' });
+    await expect(start).toBeDisabled();
+    await expect(other.getByTestId('leftover-wait')).toContainText('Enter a return address');
+    await other.getByRole('button', { name: 'Start over without the leftover' }).click();
+    await expect(other.getByText('Leave 0.4999 ZEC behind?')).toBeVisible();
+    if (discard) {
+      await other.getByRole('button', { name: 'Yes, delete the swap' }).click();
+      await expect(other.getByRole('heading', { name: /Swap shielded ZEC/ })).toBeVisible();
+    } else {
+      await other.getByRole('button', { name: 'Keep waiting' }).click();
+      await other.getByLabel('Your Zcash address').fill(RETURN_ADDRESS);
+      await other.getByRole('button', { name: 'Send my ZEC here' }).click();
+      await expect(other.getByText(/It went back to/)).toBeVisible({ timeout: 30_000 });
+      await expect(start).toBeEnabled({ timeout: 30_000 });
+      await expect(other.getByTestId('leftover-wait')).toBeHidden();
+      await start.click();
+      await expect(other.getByRole('heading', { name: /Swap shielded ZEC/ })).toBeVisible();
+    }
+    await ctx.close();
+  }
+});

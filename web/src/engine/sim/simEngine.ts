@@ -12,6 +12,7 @@ import {
   type EngineConfig,
   type EngineEvent,
   type ExitRequest,
+  type ForgetOptions,
   type InitStatus,
   type Network,
   type RecoveryFile,
@@ -26,6 +27,8 @@ import {
   SIM_FAILURES,
   STAGES,
   TERMINAL_STAGES,
+  leftoverPending,
+  leftoverPendingError,
 } from '../api';
 import type { EngineBackend } from '../rpc';
 import { reduceSwap } from '../reducer';
@@ -258,6 +261,7 @@ export class SimEngine implements EngineBackend {
   async createSwap(params: CreateSwapParams): Promise<SwapState> {
     const terms = this.requireInit();
     if (this.state && !TERMINAL_STAGES.includes(this.state.stage)) throw new EngineError('SWAP_EXISTS', 'This browser already has a swap in progress.');
+    this.refuseIfLeftoverOwed();
     if (!isUint(params.amountZats) || !isUint(params.minUsdc) || !isUint(params.minDestinationAmount))
       throw new EngineError('INVALID_PARAMS', 'Amounts must be whole numbers of base units.');
     const amount = BigInt(params.amountZats);
@@ -366,6 +370,7 @@ export class SimEngine implements EngineBackend {
     if (this.state && this.state.id === swapId) return this.state;
     if (this.state && !TERMINAL_STAGES.includes(this.state.stage))
       throw new EngineError('SWAP_EXISTS', 'This browser has another swap in progress. Finish it first.');
+    this.refuseIfLeftoverOwed();
     let chain = await this.store.get<ChainRecord>('chain', swapId);
     if (!chain) {
       const snap = file.simulatedChain as ChainRecord | undefined;
@@ -413,11 +418,19 @@ export class SimEngine implements EngineBackend {
     this.pump();
   }
 
-  async forget(): Promise<void> {
+  /** As in the real engine: a finished swap keeps its keys while its leftover ZEC is not back. */
+  private refuseIfLeftoverOwed(): void {
+    const s = this.state;
+    if (!s || !leftoverPending(s)) return;
+    throw leftoverPendingError(s);
+  }
+
+  async forget(options: ForgetOptions = {}): Promise<void> {
     const s = this.state;
     if (s) {
       const unpaid = s.stage === 'awaiting_deposit' && s.deposit.receivedZats === '0';
       if (!unpaid && !TERMINAL_STAGES.includes(s.stage)) throw new EngineError('WRONG_STAGE', 'A swap with money in it cannot be deleted. Let it finish or refund.');
+      if (!options.discardLeftover) this.refuseIfLeftoverOwed();
       await this.store.delete('chain', s.id);
     }
     await this.store.delete('local', CURRENT);
@@ -687,7 +700,7 @@ export class SimEngine implements EngineBackend {
         if (!s.leftover || sim.leftoverSent || !s.params.returnAddress) return undefined;
         return taker(PROOF_MS, () => ({
           stage: 'done',
-          patch: { leftover: { toAddress: s.params.returnAddress }, needs: null, addTxs: [this.tx('leftover', 'zcash', 'Leftover ZEC to your return address', this.now())] },
+          patch: { leftover: { toAddress: s.params.returnAddress, returned: true }, needs: null, addTxs: [this.tx('leftover', 'zcash', 'Leftover ZEC to your return address', this.now())] },
           record: { leftoverSent: true },
         }), true);
       }

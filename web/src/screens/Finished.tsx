@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SwapState } from '../engine';
+import { leftoverPending, type SwapState } from '../engine';
 import { appStore } from '../app/useZecret';
 import { destAmount, exitAmount, formatUsdcAmount, refundReason, shortAddr } from '../app/stageCopy';
 import { formatZec } from '../lib/units';
@@ -8,21 +8,55 @@ import { Hash, Notice } from '../ui/bits';
 import { chainName } from '../ui/TokenPicker';
 import { ReturnAddressForm, StepList, TxList } from './Progress';
 
-function NewSwapActions() {
+function NewSwapActions({ swap }: { swap: SwapState }) {
   const [error, setError] = useState<string>();
-  const startOver = async () => {
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const pending = leftoverPending(swap);
+  const startOver = async (discardLeftover = false) => {
+    setBusy(true);
+    setError(undefined);
     try {
-      await appStore.engine!.forget();
+      await appStore.engine!.forget({ discardLeftover });
     } catch (e) {
       setError((e as Error).message);
+      setBusy(false);
     }
   };
+  const zats = swap.leftover ? BigInt(swap.leftover.amountZats) : 0n;
+  const atStake = zats > 0n ? `${formatZec(zats)} ZEC` : 'the leftover ZEC';
   return (
-    <div className="actions">
-      <button type="button" className="btn btn-primary btn-lg btn-block" onClick={startOver}>
+    <div className="actions" data-testid="new-swap-actions">
+      <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => startOver()} disabled={pending || busy}>
         Start a new swap
       </button>
-      <p className="hint center">This deletes the finished swap and its keys from this browser.</p>
+      {pending ? (
+        <p className="hint center" data-testid="leftover-wait">
+          {swap.needs === 'return_address'
+            ? 'Your leftover ZEC is still in this swap’s temporary wallet. Enter a return address above to get it back.'
+            : 'Your leftover ZEC is still being sent back. Wait until it is sent.'}
+        </p>
+      ) : (
+        <p className="hint center">This deletes the finished swap and its keys from this browser.</p>
+      )}
+      {pending &&
+        (!confirmDiscard ? (
+          <button type="button" className="btn btn-link" onClick={() => setConfirmDiscard(true)}>
+            Start over without the leftover
+          </button>
+        ) : (
+          <Notice tone="warn" title={`Leave ${atStake} behind?`}>
+            <p>This deletes the swap and its keys from this browser. Only the recovery file of this swap can then get {atStake} back.</p>
+            <div className="row-actions">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => startOver(true)} disabled={busy}>
+                Yes, delete the swap
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDiscard(false)}>
+                Keep waiting
+              </button>
+            </div>
+          </Notice>
+        ))}
       {error && (
         <Notice tone="danger" role="alert">
           {error}
@@ -72,6 +106,9 @@ export function DoneScreen({ swap }: { swap: SwapState }) {
   const delivery = swap.txs.find((t) => t.id === 'delivery');
   const simulated = swap.engine === 'simulated';
   const direct = swap.exit?.direct;
+  // Restored after the exit: the engine did not see the delivery, so it knows no amount.
+  const elsewhere = swap.exit?.doneElsewhere === true;
+  const recipient = direct ? direct.nearAccount : shortAddr(d.address);
   return (
     <div className="stack-lg">
       <section className="card card-main done" aria-labelledby="done-title">
@@ -80,15 +117,23 @@ export function DoneScreen({ swap }: { swap: SwapState }) {
         </span>
         <p className="now-kicker">Swap complete</p>
         <h1 id="done-title" className="display-sm" data-testid="done-title">
-          {direct
-            ? `You received ${delivered ? exitAmount(swap, delivered) : direct.symbol} on NEAR`
-            : `You received ${delivered ? destAmount(swap, delivered) : d.symbol} on ${chainName(d.chain)}`}
+          {elsewhere
+            ? 'This swap was already delivered'
+            : direct
+              ? `You received ${delivered ? exitAmount(swap, delivered) : direct.symbol} on NEAR`
+              : `You received ${delivered ? destAmount(swap, delivered) : d.symbol} on ${chainName(d.chain)}`}
         </h1>
-        <p className="lede">
-          Sent to <span className="mono">{direct ? direct.nearAccount : shortAddr(d.address)}</span>.
-          {direct && ` On this test network the exit has no 1Click: the engine sent ${direct.symbol} from NEAR Intents to your NEAR account. No ${d.symbol} was delivered on ${chainName(d.chain)}.`}
-        </p>
-        {delivery && (
+        {elsewhere ? (
+          <p className="lede" data-testid="done-elsewhere">
+            The delivery to <span className="mono">{recipient}</span> was completed before this browser restored the swap. This browser did not see it, so it shows no received amount and no delivery transaction. Check the account in an explorer.
+          </p>
+        ) : (
+          <p className="lede">
+            Sent to <span className="mono">{recipient}</span>.
+            {direct && ` On this test network the exit has no 1Click: the engine sent ${direct.symbol} from NEAR Intents to your NEAR account. No ${d.symbol} was delivered on ${chainName(d.chain)}.`}
+          </p>
+        )}
+        {delivery && !elsewhere && (
           <div className="kv kv-inline">
             <span className="label">{direct ? 'NEAR' : chainName(d.chain)} transaction</span>
             <Hash value={delivery.hash} href={simulated ? undefined : delivery.url} label="delivery transaction" />
@@ -124,7 +169,7 @@ export function DoneScreen({ swap }: { swap: SwapState }) {
           </Notice>
         )}
         {swap.needs === 'return_address' && <ReturnAddressForm swap={swap} />}
-        <NewSwapActions />
+        <NewSwapActions swap={swap} />
       </section>
       <Revealed swap={swap} />
       <details className="card details-card">
@@ -164,7 +209,7 @@ export function RefundedScreen({ swap }: { swap: SwapState }) {
             <Hash value={tx.hash} href={simulated ? undefined : tx.url} label="refund transaction" />
           </div>
         )}
-        <NewSwapActions />
+        <NewSwapActions swap={swap} />
       </section>
       <details className="card details-card">
         <summary className="h2">All steps and transactions</summary>

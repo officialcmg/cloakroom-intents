@@ -13,8 +13,9 @@
 //! LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test usdc -- --nocapture --test-threads 1
 //! ```
 //!
-//! Without `usdc.near.wasm` every test prints `SKIPPED` and returns. `ESCROW_WASM` names a
-//! prebuilt escrow wasm (used to run these tests against the escrow before the fix).
+//! Without `usdc.near.wasm` every test fails with a message that names
+//! `fetch-usdc-wasm.sh`. With `ZECRET_SKIP_USDC=1` each test instead prints `SKIPPED` and
+//! passes; such a run did not test anything. `ESCROW_WASM` names a prebuilt escrow wasm (used to run these tests against the escrow before the fix).
 //!
 //! Two kinds of Verifier:
 //!
@@ -68,17 +69,23 @@ fn usdc_wasm() -> Option<Vec<u8>> {
     std::fs::read(format!("{}/usdc.near.wasm", wasm_dir())).ok()
 }
 
+/// The USDC code. Without it the test fails, so that a green run always means the tests
+/// ran. `ZECRET_SKIP_USDC=1` turns the failure into a `SKIPPED` line and a pass.
 macro_rules! usdc_or_skip {
     () => {
         match usdc_wasm() {
             Some(w) => w,
             None => {
-                eprintln!(
-                    "SKIPPED: {}/usdc.near.wasm is missing. Run ./fetch-usdc-wasm.sh in \
+                let msg = format!(
+                    "{}/usdc.near.wasm is missing. Run ./fetch-usdc-wasm.sh in \
                      contracts/near-escrow to download the USDC code from mainnet.",
                     wasm_dir()
                 );
-                return Ok(());
+                if std::env::var("ZECRET_SKIP_USDC").as_deref() == Ok("1") {
+                    eprintln!("SKIPPED (ZECRET_SKIP_USDC=1): {msg}");
+                    return Ok(());
+                }
+                panic!("{msg} To skip these tests on purpose, set ZECRET_SKIP_USDC=1.");
             }
         }
     };

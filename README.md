@@ -1,6 +1,6 @@
 # Zecret
 
-Zecret is a website for swapping shielded ZEC for a token on another chain with no
+Zecret is a website for swapping shielded ZEC for tokens on 30+ chains with no
 custodian. A maker locks USDC in an escrow contract on NEAR. The user's ZEC goes to a
 shielded Zcash address whose spending key is split in two halves: the user holds one,
 the maker holds the other. When the user claims the USDC, the claim publishes the user's
@@ -9,9 +9,12 @@ publishes the maker's half, and the user takes the ZEC back. The USDC lands insi
 Intents under a key that only the user's browser holds, and one signature sends it on to
 a token on another chain.
 
-The website and one maker run on Zcash testnet and NEAR testnet:
-<https://zecret.chrismg.dev>. Test money only; mainnet is not deployed.
-See [Try it](#try-it).
+**What runs today:** the website and one maker on Zcash testnet and NEAR testnet, at
+<https://zecret.chrismg.dev>. There a swap pays shielded testnet ZEC for test USDC,
+delivered to a NEAR testnet account. Four swaps completed this way (see
+[Try it](#try-it)). **Built, not run with funds:** the delivery to other chains through
+NEAR Intents' 1Click API. It is tested against the live `intents.near` code in a sandbox
+and against recorded 1Click answers. Mainnet is planned and not deployed.
 
 ![The landing page of Zecret](docs/img/landing.jpg)
 
@@ -28,8 +31,9 @@ shielded Zcash today passes through a transparent address held by an exchange, a
 or an intent network, which publishes amounts and timing and can hold funds." Inside
 NEAR Intents, ZEC is the NEP-141 token `nep141:zec.omft.near` (1Click token list, read
 on 2026-11-13), not shielded ZEC. Zecret keeps the ZEC in the shielded pool for the whole
-swap. The protocol is designed so that neither party can take both sides; the open
-issues are listed under [Security](#security).
+swap. The protocol is designed so that neither party can take both sides, provided the
+user's browser acts before the deadlines and its NEAR RPC endpoint answers honestly; the
+open issues are listed under [Security](#security).
 
 Zecret builds on Cloakroom, my earlier protocol for shielded ZEC and ERC-20 tokens on
 Base (built for ZECATHON). Cloakroom is the disclosed baseline: commit `2f8e2f7`, on the
@@ -46,19 +50,20 @@ Built at NEAR HACKATHON (2026-11-01 to 2026-11-14).
 | Temporary wallet | A Zcash wallet that the browser makes for one swap. The user pays into it once. |
 | Shared address | The Zcash address that holds the user's ZEC during the swap. It is spent with the key `a + b`. |
 | Key half | The taker holds `a`, the maker holds `b`. A key half alone cannot spend from the shared address. |
-| Escrow | The NEAR contract in `contracts/near-escrow`. It holds the maker's USDC for one swap and has two exits: `claim(a)` and `refund(b)`. Each exit publishes one key half. |
+| Escrow | The NEAR contract in `contracts/near-escrow`. It holds the maker's USDC for one swap and has two exits: `claim(a)` and `refund(b)`. Each exit publishes one key half and turns the USDC into a credit for one side; a separate `withdraw` call pays the credit out. |
 | Stipend | 0.03 NEAR that the maker sends to the taker's new NEAR key after it opens the escrow. It pays the gas of the taker's own `commit_claim` and `claim`. |
 | Premium | A small ZEC payment from the taker to the maker, sent with the taker's acceptance of a quote. It pays for the maker's costs. |
-| Verifier | The NEAR Intents contract `intents.near`. It holds token balances per account and executes signed messages (intents). |
+| Verifier | The NEAR Intents contract: `intents.near` on mainnet; on testnet a stand-in, `intents.zecret-3f109eea1e.testnet`, that runs the same code. It holds token balances per account and executes signed messages (intents). |
 | 1Click | The NEAR Intents API (`1click.chaindefuser.com`) that quotes and delivers a swap to another chain. |
 | Relay | On testnet and local chains only: the maker's HTTPS endpoint that sends the taker's signed exit to the Verifier and pays its gas. |
-| Recovery file | A file with the swap's keys. With it, any browser can finish the swap or take the ZEC back. |
+| Recovery file | A file with the swap's keys. With it, another browser can continue the swap: finish it, or take the ZEC back. Only Chromium was tested. |
 | TAZ, test USDC | Testnet ZEC, and the stand-in USDC token on NEAR testnet (`tUSDC`). Neither has value. |
 
 ## Status
 
 This is the only status table in this file. It follows `STATUS.md` as of 2026-11-13
-12:30 UTC.
+14:30 UTC. Test counts are from the linked runs; [Try it](#try-it) says how to run them
+again and what each run needs.
 
 <!-- STATUS TABLE: update this table, and only this table, when STATUS.md changes. -->
 
@@ -67,13 +72,13 @@ This is the only status table in this file. It follows `STATUS.md` as of 2026-11
 | Escrow contract on NEAR (Rust) | **Done.** 57 unit tests, 6 sandbox tests with the live `intents.near` and `wrap.near` code, 8 sandbox tests with the USDC code from mainnet. Deployed on NEAR testnet with no access keys. | [`contracts/near-escrow/README.md`](contracts/near-escrow/README.md), [`docs/DEPLOY.md`](docs/DEPLOY.md) |
 | Maker and taker as native programs | **Works on local chains.** 21 two-party scenarios pass on Zebra regtest and a NEAR sandbox: the happy path, the maker's refund, the punish path, and malicious-maker and malicious-taker cases. | [`harness/RESULTS.md`](harness/RESULTS.md) |
 | Taker engine in the browser | **Works on local chains and on testnet.** The Rust taker runs as WebAssembly in a Web Worker behind the website. Five browser scenarios pass in headless Chromium on Zebra regtest and a NEAR sandbox: a full swap with exit, a refund after the maker goes quiet, two reloads during a swap, a restore from the recovery file in a fresh browser, and a quote below the minimum. | [`harness/BROWSER_RESULTS.md`](harness/BROWSER_RESULTS.md) |
-| Swaps on public test networks | **Done three times, happy path only.** (1) The native maker and taker: 0.1 TAZ for 3 test USDC, 222 s to the taker's end. (2) The hosted website and the hosted maker: 0.05 TAZ for 1.4877 test USDC, 493 s from the payment to done. (3) The same, after the price fix: 0.01 TAZ for 0.2877 test USDC, 392 s. Each payment came from the project's command-line wallet. | [`docs/TESTNET.md`](docs/TESTNET.md), [`testnet/EVIDENCE.json`](testnet/EVIDENCE.json), [`testnet/hosted/result-0.05.json`](testnet/hosted/result-0.05.json), [`testnet/hosted/result-0.01-fixed.json`](testnet/hosted/result-0.01-fixed.json) |
-| Website | **Hosted on testnet.** Landing page, the swap app with the real engine, and a simulated demo. 88 unit tests and 74 Playwright tests (desktop and phone). Chromium only; Firefox and Safari were not tested. | [`docs/WEB.md`](docs/WEB.md), [`docs/HOSTING.md`](docs/HOSTING.md) |
+| Swaps on public test networks | **Four completed.** (1) The native maker and taker: 0.1 TAZ for 3 test USDC, 222 s to the taker's end. Through the hosted website and the hosted maker: (2) 0.05 TAZ for 1.4877 test USDC, 493 s from the payment to done; (3) 0.01 TAZ for 0.2877 test USDC, 392 s; (4) 0.05 TAZ for 1.4877 test USDC, 314 s, paid by the Fauzec faucet with no wallet. A restore of (4) in a fresh browser sent the 0.9499 TAZ surplus back to the return address. One more hosted run stopped before funding (quote below the minimum) and returned the deposit. Escrow refund and punish paths ran only on local chains. | [`docs/TESTNET.md`](docs/TESTNET.md), [`testnet/EVIDENCE.json`](testnet/EVIDENCE.json), [`testnet/hosted/`](testnet/hosted/) |
+| Website | **Hosted on testnet.** Landing page, the swap app with the real engine, and a simulated demo. UNITCOUNT unit tests and E2ECOUNT Playwright tests (desktop and phone). Chromium only; Firefox and WebKit projects exist but were not run. | [`docs/WEB.md`](docs/WEB.md), [`docs/HOSTING.md`](docs/HOSTING.md) |
 | Maker with its relay | **Hosted on testnet** (Railway), with its own wallet and NEAR key made on its volume. | [`docs/HOSTING.md`](docs/HOSTING.md) |
 | Exit through NEAR Intents on mainnet | **Not verified.** The library is tested against the live `intents.near` code in a sandbox, and against recorded answers of the live 1Click API. Quote, generate and submit answered without an API key. No exit with real funds was run. On testnet the exit is a direct withdrawal from a stand-in Verifier, because NEAR Intents has no testnet. | [`docs/INTENTS.md`](docs/INTENTS.md) |
 | Mainnet deployment | **Not done.** Nothing is deployed on mainnet. It needs real funds (about 6.6 NEAR) and the owner's approval. | [`docs/DEPLOY.md`](docs/DEPLOY.md) |
-| Wallet apps as the payer | **Not tested.** | |
-| Security reviews | **Three reviews done; every finding is fixed.** Review 1 (escrow, Intents library), the follow-up on the real USDC contract (a double payment), review 2 (swap engines, maker and taker side) and review 3 (website, browser engine, relay). Open by decision: one trusted NEAR RPC endpoint, and the taker cannot pay for `withdraw` itself. | [`docs/security/`](docs/security/), [Security](#security) |
+| Wallet apps as the payer | **Not tested.** Zkool and Zingo (Android) offer testnet wallets and support the Ironwood pool per their release notes. Zodl, Cake and Edge ship no testnet app. | [`docs/WEB.md`](docs/WEB.md) |
+| Security reviews | **Three reviews; fix reports cover every confirmed finding.** Review 1 (escrow, Intents library), the follow-up on the real USDC contract (a double payment), review 2 (swap engines, maker and taker side) and review 3 (website, browser engine, relay). A fourth, read-only review found no new finding. The taker-side fixes of review 2 were checked by tests, not by a new review. Open by decision: one trusted NEAR RPC endpoint, and the taker cannot pay for `withdraw` itself. | [`docs/security/`](docs/security/), [Security](#security) |
 
 ## Try it
 
@@ -95,35 +100,43 @@ times faster ([`web/README.md`](web/README.md)).
 
 ### 2. Swap on testnet through the website
 
-This uses real Zcash testnet and NEAR testnet transactions with test money.
+Real Zcash testnet and NEAR testnet transactions, test money only. No wallet is needed:
+the Fauzec faucet (<https://fauzec.com>) can pay the swap's deposit address directly.
 
-You need:
+The test USDC goes to a NEAR testnet account that is registered with the test token
+`usdc.zecret-3f109eea1e.testnet`. The project's account `zecret-3f109eea1e.testnet` is
+registered; enter it to skip this. For your own account, with
+[near-cli-rs](https://github.com/near/near-cli-rs) (syntax from its guide; not run for
+this README):
 
-- Testnet ZEC. The Fauzec faucet (<https://fauzec.com>) gives
-  1 TAZ per address every 24 hours.
-- A Zcash testnet wallet that can pay a shielded unified address. The engine reads only
-  the Ironwood pool; a payment into the Orchard pool is not seen
-  (`crates/zecret-core/src/wallet.rs`). No wallet app was tested. The tested payer is the
-  project's command-line wallet: build it with `cd crates && cargo build -p zecret-node
-  --release`, make and fund a wallet as in [`docs/TESTNET.md`](docs/TESTNET.md), steps 1
-  and 2, and pay with `zecret pay --dir <wallet> --to <address> --zats <amount>`.
-- A NEAR testnet account registered with the test token `usdc.zecret-3f109eea1e.testnet`
-  (`storage_deposit`, at least 0.00125 NEAR attached; [`deploy/README.md`](deploy/README.md),
-  "The stand-in token"). The test USDC goes to this account.
-
-Then:
+```sh
+near account create-account sponsor-by-faucet-service <name>.testnet autogenerate-new-keypair save-to-keychain network-config testnet create
+near contract call-function as-transaction usdc.zecret-3f109eea1e.testnet storage_deposit json-args '{"account_id":"<name>.testnet","registration_only":true}' prepaid-gas '30 Tgas' attached-deposit '0.00125 NEAR' sign-as <name>.testnet network-config testnet sign-with-keychain send
+```
 
 | Do | See |
 |---|---|
-| Open <https://zecret.chrismg.dev> and press "Start a swap". | The app at `/swap` with the banner "Testnet. Test money only." The engine downloads (about 9 MB) and prepares its keys (about 20 s). |
-| Enter an amount between 0.001 and 0.1 TAZ (the hosted maker's limits), a token and chain, and your NEAR testnet account. | One price line. The price for the chosen chain is a mainnet preview: on testnet the swap pays test USDC to your NEAR account. |
+| Open <https://zecret.chrismg.dev> and press "Start a swap". | The app at `/swap` with the banner "Testnet. Test money only." The engine downloads (9 MB) and prepares its keys (20 s in the recorded runs). |
+| Enter an amount between 0.001 and 0.1 TAZ (the hosted maker's limits), a token and chain, and the NEAR testnet account. If you have a Zcash testnet wallet, add its address as the return address. | One price line. The price for the chosen chain is a mainnet preview: on testnet the swap pays test USDC to the NEAR account. |
 | Save the recovery file and continue to payment. | "Send exactly …", a QR code and a `utest1…` address. |
-| Pay that exact amount from your wallet. | The progress screen. Keep the tab open while it says so (about a minute, during the claim). |
-| Wait. | "You received … test USDC on NEAR". In the recorded runs, 0.05 TAZ gave 1.4877 test USDC in 493 s and 0.01 TAZ gave 0.2877 test USDC in 392 s, from the payment to done. |
+| Copy that address into the form on <https://fauzec.com> (it has a human check) and claim. Or pay the exact amount from a wallet. | The progress screen. Keep the tab open while it says so (during the claim). |
+| Wait. | "You received … test USDC on NEAR". The faucet-paid run took 314 s from the payment to done. |
 
-The recorded runs, with each transaction: [`docs/TESTNET.md`](docs/TESTNET.md), "Hosted
-swap" and "Hosted swap after the price fix". Most of the time is spent waiting for Zcash blocks (20 s on average on testnet, with
-long gaps) and three proofs in the browser (about 30 s each).
+The faucet pays 1 TAZ, more than the swap needs. The site swaps the amount you entered
+and sends the rest to the return address; without one, it asks for an address at the end
+and keeps "Start a new swap" disabled until the rest is sent or you confirm leaving it
+behind. The faucet gives one claim per address per 24 hours and has a cooldown per
+network, so a claim can be refused for a while.
+
+Wallets: the engine reads only the Ironwood pool; a payment into the Orchard pool is not
+seen. Zkool and Zingo (Android) offer testnet wallets and support Ironwood per their
+release notes; neither was tested against this site. Zodl, Cake and Edge ship no testnet
+app. The tested payers are the faucet and the project's command-line wallet
+([`docs/TESTNET.md`](docs/TESTNET.md), "A fresh testnet payer", has the commands).
+
+Each recorded run, with its transactions: [`docs/TESTNET.md`](docs/TESTNET.md). Most of
+the time is spent waiting for Zcash blocks (23 s on average on testnet, with long gaps)
+and three proofs in the browser (about 30 s each).
 
 ### 3. Run the swap on local chains
 

@@ -2,6 +2,22 @@
 # Prepare a machine for building and testing Zecret.
 # Safe to run more than once. Puts tools in .tools/ (not committed).
 set -euo pipefail
+
+# 0. Supported host and required tools. The NEAR sandbox below is a Linux x86-64 binary.
+if [ "$(uname -s)" != "Linux" ] || [ "$(uname -m)" != "x86_64" ]; then
+  echo "setup-env.sh needs Linux x86-64 (this is $(uname -s) $(uname -m)). The hosted site (https://zecret.chrismg.dev) and the web/ unit tests (cd web && npm ci && npm test) work on any OS." >&2
+  exit 1
+fi
+# This script cannot run without rustup, curl and python3. The tests need the others.
+missing="" later=""
+for tool in rustup curl python3; do command -v "$tool" >/dev/null || missing="$missing $tool"; done
+for tool in docker node gcc; do command -v "$tool" >/dev/null || later="$later $tool"; done
+if [ -n "$missing" ]; then
+  echo "setup-env.sh: missing:$missing${later:+ (also missing:$later)}. Install them and run it again." >&2
+  exit 1
+fi
+[ -z "$later" ] || echo "warning: missing:$later. Docker runs the local Zcash node, node runs the website and browser tests, gcc builds the open-file shim." >&2
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TOOLS="$ROOT/.tools"
 mkdir -p "$TOOLS/wasm"

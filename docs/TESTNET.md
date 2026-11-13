@@ -6,9 +6,14 @@ testnet ZEC (TAZ). The taker received 3 test USDC (tUSDC) inside the stand-in NE
 Intents Verifier. Then a signed `ft_withdraw` moved the 3 tUSDC out of the Verifier to a
 NEAR testnet account.
 
-Later the same day, two more swaps ran through the hosted website, with the taker in the
-browser: see [Hosted swap](#hosted-swap-2026-11-13-1133-to-1142-utc) and
-[Hosted swap after the price fix](#hosted-swap-after-the-price-fix-1207-to-1214-utc).
+Later the same day, three more swaps ran through the hosted website, with the taker in
+the browser: see [Hosted swap](#hosted-swap-2026-11-13-1133-to-1142-utc),
+[Hosted swap after the price fix](#hosted-swap-after-the-price-fix-1207-to-1214-utc) and
+[Hosted swap paid by the faucet](#hosted-swap-paid-by-the-faucet-1245-to-1251-utc). The
+last one was paid by the Fauzec faucet with no wallet; a restore of it in a fresh browser
+returned the surplus ([Restore that returned the surplus](#restore-that-returned-the-surplus)).
+[A fresh testnet payer](#a-fresh-testnet-payer) lists the commands for a new
+command-line wallet.
 
 Public ids, hashes, timings and balances: [`testnet/EVIDENCE.json`](../testnet/EVIDENCE.json).
 Logs, the configs that were used and the audit output: [`testnet/`](../testnet/).
@@ -409,3 +414,83 @@ result file of the 0.05 TAZ run above is
 The transactions of this run are taken from the page's result file. They were not
 audited separately (no RPC check and no `zecret-testnet-audit` run, unlike the 0.05 TAZ
 run).
+
+### Hosted swap paid by the faucet (12:45 to 12:51 UTC)
+
+No wallet paid this swap. `testnet/hosted/run.mjs` with `ZECRET_PAY=faucet` sent one
+claim to the Fauzec API for the page's deposit address. The faucet pays a fixed 1 TAZ
+(100,000,000 zats). The page asked for 0.05 TAZ, swapped that amount, and kept the rest
+for the return address (the test wallet of the native run). Result file:
+[`testnet/hosted/result-faucet-0.05.json`](../testnet/hosted/result-faucet-0.05.json).
+
+| Item | Value |
+|---|---|
+| Site | `https://zecret-chrismgs-projects.vercel.app` |
+| Paid | 1 TAZ by the faucet (claim `01M7AF2PMFWXT7V5S7533Q1D97`); the swap used 0.05 TAZ (5,000,000 zats) |
+| Received | 1.4877 test USDC (1,487,700 micro-USDC) on NEAR testnet, account `zecret-3f109eea1e.testnet` |
+| Time from payment to done | 314 s (12:45:58 to 12:51:12) |
+| Taker's NEAR account | `040f110c1be1ae6081262960aa763fbadce91a127e03a2b1edb964fb46d24856` |
+| Page | Reached "done"; no Content-Security-Policy violation |
+
+| Step | Chain | Transaction |
+|---|---|---|
+| Faucet payment to the page's wallet | Zcash | `f9105dd87822797f511f703725078d040a723fdd8516fea478193297239b74a5` |
+| Request memo | Zcash | `f5320a8d6f48ecef33f10cd8e0ccaf3fcac1bc30808aa547a0caa8a3c966389a` |
+| Acceptance and premium | Zcash | `a696ac7db1c9eb6a78633dd51351c6c533e3eb0b083a5ecb75f77bf7034c245e` |
+| Funding of the shared address | Zcash | `32201776780197c1f188d5557524a01234ea73b6af587cfd1637f13327624c76` |
+| `commit_claim` | NEAR | `HwMr8MSseJzrqk5oPGQ2vamSiqa4JE629BxDX9Ty9wH5` |
+| `claim` | NEAR | `Ckg42b1nRMdWWzp3kHKGasGVnMCRCT6p3oQjJnXCYRQg` |
+| Signed exit, sent by the maker's relay | NEAR | `DJ1BgVavScKvPnZE1S2EGapybLaAh7mem78zAQpfz3JR` |
+
+Stages from the result file (UTC): `awaiting_deposit` 12:45:48, `deposit_seen` 12:46:18,
+`request_sent` 12:46:47, `quote_received` 12:47:30, `accepted` 12:48:01, `escrow_open`
+12:48:31, `funding_sent` 12:49:04, `ready` 12:50:52, `claimed` 12:50:58, `paid_out`
+12:51:06, `done` 12:51:12. In the browser: key build 20.8 s; proofs 27.7 s, 28.8 s and
+31.0 s; the relay answered in 3.9 s.
+
+The runner closed the browser at "done". The page had not yet sent the surplus, so it
+stayed in the swap's temporary wallet. The transactions of this run are taken from the
+page's result file; they were not audited separately.
+
+### Restore that returned the surplus
+
+`node testnet/hosted/restore.mjs <site> <recovery file>` loaded the recovery file of the
+faucet-paid swap in a fresh headless browser on the hosted site and waited until the page
+said "It went back to". The page sent the surplus to the return address:
+
+| Item | Value |
+|---|---|
+| Leftover transaction (Zcash) | `33bb8defb4bbc41716cf978c6c2339dec76f1a579446b1561a27cefac1dca34f` |
+| Amount | 94,990,000 zats (100,000,000 − 5,000,000 swapped − 10,000 fee) |
+| Return wallet balance (`zecret balance`) | 83,899,000 zats before, 178,889,000 after (+94,990,000) |
+
+The balances were read by the main build session with the project's command-line wallet.
+This also shows the gap that the website now closes: a swap that reaches "done" while
+leftover ZEC is still unsent keeps its keys, and "Start a new swap" waits until the
+leftover transaction is mined (or the user confirms leaving it behind).
+
+## A fresh testnet payer
+
+These commands make a new command-line wallet, fund it from the faucet and pay an address.
+They need Rust (the version in `rust-toolchain.toml`) and are run from the repository
+root. `check`, `init` and `balance` were run on 2026-11-13 for this list; the claim and
+`pay` were not run with this new wallet (the same commands funded and paid in the runs
+above).
+
+```sh
+(cd crates && cargo build -p zecret-node --release)
+Z=$PWD/crates/target/release/zecret
+P=.tools/payer                                 # not in git: it will hold the wallet key
+mkdir -p $P && cp crates/zecret-node/config/testnet-taker.json $P/config.json
+TIP=$($Z check --dir $P | sed -n 's/^Zcash .*: tip \([0-9]*\).*/\1/p')
+python3 -I -c 'import json,sys; c=json.load(open(sys.argv[1])); c["chains"]["birthday"]=int(sys.argv[2]); json.dump(c,open(sys.argv[1],"w"),indent=2)' $P/config.json "$TIP"
+UA=$($Z init --dir $P)                       # the wallet's unified address
+curl -X POST https://fauzec.com/api/v1/claim -H 'content-type: application/json' \
+  -d '{"network":"testnet","address":"'"$UA"'"}'
+$Z balance --dir $P                          # repeat until zats is 100000000
+$Z pay --dir $P --to <address from the page> --zats <amount in zats>
+```
+
+The faucet gives one claim per address per 24 hours and has a cooldown per network, so a
+claim can be refused for a while. Its web form at <https://fauzec.com> has a human check;
+the API above did not ask for one on 2026-11-13.

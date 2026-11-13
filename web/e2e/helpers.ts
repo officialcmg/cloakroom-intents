@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { expect, type BrowserContext, type Page } from '@playwright/test';
 import { mockOneClick, type MockOptions } from './oneclick-mock';
 
@@ -56,8 +57,23 @@ export async function nowTitle(page: Page) {
   return page.getByTestId('now-title');
 }
 
+/**
+ * Tests that load the real WebAssembly engine need it in public/engine/, which is not in git.
+ * Without it they would wait 60 s and fail with "The swap engine did not load"; this fails
+ * at once and names the build command instead.
+ */
+export function requireEngine() {
+  const missing = ['zecret_wasm.js', 'zecret_wasm_bg.wasm'].filter((f) => !existsSync(new URL(`../public/engine/${f}`, import.meta.url)));
+  if (missing.length)
+    throw new Error(
+      `This test loads the real WebAssembly engine, and web/public/engine/ has no ${missing.join(' or ')}. ` +
+        'Build it from the repository root with crates/zecret-wasm/build.sh (web/README.md, "The real engine"), then run npm run e2e again.',
+    );
+}
+
 /** NEAR testnet RPC that does not know the maker's key: the real engine's maker check fails as on the hosted site. */
 export async function nearWithoutMakerKey(context: BrowserContext) {
+  requireEngine();
   await context.route('https://rpc.testnet.fastnear.com/**', (r) =>
     r.fulfill({
       status: 200,
