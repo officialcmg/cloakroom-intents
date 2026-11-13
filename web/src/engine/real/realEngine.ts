@@ -1198,13 +1198,15 @@ export class RealEngine implements EngineBackend {
   }
 
   /**
-   * After a refund or leftover send failed. The wallet reserves the notes of every
-   * transaction it builds until that transaction is mined or expires (about 40 blocks), also
-   * when the node refused it, and the balance leaves reserved notes out. The refund and
-   * leftover steps would then read a balance of 0 and end with nothing sent. The engine
-   * therefore opens the swap again from storage: the reservations are not stored, so the
-   * notes count again after the rescan. A send that did reach the network still wins: the
-   * notes it spends are seen as spent, and a second send of them is refused.
+   * After a refund or leftover send failed. The core wallet frees the notes of a
+   * transaction that the node refused, and after an "unknown anchor" refusal it repairs its
+   * note commitment tree and builds the payment once more (incident 2026-11-13). A send
+   * that failed without an answer (a network error) still holds its notes until that
+   * transaction is mined or expires (about 40 blocks), and the balance leaves them out.
+   * The engine therefore opens the swap again from storage: the reservations are not
+   * stored, and the wallet rescans from its birthday. A send that did reach the network
+   * still wins: the notes it spends are seen as spent, and a second send of them is
+   * refused.
    */
   private async releaseFailedSend(): Promise<void> {
     // The activity write also runs the version check (another tab) before the read below.

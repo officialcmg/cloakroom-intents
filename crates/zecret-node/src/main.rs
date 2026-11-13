@@ -6,6 +6,7 @@
 //!   zecret init      --dir D                      create the wallet key, print the UA
 //!   zecret balance   --dir D                      shielded balance (JSON)
 //!   zecret pay       --dir D --to UA --zats N     fully shielded payment
+//!                    [--corrupt-tree]             (misbehave builds) test the wallet's repair
 //!   zecret near-key  --dir D                      create D/near_key.json, print the key
 //!   zecret directory --dir D                      maker: print the signed directory entry
 //!   zecret maker     --dir D [--exit-after N] [--vanish-at STAGE] [--relay HOST:PORT]
@@ -130,6 +131,9 @@ fn main() -> Result<()> {
             let mut w = engine::wallet_for(&chains, transport()?)?;
             w.watch("wallet", &me.fvk, &[orchard::keys::Scope::External, orchard::keys::Scope::Internal]);
             w.sync()?;
+            for line in w.take_notes() {
+                eprintln!("wallet: {line}");
+            }
             println!("{}", serde_json::json!({"ua": me.ua(), "height": w.height, "zats": w.balance("wallet")}));
         }
         "pay" => {
@@ -139,7 +143,24 @@ fn main() -> Result<()> {
             w.watch("wallet", &me.fvk, &[orchard::keys::Scope::External, orchard::keys::Scope::Internal]);
             let to = wallet::decode_ua(&need(&args, "--to")?)?;
             let zats: u64 = need(&args, "--zats")?.parse()?;
-            println!("{}", w.pay("wallet", &me.ask, me.change(), vec![(to, zats, wallet::empty_memo())])?);
+            if args.iter().any(|a| a == "--corrupt-tree") {
+                // Test hook (misbehave builds): scan, then add a leaf the chain does not
+                // have, as a scanned orphan block would. The payment must still go through
+                // (the wallet repairs its tree after the node refuses the anchor).
+                #[cfg(feature = "misbehave")]
+                {
+                    w.sync()?;
+                    w.corrupt_tree_for_test();
+                    eprintln!("corrupted the wallet's tree at height {} (test hook)", w.height);
+                }
+                #[cfg(not(feature = "misbehave"))]
+                bail!("--corrupt-tree is a test hook; this build does not have it");
+            }
+            let r = w.pay("wallet", &me.ask, me.change(), vec![(to, zats, wallet::empty_memo())]);
+            for line in w.take_notes() {
+                eprintln!("wallet: {line}");
+            }
+            println!("{}", r?);
         }
         "directory" => {
             let cfg: MakerConfig = serde_json::from_value(read_config(&dir)?)?;

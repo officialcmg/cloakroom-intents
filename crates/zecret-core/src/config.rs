@@ -316,6 +316,13 @@ pub struct MakerConfig {
     /// the time to mine the acceptance.
     #[serde(default = "default_quote_ttl")]
     pub quote_ttl_secs: u64,
+    /// Seconds (wall clock) after the maker read a request within which its quote must be
+    /// broadcast. A request still in `Quoting` after that is dropped (stage `Aborted`,
+    /// secrets erased): the taker stops waiting after its `quote_timeout_secs`, counted
+    /// from its own broadcast of the request, so a later quote is not used. Keep it below
+    /// the takers' `quote_timeout_secs` minus the time to mine the quote.
+    #[serde(default = "default_quote_send")]
+    pub quote_send_secs: u64,
     /// Quotes the maker builds at most in one tick. Each one is a proof (seconds of CPU).
     #[serde(default = "default_max_quotes_per_tick")]
     pub max_quotes_per_tick: usize,
@@ -362,6 +369,10 @@ fn default_max_pending_quotes() -> usize {
 
 fn default_quote_ttl() -> u64 {
     3600
+}
+
+fn default_quote_send() -> u64 {
+    300
 }
 
 fn default_max_quotes_per_tick() -> usize {
@@ -415,8 +426,11 @@ impl MakerConfig {
 
     /// The limits on unpaid requests (F2-04) must allow some work.
     pub fn check_limits(&self) -> Result<()> {
-        if self.max_pending_quotes == 0 || self.max_quotes_per_tick == 0 || self.quote_ttl_secs == 0 {
-            bail!("max_pending_quotes, max_quotes_per_tick and quote_ttl_secs must be at least 1");
+        if self.max_pending_quotes == 0 || self.max_quotes_per_tick == 0 || self.quote_ttl_secs == 0 || self.quote_send_secs == 0 {
+            bail!("max_pending_quotes, max_quotes_per_tick, quote_ttl_secs and quote_send_secs must be at least 1");
+        }
+        if self.quote_send_secs > self.quote_ttl_secs {
+            bail!("quote_send_secs must not be above quote_ttl_secs");
         }
         if self.min_zats == 0 || self.min_zats > self.max_zats {
             bail!("min_zats must be at least 1 and not above max_zats");

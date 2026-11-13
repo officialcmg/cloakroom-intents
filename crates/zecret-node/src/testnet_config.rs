@@ -63,6 +63,9 @@ fn testnet_taker_accepts_what_the_maker_quotes() {
     assert!(t.quote_timeout_secs >= 2 * MEASURED_P999_1_BLOCK + 120);
     // A request must not expire at the maker while the taker still waits (F2-04 TTL).
     assert!(m.quote_ttl_secs > 2 * t.quote_timeout_secs + MEASURED_P999_1_BLOCK);
+    // A quote not sent by quote_send_secs after the maker read the request is dropped: a
+    // quote sent then and mined at the 99.9th percentile still reaches the taker in time.
+    assert!(m.quote_send_secs + MEASURED_P999_1_BLOCK < t.quote_timeout_secs);
     assert!(m.premium_zats <= t.max_premium);
 }
 

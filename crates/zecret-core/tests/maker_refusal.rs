@@ -20,7 +20,7 @@ use zecret_core::{
     config::MakerConfig,
     engine::Event,
     keys,
-    maker::{Maker, MakerRefusal, KEY_NEAR, KEY_RFQ},
+    maker::{Maker, MakerRefusal, MakerStage, KEY_NEAR, KEY_RFQ},
     msg::{self, Envelope, Refusal, Rfq},
     near::NearKey,
     store::{get_json, put_json, MemStore, Store},
@@ -205,7 +205,7 @@ fn refusal_is_built_only_from_the_leftover_quote_budget() {
 #[test]
 fn unsent_refusal_expires() {
     let mk = mock();
-    let (mut m, mut store) = maker(cfg(json!({"quote_ttl_secs": 100})), 0, &mk);
+    let (mut m, mut store) = maker(cfg(json!({"quote_ttl_secs": 100, "quote_send_secs": 100})), 0, &mk);
     request(&mut m, 50_000_000, 1);
     m.tick(NOW, &mut store);
     m.tick(NOW + 101, &mut store);
@@ -238,6 +238,39 @@ fn no_false_low_funds_warning_while_a_quote_is_in_flight() {
     let t = m2.tick(NOW, &mut store);
     assert!(!t.events.iter().any(|e| matches!(e, Event::Warning { message, .. } if message.contains("less than a quote fee"))), "{:?}", t.events);
     let _ = &mut m;
+}
+
+/// Incident 2026-11-13: a quote that nodes refuse is built again, but only until
+/// `quote_send_secs` after the request. Then the request ends and the built quote is not
+/// broadcast.
+#[test]
+fn a_quote_not_sent_in_time_is_dropped() {
+    let mk = mock();
+    let (_m, mut store) = maker(cfg(json!({})), 1_000_000, &mk);
+    let rec = |created: u64| json!({
+        "rfq_id": "c1".repeat(16), "stage": "Quoting", "zats": 1_000_000, "price": "300000", "premium": 1000,
+        "stipend": "30000000000000000000000", "taker_pk": "09".repeat(32), "taker_account": "09".repeat(32),
+        "a_pub": "00".repeat(32), "commit_s_t": "00".repeat(32), "b": hex::encode(keys::scalar_to_bytes(&keys::random_scalar())),
+        "s_m": "00".repeat(32), "e_m": hex::encode(keys::scalar_to_bytes(&keys::random_scalar())), "e_t_pub": "00".repeat(32),
+        "quote_memo": hex::encode(empty_memo()), "quote_hash": "00".repeat(32),
+        "windows": {"t0_secs": 600, "t1_secs": 600, "t2_secs": 900, "reveal_secs": 600},
+        "rfq_height": 50, "accept_height": null, "negated": false, "joint_fvk": null, "salt": null, "escrow_id": null,
+        "t0": null, "t1": null, "t2": null, "pending_then": "Quoted",
+        "pending": {"what": "quote", "txid": "ab".repeat(32), "raw_hex": "00", "expiry_height": 140, "broadcast": false},
+        "quote_txid": null, "open_tx": null, "stipend_tx": null, "ready_tx": null, "refund_tx": null, "refund_at": null,
+        "sweep_txid": null, "sweep_height": null, "taker_withdraw_at": null, "log": [], "created_at": created
+    });
+    put_json(&mut store, &format!("swap/{}", "c1".repeat(16)), &rec(NOW - 301)).unwrap();
+    let cfg2 = cfg(json!({}));
+    let mut m2 = Maker::open(cfg2, mk.clone(), &mut store).unwrap();
+    m2.wallet.height = 100;
+    let sends = mk.count("sendrawtransaction");
+    let t = m2.tick(NOW, &mut store);
+    let s = m2.swaps().next().unwrap();
+    assert_eq!(s.stage, MakerStage::Aborted("quote not sent in time".into()), "{:?}", t.events);
+    assert!(s.pending.is_none() && s.b.is_empty());
+    assert_eq!(mk.count("sendrawtransaction"), sends, "the late quote is not broadcast");
+    assert!(t.events.iter().any(|e| matches!(e, Event::Log { line, .. } if line.contains("no quote sent within 300s"))), "{:?}", t.events);
 }
 
 /// The directory entry publishes the limits and signs them.

@@ -371,7 +371,16 @@ impl Taker {
 
     /// Events produced outside `tick` (by `start`), to deliver with the next tick.
     pub fn take_events(&mut self) -> Vec<Event> {
+        self.drain_wallet_notes();
         std::mem::take(&mut self.ev)
+    }
+
+    /// The wallet's notes (rollbacks, repairs) as log events of the current swap.
+    fn drain_wallet_notes(&mut self) {
+        let swap = self.swap.as_ref().map(|s| s.rfq_id.clone()).unwrap_or_default();
+        for line in self.wallet.take_notes() {
+            self.ev.push(Event::Log { swap: swap.clone(), line: format!("Zcash wallet: {line}") });
+        }
     }
 
     /// One step of the state machine. Never fails: a transient error becomes a `Warning`
@@ -386,6 +395,7 @@ impl Taker {
                 Next::At(now + RETRY_SECS)
             }
         };
+        self.drain_wallet_notes();
         Tick { next, events: std::mem::take(&mut self.ev) }
     }
 

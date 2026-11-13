@@ -275,19 +275,20 @@ fn requests_beyond_the_pending_cap_are_refused() {
     assert!((0..5u64).all(|i| seen.contains(&format!("{:064x}:{}", 5000 + i, 5000 + i))), "refused requests must be marked handled");
 }
 
-/// F2-04: requests that stay in `Quoting` expire after `quote_ttl_secs` and their secrets
-/// are erased.
+/// F2-04: requests that stay in `Quoting` expire and their secrets are erased. A request
+/// whose quote is not sent within `quote_send_secs` (default 300) ends then: the taker
+/// no longer waits for it (incident 2026-11-13).
 #[test]
 fn stuck_requests_expire() {
     let c = chains("Ready");
     let (mut m, mut store) = maker_with(10, None, 0, &c, cfg());
-    let ttl = 3600; // the default quote_ttl_secs
+    let limit = 300; // the default quote_send_secs
     m.tick(1_000_000, &mut store);
-    m.tick(1_000_000 + ttl, &mut store);
-    assert_eq!(m.swaps().filter(|s| s.stage == MakerStage::Quoting).count(), 10, "not expired at exactly the TTL");
-    m.tick(1_000_000 + ttl + 1, &mut store);
+    m.tick(1_000_000 + limit, &mut store);
+    assert_eq!(m.swaps().filter(|s| s.stage == MakerStage::Quoting).count(), 10, "not expired at exactly the limit");
+    m.tick(1_000_000 + limit + 1, &mut store);
     for s in m.swaps() {
-        assert_eq!(s.stage, MakerStage::Aborted("request expired".into()));
+        assert_eq!(s.stage, MakerStage::Aborted("quote not sent in time".into()));
         assert!(s.b.is_empty() && s.s_m.is_empty() && s.e_m.is_empty(), "secrets of an expired request are erased");
     }
 }

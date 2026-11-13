@@ -1,0 +1,15 @@
+
+===== start taker --zats 100000000 =====
+[taker 1794584640] new swap aff1d246 for 100000000 zats; NEAR account 35d5036d22302390e4dba9ee5a958e1211dd664f1ff98fb1042aff84a8078497; wallet uregtest1vyl4sexalxd4lnlzwp9fcwra9w6uytxul4taxt9zzw5ejpj64ezmj5plvxrk8dmduvstw5rujc44cgegsjvy2npfdelupe7msgm0kmp9
+[taker 1794584640] aff1d246 stage WaitingDeposit
+[taker 1794584640] balance 208333333 zats
+[taker 1794584640] {"type":"activity","swap":"aff1d24644247c0888a58a8e5c9e0efc","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794584648] balance 0 zats
+[taker 1794584648] {"type":"zcash_tx","swap":"aff1d24644247c0888a58a8e5c9e0efc","what":"rfq","txid":"72746688918056cde43c62155770402cd379e157966404f3f90cb21727c1112a"}
+[taker 1794584648] aff1d246 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 72746688918056cde43c62155770402cd379e157966404f3f90cb21727c1112a
+[taker 1794584648] aff1d246 stage RfqSent
+[taker 1794584649] balance 208323333 zats
+[taker 1794585049] aff1d246 ABORT: no quote before the timeout; nothing funded
+[taker 1794585049] aff1d246 stage Aborted
+[taker 1794585049] aff1d246 DONE Aborted
+[taker 1794585049] finished: Aborted

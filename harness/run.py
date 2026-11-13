@@ -993,13 +993,64 @@ def s23_refund_with_two_joint_notes():
     return c.save(maker, taker)
 
 
+def s24_reorg_under_a_running_maker():
+    """Incident 2026-11-13 (docs/incidents/2026-11-13-maker-unknown-anchor.md): a maker
+    that keeps running scans blocks that a chain reorganisation then removes. Before the
+    fix its tree kept the removed blocks' commitments, and every quote it built was
+    refused with "unknown Ironwood anchor"."""
+    scen = "s24_reorg_under_a_running_maker"
+    maker, taker = parties(scen)
+    c = Checks(scen, "Chain reorganisation under a running maker: blocks with Ironwood actions that the maker scanned are replaced by a longer branch without them; the maker rolls back, and its quote and the whole swap go through")
+    maker.start("--exit-after", "1")
+    maker.wait_log("up: UA", 60)
+    # A third wallet gets a coinbase note (block X0) and spends it (a block after X0).
+    third = Party(scen, "third", taker.config())
+    with mine_lock:
+        x0 = zrpc("getblockcount") + 1
+        zrpc("generatetoaddress", [1, third.ua])
+    time.sleep(4)
+    third_tx = sh(BIN, "pay", "--dir", third.dir, "--to", third.ua, "--zats", "1000000").strip().splitlines()[-1]
+    settle()
+    x1 = zrpc("getrawtransaction", [third_tx, 1]).get("height")
+    time.sleep(6)  # the maker syncs every few seconds: it has scanned X0 and X1
+    with mine_lock:
+        old_tip = zrpc("getblockcount")
+        orphan = zrpc("getblockhash", [x0])
+        zrpc("invalidateblock", [orphan])
+        # The new branch is longer, and has neither the coinbase note nor its spend (the
+        # spend's anchor and input are gone with X0).
+        zrpc("generate", [old_tip - x0 + 2])
+        new_tip = zrpc("getblockcount")
+    try:
+        zrpc("getrawtransaction", [third_tx, 1])["height"]
+        gone = False
+    except Exception:
+        gone = True
+    depth = old_tip - x0 + 1
+    c.facts.update(x0=x0, x1=x1, old_tip=old_tip, new_tip=new_tip, depth=depth, third_tx=third_tx, orphaned_x0=orphan)
+    log(f"reorganised {depth} blocks ({x0}..{old_tip}) into a branch up to {new_tip}; the third wallet's spend at {x1} is gone: {gone}")
+    c.ok("the reorganisation removed the scanned blocks with the third wallet's coinbase note and its spend", gone and zrpc("getblockhash", [x0]) != orphan, f"depth {depth}")
+    taker.start("--zats", str(LOT))
+    taker.wait(600)
+    maker.wait(300)
+    t, m = taker.swap(), maker.swap()
+    mlog = maker.logtext()
+    c.ok("the maker's wallet saw the reorganisation and rolled back", "rolled back from height" in mlog or "rescanning from the birthday" in mlog,
+         [l for l in mlog.splitlines() if "Zcash wallet" in l][:4])
+    c.ok("no transaction of the maker was refused for its anchor", "anchor" not in mlog.lower().replace("anchored", ""), [l for l in mlog.splitlines() if "anchor" in l.lower()][:2])
+    c.ok("taker reached Completed", stage_name(t) == "Completed", stage_name(t))
+    c.ok("maker reached Swept", stage_name(m) == "Swept", stage_name(m))
+    return c.save(maker, taker)
+
+
 SCENARIOS = {"s1": s1_happy, "s2": s2_taker_vanishes_before_funding, "s3": s3_taker_vanishes_after_funding,
              "s4": s4_maker_vanishes_after_open, "s5": s5_rogue_key, "s6": s6_underfund,
              "s8": s8_free_claim_attempt, "s9": s9_late_commit, "s10": s10_lock_without_reveal,
              "s11": s11_maker_liveness_violated, "s12": s12_cover_traffic, "s15": s15_impostor_directory,
              "s16": s16_short_reveal_window, "s17": s17_far_horizon, "s18": s18_late_funding,
              "s19": s19_no_stipend, "s20": s20_short_open, "s21": s21_unexpected_escrow_code,
-             "s22": s22_maker_refuses, "s23": s23_refund_with_two_joint_notes}
+             "s22": s22_maker_refuses, "s23": s23_refund_with_two_joint_notes,
+             "s24": s24_reorg_under_a_running_maker}
 
 
 def write_report():

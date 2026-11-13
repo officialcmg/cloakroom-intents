@@ -304,6 +304,9 @@ impl Maker {
                 Next::At(now + RETRY_SECS)
             }
         };
+        for line in self.wallet.take_notes() {
+            self.ev.push(Event::Log { swap: String::new(), line: format!("Zcash wallet: {line}") });
+        }
         Tick { next, events: std::mem::take(&mut self.ev) }
     }
 
@@ -755,6 +758,21 @@ impl Maker {
     // ------------------------------------------------------------------ swaps
 
     fn advance(&mut self, s: &mut MakerSwap, now: u64) -> Result<Next> {
+        // A quote that no node took within quote_send_secs comes too late for the taker,
+        // whether it waits to be built or was built and refused (incident 2026-11-13: a
+        // maker whose quotes were refused rebuilt them for over 30 minutes).
+        let quote_unsent = s.stage == MakerStage::Quoting && s.pending.as_ref().is_none_or(|p| !p.broadcast);
+        if quote_unsent {
+            let created = *s.created_at.get_or_insert(now);
+            if now > created.saturating_add(self.cfg.quote_send_secs) {
+                let tried = if s.pending.is_some() { "; the built quote is dropped unsent" } else { "" };
+                self.log(s, format!("no quote sent within {}s of the request; the taker no longer waits for it{tried}", self.cfg.quote_send_secs));
+                s.pending = None;
+                s.pending_then = None;
+                self.set_stage(s, MakerStage::Aborted("quote not sent in time".into()));
+                return Ok(Next::Done);
+            }
+        }
         if matches!(s.stage, MakerStage::Quoting | MakerStage::Quoted) && s.pending.is_none() {
             // F2-04: unpaid requests expire. A quote still in flight (pending) is not
             // expired here; it is mined or it dies at its expiry height.
@@ -1280,6 +1298,7 @@ mod tests {
             misbehave: None,
             max_pending_quotes: 32,
             quote_ttl_secs: 3600,
+            quote_send_secs: 300,
             max_quotes_per_tick: 1,
             premium_check: None,
             max_refusals_per_hour: 6,

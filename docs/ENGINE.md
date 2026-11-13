@@ -108,9 +108,62 @@ pub enum Next { At(u64), Done }      // JSON: {"kind":"at","at":1794540785} / {"
   `Committed`, `Revealed`, `Claimed` and `PayoutPending` the tick emits a `warning` and
   goes on with the NEAR steps. A refund seen with an old Zcash view does not end the
   swap: the recovery waits for a good sync.
-- The light wallet trusts its server (security review 2, H8). It has no reorganization
-  handling and does not check that each block hash links to the one before. It relies on
-  k_Z confirmations and an honest light-wallet server.
+- The light wallet trusts its server (security review 2, H8) for the content of blocks.
+  It checks that the chain it scans is one chain and follows reorganisations; see §1.4.
+  It relies on k_Z confirmations and an honest light-wallet server.
+
+### 1.4 The Zcash wallet: sync, reorganisations, repair
+
+`wallet::Wallet` keeps the Ironwood note commitment tree from its birthday (the server's
+tree state just before it), the notes of its viewing keys, the nullifiers of every scanned
+action and the heights of tracked transactions. Each transaction it builds is anchored in
+that tree. A node refuses a transaction whose anchor is not the tree of a block in its
+chain ("unknown Ironwood anchor"). So the tree must be the chain's tree.
+
+Sync (`Wallet::sync`), for both backends (lightwalletd and Zebra JSON-RPC):
+
+1. **One block at a time, all or nothing.** The wallet reads a block and makes every
+   network call it needs (the full transaction of an own note) before it changes
+   anything. Then it applies the whole block. A failure leaves the wallet at the last
+   block it applied: an older view, never a wrong one. A stream that ends early (fewer
+   blocks than asked, or a cut frame) skips nothing; the next sync goes on from the last
+   applied block.
+2. **Each block links to the one before.** The wallet keeps the hash and the tree size of
+   the last 100 blocks (`KEEP_BLOCKS`). A block whose `prev_hash` is not the hash of the
+   last applied block means a chain reorganisation. The wallet asks the server for the
+   hashes of the kept blocks, rolls back to the newest common block (leaves, received
+   notes, nullifiers, look-alike counts and mined heights above it are removed), and then
+   scans the new chain. A tip that the server replaced at the same height is found by
+   comparing the server's tip hash with the kept one. With no common block in the kept
+   range, the wallet rescans from its birthday.
+3. **The tree size must match the chain.** A compact block states the Ironwood tree size
+   after it (`chain_metadata`). A block that does not give that size is not applied. If
+   the wallet's own size already differs from the server's tree at the wallet's height,
+   the wallet's tree is wrong, and it rescans from the birthday.
+
+Anchor: the tree after the block `ANCHOR_DEPTH` (2) below the tip, or after the newest
+block that holds a spent note if that is higher. Consensus accepts the root of any block
+of the chain, so a new note can still be spent at once. A block at the tip is the one
+that a reorganisation replaces most often.
+
+Repair (`Wallet::repair`), automatic in `Wallet::broadcast`:
+
+- A refused transaction that no node took before frees the notes it spends at once (they
+  were reserved by the build).
+- A refusal for an unknown anchor starts a repair: sync, compare the kept block hashes
+  with the server's and roll back to the newest common block, then compare the tree root
+  with the server's tree at the same height (`GetTreeState`). If the roots differ, the
+  wallet rescans from its birthday. It rescans at most once per tip height; the old state
+  comes back if the rescan fails. On Zebra (no tree state to compare) it rescans.
+- `Wallet::pay` builds the payment once more after a repair. The maker and the taker
+  rebuild a refused transaction on their next tick, as before; the rebuild uses the
+  repaired tree.
+- The repair and the rollbacks write lines that `Wallet::take_notes` returns. The maker
+  and the taker put them in their events as `Log` lines that start with `Zcash wallet:`.
+
+A rescan from the maker's testnet birthday (4,614,922; 1,453 blocks on 2026-11-13) takes
+about 1.3 s natively; 30,000 blocks (about one week of testnet blocks) took 41 to 44 s
+(`zecret balance` with a new key, 2026-11-13).
 
 ## 2. The taker API (`taker::Taker`)
 
@@ -354,7 +407,8 @@ Order of work in one tick (security review 2, F2-04 and H2; details in
    never erases b for lack of a joint note.
 2. Advance every swap from `Opening` on (the swaps with deadlines).
 3. Read new memos.
-4. Expire requests, then build quotes.
+4. Expire requests (`quote_send_secs` for a quote not sent, `quote_ttl_secs` for the
+   rest), then build quotes.
 5. Build or send refusal replies, from the quote budget that no quote used.
 
 A request that the maker does not quote gets a signed refusal memo (envelope type 5,
@@ -376,6 +430,7 @@ Maker settings for requests that nobody has paid for yet (all optional):
 | Field | Default | Meaning |
 |---|---|---|
 | `max_pending_quotes` | 32 | A request is refused while this many swaps are `Quoting` or `Quoted`. |
+| `quote_send_secs` | 300 | A `Quoting` swap whose quote no node took within this many seconds after the maker read the request becomes `Aborted("quote not sent in time")`; a built quote that was not sent is dropped. The taker stops waiting after its `quote_timeout_secs` (600 on testnet), counted from its own broadcast of the request. Keep it below that timeout minus the time to mine the quote. Must not be above `quote_ttl_secs`. |
 | `quote_ttl_secs` | 3600 | A `Quoting` or `Quoted` swap with no transaction in flight becomes `Aborted("request expired")` after this many seconds. Keep it above 2 × the takers' `quote_timeout_secs` plus the time to mine an acceptance. |
 | `max_quotes_per_tick` | 1 | Quotes built at most in one tick. No quote is built (and no RPC is made for one) while the wallet's spendable ZEC is below one quote fee. |
 | `max_refusals_per_hour` | 6 | Refusal replies at most in any hour; 0 turns them off. |

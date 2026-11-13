@@ -133,13 +133,28 @@ impl Lwd {
         self.unary("GetLightdInfo", &Empty {})
     }
     pub fn tip(&self) -> Result<u64> {
-        Ok(self.unary::<_, BlockId>("GetLatestBlock", &ChainSpec {})?.height)
+        Ok(self.tip_id()?.height)
+    }
+    /// The server's best block: height and hash (the hash may be empty or in either byte
+    /// order, depending on the server).
+    pub fn tip_id(&self) -> Result<BlockId> {
+        self.unary::<_, BlockId>("GetLatestBlock", &ChainSpec {})
     }
     pub fn tree_state(&self, height: u64) -> Result<TreeState> {
         self.unary("GetTreeState", &BlockId { height, hash: vec![] })
     }
+    /// The Ironwood tree as of the end of block `height`.
     pub fn tree_before(&self, height: u64) -> Result<Frontier<MerkleHashOrchard, 32>> {
         Ok(self.tree_state(height)?.ironwood_tree()?.to_frontier())
+    }
+    /// The Ironwood tree as of the end of block `height`, and that block's hash in
+    /// internal byte order (the order of `CompactBlock::hash`). The hash is empty when the
+    /// server sends none.
+    pub fn tree_and_hash(&self, height: u64) -> Result<(Frontier<MerkleHashOrchard, 32>, Vec<u8>)> {
+        let ts = self.tree_state(height)?;
+        let mut hash = hex::decode(&ts.hash).unwrap_or_default();
+        hash.reverse();
+        Ok((ts.ironwood_tree()?.to_frontier(), hash))
     }
     pub fn blocks(&self, lo: u64, hi: u64) -> Result<Vec<CompactBlock>> {
         let req = BlockRange {

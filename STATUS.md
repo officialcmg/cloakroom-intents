@@ -34,6 +34,14 @@ their checks.
   `/swap` load.
 - [ ] Owner: NEAR mainnet payout account, repository public, demo video, post, form.
 
+## Maker deploys (read before pushing changes under `crates/`)
+
+Railway rebuilds the maker only when a file under `deploy/maker/` changes (set
+2026-11-13, so that work-in-progress commits under `crates/` do not reach the live
+maker). To release maker code: change `deploy/maker/RELEASE` (one line, the date and
+what is released) in the same commit. Vercel still skips commits whose message starts
+with "WIP".
+
 ## Hand-over: where the build is (2026-11-13 14:30 UTC)
 
 Read this section first if you continue the build. Then `CLAUDE.md`, `docs/BUILD_PLAN.md`.

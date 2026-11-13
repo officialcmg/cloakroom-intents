@@ -60,6 +60,11 @@ This section is always current. The numbered sections below give the detail.
 - If the maker does not take the request, the maker sends a short signed refusal memo
   with a reason. The app stops at once and returns the ZEC. The app also checks the
   amount against the maker's signed limits before it sends a request.
+- If the maker cannot send a quote within 5 minutes, the maker drops the request. The
+  app stops waiting after 10 minutes and returns the ZEC.
+- If the Zcash chain changes its last blocks, the wallets go back to the last common
+  block and scan the new blocks. If a node refuses a transaction because the wallet's
+  tree is wrong, the wallet rebuilds its tree and sends again.
 - If the maker does not send the withdraw call after the claim, the USDC stays in the
   escrow as a credit for the taker. After 5 minutes the app shows the exact call. Any
   NEAR account can send it. The USDC can only go to the taker.
@@ -96,6 +101,9 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | The taker sends its first claim in two steps. One step signs the claim and stores it. The next step checks the reveal deadline again and then sends it. If the deadline check fails before anything was sent, the taker does not reveal its key half. Reason: security review 2, F2-02. |
 | 2026-11-13 | After a refund, the taker takes back every note at the shared address that is worth more than its fee, its own payment first. It keeps its key half until no such note is left and no payment of its own can still arrive. Reason: security review 2, F2-01. |
 | 2026-11-13 | The testnet settings use the measured Zcash testnet block times (mean 20 s, but three blocks took up to 538 s). The funding window is 600 s, the time to Ready is 900 s, and the quote timeout is 600 s. |
+| 2026-11-13 | The Zcash wallet follows chain reorganisations. It checks that each block links to the block before. It keeps the last 100 blocks. After a reorganisation it goes back to the last common block and scans the new blocks. It applies a block completely or not at all. Reason: on testnet the hosted maker kept a tree that was not the chain's tree. For 35 minutes the node refused every quote ("unknown Ironwood anchor"). Two takers got their ZEC back after the 10-minute quote timeout. See `docs/incidents/2026-11-13-maker-unknown-anchor.md`. |
+| 2026-11-13 | If a node refuses a transaction because of its anchor, the wallet compares its tree with the server's tree. If they differ, it rescans from its birthday. Then it builds the transaction again. The anchor is the tree two blocks below the tip, or the tree of the newest block with a spent note if that is newer. |
+| 2026-11-13 | The maker drops a request if no node takes its quote within 5 minutes (setting `quote_send_secs`). The taker stops waiting for a quote after 10 minutes. A later quote is of no use. |
 
 **Open**
 

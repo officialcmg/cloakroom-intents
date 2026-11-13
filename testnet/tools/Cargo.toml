@@ -15,6 +15,9 @@ chrono = { version = "0.4", default-features = false, features = ["alloc", "std"
 
 zcash_primitives = { version = "=0.31.0-pre.1", default-features = false, features = ["std", "circuits"] }
 zcash_protocol = { version = "=0.11.0-pre.0", features = ["local-consensus"] }
+orchard = { version = "0.16.0", default-features = false, features = ["circuit", "std"] }
+incrementalmerkletree = "0.9"
+zcash_client_backend = { version = "=0.25.0-pre.1", default-features = false, features = ["orchard"] }
 
 [workspace]
 
@@ -29,3 +32,7 @@ path = "src/audit.rs"
 [[bin]]
 name = "zecret-testnet-addkey"
 path = "src/addkey.rs"
+
+[[bin]]
+name = "zecret-testnet-chaincheck"
+path = "src/chaincheck.rs"
