@@ -18,7 +18,7 @@ on 2026-11-13), not shielded ZEC. Zecret keeps the ZEC in the shielded pool for 
 swap. The protocol is designed so that neither party can take both sides; the open
 issues are listed under [Security](#security).
 
-Zecret builds on Cloakroom, the author's earlier protocol for shielded ZEC and ERC-20
+Zecret builds on Cloakroom, my earlier protocol for shielded ZEC and ERC-20
 tokens on Base (built for ZECATHON). Cloakroom is the disclosed baseline: commit `2f8e2f7`,
 on the branch `pre-hackathon-baseline`. See
 [Baseline and what is new](#baseline-and-what-is-new).
@@ -29,7 +29,7 @@ Built at NEAR HACKATHON (2026-11-01 to 2026-11-14).
 
 | Term | Meaning |
 |---|---|
-| Maker | The other side of the trade. A program that runs in our backend (`zecret maker`). It holds USDC on NEAR and ZEC, quotes prices and opens escrows. |
+| Maker | The other side of the trade. A program that runs in my backend (`zecret maker`). It holds USDC on NEAR and ZEC, quotes prices and opens escrows. |
 | Taker | The user. The taker software runs in the user's browser (for tests, also as the native program `zecret taker`). |
 | Key half | The shared Zcash address is spent with the key `a + b`. The taker holds `a`, the maker holds `b`. A key half alone cannot spend. |
 | Escrow | The NEAR contract in `contracts/near-escrow`. It holds the maker's USDC for one swap and has two exits: `claim(a)` and `refund(b)`. Each exit publishes one key half. |
@@ -52,10 +52,10 @@ was re-run for this README. It never claims more than `STATUS.md`.
 | Maker and taker as native programs | **Works locally.** 19 two-party scenarios pass on Zebra regtest and a NEAR sandbox: the happy path, the maker's refund, the punish path, and malicious-maker and malicious-taker cases. | [`harness/RESULTS.md`](harness/RESULTS.md) |
 | A swap on public test networks | **Done, once.** The native maker and taker swapped 0.1 testnet ZEC for 3 test USDC on Zcash testnet and NEAR testnet; 222 s to the taker's end. Happy path only. The browser taker was not used. | [`docs/TESTNET.md`](docs/TESTNET.md), [`testnet/EVIDENCE.json`](testnet/EVIDENCE.json) |
 | Website | **Works locally against a simulated engine.** Every screen and failure case runs in a browser with no money and no chains. Not hosted. | [`docs/WEB.md`](docs/WEB.md), [`web/README.md`](web/README.md) |
-| Taker engine in the browser | **In progress, not verified.** `STATUS.md` lists it under "Running" (package E, started 04:44 UTC): the Rust taker compiled to WebAssembly, in a Web Worker, wired into the website. Not yet checked by the main build session. The latest browser scenario report (06:47 UTC), written while the work runs, shows 4 of 5 scenarios passing. | [`STATUS.md`](STATUS.md), [`harness/BROWSER_RESULTS.md`](harness/BROWSER_RESULTS.md) |
+| Taker engine in the browser | **Works locally.** The Rust taker runs as WebAssembly in a Web Worker behind the website. Five browser scenarios pass in headless Chromium, with the maker as the native program, on Zebra regtest and a NEAR sandbox with the real escrow: a full swap with exit, a refund after the maker goes quiet, two reloads in the middle of a swap, restore from the recovery file in a fresh browser, and a quote below the minimum. Not verified: a browser swap on public test networks (a partial check ran), Firefox and Safari. | [`harness/BROWSER_RESULTS.md`](harness/BROWSER_RESULTS.md), [`web/README.md`](web/README.md) |
 | Exit through NEAR Intents on mainnet | **Not verified.** The library is built and tested: against the live `intents.near` code in a sandbox, and against recorded answers of the live 1Click API. Quote, generate and submit answered without an API key. No exit with real funds was run. On testnet the exit is a direct withdrawal from a stand-in Verifier, because NEAR Intents has no testnet. | [`docs/INTENTS.md`](docs/INTENTS.md) |
-| Mainnet deployment | **Not done.** It needs the owner's funds and approval (about 6.6 NEAR). | [`docs/DEPLOY.md`](docs/DEPLOY.md) |
-| Security reviews | **Two reviews done.** Review 1 (escrow, Intents library): fixed. Review 2 (swap engines): maker side fixed; taker side open (F2-01 and F2-02 medium, F2-03 low). | [`docs/security/`](docs/security/) |
+| Mainnet deployment | **Not done.** It needs real funds (about 6.6 NEAR) and I have not done it yet. | [`docs/DEPLOY.md`](docs/DEPLOY.md) |
+| Security reviews | **Three reviews done.** Review 1 (escrow, Intents library): fixed. A follow-up found and fixed a double payment with the real USDC contract. Review 2 (swap engines): maker side fixed; taker-side fixes in progress (F2-01 and F2-02 medium, F2-03 low). Review 3 (website, browser engine, relay): two relay bugs, fixes in progress. | [`docs/security/`](docs/security/) |
 
 ## How one swap runs
 
@@ -462,7 +462,7 @@ The sources of the diagrams are the `.mmd` files in [`docs/diagrams/`](docs/diag
 |---|---|---|
 | Page (`web/`) | User's browser | Amount, token and chain; one price; progress; recovery file. Holds no keys. |
 | Taker engine (`crates/zecret-wasm`, `crates/zecret-core`) | User's browser, in a Web Worker | The taker's state machine and a temporary Zcash wallet, compiled to WebAssembly. Holds `a` and the NEAR key. |
-| Maker (`crates/zecret-node`, binary `zecret`) | Our backend | Holds USDC, ZEC, `b` and a NEAR account. Quotes, opens escrows, sends stipends, takes the ZEC, refunds. |
+| Maker (`crates/zecret-node`, binary `zecret`) | My backend | Holds USDC, ZEC, `b` and a NEAR account. Quotes, opens escrows, sends stipends, takes the ZEC, refunds. |
 | Escrow (`contracts/near-escrow`) | NEAR | Holds the maker's USDC. Two exits, each publishing one key half. |
 | `intents.near` | NEAR | Receives the payout for the taker's key. |
 | Light-wallet server | Zcash | Gives the browser blocks and takes its transactions over gRPC-web. |
@@ -545,7 +545,7 @@ TLA+ model against the code.
 ## Limits and what is not built
 
 - No hosted website and no hosted maker. Both are prepared (`web/vercel.json`,
-  `deploy/maker/`) and wait for the owner's approval.
+  `deploy/maker/`) but not deployed yet.
 - No mainnet deployment and no exit with real funds through 1Click.
 - The swap on public test networks ran once, with the native programs, on the happy path.
   Refund and punish paths ran only on local chains.
@@ -565,7 +565,7 @@ TLA+ model against the code.
 NEAR HACKATHON allows earlier work if it is disclosed (rules Q-001 to Q-005). This is the
 disclosure.
 
-- **Baseline.** Cloakroom, by the same author, built for another hackathon (ZECATHON) and
+- **Baseline.** Cloakroom, which I built for another hackathon (ZECATHON) and
   another chain (Base). It trades shielded ZEC for ERC-20 tokens with a Solidity escrow.
   The first commit of this repository imports selected folders of
   [`officialcmg/cloakroom`](https://github.com/officialcmg/cloakroom) at commit

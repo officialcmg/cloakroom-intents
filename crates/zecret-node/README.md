@@ -1,6 +1,6 @@
 # zecret-node
 
-The native programs on top of `zecret-core`: the maker daemon (it runs in our backend),
+The native programs on top of `zecret-core`: the maker daemon (it runs in my backend),
 a reference taker (for tests, and the reference for the browser taker), and a tool that
 sets up a local NEAR sandbox. One binary: `zecret`. It replaces the Cloakroom client in
 `node/` (still in the repository, unchanged since the baseline commit `2f8e2f7`).

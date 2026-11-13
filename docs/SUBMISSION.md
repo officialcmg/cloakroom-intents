@@ -67,7 +67,7 @@ Zecret swaps shielded ZEC for a token on another chain with no custodian. A make
 
 How NEAR fits in: the escrow is a Rust contract on NEAR with no access keys. Each swap uses a new ed25519 implicit account that the maker funds with a 0.03 NEAR stipend, so the user sends her own claim with no relayer and no gas payment that links her to the swap. NEAR's fast finality shrinks the protocol's safety windows from hours (on Base) to minutes. The USDC is paid into NEAR Intents under the user's key, and one signature, checked before signing, sends it to a token on another chain through 1Click.
 
-Status: the escrow and the native maker and taker pass 19 two-party scenarios on local chains, and one swap ran on Zcash testnet and NEAR testnet. The website runs against a simulated engine while the browser engine is finished. The exit with real funds on mainnet is not yet verified. Zecret builds on the author's earlier Cloakroom protocol (ZECATHON, Base), disclosed as baseline commit 2f8e2f7 (branch pre-hackathon-baseline).
+Status: the escrow and the native maker and taker pass 19 two-party scenarios on local chains, and one swap ran on Zcash testnet and NEAR testnet. The website runs the taker in the browser as WebAssembly; five browser scenarios pass on local chains. The exit with real funds on mainnet is not yet verified. Zecret builds on my earlier Cloakroom protocol (ZECATHON, Base), disclosed as baseline commit 2f8e2f7 (branch pre-hackathon-baseline).
 ```
 
 Sources for each statement: the problem sentence is from the abstract of
