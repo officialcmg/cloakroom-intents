@@ -1,0 +1,84 @@
+{
+  "format": "zecret-recovery",
+  "version": 1,
+  "engine": "simulated",
+  "network": "testnet",
+  "swapId": "b90c505194b93e626db5822812b71e96",
+  "createdAt": "2026-11-13T03:30:27.269Z",
+  "warning": "Anyone with this file can move the funds of this swap. Keep it private. You can delete it after the swap is done.",
+  "secrets": {
+    "spendingKey": "cb642732b8a10208104379a931619d27caa793239089b8c56b3fed88de502192",
+    "keyHalf": "7c351ce3dc4ae91ebc6eea5e3e10325dafd3a4d7abe5f0c7fc33abaa72a31eb0",
+    "nearKey": "4bad020b5655539e4637bec7101484a912750f0f1cd6041cc7a28217936fd34b"
+  },
+  "params": {
+    "amountZats": "100000000",
+    "destination": {
+      "assetId": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+      "symbol": "USDC",
+      "chain": "base",
+      "decimals": 6,
+      "address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+    },
+    "minUsdc": "928459620",
+    "minDestinationAmount": "915043990",
+    "shown": {
+      "usdcExpected": "937838000",
+      "destinationExpected": "933623090",
+      "premiumZats": "200000",
+      "networkFeeZats": "30000"
+    }
+  },
+  "depositAddress": "utest15rsqgzcn9wwrk7d7c68adh0qjjcn5us34nz2km7yc8lnatpf8qr4s7pd7ssmf8mnjyjymnlv5cmz0sqrwzw5sgsfe62wuzk9rg0wf9gq",
+  "simulatedChain": {
+    "state": {
+      "version": 1,
+      "id": "b90c505194b93e626db5822812b71e96",
+      "engine": "simulated",
+      "network": "testnet",
+      "createdAt": 1794540627269,
+      "stage": "awaiting_deposit",
+      "stageAt": 1794540627269,
+      "history": [
+        {
+          "stage": "awaiting_deposit",
+          "at": 1794540627269
+        }
+      ],
+      "params": {
+        "amountZats": "100000000",
+        "destination": {
+          "assetId": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+          "symbol": "USDC",
+          "chain": "base",
+          "decimals": 6,
+          "address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+        },
+        "minUsdc": "928459620",
+        "minDestinationAmount": "915043990",
+        "shown": {
+          "usdcExpected": "937838000",
+          "destinationExpected": "933623090",
+          "premiumZats": "200000",
+          "networkFeeZats": "30000"
+        }
+      },
+      "deposit": {
+        "address": "utest15rsqgzcn9wwrk7d7c68adh0qjjcn5us34nz2km7yc8lnatpf8qr4s7pd7ssmf8mnjyjymnlv5cmz0sqrwzw5sgsfe62wuzk9rg0wf9gq",
+        "uri": "zcash:utest15rsqgzcn9wwrk7d7c68adh0qjjcn5us34nz2km7yc8lnatpf8qr4s7pd7ssmf8mnjyjymnlv5cmz0sqrwzw5sgsfe62wuzk9rg0wf9gq?amount=1",
+        "expectedZats": "100000000",
+        "receivedZats": "0",
+        "confirmations": 0,
+        "requiredConfirmations": 1
+      },
+      "txs": [],
+      "needs": null,
+      "activity": null,
+      "recoveryExportedAt": 1794540627343
+    },
+    "sim": {
+      "speed": 20,
+      "exitFailures": 0
+    }
+  }
+}

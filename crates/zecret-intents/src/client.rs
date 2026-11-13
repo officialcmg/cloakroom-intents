@@ -8,7 +8,9 @@ use crate::direct;
 use crate::error::{Error, Result};
 use crate::http::{HttpTransport, send};
 use crate::nonce::{Nonce, Salt};
-use crate::oneclick::{self, ExitQuoteParams, OneClick, QuoteRequest, QuoteResponse, StatusResponse, TokenInfo};
+use crate::oneclick::{
+    self, ExitQuoteParams, OneClick, QuoteRequest, QuoteResponse, StatusResponse, TokenInfo,
+};
 use crate::payload::{SignedPayload, Standard};
 use crate::signer::IntentSigner;
 use crate::time::Time;
@@ -137,7 +139,10 @@ impl<T: HttpTransport> ExitClient<T> {
 
     /// One `/v0/status` call.
     pub fn status(&self, deposit_address: &str) -> Result<StatusResponse> {
-        let r = send(&self.transport, &self.api.status_request(deposit_address, None))?;
+        let r = send(
+            &self.transport,
+            &self.api.status_request(deposit_address, None),
+        )?;
         oneclick::parse_status(&r)
     }
 }

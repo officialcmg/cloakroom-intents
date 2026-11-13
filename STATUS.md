@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-13 03:00 UTC. Deadline: 2026-11-14 23:59 UTC.
+Updated: 2026-11-13 03:32 UTC. Deadline: 2026-11-14 23:59 UTC.
 
 Any session can resume from this file. Read `docs/BUILD_PLAN.md` for the packages and
 their checks.
@@ -9,6 +9,7 @@ their checks.
 
 | Package | Result |
 |---|---|
+| G. Exit through Intents | PASS, rerun by the main session: 24 unit, 18 recorded-response and 2 sandbox tests against the live `intents.near` code; builds for wasm; clippy and fmt clean. No API key is needed for quote, generate or submit (tested live with an unfunded key). Execution with real funds is not verified. See `docs/INTENTS.md`. |
 | A. Escrow contract | PASS, rerun by the main session: 48 unit tests, 5 sandbox tests against the live `intents.near` and `wrap.near` code, clippy and fmt clean. `claim` 16.8 Tgas, taker withdraw into Intents 42.4 Tgas. Findings: the stipend must be 0.03 NEAR; contracts need `--cfg near`; the maker prepays swap storage. See `contracts/near-escrow/README.md`. |
 | B. Browser spike | PASS, rerun by the main session. In headless Chromium the wallet in a Web Worker receives a shielded payment, reads its memo, and builds, proves and broadcasts a fully shielded transaction with a 512-byte memo on Zebra regtest. Key build about 20 s, one send about 27 s. Run: `spike/browser-wallet/run.mjs`. Findings and the recommended engine structure: `docs/experiments/browser-wallet.md`. |
 | Wave 0: repository setup | Cloakroom imported and tagged `pre-hackathon`. `scripts/setup-env.sh` prepares the sandbox, the Intents contract code, the open-file shim and Docker. |
@@ -19,7 +20,7 @@ their checks.
 |---|---|---|
 | CD. Shared core crate and NEAR adapter | 02:50 | `crates/`, `node/` (uncommitted until reviewed) |
 | F. Website | 02:50 | `web/` (uncommitted until reviewed) |
-| G. Exit through Intents | 03:02 | `crates/zecret-intents/`, `docs/INTENTS.md` (uncommitted until reviewed) |
+| S1. Security review of the escrow and the Intents library | 03:32 | `docs/security/` (uncommitted until reviewed) |
 
 ## Next
 

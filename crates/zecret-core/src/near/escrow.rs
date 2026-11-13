@@ -19,11 +19,14 @@ pub const DOMAIN_COMMIT_CLAIM: &[u8] = b"near-escrow/v1/commit-claim";
 /// Gas attached to each call. `claim` and `refund` check a Pallas scalar multiplication
 /// (16.8 Tgas burnt, measured by the contract's sandbox test); `commit_claim` checks one
 /// ed25519 signature (about 2 Tgas). A taker `withdraw` into Intents burns 42.4 Tgas.
-/// The taker's stipend must cover the prepaid gas of its calls.
+/// The taker's stipend must cover the prepaid gas of its calls. A signer must hold the
+/// prepaid gas at a pessimistic price (about 10^9 yoctoNEAR per gas in the 2.14.1 sandbox,
+/// 10 times the gas price): 25 Tgas needs about 0.025 NEAR, so a 0.03 NEAR stipend pays for
+/// `commit_claim` and `claim` one after the other, but not for a 100 Tgas `withdraw`.
 pub const GAS_OPEN: u64 = 100 * TGAS;
 pub const GAS_SET_READY: u64 = 10 * TGAS;
 pub const GAS_COMMIT: u64 = 15 * TGAS;
-pub const GAS_REVEAL: u64 = 40 * TGAS;
+pub const GAS_REVEAL: u64 = 25 * TGAS;
 pub const GAS_WITHDRAW: u64 = 100 * TGAS;
 pub const GAS_STORAGE: u64 = 10 * TGAS;
 

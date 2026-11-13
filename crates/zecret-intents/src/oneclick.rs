@@ -428,7 +428,10 @@ impl OneClick {
             "signerId": signer_id,
             "depositAddress": deposit_address,
         });
-        self.auth(HttpRequest::post_json(self.url("/v0/generate-intent"), &body))
+        self.auth(HttpRequest::post_json(
+            self.url("/v0/generate-intent"),
+            &body,
+        ))
     }
 
     /// `POST /v0/submit-intent`.

@@ -2,8 +2,9 @@
 //   ?speed=20         run the simulated swap 20 times faster
 //   ?fail=quote-low   inject a failure (see FAILURES below)
 //   ?cpu=1            make the worker busy during simulated proofs, as the real prover is
+//   ?pause=committing stop at a stage until "Skip this wait" is pressed
 //   ?directory=URL    read the maker directory from another URL
-import { SIM_FAILURES, type SimFailure, type SimOptions } from '../engine/api';
+import { SIM_FAILURES, STAGES, type SimFailure, type SimOptions, type Stage } from '../engine/api';
 
 /** Failures the page itself injects (into the 1Click exit quote), on top of the engine's. */
 export const PAGE_FAILURES = ['exit-price'] as const;
@@ -32,7 +33,9 @@ export function readSettings(search = location.search): PageSettings {
   const failRaw = q.get('fail') ?? undefined;
   const fail = (SIM_FAILURES as readonly string[]).includes(failRaw ?? '') ? (failRaw as SimFailure) : undefined;
   const pageFailure = (PAGE_FAILURES as readonly string[]).includes(failRaw ?? '') ? (failRaw as PageFailure) : undefined;
-  return { sim: { speed, fail, burnCpu: q.get('cpu') === '1' }, pageFailure };
+  const pauseRaw = q.get('pause') ?? '';
+  const pauseAt = (STAGES as readonly string[]).includes(pauseRaw) ? (pauseRaw as Stage) : undefined;
+  return { sim: { speed, fail, burnCpu: q.get('cpu') === '1', pauseAt }, pageFailure };
 }
 
 export function settingsUrl(change: { speed?: number; fail?: string | null }): string {

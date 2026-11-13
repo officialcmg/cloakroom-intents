@@ -66,6 +66,7 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | The maker always pays USDC on NEAR. The token and chain that the user selects are not in the quote or the escrow. The app does the exit through NEAR Intents as a second step. |
 | 2026-11-13 | The taker software runs in the browser as WebAssembly. The user visits a website and downloads nothing. One shielded send costs about 25 s of computing in the browser. Tested in `experiments/wasm-prover`. |
 | 2026-11-13 | The website makes a temporary Zcash wallet. The user pays into it once, by QR code. It reads Zcash through a gRPC-web light-wallet server. Tested in `experiments/grpc-web`. |
+| 2026-11-13 | The exit needs no API key. Before the app signs, it checks 1Click's signature on the quote and that the payload moves the approved amount of the approved token to the quoted deposit address, and nothing else. See `docs/INTENTS.md`. |
 | 2026-11-13 | The stipend is 0.03 NEAR, not 0.01. NEAR accepts a transaction only if the sender holds about 10 times the gas cost. With 0.01 NEAR the taker's commit is rejected. The real cost of commit and claim is about 0.002 NEAR. Measured in `contracts/near-escrow` sandbox tests. |
 | 2026-11-13 | The maker pays in advance for the storage of its swaps in the escrow. The escrow has `add_storage_funds`. Without this, any account could fill the escrow's storage. |
 | 2026-11-13 | The maker sends a NEAR stipend to the taker's new key. The taker submits the commit and the claim. No relayer is necessary. Tested in `experiments/intents-sandbox`. |
@@ -246,7 +247,7 @@ live Intents code.
 | Sending a transaction over gRPC-web | Not tested. | Test early in the build. |
 | ChainSafe's public endpoints | We depend on a third party's free server. | Run our own gRPC-web proxy in front of a light-wallet server if needed. |
 | Intents has no testnet | The exit only executes on mainnet. | Sandbox for tests, live quote on testnet, real exit on mainnet with the owner's approval. |
-| 1Click signed-message endpoints | The docs say they use partner authentication. Not tested. | Test on mainnet with a tiny amount. Fallback: submit to the Verifier directly through our backend. |
-| How long a 1Click quote holds | Decides how tight the guaranteed minimum can be. | Fetch a fresh quote at exit time. |
+| 1Click exit with real funds | Quote, generate and submit all answer without an API key (tested live with an unfunded key). Execution with funds is not verified. | First real run on mainnet with a tiny amount. See `docs/INTENTS.md`. |
+| Price movement before the exit | Measured over 15 minutes: USDC to USDC moved 0.004 %; USDC to SOL or ETH fell at most 0.32 % within 10 minutes. | Show a guaranteed minimum with 1 % slippage and fetch a fresh quote at exit time. |
 | Keys in browser storage | A cleared browser loses the swap's keys. | Recovery file, shown before any money moves. |
 | The build environment is temporary | Docker, the sandbox binary and helper tools are set up by hand. | A setup script in the repository. Commit and push often. |

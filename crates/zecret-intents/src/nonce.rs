@@ -33,8 +33,7 @@ pub struct Salt(pub [u8; 4]);
 impl Salt {
     pub fn from_hex(s: &str) -> Result<Self> {
         let mut out = [0u8; 4];
-        hex::decode_to_slice(s, &mut out)
-            .map_err(|e| Error::Parse(format!("salt {s:?}: {e}")))?;
+        hex::decode_to_slice(s, &mut out).map_err(|e| Error::Parse(format!("salt {s:?}: {e}")))?;
         Ok(Self(out))
     }
 
@@ -154,12 +153,14 @@ mod tests {
     fn legacy_is_not_versioned() {
         let n = Nonce::legacy([9u8; 32]).unwrap();
         assert!(n.as_versioned().is_none());
-        assert!(Nonce::legacy({
-            let mut b = [0u8; 32];
-            b[..4].copy_from_slice(&VERSIONED_MAGIC);
-            b
-        })
-        .is_err());
+        assert!(
+            Nonce::legacy({
+                let mut b = [0u8; 32];
+                b[..4].copy_from_slice(&VERSIONED_MAGIC);
+                b
+            })
+            .is_err()
+        );
     }
 
     #[test]

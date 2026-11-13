@@ -205,7 +205,7 @@ impl NearRpc {
             return Err(RpcError {
                 name: e["name"].as_str().unwrap_or("").to_string(),
                 cause: e["cause"]["name"].as_str().unwrap_or("").to_string(),
-                detail: e.get("cause").and_then(|c| c.get("info")).cloned().unwrap_or_else(|| e.clone()),
+                detail: e.get("data").filter(|d| !d.is_null()).or_else(|| e.get("cause").and_then(|c| c.get("info")).filter(|i| i.as_object().map(|o| !o.is_empty()).unwrap_or(true))).cloned().unwrap_or_else(|| e.clone()),
             }
             .into());
         }

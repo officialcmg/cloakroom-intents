@@ -1,0 +1,42 @@
+import { defineConfig, devices } from '@playwright/test';
+
+// Chromium is preinstalled at /opt/pw-browsers (PLAYWRIGHT_BROWSERS_PATH). The 1Click API
+// is mocked in every test (e2e/oneclick-mock.ts), so the tests need no network.
+const PORT = 4173;
+
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
+  fullyParallel: true,
+  workers: 4,
+  reporter: [['list']],
+  use: {
+    baseURL: `http://localhost:${PORT}`,
+    trace: 'off',
+    acceptDownloads: true,
+  },
+  webServer: {
+    command: `npx vite build --logLevel error && npx vite preview --port ${PORT} --strictPort`,
+    url: `http://localhost:${PORT}`,
+    reuseExistingServer: true,
+    timeout: 120_000,
+  },
+  projects: [
+    {
+      name: 'desktop',
+      testIgnore: /screenshots\.spec/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } },
+    },
+    {
+      name: 'phone',
+      testIgnore: /screenshots\.spec/,
+      use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'screenshots',
+      testMatch: /screenshots\.spec/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+});

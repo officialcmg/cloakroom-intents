@@ -29,13 +29,17 @@ pub mod quote_sig;
 pub mod signer;
 pub mod time;
 
-pub use check::{ApprovedExit, CheckedIntent, Policy, Refusal, check_generated_intent, check_quote};
+pub use check::{
+    ApprovedExit, CheckedIntent, Policy, Refusal, check_generated_intent, check_quote,
+};
 pub use client::{ExitClient, SubmittedExit, VerifierRpc};
 pub use direct::IntentDraft;
 pub use error::{ApiError, ApiErrorKind, Error, Result};
 pub use http::{HttpRequest, HttpResponse, HttpTransport, Method};
 pub use nonce::{Nonce, Salt};
-pub use oneclick::{ExitQuoteParams, OneClick, QuoteRequest, QuoteResponse, StatusResponse, SwapStatus, TokenInfo};
+pub use oneclick::{
+    ExitQuoteParams, OneClick, QuoteRequest, QuoteResponse, StatusResponse, SwapStatus, TokenInfo,
+};
 pub use payload::{SignedPayload, Standard, UnsignedPayload};
 pub use signer::IntentSigner;
 

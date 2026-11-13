@@ -183,7 +183,10 @@ mod tests {
     #[test]
     fn stable_stringify_sorts_nested_keys() {
         let v = serde_json::json!({"b": 1, "a": {"d": [true, null], "c": "x"}});
-        assert_eq!(stable_stringify(&v), r#"{"a":{"c":"x","d":[true,null]},"b":1}"#);
+        assert_eq!(
+            stable_stringify(&v),
+            r#"{"a":{"c":"x","d":[true,null]},"b":1}"#
+        );
     }
 
     #[test]

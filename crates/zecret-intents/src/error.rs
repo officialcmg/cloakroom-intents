@@ -74,6 +74,9 @@ pub enum ApiErrorKind {
     NotFound,
     /// `Cannot parse signed intent`.
     BadSignedIntent,
+    /// `Quoting for this pair is not available`: no solver quoted. Seen twice in 120
+    /// dry quotes over 15 minutes, for SOL and ETH, and gone 20 s later. Retry.
+    NoQuote,
     /// 5xx: a server-side failure. Retry later.
     Server,
     /// Any other 4xx answer.
@@ -121,6 +124,8 @@ fn classify(status: u16, message: &str) -> ApiErrorKind {
         ApiErrorKind::AmountTooLow { min }
     } else if lower.contains("expected pending_deposit") || lower.starts_with("quote is in ") {
         ApiErrorKind::QuoteNotPending
+    } else if lower.contains("quoting for this pair is not available") {
+        ApiErrorKind::NoQuote
     } else if lower.contains("cannot parse signed intent") {
         ApiErrorKind::BadSignedIntent
     } else {
@@ -128,8 +133,51 @@ fn classify(status: u16, message: &str) -> ApiErrorKind {
     }
 }
 
+impl ApiError {
+    /// Whether the same request may succeed if sent again later.
+    pub fn is_retryable(&self) -> bool {
+        matches!(
+            self.kind,
+            ApiErrorKind::RateLimited | ApiErrorKind::NoQuote | ApiErrorKind::Server
+        )
+    }
+}
+
 impl fmt::Display for ApiError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "1Click API HTTP {}: {}", self.status, self.message)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_messages() {
+        let k = |status, msg: &str| {
+            ApiError::from_response(status, format!(r#"{{"message":"{msg}"}}"#).as_bytes()).kind
+        };
+        assert_eq!(
+            k(400, "Quoting for this pair is not available"),
+            ApiErrorKind::NoQuote
+        );
+        assert_eq!(k(429, "Too Many Requests"), ApiErrorKind::RateLimited);
+        assert_eq!(
+            k(400, "deadline must be a valid ISO 8601 date string"),
+            ApiErrorKind::DeadlineInvalid
+        );
+        assert_eq!(
+            k(400, "Amount is too low for bridge, try at least 5909617"),
+            ApiErrorKind::AmountTooLow {
+                min: Some(5_909_617)
+            }
+        );
+        assert_eq!(k(400, "something new"), ApiErrorKind::Other);
+        let plain = ApiError::from_response(502, b"<html>bad gateway</html>");
+        assert_eq!(plain.kind, ApiErrorKind::Server);
+        assert_eq!(plain.message, "<html>bad gateway</html>");
+        assert!(plain.is_retryable());
+        assert!(!ApiError::from_response(401, b"{}").is_retryable());
     }
 }

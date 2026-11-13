@@ -19,7 +19,9 @@ use serde_json::{Value, json};
 use crate::error::{Error, Result};
 use crate::http::{HttpRequest, HttpResponse, parse_json};
 use crate::nonce::{Nonce, Salt};
-use crate::payload::{DecodedPayload, FtWithdraw, Intent, SignedPayload, Standard, Transfer, UnsignedPayload};
+use crate::payload::{
+    DecodedPayload, FtWithdraw, Intent, SignedPayload, Standard, Transfer, UnsignedPayload,
+};
 use crate::signer::IntentSigner;
 use crate::time::Time;
 
@@ -226,7 +228,12 @@ pub fn parse_current_salt(r: &HttpResponse) -> Result<Salt> {
 }
 
 /// `mt_balance_of(account_id, token_id)`: a balance inside the Verifier.
-pub fn balance_request(rpc_url: &str, verifier: &str, account_id: &str, token_id: &str) -> HttpRequest {
+pub fn balance_request(
+    rpc_url: &str,
+    verifier: &str,
+    account_id: &str,
+    token_id: &str,
+) -> HttpRequest {
     view_call_request(
         rpc_url,
         verifier,
@@ -241,7 +248,12 @@ pub fn parse_balance(r: &HttpResponse) -> Result<u128> {
 }
 
 /// `is_nonce_used(account_id, nonce)`.
-pub fn nonce_used_request(rpc_url: &str, verifier: &str, account_id: &str, nonce: &Nonce) -> HttpRequest {
+pub fn nonce_used_request(
+    rpc_url: &str,
+    verifier: &str,
+    account_id: &str,
+    nonce: &Nonce,
+) -> HttpRequest {
     view_call_request(
         rpc_url,
         verifier,
@@ -257,7 +269,12 @@ pub fn parse_nonce_used(r: &HttpResponse) -> Result<bool> {
 /// `simulate_intents(signed)`: runs the intents without changing state. Fails (as an
 /// RPC error that carries the Verifier's panic message) if they would fail.
 pub fn simulate_request(rpc_url: &str, verifier: &str, signed: &[SignedPayload]) -> HttpRequest {
-    view_call_request(rpc_url, verifier, "simulate_intents", &execute_intents_args(signed))
+    view_call_request(
+        rpc_url,
+        verifier,
+        "simulate_intents",
+        &execute_intents_args(signed),
+    )
 }
 
 #[cfg(test)]
@@ -275,7 +292,8 @@ mod tests {
 
     fn draft() -> IntentDraft {
         let deadline = time::parse("2026-11-13T04:00:00.000Z").unwrap();
-        let nonce = Nonce::versioned(Salt::from_hex("252812b3").unwrap(), deadline, [3u8; 15]).unwrap();
+        let nonce =
+            Nonce::versioned(Salt::from_hex("252812b3").unwrap(), deadline, [3u8; 15]).unwrap();
         IntentDraft::new(signer().account_id(), "intents.near", deadline, nonce)
     }
 
@@ -332,7 +350,10 @@ mod tests {
     fn validation_refusals() {
         let s = signer();
         let n = now();
-        assert!(draft().sign(&s, Standard::RawEd25519, n).is_err(), "no intents");
+        assert!(
+            draft().sign(&s, Standard::RawEd25519, n).is_err(),
+            "no intents"
+        );
         let late = time::parse("2026-11-13T05:00:00.000Z").unwrap();
         assert!(
             draft()
@@ -343,7 +364,10 @@ mod tests {
         );
         let mut d = draft().transfer("bob.near", "nep141:t", 1);
         d.deadline = late;
-        assert!(d.sign(&s, Standard::RawEd25519, n).is_err(), "nonce deadline earlier");
+        assert!(
+            d.sign(&s, Standard::RawEd25519, n).is_err(),
+            "nonce deadline earlier"
+        );
         assert!(
             draft()
                 .transfer(&s.account_id(), "nep141:t", 1)
@@ -382,7 +406,12 @@ mod tests {
         let args = execute_intents_args(std::slice::from_ref(&signed));
         assert_eq!(args["signed"][0], signed.to_json());
 
-        let r = balance_request("https://rpc.example", "intents.near", "abc", "nep141:usdc.near");
+        let r = balance_request(
+            "https://rpc.example",
+            "intents.near",
+            "abc",
+            "nep141:usdc.near",
+        );
         let b = r.json_body().unwrap();
         assert_eq!(b["method"], "query");
         assert_eq!(b["params"]["method_name"], "mt_balance_of");
@@ -394,9 +423,15 @@ mod tests {
             json!({"account_id":"abc","token_id":"nep141:usdc.near"})
         );
         let sim = simulate_request("https://rpc.example", "intents.near", &[signed]);
-        assert_eq!(sim.json_body().unwrap()["params"]["method_name"], "simulate_intents");
+        assert_eq!(
+            sim.json_body().unwrap()["params"]["method_name"],
+            "simulate_intents"
+        );
         let n = nonce_used_request("https://rpc.example", "intents.near", "abc", &draft().nonce);
-        assert_eq!(n.json_body().unwrap()["params"]["method_name"], "is_nonce_used");
+        assert_eq!(
+            n.json_body().unwrap()["params"]["method_name"],
+            "is_nonce_used"
+        );
     }
 
     #[test]
@@ -418,7 +453,9 @@ mod tests {
             200,
             r#"{"jsonrpc":"2.0","result":{"error":"wasm execution failed with error: Smart contract panicked: insufficient balance","logs":[]},"id":1}"#,
         );
-        assert!(matches!(parse_balance(&call_err), Err(Error::Rpc(m)) if m.contains("insufficient")));
+        assert!(
+            matches!(parse_balance(&call_err), Err(Error::Rpc(m)) if m.contains("insufficient"))
+        );
         let rpc_err = HttpResponse::new(200, r#"{"jsonrpc":"2.0","error":{"code":-32000},"id":1}"#);
         assert!(matches!(parse_balance(&rpc_err), Err(Error::Rpc(_))));
         assert!(matches!(

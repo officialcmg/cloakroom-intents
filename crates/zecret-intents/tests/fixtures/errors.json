@@ -1,0 +1,186 @@
+{
+  "exchanges": [
+    {
+      "request": {
+        "body": {
+          "amount": "5000000",
+          "deadline": "2026-11-13T03:16:15.000Z",
+          "depositType": "INTENTS",
+          "destinationAsset": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+          "dry": true,
+          "originAsset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+          "recipient": "0x1111111111111111111111111111111111111111",
+          "recipientType": "DESTINATION_CHAIN",
+          "refundTo": "0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0",
+          "refundType": "INTENTS",
+          "slippageTolerance": 100,
+          "swapType": "EXACT_INPUT"
+        },
+        "headers": [
+          [
+            "accept",
+            "application/json"
+          ],
+          [
+            "content-type",
+            "application/json"
+          ]
+        ],
+        "method": "POST",
+        "url": "https://1click.chaindefuser.com/v0/quote"
+      },
+      "response": {
+        "body": {
+          "correlationId": "00103ebd-d1de-432f-9e93-679e537278f8",
+          "message": "deadline is not valid",
+          "path": "/v0/quote",
+          "timestamp": "2026-11-13T03:17:15.514Z"
+        },
+        "status": 400
+      }
+    },
+    {
+      "request": {
+        "body": {
+          "amount": "5000000",
+          "deadline": "2026-11-13T03:47:15.000Z",
+          "depositType": "INTENTS",
+          "destinationAsset": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+          "dry": true,
+          "originAsset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+          "recipient": "0x000000000000000000000000000000000000dEaD",
+          "recipientType": "DESTINATION_CHAIN",
+          "refundTo": "0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0",
+          "refundType": "INTENTS",
+          "slippageTolerance": 100,
+          "swapType": "EXACT_INPUT"
+        },
+        "headers": [
+          [
+            "accept",
+            "application/json"
+          ],
+          [
+            "content-type",
+            "application/json"
+          ]
+        ],
+        "method": "POST",
+        "url": "https://1click.chaindefuser.com/v0/quote"
+      },
+      "response": {
+        "body": {
+          "correlationId": "cac27f32-bf0d-4c61-8c15-9ea3d026e6fc",
+          "message": "recipient is not valid",
+          "path": "/v0/quote",
+          "timestamp": "2026-11-13T03:17:15.749Z"
+        },
+        "status": 400
+      }
+    },
+    {
+      "request": {
+        "body": {
+          "amount": "5000000",
+          "deadline": "2026-11-13T03:47:15.000Z",
+          "depositType": "INTENTS",
+          "destinationAsset": "nep141:btc.omft.near",
+          "dry": true,
+          "originAsset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+          "recipient": "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+          "recipientType": "DESTINATION_CHAIN",
+          "refundTo": "0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0",
+          "refundType": "INTENTS",
+          "slippageTolerance": 100,
+          "swapType": "EXACT_INPUT"
+        },
+        "headers": [
+          [
+            "accept",
+            "application/json"
+          ],
+          [
+            "content-type",
+            "application/json"
+          ]
+        ],
+        "method": "POST",
+        "url": "https://1click.chaindefuser.com/v0/quote"
+      },
+      "response": {
+        "body": {
+          "correlationId": "64bf63db-c49c-47fa-a779-fd1902bfc6df",
+          "message": "Amount is too low for bridge, try at least 5867027",
+          "path": "/v0/quote",
+          "timestamp": "2026-11-13T03:17:16.620Z"
+        },
+        "status": 400
+      }
+    },
+    {
+      "request": {
+        "body": null,
+        "headers": [
+          [
+            "accept",
+            "application/json"
+          ]
+        ],
+        "method": "GET",
+        "url": "https://1click.chaindefuser.com/v0/status?depositAddress=0000000000000000000000000000000000000000000000000000000000000001"
+      },
+      "response": {
+        "body": {
+          "error": "Not Found",
+          "message": "Deposit address 0000000000000000000000000000000000000000000000000000000000000001 not found",
+          "path": "/v0/status?depositAddress=0000000000000000000000000000000000000000000000000000000000000001",
+          "statusCode": 404,
+          "timestamp": "2026-11-13T03:17:16.830Z"
+        },
+        "status": 404
+      }
+    },
+    {
+      "request": {
+        "body": {
+          "amount": "5000000",
+          "deadline": "2026-11-13T03:47:15.000Z",
+          "depositType": "INTENTS",
+          "destinationAsset": "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+          "dry": true,
+          "originAsset": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+          "recipient": "0x1111111111111111111111111111111111111111",
+          "recipientType": "DESTINATION_CHAIN",
+          "refundTo": "0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0",
+          "refundType": "INTENTS",
+          "slippageTolerance": 100,
+          "swapType": "EXACT_INPUT"
+        },
+        "headers": [
+          [
+            "accept",
+            "application/json"
+          ],
+          [
+            "content-type",
+            "application/json"
+          ]
+        ],
+        "method": "POST",
+        "url": "https://1click.chaindefuser.com/v0/quote"
+      },
+      "response": {
+        "body": {
+          "error": "Unauthorized",
+          "message": "Invalid token",
+          "path": "/v0/quote",
+          "statusCode": 401,
+          "timestamp": "2026-11-13T03:17:17.062Z"
+        },
+        "status": 401
+      }
+    }
+  ],
+  "notes": {},
+  "recorded_at": "2026-11-13T03:17:15.000Z"
+}

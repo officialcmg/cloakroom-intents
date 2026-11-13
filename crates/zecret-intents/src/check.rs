@@ -104,26 +104,54 @@ pub enum Refusal {
     /// A quote field that could redirect funds is set.
     QuoteHasUnexpectedField(&'static str),
     /// The quote's guaranteed minimum is below the approved minimum.
-    MinimumTooLow { approved: u128, quoted: u128 },
+    MinimumTooLow {
+        approved: u128,
+        quoted: u128,
+    },
     /// The quote's deposit deadline has passed.
-    QuoteExpired { deadline: String },
+    QuoteExpired {
+        deadline: String,
+    },
     /// The API returned a payload for another standard than requested.
-    WrongStandard { expected: String, found: String },
+    WrongStandard {
+        expected: String,
+        found: String,
+    },
     /// The payload could not be decoded strictly.
     Malformed(String),
-    WrongContract { expected: String, found: String },
-    WrongSigner { expected: String, found: String },
+    WrongContract {
+        expected: String,
+        found: String,
+    },
+    WrongSigner {
+        expected: String,
+        found: String,
+    },
     /// The intent deadline has passed.
-    IntentExpired { deadline: String },
+    IntentExpired {
+        deadline: String,
+    },
     /// The intent would stay valid longer than the policy or the quote allows.
-    DeadlineTooFar { deadline: String, limit: String },
+    DeadlineTooFar {
+        deadline: String,
+        limit: String,
+    },
     /// Not exactly one intent.
     IntentCount(usize),
     /// An intent that is not a `transfer`.
     UnexpectedIntent(String),
-    WrongReceiver { expected: String, found: String },
-    WrongToken { expected: String, found: String },
-    WrongAmount { expected: String, found: String },
+    WrongReceiver {
+        expected: String,
+        found: String,
+    },
+    WrongToken {
+        expected: String,
+        found: String,
+    },
+    WrongAmount {
+        expected: String,
+        found: String,
+    },
     /// The transfer carries a memo.
     Memo,
 }
@@ -217,7 +245,11 @@ pub fn check_quote(
     same("depositType", "INTENTS", &r.deposit_type)?;
     same("originAsset", &approved.origin_asset, &r.origin_asset)?;
     same("amount", &approved.amount_in.to_string(), &r.amount)?;
-    same("destinationAsset", &approved.destination_asset, &r.destination_asset)?;
+    same(
+        "destinationAsset",
+        &approved.destination_asset,
+        &r.destination_asset,
+    )?;
     same("recipientType", "DESTINATION_CHAIN", &r.recipient_type)?;
     same("recipient", &approved.recipient, &r.recipient)?;
     same("refundType", "INTENTS", &r.refund_type)?;
@@ -229,14 +261,17 @@ pub fn check_quote(
         return Err(Refusal::QuoteHasUnexpectedField("virtualChainRecipient"));
     }
     if r.virtual_chain_refund_recipient.is_some() {
-        return Err(Refusal::QuoteHasUnexpectedField("virtualChainRefundRecipient"));
+        return Err(Refusal::QuoteHasUnexpectedField(
+            "virtualChainRefundRecipient",
+        ));
     }
     if quote.quote.deposit_memo.is_some() {
         return Err(Refusal::QuoteHasUnexpectedField("depositMemo"));
     }
 
     let q = &quote.quote;
-    let amount_in = amount(&q.amount_in, "amountIn").map_err(|e| Refusal::Malformed(e.to_string()))?;
+    let amount_in =
+        amount(&q.amount_in, "amountIn").map_err(|e| Refusal::Malformed(e.to_string()))?;
     if amount_in != approved.amount_in {
         return Err(Refusal::QuoteMismatch {
             field: "quote.amountIn",

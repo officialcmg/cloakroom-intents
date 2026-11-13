@@ -16,6 +16,7 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
@@ -56,6 +57,7 @@ impl Standard {
 #[serde(deny_unknown_fields)]
 pub struct Transfer {
     pub receiver_id: String,
+    #[serde(deserialize_with = "unique_map")]
     pub tokens: BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memo: Option<String>,
@@ -74,6 +76,33 @@ pub struct FtWithdraw {
     pub amount: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memo: Option<String>,
+}
+
+/// A JSON object as a map, refusing duplicate keys (serde would keep the last one
+/// silently, so `{"t":"1","t":"9"}` could show one amount and execute another).
+fn unique_map<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<BTreeMap<String, String>, D::Error> {
+    struct V;
+    impl<'de> serde::de::Visitor<'de> for V {
+        type Value = BTreeMap<String, String>;
+        fn expecting(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            f.write_str("a map of token ids to amounts")
+        }
+        fn visit_map<A: serde::de::MapAccess<'de>>(
+            self,
+            mut a: A,
+        ) -> Result<Self::Value, A::Error> {
+            let mut out = BTreeMap::new();
+            while let Some((k, v)) = a.next_entry::<String, String>()? {
+                if out.insert(k.clone(), v).is_some() {
+                    return Err(serde::de::Error::custom(format!("duplicate token {k}")));
+                }
+            }
+            Ok(out)
+        }
+    }
+    d.deserialize_map(V)
 }
 
 /// The intents this crate builds and accepts. Serializes as the Verifier's
@@ -100,21 +129,58 @@ impl Intent {
     /// Parses one intent strictly: only `transfer` and `ft_withdraw`, and no fields
     /// that this crate does not know (a `transfer` with `msg` would call a contract).
     pub fn from_json(v: &Value) -> Result<Self, String> {
-        let mut obj = v
-            .as_object()
-            .cloned()
-            .ok_or_else(|| "intent is not an object".to_string())?;
-        let tag = obj
-            .remove("intent")
-            .and_then(|t| t.as_str().map(str::to_owned))
-            .ok_or_else(|| "intent has no `intent` tag".to_string())?;
-        let body = Value::Object(obj);
-        match tag.as_str() {
-            "transfer" => serde_json::from_value(body)
-                .map(Self::Transfer)
+        Self::from_text(&v.to_string())
+    }
+
+    /// Like [`Intent::from_json`], from JSON text. Parsing the text (not a `Value`)
+    /// also refuses duplicate keys, which a `Value` would silently merge.
+    pub fn from_text(text: &str) -> Result<Self, String> {
+        #[derive(Deserialize)]
+        struct Tag {
+            intent: String,
+        }
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct TransferWire {
+            #[allow(dead_code)]
+            intent: String,
+            receiver_id: String,
+            #[serde(deserialize_with = "unique_map")]
+            tokens: BTreeMap<String, String>,
+            #[serde(default)]
+            memo: Option<String>,
+        }
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct FtWithdrawWire {
+            #[allow(dead_code)]
+            intent: String,
+            token: String,
+            receiver_id: String,
+            amount: String,
+            #[serde(default)]
+            memo: Option<String>,
+        }
+        let tag: Tag = serde_json::from_str(text).map_err(|e| format!("intent: {e}"))?;
+        match tag.intent.as_str() {
+            "transfer" => serde_json::from_str::<TransferWire>(text)
+                .map(|w| {
+                    Self::Transfer(Transfer {
+                        receiver_id: w.receiver_id,
+                        tokens: w.tokens,
+                        memo: w.memo,
+                    })
+                })
                 .map_err(|e| format!("transfer: {e}")),
-            "ft_withdraw" => serde_json::from_value(body)
-                .map(Self::FtWithdraw)
+            "ft_withdraw" => serde_json::from_str::<FtWithdrawWire>(text)
+                .map(|w| {
+                    Self::FtWithdraw(FtWithdraw {
+                        token: w.token,
+                        receiver_id: w.receiver_id,
+                        amount: w.amount,
+                        memo: w.memo,
+                    })
+                })
                 .map_err(|e| format!("ft_withdraw: {e}")),
             other => Err(format!("intent type {other:?} is not accepted")),
         }
@@ -178,7 +244,7 @@ struct RawPayloadJson {
     deadline: String,
     nonce: String,
     #[serde(default)]
-    intents: Vec<Value>,
+    intents: Vec<Box<RawValue>>,
 }
 
 #[derive(Deserialize)]
@@ -187,12 +253,12 @@ struct Nep413MessageJson {
     signer_id: String,
     deadline: String,
     #[serde(default)]
-    intents: Vec<Value>,
+    intents: Vec<Box<RawValue>>,
 }
 
-fn decode_intents(list: &[Value]) -> Result<Vec<Intent>> {
+fn decode_intents(list: &[Box<RawValue>]) -> Result<Vec<Intent>> {
     list.iter()
-        .map(|v| Intent::from_json(v).map_err(Error::Parse))
+        .map(|v| Intent::from_text(v.get()).map_err(Error::Parse))
         .collect()
 }
 
@@ -439,13 +505,28 @@ mod tests {
         assert_eq!(Intent::from_json(&w.to_json()).unwrap(), w);
 
         // A transfer with a notification `msg` would call the receiver: refused.
-        let with_msg = json!({"intent":"transfer","receiver_id":"bob.near","tokens":{"a":"1"},"msg":"x"});
+        let with_msg =
+            json!({"intent":"transfer","receiver_id":"bob.near","tokens":{"a":"1"},"msg":"x"});
         assert!(Intent::from_json(&with_msg).is_err());
-        let withdraw_call = json!({"intent":"ft_withdraw","token":"a","receiver_id":"b","amount":"1","msg":""});
+        let withdraw_call =
+            json!({"intent":"ft_withdraw","token":"a","receiver_id":"b","amount":"1","msg":""});
         assert!(Intent::from_json(&withdraw_call).is_err());
         let diff = json!({"intent":"token_diff","diff":{"a":"-1","b":"1"}});
         assert!(Intent::from_json(&diff).is_err());
         assert!(Intent::from_json(&json!("transfer")).is_err());
+        // Duplicate keys, which a `Value` cannot hold, so parse from text.
+        let dup = r#"{"intent":"transfer","receiver_id":"b","tokens":{"t":"1","t":"9"}}"#;
+        let text: Result<Transfer, _> =
+            serde_json::from_str(&dup.replace(r#""intent":"transfer","#, ""));
+        assert!(text.unwrap_err().to_string().contains("duplicate token"));
+        let raw = UnsignedPayload::raw(
+            r#"{"signer_id":"a","signer_id":"b","verifying_contract":"intents.near","deadline":"2026-11-16T03:33:00.000Z","nonce":"Vij2xgAlKBKzADjHkhJp6BgCJ5mygKii98kQRBEIC/k=","intents":[]}"#.into(),
+        );
+        assert!(raw.decode().is_err(), "duplicate signer_id");
+        let raw = UnsignedPayload::raw(
+            r#"{"signer_id":"a","verifying_contract":"intents.near","deadline":"2026-11-16T03:33:00.000Z","nonce":"Vij2xgAlKBKzADjHkhJp6BgCJ5mygKii98kQRBEIC/k=","intents":[{"intent":"transfer","receiver_id":"b","tokens":{"t":"1","t":"9"}}]}"#.into(),
+        );
+        assert!(raw.decode().is_err(), "duplicate token in a payload");
         assert!(Intent::from_json(&json!({"receiver_id":"b"})).is_err());
     }
 

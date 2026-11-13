@@ -24,6 +24,7 @@ import {
   type Activity,
   type ErrorCode,
   SIM_FAILURES,
+  STAGES,
   TERMINAL_STAGES,
 } from '../api';
 import type { EngineBackend } from '../rpc';
@@ -108,6 +109,8 @@ export class SimEngine implements EngineBackend {
   private chain: ChainRecord | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private pending?: Step;
+  /** stageAt of the paused stage that `skip` released. */
+  private releasedAt?: number;
   private now: () => number;
 
   constructor(store: KvStore, now: () => number = () => Date.now()) {
@@ -182,6 +185,7 @@ export class SimEngine implements EngineBackend {
     const sim = config.sim ?? { speed: 1 };
     if (!(sim.speed > 0 && sim.speed <= 10_000)) throw new EngineError('INVALID_PARAMS', 'sim.speed must be between 0 and 10000.');
     if (sim.fail && !SIM_FAILURES.includes(sim.fail)) throw new EngineError('INVALID_PARAMS', `Unknown failure ${sim.fail}.`);
+    if (sim.pauseAt && !STAGES.includes(sim.pauseAt)) throw new EngineError('INVALID_PARAMS', `Unknown stage ${sim.pauseAt}.`);
     this.terms = terms;
     this.network = config.network;
     this.options = sim;
@@ -445,6 +449,10 @@ export class SimEngine implements EngineBackend {
       this.pump();
     },
     skip: async () => {
+      if (!this.pending && this.state && this.options.pauseAt === this.state.stage) {
+        this.releasedAt = this.state.stageAt;
+        this.pump();
+      }
       const step = this.pending;
       if (!step) return;
       if (this.timer !== undefined) clearTimeout(this.timer);
@@ -482,6 +490,7 @@ export class SimEngine implements EngineBackend {
     const s = this.state;
     const c = this.chain;
     if (!s || !c) return undefined;
+    if (this.options.pauseAt === s.stage && this.releasedAt !== s.stageAt) return undefined;
     const sim = c.sim;
     const d = (ms: number) => this.scaled(ms);
     const at = s.stageAt;

@@ -45,10 +45,21 @@ export function TokenPicker({
     const q = query.trim().toLowerCase();
     if (!q) return tokens;
     const words = q.split(/\s+/);
-    return tokens.filter((t) => {
-      const hay = `${t.symbol} ${chainName(t.blockchain)} ${t.blockchain}`.toLowerCase();
-      return words.every((w) => hay.includes(w));
-    });
+    // Exact symbol matches first, then symbols that start with a search word, then the rest.
+    const score = (t: Token) => {
+      const sym = t.symbol.toLowerCase();
+      if (words.includes(sym)) return 0;
+      if (words.some((w) => sym.startsWith(w))) return 1;
+      return 2;
+    };
+    return tokens
+      .filter((t) => {
+        const hay = `${t.symbol} ${chainName(t.blockchain)} ${t.blockchain}`.toLowerCase();
+        return words.every((w) => hay.includes(w));
+      })
+      .map((t, i) => ({ t, i, s: score(t) }))
+      .sort((x, y) => x.s - y.s || x.i - y.i)
+      .map((x) => x.t);
   }, [tokens, query]);
 
   const chains = useMemo(() => new Set(tokens.map((t) => t.blockchain)).size, [tokens]);

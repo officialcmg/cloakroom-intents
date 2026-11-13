@@ -105,6 +105,8 @@ export interface SimOptions {
   fail?: SimFailure;
   /** Busy-loop the worker during simulated proofs, as the real prover does. */
   burnCpu?: boolean;
+  /** Stop when the swap reaches this stage, until `sim.skip()`. For demos and screenshots. */
+  pauseAt?: Stage;
 }
 
 export const SIM_FAILURES = ['quote-low', 'no-quote', 'maker-quiet', 'maker-gone', 'exit-fail'] as const;

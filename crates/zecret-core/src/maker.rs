@@ -802,6 +802,7 @@ impl Maker {
             bail!("published a does not match A");
         }
         let b = s.b_norm()?;
+        self.pay_taker(s)?;
         let Some(n) = self.wallet.unspent(&s.rfq_id).into_iter().next() else {
             let tnow = self.near.block(&At::Final)?.secs();
             if v.t2 <= tnow && s.ready_tx.is_none() && s.pending.is_none() {
@@ -824,9 +825,10 @@ impl Maker {
         Ok(self.pend(s, "sweep", &tx, MakerStage::Sweeping))
     }
 
-    fn on_sweeping(&mut self, s: &mut MakerSwap, now: u64) -> Result<Next> {
-        // Pay the taker's credit into intents.near if nobody has yet (anyone may call
-        // withdraw; the taker's stipend may not cover its gas).
+    /// Pays the taker's credit into intents.near if nobody has yet. Anyone may call
+    /// `withdraw`; the taker's stipend does not cover its gas, so the maker does it.
+    /// Returns the credit still waiting.
+    fn pay_taker(&mut self, s: &mut MakerSwap) -> Result<u128> {
         let fin = self.near.block(&At::Final)?;
         let credit = self.esc().credit(&s.taker_account, &At::Block(fin.hash.clone()))?;
         let due = s.taker_withdraw_at.map(|t| fin.secs() >= t + self.cfg.timing.inclusion_secs + self.cfg.timing.finality_secs).unwrap_or(true);
@@ -837,10 +839,15 @@ impl Maker {
             self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "withdraw".into(), hash: out.hash.clone() });
             self.log(s, format!("withdraw for the taker into intents.near, tx {} ({})", out.hash, out.failure().unwrap_or("executed")));
         }
+        Ok(credit.intents)
+    }
+
+    fn on_sweeping(&mut self, s: &mut MakerSwap, now: u64) -> Result<Next> {
+        let waiting = self.pay_taker(s)?;
         let k_z = self.cfg.timing.k_z;
         let tip = self.wallet.height;
         if let Some(h) = s.sweep_height {
-            if tip + 1 - h >= k_z && credit.intents == 0 {
+            if tip + 1 - h >= k_z && waiting == 0 {
                 self.log(s, format!("sweep {} has {} confirmations (k_Z = {k_z}); done", s.sweep_txid.clone().unwrap_or_default(), tip + 1 - h));
                 self.set_stage(s, MakerStage::Swept);
                 return Ok(Next::Done);
