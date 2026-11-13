@@ -14,3 +14,15 @@
 2026-11-13T06:19:33.307Z [zecret-timing] proof_accept 47575
 2026-11-13T06:19:33.308Z [zecret-engine] tick took 27071 ms
 2026-11-13T06:19:33.569Z [zecret-engine] encrypted ACCEPT with 50000 zats premium sent in tx 03a05361bd8b8fc01e257c1dd8a5298e63d5af39475a6950d7d02392044634b7; joint address uregtest16qa8akg9vumalj39ssmu4hllw5z3kggavzjxd2whlxw7uef5knt2v7ggd7vdkp4cw2yqgvnuq8e6uxznhyr39e0m605tw76fasmynygu
+2026-11-13T06:19:41.039Z [zecret-engine] escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+2026-11-13T06:19:45.033Z [zecret-engine] escrow 282c0684 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-13T06:20:12.212Z [zecret-timing] proof_fund 27177
+2026-11-13T06:20:12.212Z [zecret-engine] tick took 27175 ms
+2026-11-13T06:20:12.212Z [zecret-engine] escrow 282c0684 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-13T06:20:12.515Z [zecret-engine] FUNDED the joint address in fully shielded tx c15d0995dd55ff3114a31899ef26f3437976a68915790a8c7261d640e9d85391
+2026-11-13T06:20:22.275Z [zecret-engine] escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx 39sc2qvTrqM4rvEHdqurc4Rpbqyu2tDRFGunkjr8rCZ7
+2026-11-13T06:20:22.578Z [zecret-timing] wasm_load 67
+2026-11-13T06:20:22.631Z [zecret-timing] verify_maker 50
+2026-11-13T06:20:23.380Z [zecret-engine] lock final (block 338); revealing a before the deadline 1794550881
+2026-11-13T06:20:25.312Z [zecret-engine] REVEALED a with claim, tx FxpZ7UggPS1YNpVQCVdfcxAWycTAeUnSvLDAHWdNmrCZ; waiting for the claim to be final
+2026-11-13T06:20:27.026Z [zecret-engine] claim is final (block 344)
