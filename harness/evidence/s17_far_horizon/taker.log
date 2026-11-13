@@ -1,0 +1,15 @@
+
+===== start taker --zats 100000000 =====
+[taker 1794544377] new swap 894601b0 for 100000000 zats; NEAR account e2504df731bc2abb315d2ea6e994eed8599c5c4dd3c63c9ffd3c9a2bd2fbc330; wallet uregtest1x3p28tfkn0e7a7l0qfswm5w4jzq72ng2l2zrvk4dc988rav6qpe4cy5z6m5wqpsc05xuz3pznwwuu5pal7n38p2u6cp3zdx3du0hv94x
+[taker 1794544377] 894601b0 stage WaitingDeposit
+[taker 1794544378] balance 208333333 zats
+[taker 1794544378] {"type":"activity","swap":"894601b021d2575cf8ff65b32c1aa792","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794544383] balance 0 zats
+[taker 1794544383] {"type":"zcash_tx","swap":"894601b021d2575cf8ff65b32c1aa792","what":"rfq","txid":"8f897a8b91a84772aba98d72594a0242dc4d9a3df56ee27751c5d31d995f2756"}
+[taker 1794544383] 894601b0 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 8f897a8b91a84772aba98d72594a0242dc4d9a3df56ee27751c5d31d995f2756
+[taker 1794544383] 894601b0 stage RfqSent
+[taker 1794544385] balance 208323333 zats
+[taker 1794544391] 894601b0 ABORT: QUOTE REJECTED: deadline horizon t2 - open = 4294967475s above the taker's limit of 172800s; nothing was funded
+[taker 1794544391] 894601b0 stage Aborted
+[taker 1794544391] 894601b0 DONE Aborted
+[taker 1794544391] finished: Aborted

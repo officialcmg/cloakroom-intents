@@ -1,0 +1,192 @@
+{
+  "scenario": "s21_unexpected_escrow_code",
+  "title": "The escrow account does not run the code the taker expects (taker configured with another code hash): the taker refuses to fund; the maker refunds. The same check refuses an escrow with access keys or another Intents account (crates/zecret-node/tests/sandbox.rs)",
+  "chain_branch": "77190ad9",
+  "checks": [
+    {
+      "check": "taker refused to fund (escrow contract check failed)",
+      "pass": true,
+      "detail": "{'Aborted': 'escrow contract check failed: escrow escrow.test.near runs code D9YwW6hJoKEzWkr9XW3fGT7ByCiEQZoWhfb45Q3jA7Lz, expected 11111111111111111111111111111111; nothing funded'}"
+    },
+    {
+      "check": "maker refunded early (no funding)",
+      "pass": true,
+      "detail": "Refunded"
+    },
+    {
+      "check": "maker tokens restored",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "check": "taker lost only the premium and 2 tx fees",
+      "pass": true,
+      "detail": "70000"
+    },
+    {
+      "check": "privacy audit: all 3 Zcash txs by maker/taker are fully shielded Ironwood v6 (no transparent in/out)",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "check": "R4: per-swap secrets erased by every party in a terminal stage (b, s_M, e_M / a, s_T, e_T; joint FVK)",
+      "pass": true,
+      "detail": "checked=['maker:Refunded', 'taker:Aborted'] not_terminal=[] bad=[]"
+    }
+  ],
+  "facts": {
+    "before": {
+      "maker_zec": 208333333,
+      "taker_zec": 208333333,
+      "maker_wnear": 9879998750000000000000000000
+    },
+    "after": {
+      "maker_zec": 208373333,
+      "taker_zec": 208263333,
+      "maker_wnear": 9879998750000000000000000000
+    },
+    "escrow_id": "9edb8b134aa4ad75fb856efe4a49f4630df2c59022b3bfcd3624c6a409b75c79",
+    "zcash_txs": [
+      {
+        "txid": "0dd382b471e19e46f34eedc4399fa853ac4544594ab9ae8ab8c9be9fbd32f059",
+        "height": 439,
+        "version": 6,
+        "ironwood_actions": 2,
+        "ironwood_value_balance": 10000,
+        "transparent_in": 0,
+        "transparent_out": 0
+      },
+      {
+        "txid": "670544274b8617c7ea9fa50ac50a7857f96ff47fff521ecd60327f4ace573bb2",
+        "height": 437,
+        "version": 6,
+        "ironwood_actions": 2,
+        "ironwood_value_balance": 10000,
+        "transparent_in": 0,
+        "transparent_out": 0
+      },
+      {
+        "txid": "eb4b203fe96718bb8e807c5e73ab4e40470361359f2c9964d3d40fd3d4ed1899",
+        "height": 435,
+        "version": 6,
+        "ironwood_actions": 2,
+        "ironwood_value_balance": 10000,
+        "transparent_in": 0,
+        "transparent_out": 0
+      }
+    ],
+    "r4_checked": [
+      "maker:Refunded",
+      "taker:Aborted"
+    ],
+    "r4_not_terminal": []
+  },
+  "maker_swap": {
+    "rfq_id": "0966c5571417bd110837bd1f8e4e0dad",
+    "stage": "Refunded",
+    "zats": 100000000,
+    "price": "30000000000000000000000000",
+    "premium": 50000,
+    "stipend": "30000000000000000000000",
+    "taker_pk": "2511aeaf39afa95f0c01de1db844107a1a3f5bac3b1cb5f660e0b0b488528367",
+    "taker_account": "2511aeaf39afa95f0c01de1db844107a1a3f5bac3b1cb5f660e0b0b488528367",
+    "a_pub": "3fb15e52b3dabd3e539719186726354efb91f3fa1513138be08b213dd869220e",
+    "commit_s_t": "1f7b364f801c926686db20b247835df0880be6a5c6fe068122691df05adfc42f",
+    "b": "",
+    "s_m": "",
+    "e_m": "",
+    "e_t_pub": "8fcc8b3722cb8c098434ad5766faa1abe3b6b0610bb346138a8042d2c3c359b1",
+    "quote_memo": "<redacted>",
+    "quote_hash": "76ac906694ffe4be1d6a69b133b95230fc58b1a9eb07d3f9c4e91f7176d116dd",
+    "windows": {
+      "t0_secs": 120,
+      "t1_secs": 60,
+      "t2_secs": 60,
+      "reveal_secs": 45
+    },
+    "rfq_height": 435,
+    "accept_height": 439,
+    "negated": false,
+    "joint_fvk": null,
+    "salt": "3637293a6295e85f03e0d0713af5b67120cd67d3f3d4685fc7bc4a3a4f0382f3",
+    "escrow_id": "9edb8b134aa4ad75fb856efe4a49f4630df2c59022b3bfcd3624c6a409b75c79",
+    "t0": 1794546108,
+    "t1": 1794546168,
+    "t2": 1794546228,
+    "pending_then": null,
+    "pending": null,
+    "quote_txid": "670544274b8617c7ea9fa50ac50a7857f96ff47fff521ecd60327f4ace573bb2",
+    "open_tx": "92dTkQCyMYzRWnvmR1cLzq3hSykGGTyb8xHykCe6RkTf",
+    "stipend_tx": "4u19dvwq4dkc6LbZKavZRbo2q34KUTrjUiwBLXq4SBuH",
+    "ready_tx": null,
+    "refund_tx": "41vKSAvJMTb8iexkRQu5jNKgGaPT15QopuijBFQHRd5v",
+    "refund_at": 1794546083,
+    "sweep_txid": null,
+    "sweep_height": null,
+    "taker_withdraw_at": null,
+    "log": [
+      "RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)",
+      "encrypted QUOTE sent in tx 670544274b8617c7ea9fa50ac50a7857f96ff47fff521ecd60327f4ace573bb2",
+      "ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id 9edb8b13",
+      "escrow OPEN id 9edb8b134aa4ad75fb856efe4a49f4630df2c59022b3bfcd3624c6a409b75c79 amount 30000000000000000000000000 t0=1794546108 t1=1794546168 t2=1794546228 W=45, tx 92dTkQCyMYzRWnvmR1cLzq3hSykGGTyb8xHykCe6RkTf",
+      "STIPEND of 30000000000000000000000 yoctoNEAR sent to 2511aeaf39afa95f0c01de1db844107a1a3f5bac3b1cb5f660e0b0b488528367, tx 4u19dvwq4dkc6LbZKavZRbo2q34KUTrjUiwBLXq4SBuH",
+      "no funding before t0; refunding",
+      "REFUND publishes b, tx 41vKSAvJMTb8iexkRQu5jNKgGaPT15QopuijBFQHRd5v (executed); waiting for it to be final",
+      "refund is final (block <= 3099); tokens withdrawn, tx 7deYZ5trBeJfb9o2KTY4HP8BzWTDDnbTcSUkjgdDeGna"
+    ]
+  },
+  "taker_swap": {
+    "rfq_id": "0966c5571417bd110837bd1f8e4e0dad",
+    "stage": {
+      "Aborted": "escrow contract check failed: escrow escrow.test.near runs code D9YwW6hJoKEzWkr9XW3fGT7ByCiEQZoWhfb45Q3jA7Lz, expected 11111111111111111111111111111111; nothing funded"
+    },
+    "zats": 100000000,
+    "a": "",
+    "s_t": "",
+    "e_t": "",
+    "e_t_pub": "8fcc8b3722cb8c098434ad5766faa1abe3b6b0610bb346138a8042d2c3c359b1",
+    "near_sk": "<redacted>",
+    "taker_account": "2511aeaf39afa95f0c01de1db844107a1a3f5bac3b1cb5f660e0b0b488528367",
+    "reply_index": 1472554505,
+    "created_at": 1794544564,
+    "min_price": "30000000000000000000000000",
+    "stage_at": 1794544586,
+    "quote": {
+      "price": "30000000000000000000000000",
+      "premium": 50000,
+      "stipend": "30000000000000000000000",
+      "b_pub": "b6597a000e2f32815a67d002784cdca575e0a0ec1260cc5bc31d6c56a341f0a1",
+      "e_m_pub": "461ee49bc09877a7ef7b184f0a81869e835a8903e9891235a3b296a7ee3f6cb3",
+      "windows": {
+        "t0_secs": 120,
+        "t1_secs": 60,
+        "t2_secs": 60,
+        "reveal_secs": 45
+      },
+      "height": 437
+    },
+    "negated": false,
+    "joint_fvk": null,
+    "joint_address": "uregtest1mvydltrsyaa0y8gmsauelx8ah5lkygt9rvs9w5jaclezpm76jsujavw4fsrmzjnaazfg27mzqllr6dsp4tp8ynjf6u9p92nwsuta2dym",
+    "escrow_id": "9edb8b134aa4ad75fb856efe4a49f4630df2c59022b3bfcd3624c6a409b75c79",
+    "pending_then": null,
+    "pending": null,
+    "rfq_txid": "eb4b203fe96718bb8e807c5e73ab4e40470361359f2c9964d3d40fd3d4ed1899",
+    "accept_txid": "0dd382b471e19e46f34eedc4399fa853ac4544594ab9ae8ab8c9be9fbd32f059",
+    "fund_txid": null,
+    "fund_expiry": null,
+    "sweep_txid": null,
+    "sweep_height": null,
+    "commit_tx": null,
+    "claim_tx": null,
+    "claim_at": null,
+    "withdraw_tx": null,
+    "withdraw_at": null,
+    "log": [
+      "encrypted RFQ for 100000000 zats sent to the maker in shielded tx eb4b203fe96718bb8e807c5e73ab4e40470361359f2c9964d3d40fd3d4ed1899",
+      "QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)",
+      "encrypted ACCEPT with 50000 zats premium sent in tx 0dd382b471e19e46f34eedc4399fa853ac4544594ab9ae8ab8c9be9fbd32f059; joint address uregtest1mvydltrsyaa0y8gmsauelx8ah5lkygt9rvs9w5jaclezpm76jsujavw4fsrmzjnaazfg27mzqllr6dsp4tp8ynjf6u9p92nwsuta2dym",
+      "ABORT: escrow contract check failed: escrow escrow.test.near runs code D9YwW6hJoKEzWkr9XW3fGT7ByCiEQZoWhfb45Q3jA7Lz, expected 11111111111111111111111111111111; nothing funded"
+    ]
+  }
+}

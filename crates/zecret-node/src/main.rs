@@ -10,6 +10,8 @@
 //!   zecret directory --dir D                      maker: print the signed directory entry
 //!   zecret maker     --dir D [--exit-after N] [--vanish-at STAGE]
 //!   zecret taker     --dir D --zats N [--vanish-at STAGE]
+//!   zecret check     --dir D                      read both chains with D's settings: NEAR final
+//!                                                 block, the escrow checks, the Zcash tip
 //!   zecret devnet    --rpc URL --root-key FILE --wasm-dir DIR --escrow-wasm FILE --maker-dir D
 //!                                                 set up a NEAR sandbox; print its accounts
 //!
@@ -144,6 +146,7 @@ fn main() -> Result<()> {
             let m = Maker::open(cfg, transport()?, &mut store)?;
             println!("{}", serde_json::to_string(&m.directory_entry())?);
         }
+        "check" => run_check(&dir)?,
         "maker" => run_maker(&dir, &mut store, &args)?,
         "taker" => run_taker(&dir, &mut store, &args)?,
         _ => bail!("unknown command {cmd:?}; see the usage at the top of crates/zecret-node/src/main.rs"),
@@ -206,6 +209,35 @@ fn run_taker(dir: &Path, store: &mut FileStore, args: &[String]) -> Result<()> {
         }
         sleep_until(t.next);
     }
+}
+
+/// Reads both chains with the settings in `D/config.json` (maker or taker) and prints
+/// what it found. For operators: proves the endpoints answer (over TLS for https URLs).
+fn run_check(dir: &Path) -> Result<()> {
+    let cfg = read_config(dir)?;
+    let chains: Chains = serde_json::from_value(cfg["chains"].clone())?;
+    let t = transport()?;
+    let rpc = NearRpc::new(t.clone(), &chains.near_rpc);
+    let fin = rpc.block(&At::Final)?;
+    println!("NEAR {}: final block {} at {}", chains.near_rpc, fin.height, fin.secs());
+    match cfg["escrow_code_hash"].as_str() {
+        Some(h) => {
+            zecret_core::near::escrow::check_escrow(&rpc, &chains.escrow, h, &chains.intents, &At::Block(fin.hash.clone()))?;
+            println!("escrow {}: runs code {h}, no access keys, pays into {}", chains.escrow, chains.intents);
+        }
+        None => {
+            let a = rpc.account(&chains.escrow, &At::Final)?.ok_or_else(|| anyhow!("escrow {} does not exist", chains.escrow))?;
+            println!("escrow {}: code {}, {} access key(s)", chains.escrow, a.code_hash, rpc.access_keys(&chains.escrow, &At::Final)?.len());
+        }
+    }
+    if let Some(m) = cfg["near_account"].as_str() {
+        let a = rpc.account(m, &At::Final)?.ok_or_else(|| anyhow!("maker account {m} does not exist"))?;
+        let e = zecret_core::near::Escrow { rpc: &rpc, escrow: chains.escrow.clone(), token: chains.token.clone(), intents: chains.intents.clone() };
+        println!("maker {m}: {} yoctoNEAR, {} {} base units, escrow storage funds {}", a.amount, e.ft_balance(m, &At::Final)?, chains.token, e.storage_funds(m, &At::Final)?);
+    }
+    let mut w = engine::wallet_for(&chains, t)?;
+    println!("Zcash {}: tip {}", chains.lightwalletd.as_deref().or(chains.zebra_rpc.as_deref()).unwrap_or("?"), w.tip()?);
+    Ok(())
 }
 
 fn run_devnet(args: &[String]) -> Result<()> {

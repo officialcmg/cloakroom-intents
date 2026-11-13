@@ -12,6 +12,8 @@ section "Not verified" lists what needs real funds on mainnet.
 
 - The escrow pays the USDC into `intents.near` with `msg` set to the taker's account
   id. The taker's account id is the lowercase hex of the taker's ed25519 public key.
+  (`docs/security/nv02-usdc.md` proposes a change to this step: the escrow deposits
+  into its own Verifier account and then transfers to the taker's account.)
 - That account does not have to exist on NEAR. The Verifier accepts the key for that
   account without `add_public_key` (implicit account).
 - USDC on NEAR is the 1Click asset
@@ -87,8 +89,11 @@ returns a `Refusal` and nothing is signed.
 1. 1Click's signature over the quote is valid. The algorithm and key
    (`ed25519:reYaWhvwu8Jzo3WUM3zhn6VrhuMEF4eADL17qtRVifc`) are taken from
    `verifyQuoteSignature` in `@defuse-protocol/one-click-sdk-typescript` 0.1.26. The
-   signature covers the deposit address, recipient, assets, amounts, refund address and
-   deadlines. All recorded quotes (dry, firm and the copy in `/v0/status`) verify.
+   signature covers the deposit address, recipient, assets, amounts, refund address,
+   the quote's `timestamp` and one deadline. On a firm quote that deadline is
+   `quote.deadline` (the deposit deadline): it replaces `quoteRequest.deadline` in the
+   signed message, so `quoteRequest.deadline` is not signed. All recorded quotes (dry,
+   firm and the copy in `/v0/status`) verify.
 2. The quote is firm (`dry: false`) and has a deposit address and no deposit memo.
 3. `swapType` is `EXACT_INPUT`; `depositType` and `refundType` are `INTENTS`;
    `recipientType` is `DESTINATION_CHAIN`.
@@ -97,7 +102,9 @@ returns a `Refusal` and nothing is signed.
 5. `customRecipientMsg`, `virtualChainRecipient` and `virtualChainRefundRecipient` are
    not set.
 6. `quote.minAmountOut` is not below the minimum the user approved.
-7. The request deadline and the deposit deadline are in the future.
+7. The signed `timestamp` is at most `max_quote_age` (5 minutes) old and at most
+   1 minute in the future. The deposit deadline is in the future. The request
+   deadline is also tested, but 1Click does not sign it on a firm quote.
 
 **The payload.** It is decoded strictly: an unknown field, an unknown intent type, a
 duplicate key or a NEP-413 `callbackUrl` is refused.
@@ -107,11 +114,13 @@ duplicate key or a NEP-413 `callbackUrl` is refused.
 3. `signer_id` is the taker's account.
 4. The deadline is in the future, not after the quote's deposit deadline, and not more
    than 96 hours from now.
-5. There is exactly one intent, and it is a `transfer`.
-6. Its `receiver_id` is the quote's deposit address.
-7. It moves exactly one token, the approved origin asset, and exactly the approved
+5. The nonce is versioned and its deadline equals the intent deadline. The salt is
+   not compared with `current_salt`; the Verifier refuses an invalid salt.
+6. There is exactly one intent, and it is a `transfer`.
+7. Its `receiver_id` is the quote's deposit address.
+8. It moves exactly one token, the approved origin asset, and exactly the approved
    amount (as a canonical decimal string).
-8. It has no memo and no notification (`msg`), so it cannot call a contract.
+9. It has no memo and no notification (`msg`), so it cannot call a contract.
 
 The signer can only sign an `UnsignedPayload`, and only the crate can make one: from
 its own intent builder, or from a payload that passed this check. The signature covers
@@ -204,7 +213,9 @@ one.
 
 | Situation | How it shows | What the app does |
 |---|---|---|
-| Quote expired before signing | `Refusal::QuoteExpired`, or HTTP 400 `deadline is not valid` (`ApiErrorKind::DeadlineInvalid`) | Get a new firm quote. If its minimum is not below the approved one, continue; otherwise ask the user again. |
+| Quote expired before signing | `Refusal::QuoteExpired`, `Refusal::QuoteTooOld` (signed `timestamp` older than 5 minutes), or HTTP 400 `deadline is not valid` (`ApiErrorKind::DeadlineInvalid`) | Get a new firm quote. If its minimum is not below the approved one, continue; otherwise ask the user again. |
+| Quote from the future | `Refusal::QuoteFromFuture` (signed `timestamp` more than 1 minute after the local clock) | The local clock is behind. Show that to the user. Nothing was signed. |
+| Payload nonce not accepted | `Refusal::BadNonce` (not a versioned nonce, or its deadline is not the intent deadline) | Do not sign. Get a new firm quote and payload. |
 | Price moved below the approved minimum | `Refusal::MinimumTooLow` at step 4 | Show the new price and ask the user again. Nothing was signed. |
 | Price moves below `minAmountOut` after submission | `/v0/status` `REFUNDED` (documented, not measured) | The USDC is back under the taker's key in the Verifier. Check `mt_balance_of`, then start again from step 3. |
 | No solver quote | HTTP 400 `Quoting for this pair is not available` (`NoQuote`) | Retry after 20 s. Measured: it cleared within 20 s. |
@@ -250,8 +261,10 @@ commit `fce0936`, and checked in the sandbox):
 - A versioned nonce: magic `5628f6c6`, variant byte `0`, the salt (`current_salt`), the
   nonce deadline as `i64` nanoseconds little-endian, 15 random bytes. The salt must be
   valid ("invalid salt"); the intent deadline must not be after the nonce deadline; the
-  nonce deadline must not have passed. The crate sets the nonce deadline to the intent
-  deadline, as 1Click does.
+  nonce deadline must not have passed. In the direct path the caller passes the nonce
+  (`Nonce::versioned_random(salt, deadline)`), and `IntentDraft` refuses a versioned
+  nonce whose deadline is before the intent deadline. 1Click sets the nonce deadline
+  equal to the intent deadline.
 - A legacy nonce (any other 32 bytes) still works; the source says legacy nonces will
   be prohibited.
 - `ft_withdraw` takes the token contract id with no prefix (`usdc.near`); `transfer`
@@ -267,7 +280,7 @@ Tgas; a refused call about 3.6 Tgas.
 | Test | What it shows | Command |
 |---|---|---|
 | Unit (24) | Builders, parsers, nonces, NEP-413 hash against the Verifier's test vector, raw intent hash against the Verifier's test vector, error classes | `cargo test --lib` |
-| Recorded (18) | The full exit replayed against live answers for `raw_ed25519` and `nep413`, byte-identical requests, all refusals on real payloads | `cargo test --test recorded` |
+| Recorded (21) | The full exit replayed against live answers for `raw_ed25519` and `nep413`, byte-identical requests, all refusals on real payloads, quote freshness from the signed timestamp, the review-1 F-02 proof of concept, legacy or long-lived nonce | `cargo test --test recorded` |
 | Sandbox (2) | With the live `intents.near` code: an unfunded key's `ft_withdraw` and `transfer` signed by the crate and submitted by a third account, balances checked; replay, wrong salt, wrong key and too large an amount refused; legacy nonce; two signers in one call | `LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test sandbox` |
 | Wasm | The crate built for `wasm32-unknown-unknown` runs: quote signature, check, signature equal to the recorded one, a refusal, browser random source | `crates/zecret-intents/wasm-check/run.sh` (Node 22, not a browser) |
 

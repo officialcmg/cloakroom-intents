@@ -1,0 +1,88 @@
+
+===== start taker --zats 100000000 =====
+[taker 1794544063] new swap 978014aa for 100000000 zats; NEAR account 975c9dc14c55248a47a24d981c7ec93717ecaa107fcbf6083fbd2f8131d89c80; wallet uregtest107ktgqkdf0ku0fwfqrupjs3a7epkhqtnzqlfwp6r7ylu6h8wsg5wufsgrruv7nva5cpes5xg8062v4l65g4pqqtmyp7afz8a8q4ukp6t
+[taker 1794544063] 978014aa stage WaitingDeposit
+[taker 1794544063] balance 208333333 zats
+[taker 1794544063] {"type":"activity","swap":"978014aaed9626474d116f8baed0d861","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794544070] balance 0 zats
+[taker 1794544070] {"type":"zcash_tx","swap":"978014aaed9626474d116f8baed0d861","what":"rfq","txid":"52f4c556dd423394a8b04eda92fc5a303e87345d37a49d3f6484a161cd634abc"}
+[taker 1794544070] 978014aa encrypted RFQ for 100000000 zats sent to the maker in shielded tx 52f4c556dd423394a8b04eda92fc5a303e87345d37a49d3f6484a161cd634abc
+[taker 1794544070] 978014aa stage RfqSent
+[taker 1794544072] balance 208323333 zats
+[taker 1794544116] 978014aa QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+[taker 1794544116] {"type":"quote","swap":"978014aaed9626474d116f8baed0d861","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest1nkktjlhe59ypqwu5sm9f33zu99mn3x24u3av8w3lh6f3mzw38c495cdh2g7xw3hk72get29d6kema66awxdj2ngkqahwc8c89u2w0he5"}
+[taker 1794544148] 978014aa ACCEPT: cover: waited 32s over 3 random draw(s), 5 look-alike txs mined since height 257
+[taker 1794544148] {"type":"activity","swap":"978014aaed9626474d116f8baed0d861","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794544151] balance 0 zats
+[taker 1794544151] {"type":"zcash_tx","swap":"978014aaed9626474d116f8baed0d861","what":"accept","txid":"980fb2dc89a3636797f0f61b9b69af77871a2b4a2e9fa5d7b84701f14e24660e"}
+[taker 1794544151] 978014aa encrypted ACCEPT with 50000 zats premium sent in tx 980fb2dc89a3636797f0f61b9b69af77871a2b4a2e9fa5d7b84701f14e24660e; joint address uregtest1nkktjlhe59ypqwu5sm9f33zu99mn3x24u3av8w3lh6f3mzw38c495cdh2g7xw3hk72get29d6kema66awxdj2ngkqahwc8c89u2w0he5
+[taker 1794544151] 978014aa stage Accepted
+[taker 1794544152] balance 208263333 zats
+[taker 1794544186] 978014aa escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+[taker 1794544190] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544190] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544192] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544192] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544194] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544194] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544196] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544196] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544198] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544198] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544200] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544200] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544202] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544202] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544204] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544204] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544206] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544206] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544208] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544208] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544210] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544210] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544212] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544212] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544214] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544214] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544216] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544216] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544218] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544218] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544220] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544220] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544222] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544222] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544224] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544224] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544226] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544226] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544228] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544228] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544230] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544230] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544230] 978014aa FUND: cover: waited 40s over 4 random draw(s), 5 look-alike txs mined since height 285
+[taker 1794544230] {"type":"activity","swap":"978014aaed9626474d116f8baed0d861","kind":"proving","label":"Building the proof for the payment to the shared address","estimated_secs":25}
+[taker 1794544234] 978014aa escrow 77fd7f47 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544234] {"type":"escrow_verified","swap":"978014aaed9626474d116f8baed0d861","escrow_id":"77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72","t0":1794545437,"t1":1794545497,"t2":1794545557}
+[taker 1794544234] balance 0 zats
+[taker 1794544234] {"type":"zcash_tx","swap":"978014aaed9626474d116f8baed0d861","what":"fund","txid":"e41765e16f60f95ddd39ad43fdacc30997580fe52be001dccdcbcc1ebc844997"}
+[taker 1794544234] 978014aa FUNDED the joint address in fully shielded tx e41765e16f60f95ddd39ad43fdacc30997580fe52be001dccdcbcc1ebc844997
+[taker 1794544234] 978014aa stage Funded
+[taker 1794544236] balance 108243333 zats
+[taker 1794544282] {"type":"near_tx","swap":"978014aaed9626474d116f8baed0d861","what":"commit_claim","hash":"5GX2dAdJZMJff72XzdHfvVwt4DkDg5ZvnpTtNKbi3bF5"}
+[taker 1794544282] 978014aa escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx 5GX2dAdJZMJff72XzdHfvVwt4DkDg5ZvnpTtNKbi3bF5
+[taker 1794544282] 978014aa stage Committed
+[taker 1794544284] 978014aa lock final (block 2309); revealing a before the deadline 1794545464
+[taker 1794544284] 978014aa stage Revealed
+[taker 1794544287] {"type":"near_tx","swap":"978014aaed9626474d116f8baed0d861","what":"claim","hash":"3yVsSRcJSAgkQNNR4ziPciEhg2Ap7nVcQUHBVgYsGz78"}
+[taker 1794544287] 978014aa REVEALED a with claim, tx 3yVsSRcJSAgkQNNR4ziPciEhg2Ap7nVcQUHBVgYsGz78; waiting for the claim to be final
+[taker 1794544289] 978014aa claim is final (block 2316)
+[taker 1794544289] 978014aa stage Claimed
+[taker 1794544289] 978014aa the taker cannot send withdraw (send_tx BG9pMdk4HxVUX6PdAutvTT1DRHxmNwNQzigY6ivsz6SV: NEAR RPC error HANDLER_ERROR / INVALID_TRANSACTION: {"TxExecutionError":{"InvalidTxError":{"NotEnoughBalance":{"balance":"28065097472579600000000","cost":"100919628919299500000000","signer_id":"975c9dc14c55248a47a24d981c7ec93717ecaa107fcbf6083fbd2f8131d89c80"}}}}); waiting for the maker to withdraw
+[taker 1794544289] 978014aa claim final; waiting for the payout (credit 30000000000000000000000000, in intents 0)
+[taker 1794544293] 978014aa PAYOUT: 30000000000000000000000000 of wrap.test.near in intents.near, owned by 975c9dc14c55248a47a24d981c7ec93717ecaa107fcbf6083fbd2f8131d89c80
+[taker 1794544293] 978014aa payout 30000000000000000000000000 wrap.test.near to 975c9dc14c55248a47a24d981c7ec93717ecaa107fcbf6083fbd2f8131d89c80 in intents
+[taker 1794544293] 978014aa stage Completed
+[taker 1794544293] 978014aa DONE Completed
+[taker 1794544293] finished: Completed

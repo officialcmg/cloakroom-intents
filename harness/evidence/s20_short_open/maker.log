@@ -1,0 +1,23 @@
+
+===== start maker --exit-after 1 =====
+[maker 1794544518] up: UA uregtest1kpegq5xu6t2wney48mecslgkj70y0zlswt8s9g6gw035egf229p92ypk5hl26aravp5lvaetrvkjfpj3taheeal2ash3ddm9hsxh7mf0 NEAR maker.test.near key ed25519:DmU43XuYxFL4Vtj4XcGMNKkPiQrpSRwCe9ks4xmSzMBE
+[maker 1794544528] 50d7c4db RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE ShortOpen]
+[maker 1794544528] 50d7c4db stage Quoting
+[maker 1794544529] {"type":"zcash_tx","swap":"50d7c4dbe075a7947dd965f701c133d3","what":"quote","txid":"899f99eb99a7fa7778ab9ac51f9fbd8be64d191377059eb95d5d79c62a106497"}
+[maker 1794544529] 50d7c4db encrypted QUOTE sent in tx 899f99eb99a7fa7778ab9ac51f9fbd8be64d191377059eb95d5d79c62a106497
+[maker 1794544529] 50d7c4db stage Quoted
+[maker 1794544534] 50d7c4db ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id ae7ded09
+[maker 1794544534] 50d7c4db stage Opening
+[maker 1794544539] {"type":"near_tx","swap":"50d7c4dbe075a7947dd965f701c133d3","what":"open","hash":"D8Abf4eeFHvfhF7tWXRrXBDpPaVnS55ncjxJQfL9U88Z"}
+[maker 1794544539] 50d7c4db escrow OPEN id ae7ded09fcda0b8983a235d9eef7d38f19f0da0ac06a22a5804deb5c0246c73e amount 29999999999999999999999999 t0=1794545970 t1=1794546030 t2=1794546090 W=45, tx D8Abf4eeFHvfhF7tWXRrXBDpPaVnS55ncjxJQfL9U88Z
+[maker 1794544539] {"type":"near_tx","swap":"50d7c4dbe075a7947dd965f701c133d3","what":"stipend","hash":"2eCAVhfPkYhbrbJFmY5wT7wTeYbRCCNASdpwfNDcjmkE"}
+[maker 1794544539] 50d7c4db STIPEND of 30000000000000000000000 yoctoNEAR sent to b282cce75d30870191dca32f6c935dab543e28e2f999c70512eeaf3f6fcf45be, tx 2eCAVhfPkYhbrbJFmY5wT7wTeYbRCCNASdpwfNDcjmkE
+[maker 1794544539] 50d7c4db stage Opened
+[maker 1794544543] 50d7c4db no funding before t0; refunding
+[maker 1794544543] 50d7c4db stage RefundSent
+[maker 1794544547] {"type":"near_tx","swap":"50d7c4dbe075a7947dd965f701c133d3","what":"refund","hash":"AXZn2Na1Nr2449tAVjwmYRA3KQYVond6ejTJvdoYrkM1"}
+[maker 1794544547] 50d7c4db REFUND publishes b, tx AXZn2Na1Nr2449tAVjwmYRA3KQYVond6ejTJvdoYrkM1 (executed); waiting for it to be final
+[maker 1794544550] 50d7c4db refund is final (block <= 2952); tokens withdrawn, tx GuE3rgX26Fmb87berAtGSWCZ79nRq6BPXDUCd626L6SA
+[maker 1794544550] 50d7c4db stage Refunded
+[maker 1794544550] 50d7c4db DONE Refunded
+[maker 1794544550] 1 swap(s) terminal; exiting

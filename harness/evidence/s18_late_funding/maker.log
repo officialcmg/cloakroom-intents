@@ -1,0 +1,23 @@
+
+===== start maker --exit-after 1 =====
+[maker 1794544405] up: UA uregtest1nu6v0pmwztcccpvg7q3ljltmlm32cpr80wtg30c5jwup984hrhp59t28yu0pcz58y2h2eysapjluwqht8t27s9aknfczj07mjyvkwx54 NEAR maker.test.near key ed25519:DmU43XuYxFL4Vtj4XcGMNKkPiQrpSRwCe9ks4xmSzMBE
+[maker 1794544418] dcd492df RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794544418] dcd492df stage Quoting
+[maker 1794544418] {"type":"zcash_tx","swap":"dcd492dfdd7ad448fde86393c792a0da","what":"quote","txid":"64f533dd277b5e9db20c6c7b3bad5cd4a0f707acd4edb8ed55f687303952338f"}
+[maker 1794544418] dcd492df encrypted QUOTE sent in tx 64f533dd277b5e9db20c6c7b3bad5cd4a0f707acd4edb8ed55f687303952338f
+[maker 1794544418] dcd492df stage Quoted
+[maker 1794544424] dcd492df ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 851d4dfe
+[maker 1794544424] dcd492df stage Opening
+[maker 1794544430] {"type":"near_tx","swap":"dcd492dfdd7ad448fde86393c792a0da","what":"open","hash":"BfyK5NjiQKo3jwM5iCFHYLPQDxZ88ucqLwMMrX7fPhjv"}
+[maker 1794544430] dcd492df escrow OPEN id 851d4dfe993fac1a00b7f98b46dbeb4e89d647b1623c1819b78f51fcc02ce723 amount 30000000000000000000000000 t0=1794545679 t1=1794545739 t2=1794545799 W=45, tx BfyK5NjiQKo3jwM5iCFHYLPQDxZ88ucqLwMMrX7fPhjv
+[maker 1794544430] {"type":"near_tx","swap":"dcd492dfdd7ad448fde86393c792a0da","what":"stipend","hash":"HckhoQAV6UgqwYvg4mWpt8TvakwwKbhbYbTfQcSjcEtM"}
+[maker 1794544430] dcd492df STIPEND of 30000000000000000000000 yoctoNEAR sent to 90b6ff127af82f7396776adb65749caa45c7ee56befb24480fd621196d91151a, tx HckhoQAV6UgqwYvg4mWpt8TvakwwKbhbYbTfQcSjcEtM
+[maker 1794544430] dcd492df stage Opened
+[maker 1794544440] dcd492df no funding before t0; refunding
+[maker 1794544440] dcd492df stage RefundSent
+[maker 1794544442] {"type":"near_tx","swap":"dcd492dfdd7ad448fde86393c792a0da","what":"refund","hash":"fe78TLVXN7Q7EDBy46ADfdNV6GNpXme87hDJjeBa7p9"}
+[maker 1794544442] dcd492df REFUND publishes b, tx fe78TLVXN7Q7EDBy46ADfdNV6GNpXme87hDJjeBa7p9 (executed); waiting for it to be final
+[maker 1794544445] dcd492df refund is final (block <= 2637); tokens withdrawn, tx HjbpEhVVGMqHNMyVaMchDJcuPD6cvb9WonMa1ygaprna
+[maker 1794544445] dcd492df stage Refunded
+[maker 1794544445] dcd492df DONE Refunded
+[maker 1794544445] 1 swap(s) terminal; exiting

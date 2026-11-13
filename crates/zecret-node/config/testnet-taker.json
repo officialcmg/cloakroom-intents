@@ -1,0 +1,18 @@
+{
+  "chains": {
+    "lightwalletd": "https://zcash-testnet.chainsafe.dev",
+    "birthday": 0,
+    "network": "test",
+    "near_rpc": "https://rpc.testnet.fastnear.com",
+    "escrow": "escrow.zecret-3f109eea1e.testnet",
+    "token": "usdc.zecret-3f109eea1e.testnet",
+    "intents": "intents.zecret-3f109eea1e.testnet"
+  },
+  "timing": {"inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 900, "k_z": 3},
+  "maker": "REPLACE with the output of `zecret directory --dir <maker dir>`",
+  "escrow_code_hash": "D9YwW6hJoKEzWkr9XW3fGT7ByCiEQZoWhfb45Q3jA7Lz",
+  "min_price": "0",
+  "max_premium": 2000,
+  "min_stipend": "30000000000000000000000",
+  "quote_timeout_secs": 1800
+}

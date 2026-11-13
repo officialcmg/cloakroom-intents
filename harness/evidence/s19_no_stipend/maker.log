@@ -1,0 +1,23 @@
+
+===== start maker --exit-after 1 =====
+[maker 1794544471] up: UA uregtest1446l6qggtqypmxcmxety2k87z67v8sjctlncghuzq6ucsqk3mhgqfc5txt68zp0kvy8ddmtrhe9mgmfc3uewe00w6hyylv8k65g024pn NEAR maker.test.near key ed25519:DmU43XuYxFL4Vtj4XcGMNKkPiQrpSRwCe9ks4xmSzMBE
+[maker 1794544482] 02e4c648 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE NoStipend]
+[maker 1794544482] 02e4c648 stage Quoting
+[maker 1794544482] {"type":"zcash_tx","swap":"02e4c64818a98b88630f0078a4ae7998","what":"quote","txid":"fd0407bf512f3bc021af66b3818424e9331c9ba592bf00d6ed61f6c7ce065f18"}
+[maker 1794544482] 02e4c648 encrypted QUOTE sent in tx fd0407bf512f3bc021af66b3818424e9331c9ba592bf00d6ed61f6c7ce065f18
+[maker 1794544482] 02e4c648 stage Quoted
+[maker 1794544488] 02e4c648 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id e0971547
+[maker 1794544488] 02e4c648 stage Opening
+[maker 1794544491] {"type":"near_tx","swap":"02e4c64818a98b88630f0078a4ae7998","what":"open","hash":"FaZaXoKpSUxnvBPBNT3gpgLiKUu7786NTyvKaq3onrFv"}
+[maker 1794544491] 02e4c648 escrow OPEN id e09715470cde7844fb14e82037378c88127800736266bf99cfcb8411b44b9d02 amount 30000000000000000000000000 t0=1794545831 t1=1794545891 t2=1794545951 W=45, tx FaZaXoKpSUxnvBPBNT3gpgLiKUu7786NTyvKaq3onrFv
+[maker 1794544491] 02e4c648 [MISBEHAVE no-stipend] not sending the stipend
+[maker 1794544491] 02e4c648 stage Opened
+[maker 1794544491] 02e4c648 transient: escrow swap e0971547 not found at a final block
+[maker 1794544497] 02e4c648 no funding before t0; refunding
+[maker 1794544497] 02e4c648 stage RefundSent
+[maker 1794544500] {"type":"near_tx","swap":"02e4c64818a98b88630f0078a4ae7998","what":"refund","hash":"FAym74tcKrHhG7QXEqJMQT6whihBvketngzri5fHUMQp"}
+[maker 1794544500] 02e4c648 REFUND publishes b, tx FAym74tcKrHhG7QXEqJMQT6whihBvketngzri5fHUMQp (executed); waiting for it to be final
+[maker 1794544503] 02e4c648 refund is final (block <= 2804); tokens withdrawn, tx FVFu1QQQDPtXYzGradh1u4s1r2bwbGAGuXJaY8gsBS38
+[maker 1794544503] 02e4c648 stage Refunded
+[maker 1794544503] 02e4c648 DONE Refunded
+[maker 1794544503] 1 swap(s) terminal; exiting

@@ -1,0 +1,23 @@
+
+===== start taker --zats 100000000 =====
+[taker 1794544518] new swap 50d7c4db for 100000000 zats; NEAR account b282cce75d30870191dca32f6c935dab543e28e2f999c70512eeaf3f6fcf45be; wallet uregtest1edt2cn34pg0kgcav4gldqnd3g7pkqfeht46ajwvqh446jjvfcpgh8f2jjkrxpda6rcl58gg456uwdd8j32ryqxylvhwuvsgw0yvq9wcs
+[taker 1794544518] 50d7c4db stage WaitingDeposit
+[taker 1794544519] balance 208333333 zats
+[taker 1794544519] {"type":"activity","swap":"50d7c4dbe075a7947dd965f701c133d3","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794544523] balance 0 zats
+[taker 1794544523] {"type":"zcash_tx","swap":"50d7c4dbe075a7947dd965f701c133d3","what":"rfq","txid":"b620504f018d146847ebf41031bba12f557d8bb50c4c35c6f80f5a44f51b81a7"}
+[taker 1794544523] 50d7c4db encrypted RFQ for 100000000 zats sent to the maker in shielded tx b620504f018d146847ebf41031bba12f557d8bb50c4c35c6f80f5a44f51b81a7
+[taker 1794544523] 50d7c4db stage RfqSent
+[taker 1794544525] balance 208323333 zats
+[taker 1794544529] 50d7c4db QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+[taker 1794544529] {"type":"quote","swap":"50d7c4dbe075a7947dd965f701c133d3","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest1jgujwdgevph0j4d7x6fscm80mj3jgmz49sh00e98jrsfce4la0v72p29qtqd0nhgrq0rud62nqhpac792qdykx053v8r66j2munda59q"}
+[taker 1794544530] {"type":"activity","swap":"50d7c4dbe075a7947dd965f701c133d3","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794544532] balance 0 zats
+[taker 1794544532] {"type":"zcash_tx","swap":"50d7c4dbe075a7947dd965f701c133d3","what":"accept","txid":"ca5d23d5c6b6acd470444cea83539002e0bc4282985997be6f39f918fc6261b0"}
+[taker 1794544532] 50d7c4db encrypted ACCEPT with 50000 zats premium sent in tx ca5d23d5c6b6acd470444cea83539002e0bc4282985997be6f39f918fc6261b0; joint address uregtest1jgujwdgevph0j4d7x6fscm80mj3jgmz49sh00e98jrsfce4la0v72p29qtqd0nhgrq0rud62nqhpac792qdykx053v8r66j2munda59q
+[taker 1794544532] 50d7c4db stage Accepted
+[taker 1794544534] balance 208263333 zats
+[taker 1794544538] 50d7c4db ABORT: escrow amount does not match the quote; nothing funded
+[taker 1794544538] 50d7c4db stage Aborted
+[taker 1794544538] 50d7c4db DONE Aborted
+[taker 1794544538] finished: Aborted

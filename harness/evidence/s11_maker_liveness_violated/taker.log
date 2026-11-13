@@ -35,3 +35,8 @@
 [taker 1794544041] 4c59e9e3 the taker cannot send withdraw (send_tx 7B7Mhth4BfcYJr4UszPd8gQ6q4nhXrAMNi5tGeXjyfX5: NEAR RPC error HANDLER_ERROR / INVALID_TRANSACTION: {"TxExecutionError":{"InvalidTxError":{"NotEnoughBalance":{"balance":"27868323776892500000000","cost":"100919628919299500000000","signer_id":"f63464c758a425c725663e2092dc25f60afb4c7b87240a85a2dc1f5c1e73883f"}}}}); waiting for the maker to withdraw
 [taker 1794544041] 4c59e9e3 claim final; waiting for the payout (credit 30000000000000000000000000, in intents 0)
 [taker 1794544045] 4c59e9e3 claim final; waiting for the payout (credit 0, in intents 0)
+[taker 1794544047] 4c59e9e3 PAYOUT: 30000000000000000000000000 of wrap.test.near in intents.near, owned by f63464c758a425c725663e2092dc25f60afb4c7b87240a85a2dc1f5c1e73883f
+[taker 1794544047] 4c59e9e3 payout 30000000000000000000000000 wrap.test.near to f63464c758a425c725663e2092dc25f60afb4c7b87240a85a2dc1f5c1e73883f in intents
+[taker 1794544047] 4c59e9e3 stage Completed
+[taker 1794544047] 4c59e9e3 DONE Completed
+[taker 1794544047] finished: Completed

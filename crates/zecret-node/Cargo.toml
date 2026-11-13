@@ -16,7 +16,9 @@ anyhow = "1"
 hex = "0.4.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-reqwest = { version = "0.12", default-features = false, features = ["blocking"] }
+# rustls with both the bundled web PKI roots and the system store (which also honours
+# SSL_CERT_FILE, for networks whose egress re-signs TLS).
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "rustls-tls-native-roots"] }
 # Native builds prove with all cores.
 orchard = { version = "0.16.0", features = ["multicore"] }
 zcash_primitives = { version = "=0.31.0-pre.1", features = ["multicore"] }
