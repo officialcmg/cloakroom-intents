@@ -41,7 +41,8 @@ This section is always current. The numbered sections below give the detail.
 7. The taker claims the USDC with the new key. The claim publishes the taker's half of
    the key.
 8. The maker now has the two halves. The maker takes the ZEC.
-9. The escrow pays the USDC into NEAR Intents. The taker's new key owns it.
+9. The maker sends the withdraw call. The escrow pays the USDC into NEAR Intents. The
+   taker's new key owns it.
 10. The app signs one message with that key. NEAR Intents sends the destination tokens
     to the user's address on the selected chain.
 
@@ -66,6 +67,10 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | The maker always pays USDC on NEAR. The token and chain that the user selects are not in the quote or the escrow. The app does the exit through NEAR Intents as a second step. |
 | 2026-11-13 | The taker software runs in the browser as WebAssembly. The user visits a website and downloads nothing. One shielded send costs about 25 s of computing in the browser. Tested in `experiments/wasm-prover`. |
 | 2026-11-13 | The website makes a temporary Zcash wallet. The user pays into it once, by QR code. It reads Zcash through a gRPC-web light-wallet server. Tested in `experiments/grpc-web`. |
+| 2026-11-13 | The maker sends the withdraw call after the claim is final. The call needs about 0.1 NEAR for gas in advance, and the taker's stipend cannot pay that. Any account can send it; the money can only go to the taker. |
+| 2026-11-13 | Before the taker sends ZEC, it checks the escrow: the code hash is the expected one, the account has no access keys, and its Intents account is the expected one. |
+| 2026-11-13 | The maker compares every field of a swap in the escrow with its own record before it sends the stipend or sets Ready. |
+| 2026-11-13 | The quote memo carries the USDC amount, the stipend, the escrow and maker accounts and a signature. The token is not in the memo. The taker reads the token from its configuration and checks it in the escrow. |
 | 2026-11-13 | The exit needs no API key. Before the app signs, it checks 1Click's signature on the quote and that the payload moves the approved amount of the approved token to the quoted deposit address, and nothing else. See `docs/INTENTS.md`. |
 | 2026-11-13 | The stipend is 0.03 NEAR, not 0.01. NEAR accepts a transaction only if the sender holds about 10 times the gas cost. With 0.01 NEAR the taker's commit is rejected. The real cost of commit and claim is about 0.002 NEAR. Measured in `contracts/near-escrow` sandbox tests. |
 | 2026-11-13 | The maker pays in advance for the storage of its swaps in the escrow. The escrow has `add_storage_funds`. Without this, any account could fill the escrow's storage. |

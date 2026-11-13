@@ -206,6 +206,27 @@ fn credit(c: &Escrow, owner: &AccountId) -> CreditView {
     c.get_credit(token(), owner.clone())
 }
 
+/// Method, args, attached deposit, static gas and gas weight of a receipt's first action.
+fn call_of(r: &near_sdk::mock::Receipt) -> (String, Vec<u8>, NearToken, Gas, u64) {
+    match &r.actions[0] {
+        near_sdk::mock::MockAction::FunctionCallWeight {
+            method_name,
+            args,
+            attached_deposit,
+            prepaid_gas,
+            gas_weight,
+            ..
+        } => (
+            String::from_utf8(method_name.clone()).unwrap(),
+            args.clone(),
+            *attached_deposit,
+            *prepaid_gas,
+            gas_weight.0,
+        ),
+        other => panic!("unexpected action {other:?}"),
+    }
+}
+
 fn events() -> Vec<serde_json::Value> {
     get_logs()
         .iter()
@@ -656,10 +677,12 @@ fn happy_path_commit_claim_withdraw() {
     at(&maker(), T2 + 2 * W);
     assert_err("TooEarly", || c.refund(Hex32(id), Hex32(le(B_SEC))));
 
-    // Withdraw sends the taker's credit into Intents and zeroes it first.
+    // Withdraw zeroes the taker's credit first. Step 1 deposits into the escrow's own
+    // Intents account (msg = the escrow's account id), then on_deposit runs.
     at(&acc("anyone.near"), T2 + 2 * W);
     c.withdraw(token(), taker_account());
     assert_eq!(credit(&c, &taker_account()).intents, U128(0));
+    assert_eq!(c.get_in_flight(token()), U128(AMT));
     let r = get_created_receipts();
     assert_eq!(r.len(), 2);
     assert_eq!(r[0].receiver_id, token());
@@ -668,37 +691,69 @@ fn happy_path_commit_claim_withdraw() {
         "receiver_id": intents(),
         "amount": AMT.to_string(),
         "memo": null,
-        "msg": taker_account(),
+        "msg": escrow_id(),
     })
     .to_string();
-    match &r[0].actions[0] {
-        near_sdk::mock::MockAction::FunctionCallWeight {
-            method_name,
-            args,
-            attached_deposit,
-            prepaid_gas,
-            ..
-        } => {
-            assert_eq!(method_name, b"ft_transfer_call");
-            assert_eq!(String::from_utf8(args.clone()).unwrap(), expected_args);
-            assert_eq!(*attached_deposit, NearToken::from_yoctonear(1));
-            assert_eq!(*prepaid_gas, GAS_FT_TRANSFER_CALL);
-        }
-        other => panic!("unexpected action {other:?}"),
-    }
-    match &r[1].actions[0] {
-        near_sdk::mock::MockAction::FunctionCallWeight {
-            method_name,
-            prepaid_gas,
-            gas_weight,
-            ..
-        } => {
-            assert_eq!(method_name, b"on_withdraw");
-            assert_eq!(*prepaid_gas, GAS_ON_WITHDRAW);
-            assert_eq!(gas_weight.0, 0);
-        }
-        other => panic!("unexpected action {other:?}"),
-    }
+    let (method, args, deposit, gas, weight) = call_of(&r[0]);
+    assert_eq!(method, "ft_transfer_call");
+    assert_eq!(String::from_utf8(args).unwrap(), expected_args);
+    assert_eq!(deposit, NearToken::from_yoctonear(1));
+    assert_eq!(gas, GAS_FT_TRANSFER_CALL);
+    assert_eq!(weight, 1, "the token call gets the unused gas");
+    let (method, args, _, gas, weight) = call_of(&r[1]);
+    assert_eq!(method, "on_deposit");
+    let a: serde_json::Value = serde_json::from_slice(&args).unwrap();
+    assert_eq!(
+        a,
+        json!({ "token": token(), "owner": taker_account(), "amount": AMT.to_string() })
+    );
+    assert_eq!(gas, GAS_ON_DEPOSIT);
+    assert_eq!(weight, 0);
+
+    // Step 2 runs whatever step 1 reported: mt_transfer to the taker from the escrow's
+    // own Intents balance, with 1 yoctoNEAR, then on_withdraw.
+    at_with_results(&escrow_id(), T2 + 2 * W, vec![PromiseResult::Failed]);
+    c.on_deposit(token(), taker_account(), U128(AMT));
+    let r = get_created_receipts();
+    assert_eq!(r.len(), 2);
+    assert_eq!(r[0].receiver_id, intents());
+    assert_eq!(r[1].receiver_id, escrow_id());
+    let (method, args, deposit, gas, weight) = call_of(&r[0]);
+    assert_eq!(method, "mt_transfer");
+    assert_eq!(
+        String::from_utf8(args).unwrap(),
+        json!({
+            "receiver_id": taker_account(),
+            "token_id": "nep141:usdc.near",
+            "amount": AMT.to_string(),
+            "approval": null,
+            "memo": null,
+        })
+        .to_string()
+    );
+    assert_eq!(deposit, NearToken::from_yoctonear(1));
+    assert_eq!(gas, GAS_MT_TRANSFER);
+    assert_eq!(weight, 0);
+    let (method, args, _, gas, weight) = call_of(&r[1]);
+    assert_eq!(method, "on_withdraw");
+    let a: serde_json::Value = serde_json::from_slice(&args).unwrap();
+    assert_eq!(a["route"], "intents");
+    assert_eq!(a["amount"], AMT.to_string());
+    assert_eq!(gas, GAS_ON_WITHDRAW);
+    assert_eq!(weight, 0);
+
+    // mt_transfer succeeded (it returns nothing): the taker is paid, nothing is restored.
+    at_with_results(
+        &escrow_id(),
+        T2 + 2 * W,
+        vec![PromiseResult::Successful(vec![])],
+    );
+    assert_eq!(
+        c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT)),
+        U128(AMT)
+    );
+    assert_eq!(credit(&c, &taker_account()).intents, U128(0));
+    assert_eq!(c.get_in_flight(token()), U128(0));
     // A second withdraw has nothing to pay.
     at(&acc("anyone.near"), T2 + 2 * W);
     c.withdraw(token(), taker_account());
@@ -1218,18 +1273,270 @@ fn on_withdraw_success_keeps_credit_zero() {
     assert_eq!(credit(&c, &taker_account()).intents, U128(0));
 }
 
+/// NV-02: on the Intents route the result of step 1 (`ft_transfer_call`) is never used.
+/// A deposit that reports failure, partial use or full use leads to the same step 2, and
+/// only the result of `mt_transfer` decides whether the credit is restored.
 #[test]
-fn on_withdraw_restores_unused_part_of_ft_transfer_call() {
+fn intents_withdraw_pays_only_through_mt_transfer() {
+    let amt = format!("\"{AMT}\"");
+    let step1_results: [Option<&[u8]>; 5] = [
+        None,
+        Some(b"\"0\""),
+        Some(b"\"1000\""),
+        Some(amt.as_bytes()),
+        Some(b"junk"),
+    ];
+    for step1 in step1_results {
+        let step1_result = || match step1 {
+            None => PromiseResult::Failed,
+            Some(b) => PromiseResult::Successful(b.to_vec()),
+        };
+        for (mt_result, delivered) in [
+            (PromiseResult::Successful(vec![]), AMT),
+            (PromiseResult::Failed, 0),
+        ] {
+            let mut c = claimed();
+            at(&acc("anyone.near"), NOW + 5);
+            c.withdraw(token(), taker_account());
+            at_with_results(&escrow_id(), NOW + 6, vec![step1_result()]);
+            c.on_deposit(token(), taker_account(), U128(AMT));
+            let r = get_created_receipts();
+            assert_eq!(call_of(&r[0]).0, "mt_transfer", "{step1:?}");
+            assert_eq!(credit(&c, &taker_account()).intents, U128(0));
+            at_with_results(&escrow_id(), NOW + 7, vec![mt_result]);
+            assert_eq!(
+                c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT)),
+                U128(delivered)
+            );
+            assert_eq!(
+                credit(&c, &taker_account()).intents,
+                U128(AMT - delivered),
+                "{step1:?}"
+            );
+            assert_eq!(c.get_in_flight(token()), U128(0));
+            let ev = events();
+            assert_eq!(ev[0]["event"], "withdrawn");
+            assert_eq!(ev[0]["data"][0]["amount"], delivered.to_string());
+            assert_eq!(ev[0]["data"][0]["restored"], (AMT - delivered).to_string());
+        }
+    }
+}
+
+/// A credit unit reaches at most one successful mt_transfer: after a failed one it is
+/// restored once, and the next withdraw starts a new deposit and a new mt_transfer.
+#[test]
+fn intents_credit_is_paid_at_most_once_over_retries() {
+    let mut c = claimed();
+    let mut paid = 0u128;
+    for mt_ok in [false, false, true] {
+        at(&acc("anyone.near"), NOW + 5);
+        c.withdraw(token(), taker_account());
+        let r = get_created_receipts();
+        if r.is_empty() {
+            break;
+        }
+        at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Failed]);
+        c.on_deposit(token(), taker_account(), U128(AMT));
+        let result = if mt_ok {
+            PromiseResult::Successful(vec![])
+        } else {
+            PromiseResult::Failed
+        };
+        at_with_results(&escrow_id(), NOW + 7, vec![result]);
+        paid += c
+            .on_withdraw(token(), taker_account(), Route::Intents, U128(AMT))
+            .0;
+    }
+    assert_eq!(paid, AMT);
+    at(&acc("anyone.near"), NOW + 8);
+    c.withdraw(token(), taker_account());
+    assert!(get_created_receipts().is_empty(), "nothing left to pay");
+}
+
+/// Two Intents withdraws in the same token in flight at once: the in-flight sum covers
+/// both, and each on_withdraw takes off only its own amount.
+#[test]
+fn in_flight_tracks_concurrent_intents_withdraws() {
+    let mut c = claimed();
+    // A second taker credit in the same token, under another owner.
+    let other = acc(&"ab".repeat(32));
+    c.credits.insert(
+        CreditKey {
+            token: token(),
+            owner: other.clone(),
+            route: Route::Intents,
+        },
+        7,
+    );
+    at(&acc("anyone.near"), NOW + 5);
+    c.withdraw(token(), taker_account());
+    c.withdraw(token(), other.clone());
+    assert_eq!(c.get_in_flight(token()), U128(AMT + 7));
+    at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Failed]);
+    c.on_withdraw(token(), other.clone(), Route::Intents, U128(7));
+    assert_eq!(c.get_in_flight(token()), U128(AMT));
+    assert_eq!(credit(&c, &other).intents, U128(7));
+    at_with_results(
+        &escrow_id(),
+        NOW + 6,
+        vec![PromiseResult::Successful(vec![])],
+    );
+    c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT));
+    assert_eq!(c.get_in_flight(token()), U128(0));
+    // The direct route does not touch the in-flight sum.
+    at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Failed]);
+    c.on_withdraw(token(), maker(), Route::Direct, U128(5));
+    assert_eq!(c.get_in_flight(token()), U128(0));
+}
+
+#[test]
+fn open_creates_the_in_flight_entry() {
+    let mut c = setup();
+    open(&mut c);
+    assert!(c.in_flight.contains_key(&token()));
+    assert_eq!(c.get_in_flight(token()), U128(0));
+    assert_eq!(c.get_in_flight(acc("other.near")), U128(0));
+}
+
+/// on_deposit gets exactly GAS_ON_DEPOSIT. It must be able to reserve the gas of both its
+/// calls from that, or a credit would be zeroed and never paid or restored.
+#[test]
+fn on_deposit_and_on_sweep_balance_fit_in_their_reserved_gas() {
+    assert!(
+        GAS_ON_DEPOSIT.as_gas()
+            >= GAS_MT_TRANSFER.as_gas() + GAS_ON_WITHDRAW.as_gas() + GAS_ON_DEPOSIT_OWN.as_gas()
+    );
+    let mut c = claimed();
+    testing_env!(
+        ctx(&escrow_id(), NOW + 6)
+            .prepaid_gas(Gas::from_tgas(300))
+            .build(),
+        near_sdk::test_vm_config(),
+        RuntimeFeesConfig::test(),
+        Default::default(),
+        vec![PromiseResult::Failed]
+    );
+    c.on_deposit(token(), taker_account(), U128(AMT));
+    assert_eq!(get_created_receipts().len(), 2);
+    let used = env::used_gas();
+    println!(
+        "on_deposit used {} Tgas in the mock",
+        used.as_gas() as f64 / 1e12
+    );
+    testing_env!(
+        ctx(&escrow_id(), NOW + 6)
+            .prepaid_gas(Gas::from_tgas(300))
+            .build(),
+        near_sdk::test_vm_config(),
+        RuntimeFeesConfig::test(),
+        Default::default(),
+        vec![PromiseResult::Successful(b"\"10\"".to_vec())]
+    );
+    let _ = c.on_sweep_balance(token());
+    assert_eq!(get_created_receipts().len(), 2);
+    let used = env::used_gas();
+    println!(
+        "on_sweep_balance used {:.2} Tgas in the mock",
+        used.as_gas() as f64 / 1e12
+    );
+    assert!(
+        used <= GAS_ON_SWEEP_BALANCE,
+        "on_sweep_balance needs {used:?}"
+    );
+}
+
+#[test]
+fn sweep_reads_the_escrow_intents_balance() {
+    let mut c = claimed();
+    at(&acc("anyone.near"), NOW + 5);
+    let _ = c.sweep(token());
+    let r = get_created_receipts();
+    assert_eq!(r.len(), 2);
+    assert_eq!(r[0].receiver_id, intents());
+    let (method, args, deposit, gas, _) = call_of(&r[0]);
+    assert_eq!(method, "mt_balance_of");
+    assert_eq!(
+        String::from_utf8(args).unwrap(),
+        json!({ "account_id": escrow_id(), "token_id": "nep141:usdc.near" }).to_string()
+    );
+    assert_eq!(deposit, NearToken::from_yoctonear(0));
+    assert_eq!(gas, GAS_MT_BALANCE_OF);
+    let (method, _, _, gas, weight) = call_of(&r[1]);
+    assert_eq!(method, "on_sweep_balance");
+    assert_eq!(gas, GAS_ON_SWEEP_BALANCE);
+    assert_eq!(weight, 0);
+}
+
+/// sweep withdraws only to the escrow itself, and leaves the in-flight sum in Intents.
+#[test]
+fn sweep_returns_only_the_surplus_to_the_escrow() {
     let mut c = claimed();
     at(&acc("anyone.near"), NOW + 5);
     c.withdraw(token(), taker_account());
-    let used = b"\"1000\"".to_vec();
-    at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Successful(used)]);
-    assert_eq!(
-        c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT)),
-        U128(1000)
+    assert_eq!(c.get_in_flight(token()), U128(AMT));
+
+    // Balance above the in-flight sum: ft_withdraw of the difference, to the escrow.
+    let balance = AMT + 250;
+    at_with_results(
+        &escrow_id(),
+        NOW + 6,
+        vec![PromiseResult::Successful(
+            format!("\"{balance}\"").into_bytes(),
+        )],
     );
-    assert_eq!(credit(&c, &taker_account()).intents, U128(AMT - 1000));
+    let _ = c.on_sweep_balance(token());
+    let r = get_created_receipts();
+    assert_eq!(r.len(), 2);
+    assert_eq!(r[0].receiver_id, intents());
+    let (method, args, deposit, gas, _) = call_of(&r[0]);
+    assert_eq!(method, "ft_withdraw");
+    assert_eq!(
+        String::from_utf8(args).unwrap(),
+        json!({
+            "token": token(),
+            "receiver_id": escrow_id(),
+            "amount": "250",
+            "memo": null,
+            "msg": null,
+        })
+        .to_string()
+    );
+    assert_eq!(deposit, NearToken::from_yoctonear(1));
+    assert_eq!(gas, GAS_FT_WITHDRAW);
+    assert_eq!(call_of(&r[1]).0, "on_swept");
+
+    // Balance at or below the in-flight sum, unreadable, or a failed read: nothing moves.
+    for result in [
+        PromiseResult::Successful(format!("\"{AMT}\"").into_bytes()),
+        PromiseResult::Successful(b"\"5\"".to_vec()),
+        PromiseResult::Successful(b"junk".to_vec()),
+        PromiseResult::Failed,
+    ] {
+        at_with_results(&escrow_id(), NOW + 6, vec![result]);
+        match c.on_sweep_balance(token()) {
+            PromiseOrValue::Value(v) => assert_eq!(v, U128(0)),
+            PromiseOrValue::Promise(_) => panic!("no transfer expected"),
+        }
+        assert!(get_created_receipts().is_empty());
+    }
+    // No credit or swap changed.
+    assert_eq!(credit(&c, &taker_account()).intents, U128(0));
+    assert_eq!(c.get_in_flight(token()), U128(AMT));
+}
+
+#[test]
+fn on_swept_logs_the_amount() {
+    let mut c = claimed();
+    for (result, amount) in [
+        (PromiseResult::Successful(b"\"250\"".to_vec()), 250u128),
+        (PromiseResult::Failed, 0),
+    ] {
+        at_with_results(&escrow_id(), NOW + 6, vec![result]);
+        assert_eq!(c.on_swept(token(), U128(300), U128(50)), U128(amount));
+        let ev = events();
+        assert_eq!(ev[0]["event"], "swept");
+        assert_eq!(ev[0]["data"][0]["amount"], amount.to_string());
+    }
 }
 
 #[test]

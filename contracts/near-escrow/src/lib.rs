@@ -23,13 +23,19 @@
 //! `claim` and `refund` make no cross-contract calls. They only record a credit. Tokens
 //! move in `withdraw`, so a problem on the token side can never make a call that publishes
 //! a key share fail.
+//!
+//! A taker credit is paid in two steps (see `withdraw`): the escrow deposits the tokens
+//! into its own account in the Intents contract, then moves them to the taker there with
+//! `mt_transfer`. Only a successful `mt_transfer` counts as a payment, so a token whose
+//! `ft_transfer_call` reports failure after a delivery cannot make the escrow pay twice
+//! (docs/security/nv02-usdc.md).
 
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::{self, json};
 use near_sdk::store::LookupMap;
 use near_sdk::{
     env, ext_contract, near, require, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault,
-    Promise, PromiseError,
+    Promise, PromiseError, PromiseOrValue,
 };
 
 pub mod curve;
@@ -54,6 +60,28 @@ pub const GAS_FT_TRANSFER: Gas = Gas::from_tgas(15);
 pub const GAS_FT_TRANSFER_CALL: Gas = Gas::from_tgas(60);
 /// Gas reserved for the `on_withdraw` callback. It reads and writes one credit entry.
 pub const GAS_ON_WITHDRAW: Gas = Gas::from_tgas(10);
+/// Gas reserved for `mt_transfer` on the Intents contract (one receipt, no further calls).
+pub const GAS_MT_TRANSFER: Gas = Gas::from_tgas(15);
+/// Gas that `on_deposit` itself may use, on top of the gas it reserves for its calls. Most
+/// of it is the fees for creating the two receipts.
+pub const GAS_ON_DEPOSIT_OWN: Gas = Gas::from_tgas(20);
+/// Gas reserved for `on_deposit`: its own work, `mt_transfer` and `on_withdraw`. The
+/// callback gets exactly this amount, so it can always start both calls.
+pub const GAS_ON_DEPOSIT: Gas = GAS_ON_DEPOSIT_OWN
+    .saturating_add(GAS_MT_TRANSFER)
+    .saturating_add(GAS_ON_WITHDRAW);
+/// Gas reserved for `mt_balance_of` on the Intents contract (a read).
+pub const GAS_MT_BALANCE_OF: Gas = Gas::from_tgas(5);
+/// Gas reserved for `ft_withdraw` on the Intents contract. It calls the token's
+/// `ft_transfer` (15 Tgas in the Intents code) and its own resolve step (15 Tgas).
+pub const GAS_FT_WITHDRAW: Gas = Gas::from_tgas(50);
+/// Gas reserved for the `on_swept` callback. It only logs.
+pub const GAS_ON_SWEPT: Gas = Gas::from_tgas(5);
+/// Gas reserved for `on_sweep_balance`: its own work (mostly receipt fees), `ft_withdraw`
+/// and `on_swept`.
+pub const GAS_ON_SWEEP_BALANCE: Gas = Gas::from_tgas(20)
+    .saturating_add(GAS_FT_WITHDRAW)
+    .saturating_add(GAS_ON_SWEPT);
 
 /// NEP-297 standard name and version of the events.
 pub const EVENT_STANDARD: &str = "near_escrow";
@@ -86,7 +114,8 @@ pub enum State {
 pub enum Route {
     /// `ft_transfer` to the owner. Used for the maker's refund.
     Direct,
-    /// `ft_transfer_call` to the Intents contract with `msg` = owner. Used for the taker.
+    /// Deposit into the escrow's own Intents account, then `mt_transfer` to the owner
+    /// inside Intents. Used for the taker.
     Intents,
 }
 
@@ -196,6 +225,7 @@ enum Prefix {
     Swaps,
     Credits,
     StorageFunds,
+    InFlight,
 }
 
 #[ext_contract(ext_ft)]
@@ -211,6 +241,29 @@ trait FungibleToken {
     ) -> U128;
 }
 
+/// The methods of the Intents contract (NEAR Intents Verifier) that the escrow calls.
+#[ext_contract(ext_intents)]
+#[allow(dead_code)]
+trait Intents {
+    fn mt_transfer(
+        &mut self,
+        receiver_id: AccountId,
+        token_id: String,
+        amount: U128,
+        approval: Option<(AccountId, u64)>,
+        memo: Option<String>,
+    );
+    fn mt_balance_of(&self, account_id: AccountId, token_id: String) -> U128;
+    fn ft_withdraw(
+        &mut self,
+        token: AccountId,
+        receiver_id: AccountId,
+        amount: U128,
+        memo: Option<String>,
+        msg: Option<String>,
+    ) -> U128;
+}
+
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
 pub struct Escrow {
@@ -219,6 +272,10 @@ pub struct Escrow {
     credits: LookupMap<CreditKey, u128>,
     /// Prepaid NEAR (yocto) per (maker, token) for the storage that new swaps use.
     storage_funds: LookupMap<FundsKey, u128>,
+    /// Per token: the sum of the Intents withdraws that have started and whose
+    /// `on_withdraw` has not run yet. `sweep` leaves this much in the escrow's Intents
+    /// account. The entry for a token is created by the first `open` in that token.
+    in_flight: LookupMap<AccountId, u128>,
 }
 
 fn fail(code: &str, detail: &str) -> ! {
@@ -304,6 +361,7 @@ impl Escrow {
             swaps: LookupMap::new(Prefix::Swaps),
             credits: LookupMap::new(Prefix::Credits),
             storage_funds: LookupMap::new(Prefix::StorageFunds),
+            in_flight: LookupMap::new(Prefix::InFlight),
         }
     }
 
@@ -457,8 +515,13 @@ impl Escrow {
                 self.credits.insert(key, 0);
             }
         }
+        // Same for the token's in-flight entry, which withdraw and on_withdraw update.
+        if !self.in_flight.contains_key(&token) {
+            self.in_flight.insert(token.clone(), 0);
+        }
         self.swaps.flush();
         self.credits.flush();
+        self.in_flight.flush();
         let cost = storage_cost(before, env::storage_usage());
         let funds_key = FundsKey {
             owner: sender_id.clone(),
@@ -612,10 +675,16 @@ impl Escrow {
     // ------------------------------------------------------------------ withdraw
 
     /// Pays out the credit of `owner` in `token`. Anyone may call it. Each credit is set to
-    /// zero before its transfer starts. A direct credit goes out with `ft_transfer` to the
-    /// owner. An Intents credit goes out with `ft_transfer_call` to the Intents contract,
-    /// with `msg` = owner, which credits that account inside Intents. `on_withdraw` puts back
-    /// whatever the token did not deliver.
+    /// zero before its transfer starts.
+    ///
+    /// - A direct credit goes out with `ft_transfer` to the owner, then `on_withdraw`.
+    /// - An Intents credit goes out in two steps. Step 1: `ft_transfer_call` to the Intents
+    ///   contract with `msg` = the escrow's own account id, which deposits the tokens into
+    ///   the escrow's own Intents account. Step 2 (`on_deposit`): `mt_transfer` of the
+    ///   amount from that account to the owner inside Intents, then `on_withdraw`.
+    ///
+    /// `on_withdraw` restores the credit if the last step (`ft_transfer` or `mt_transfer`)
+    /// failed. Both are single receipts, so a failure means that nothing moved.
     pub fn withdraw(&mut self, token: AccountId, owner: AccountId) {
         for route in [Route::Direct, Route::Intents] {
             let key = CreditKey {
@@ -629,39 +698,75 @@ impl Escrow {
             }
             self.credits.insert(key, 0);
             let one_yocto = NearToken::from_yoctonear(1);
-            let transfer = match route {
+            match route {
                 Route::Direct => ext_ft::ext(token.clone())
                     .with_attached_deposit(one_yocto)
                     .with_static_gas(GAS_FT_TRANSFER)
-                    .ft_transfer(owner.clone(), U128(amount), None),
-                Route::Intents => ext_ft::ext(token.clone())
-                    .with_attached_deposit(one_yocto)
-                    .with_static_gas(GAS_FT_TRANSFER_CALL)
-                    .ft_transfer_call(
-                        self.intents_account.clone(),
-                        U128(amount),
-                        None,
-                        owner.to_string(),
-                    ),
-            };
-            transfer
-                .then(
-                    Self::ext(env::current_account_id())
-                        .with_static_gas(GAS_ON_WITHDRAW)
-                        .with_unused_gas_weight(0)
-                        .on_withdraw(token.clone(), owner.clone(), route, U128(amount)),
-                )
-                .detach();
+                    .ft_transfer(owner.clone(), U128(amount), None)
+                    .then(
+                        Self::ext(env::current_account_id())
+                            .with_static_gas(GAS_ON_WITHDRAW)
+                            .with_unused_gas_weight(0)
+                            .on_withdraw(token.clone(), owner.clone(), route, U128(amount)),
+                    )
+                    .detach(),
+                Route::Intents => {
+                    let pending = self.in_flight.get(&token).copied().unwrap_or(0);
+                    self.in_flight.insert(
+                        token.clone(),
+                        pending
+                            .checked_add(amount)
+                            .unwrap_or_else(|| env::panic_str("in-flight overflow")),
+                    );
+                    // Step 1. The result is not used: a token can report failure after it
+                    // delivered (USDC on NEAR does, if it is paused or an account is
+                    // blocklisted before its resolve step). See on_deposit.
+                    ext_ft::ext(token.clone())
+                        .with_attached_deposit(one_yocto)
+                        .with_static_gas(GAS_FT_TRANSFER_CALL)
+                        .ft_transfer_call(
+                            self.intents_account.clone(),
+                            U128(amount),
+                            None,
+                            env::current_account_id().to_string(),
+                        )
+                        .then(
+                            Self::ext(env::current_account_id())
+                                .with_static_gas(GAS_ON_DEPOSIT)
+                                .with_unused_gas_weight(0)
+                                .on_deposit(token.clone(), owner.clone(), U128(amount)),
+                        )
+                        .detach()
+                }
+            }
         }
     }
 
-    /// Callback of `withdraw`. Restores the part of `amount` that was not delivered and
-    /// returns the delivered amount.
-    ///
-    /// - Direct: delivered = amount if `ft_transfer` succeeded, else 0.
-    /// - Intents: `ft_transfer_call` returns the amount the receiver kept. Delivered = that
-    ///   amount (at most `amount`). If the call failed, delivered = 0. If it succeeded but
-    ///   its result cannot be read, delivered = amount, so a credit is never paid twice.
+    /// Step 2 of an Intents withdraw. It runs whatever step 1 reported, and it does not
+    /// read that result. It pays the owner with `mt_transfer` from the escrow's own Intents
+    /// account. `mt_transfer` is one receipt in the Intents contract: it moves the whole
+    /// amount or nothing, and only from the escrow's own Intents balance.
+    #[private]
+    pub fn on_deposit(&mut self, token: AccountId, owner: AccountId, amount: U128) {
+        ext_intents::ext(self.intents_account.clone())
+            .with_attached_deposit(NearToken::from_yoctonear(1))
+            .with_static_gas(GAS_MT_TRANSFER)
+            .with_unused_gas_weight(0)
+            .mt_transfer(owner.clone(), nep141_id(&token), amount, None, None)
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_ON_WITHDRAW)
+                    .with_unused_gas_weight(0)
+                    .on_withdraw(token, owner, Route::Intents, amount),
+            )
+            .detach();
+    }
+
+    /// Callback of the last step of a withdraw: `ft_transfer` (route Direct) or
+    /// `mt_transfer` (route Intents). Restores the whole amount if that call failed and
+    /// returns the delivered amount. Both calls are single receipts with no further calls,
+    /// so a failed result means that nothing moved, and a successful one means that all
+    /// of `amount` moved.
     #[private]
     pub fn on_withdraw(
         &mut self,
@@ -670,18 +775,18 @@ impl Escrow {
         route: Route,
         amount: U128,
     ) -> U128 {
-        // A U128 result is a short JSON string; 64 bytes is more than enough.
+        // Both calls return nothing on success; 64 bytes is more than enough.
         let result = env::promise_result_checked(0, 64);
-        let delivered = match (route, result) {
-            (_, Err(PromiseError::Failed)) => 0,
-            (Route::Direct, _) => amount.0,
-            (Route::Intents, Ok(bytes)) => match parse_u128_json(&bytes) {
-                Some(used) => used.min(amount.0),
-                None => amount.0,
-            },
-            (Route::Intents, Err(_)) => amount.0,
+        let delivered = match result {
+            Err(PromiseError::Failed) => 0,
+            _ => amount.0,
         };
         let restored = amount.0 - delivered;
+        if route == Route::Intents {
+            let pending = self.in_flight.get(&token).copied().unwrap_or(0);
+            self.in_flight
+                .insert(token.clone(), pending.saturating_sub(amount.0));
+        }
         if restored > 0 {
             let key = CreditKey {
                 token: token.clone(),
@@ -703,10 +808,94 @@ impl Escrow {
         U128(delivered)
     }
 
+    // ------------------------------------------------------------------ sweep
+
+    /// Brings tokens that stay in the escrow's own Intents account back to the escrow's
+    /// token balance, where the credits and open swaps are paid from. Anyone may call it.
+    ///
+    /// Tokens stay there when a deposit arrived but its `mt_transfer` did not run or
+    /// failed, or when a `mt_transfer` was paid from tokens that arrived for another
+    /// withdraw. Nobody is paid twice in those cases, but the escrow's token balance alone
+    /// is then lower than what it owes, and a later `ft_transfer` (maker refund) or
+    /// deposit can fail until the tokens are back.
+    ///
+    /// The only transfer it makes is `ft_withdraw` with `receiver_id` = the escrow itself,
+    /// of at most the escrow's Intents balance minus the Intents withdraws in flight. It
+    /// changes no credit and no swap. Returns the amount that came back.
+    pub fn sweep(&mut self, token: AccountId) -> Promise {
+        ext_intents::ext(self.intents_account.clone())
+            .with_static_gas(GAS_MT_BALANCE_OF)
+            .with_unused_gas_weight(0)
+            .mt_balance_of(env::current_account_id(), nep141_id(&token))
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_ON_SWEEP_BALANCE)
+                    .with_unused_gas_weight(0)
+                    .on_sweep_balance(token),
+            )
+    }
+
+    /// Callback of `sweep` with the escrow's Intents balance of the token.
+    #[private]
+    pub fn on_sweep_balance(&mut self, token: AccountId) -> PromiseOrValue<U128> {
+        let balance = match env::promise_result_checked(0, 64) {
+            Ok(bytes) => parse_u128_json(&bytes).unwrap_or(0),
+            Err(_) => 0,
+        };
+        let pending = self.in_flight.get(&token).copied().unwrap_or(0);
+        let amount = balance.saturating_sub(pending);
+        if amount == 0 {
+            emit(
+                "swept",
+                json!({ "token": token, "amount": U128(0), "balance": U128(balance), "in_flight": U128(pending) }),
+            );
+            return PromiseOrValue::Value(U128(0));
+        }
+        ext_intents::ext(self.intents_account.clone())
+            .with_attached_deposit(NearToken::from_yoctonear(1))
+            .with_static_gas(GAS_FT_WITHDRAW)
+            .with_unused_gas_weight(0)
+            .ft_withdraw(
+                token.clone(),
+                env::current_account_id(),
+                U128(amount),
+                None,
+                None,
+            )
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_ON_SWEPT)
+                    .with_unused_gas_weight(0)
+                    .on_swept(token, U128(balance), U128(pending)),
+            )
+            .into()
+    }
+
+    /// Callback of `ft_withdraw` in `sweep`. Logs the amount that came back.
+    #[private]
+    pub fn on_swept(&mut self, token: AccountId, balance: U128, in_flight: U128) -> U128 {
+        // `ft_withdraw` returns the amount the token transferred. It is 0 if the call
+        // failed: then the Intents contract kept or restored the balance.
+        let amount = match env::promise_result_checked(0, 64) {
+            Ok(bytes) => parse_u128_json(&bytes).unwrap_or(0),
+            Err(_) => 0,
+        };
+        emit(
+            "swept",
+            json!({ "token": token, "amount": U128(amount), "balance": balance, "in_flight": in_flight }),
+        );
+        U128(amount)
+    }
+
     // ------------------------------------------------------------------ views
 
     pub fn get_intents_account(&self) -> AccountId {
         self.intents_account.clone()
+    }
+
+    /// The sum of the Intents withdraws in `token` that have started and not finished.
+    pub fn get_in_flight(&self, token: AccountId) -> U128 {
+        U128(self.in_flight.get(&token).copied().unwrap_or(0))
     }
 
     pub fn get_swap(&self, id: Hex32) -> Option<SwapView> {
@@ -780,7 +969,12 @@ impl Escrow {
     }
 }
 
-/// Reads a JSON string holding a u128, the result of `ft_transfer_call`.
+/// The token id of a NEP-141 token inside the Intents contract.
+pub fn nep141_id(token: &AccountId) -> String {
+    format!("nep141:{token}")
+}
+
+/// Reads a JSON string holding a u128 (`mt_balance_of`, `ft_withdraw`).
 pub fn parse_u128_json(bytes: &[u8]) -> Option<u128> {
     match serde_json::from_slice::<serde_json::Value>(bytes).ok()? {
         serde_json::Value::String(s) => s.parse::<u128>().ok(),
