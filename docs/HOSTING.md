@@ -5,7 +5,7 @@ NEAR testnet. Nothing here runs on mainnet or moves real funds.
 
 | Part | Host | Address |
 |---|---|---|
-| Website | Vercel, team "chrismg's projects", project `zecret` (`prj_Mb3xhOSaYxnYcc9f5PxFSRfUKLIX`) | https://zecret-chrismgs-projects.vercel.app |
+| Website | Vercel, team "chrismg's projects", project `zecret` (`prj_Mb3xhOSaYxnYcc9f5PxFSRfUKLIX`) | https://zecret.chrismg.dev (custom domain, added 2026-11-13); also https://zecret-chrismgs-projects.vercel.app |
 | Maker and relay | Railway, workspace "Chrismg's Projects", project `zecret` (`7cef823e-d834-4c56-9826-e072a4abaa6e`), environment `production` (`e4b3b306-c4a0-45a5-a822-ba036dce67ec`), service `zecret-maker` (`2708fc53-4643-46fd-bec6-38c532afcd06`) | https://zecret-maker-production.up.railway.app/execute-intents |
 
 `zecret.vercel.app` belongs to someone else. It is not this site.

@@ -10,8 +10,17 @@ Intents under a key that only the user's browser holds, and one signature sends 
 a token on another chain.
 
 The website and one maker run on Zcash testnet and NEAR testnet:
-<https://zecret-chrismgs-projects.vercel.app>. Test money only; mainnet is not deployed.
+<https://zecret.chrismg.dev>. Test money only; mainnet is not deployed.
 See [Try it](#try-it).
+
+![The landing page of Zecret](docs/img/landing.jpg)
+
+| Price | Payment | Progress | Done |
+|---|---|---|---|
+| ![The swap form with a price](docs/img/form.jpg) | ![The payment screen with a QR code](docs/img/pay.jpg) | ![The progress screen](docs/img/progress.jpg) | ![The finished screen](docs/img/done.jpg) |
+
+The first picture is the hosted site. The four phone pictures are from the simulated demo
+(`/?demo=1`), which moves no money.
 
 **The problem.** The Cloakroom paper (October 2026, in this repository as
 [`Cloakroom_Yellow_Paper.pdf`](Cloakroom_Yellow_Paper.pdf)) states: "Every route out of
@@ -74,7 +83,7 @@ No install and no wallet.
 
 | Do | See |
 |---|---|
-| Open <https://zecret-chrismgs-projects.vercel.app>. | The landing page: how a swap works, who holds the money, what stays private and what is public, what happens on a failure, status, questions. |
+| Open <https://zecret.chrismg.dev>. | The landing page: how a swap works, who holds the money, what stays private and what is public, what happens on a failure, status, questions. |
 | Press "Try the simulated demo" (or open `/?demo=1`). | The swap form with a one-line banner: "Demo. No real money moves." |
 | Enter `1` in "You pay". Keep USDC on Base. Paste `0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed` as the address. | One price line, for example "You pay 1.00 ZEC. You receive at least 918.9879 USDC on Base." Prices are live from 1Click. |
 | Press "Continue", then "Save recovery file", then "Continue to payment". | A file `zecret-recovery-<id>.json` downloads. "Send exactly 1.00 ZEC", a QR code and a `utest1…` address. |
@@ -106,7 +115,7 @@ Then:
 
 | Do | See |
 |---|---|
-| Open <https://zecret-chrismgs-projects.vercel.app> and press "Start a swap". | The app at `/swap` with the banner "Testnet. Test money only." The engine downloads (about 9 MB) and prepares its keys (about 20 s). |
+| Open <https://zecret.chrismg.dev> and press "Start a swap". | The app at `/swap` with the banner "Testnet. Test money only." The engine downloads (about 9 MB) and prepares its keys (about 20 s). |
 | Enter an amount between 0.001 and 0.1 TAZ (the hosted maker's limits), a token and chain, and your NEAR testnet account. | One price line. The price for the chosen chain is a mainnet preview: on testnet the swap pays test USDC to your NEAR account. |
 | Save the recovery file and continue to payment. | "Send exactly …", a QR code and a `utest1…` address. |
 | Pay that exact amount from your wallet. | The progress screen. Keep the tab open while it says so (about a minute, during the claim). |

@@ -12,7 +12,7 @@ explains NEAR's role concretely, and gives a next step.
 ## What to record
 
 The hosted website on Zcash testnet and NEAR testnet:
-<https://zecret-chrismgs-projects.vercel.app>. Record one real swap through it, and use
+<https://zecret.chrismg.dev>. Record one real swap through it, and use
 the simulated demo (`/?demo=1`) only for the failure cases. Every shot of the demo must
 show its banner ("Demo. No real money moves."), and the voice-over must say so. Every
 shot of the real app shows the banner "Testnet. Test money only."
@@ -71,7 +71,7 @@ https://github.com/officialcmg/zecret
 Reply under it (the next step):
 
 ```text
-Try it on Zcash testnet and NEAR testnet: https://zecret-chrismgs-projects.vercel.app (test money only; the mainnet exit is next). If you hold shielded ZEC: which chain would you exit to first?
+Try it on Zcash testnet and NEAR testnet: https://zecret.chrismg.dev (test money only; the mainnet exit is next). If you hold shielded ZEC: which chain would you exit to first?
 ```
 
 ## Post, draft 2 (NEAR's role first; 272 characters as X counts them)
@@ -88,7 +88,7 @@ https://github.com/officialcmg/zecret
 Reply under it:
 
 ```text
-Testnet site: https://zecret-chrismgs-projects.vercel.app. The escrow, the tests and the recorded testnet swaps are in the repo. Feedback on the escrow and the check before signing is welcome.
+Testnet site: https://zecret.chrismg.dev. The escrow, the tests and the recorded testnet swaps are in the repo. Feedback on the escrow and the check before signing is welcome.
 ```
 
 Notes:

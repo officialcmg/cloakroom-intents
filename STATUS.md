@@ -18,11 +18,11 @@ their checks.
 
 ## Before submission (do not skip)
 
-- [ ] **Screenshots in the README.** Judges skim. Add 3 or 4 near the top of `README.md`:
+- [x] **Screenshots in the README** (done 2026-11-13, `docs/img/`; retake if the design changes). Judges skim. Add 3 or 4 near the top of `README.md`:
   the landing page, the swap form, the progress screen, the finished screen. Take them
   from the live site after the redesign is deployed, at desktop width, and keep each
   file small. Owner asked for this on 2026-11-13.
-- [ ] Docs name the site as `https://zecret.chrismg.dev`.
+- [x] Docs name the site as `https://zecret.chrismg.dev`.
 - [ ] Owner: NEAR mainnet payout account, repository public, demo video, post, form.
 
 ## Hand-over: where the build is (2026-11-13 13:05 UTC)
