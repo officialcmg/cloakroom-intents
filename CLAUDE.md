@@ -34,7 +34,10 @@ current. `docs/BUILD_PLAN.md` says how the build runs and `STATUS.md` says where
 - NEAR sandbox tests: `LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test ...` (the sandbox
   must be nearcore 2.14.1 or newer; `NEAR_SANDBOX_BIN_PATH` points at it).
 - Live `intents.near` and `wrap.near` contract code is in `$ZECRET_WASM_DIR`.
-- Contracts build with `cargo build --target wasm32-unknown-unknown --release`.
+- Contracts build with `cargo build --target wasm32-unknown-unknown --release`, and
+  need `--cfg near` in `RUSTFLAGS` for that target (see
+  `contracts/near-escrow/.cargo/config.toml`). Without it, contract panics lose their
+  messages.
 - Local Zcash node: `harness/zebra/` (Docker, Zebra 7.0.0-rc.0 regtest).
 - WebAssembly: build `orchard` and `zcash_primitives` without their `multicore`
   feature. Do not test with `node:wasi`; it crashes. Use a browser (Playwright and

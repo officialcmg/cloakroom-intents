@@ -331,23 +331,16 @@ async fn happy_path_claim_into_intents_then_signed_exit() -> R<()> {
     let t = taker(7);
 
     // Step 11 of the design: the maker's stipend creates the taker's implicit account.
-    // The sandbox gas price is higher than mainnet's, and a signer must hold the full
-    // prepaid gas cost, so the sandbox stipend is larger than the 0.01 NEAR planned for
-    // mainnet. The taker's calls attach only the gas they need.
+    // In this test the taker also sends withdraw (100 Tgas) and execute_intents (50 Tgas)
+    // herself. A signer must hold the attached gas at a pessimistic price before NEAR
+    // accepts the transaction (see stipend_needed_for_taker_commit_and_claim), so this
+    // test sends 0.2 NEAR.
     ok(
         "maker -> taker stipend 0.2 NEAR",
         env.maker
             .transfer_near(&t.id.parse()?, NearToken::from_millinear(200))
             .await?,
     );
-    let stipend_left = || async {
-        let a = env
-            .worker
-            .view_account(&t.id.parse().unwrap())
-            .await
-            .unwrap();
-        a.balance.as_yoctonear()
-    };
     let taker_acc = taker_account(&t, &env.worker)?;
 
     let now = now_s(&env.worker).await?;
@@ -457,10 +450,6 @@ async fn happy_path_claim_into_intents_then_signed_exit() -> R<()> {
     let o = okr(
         "withdraw (taker -> intents, ft_transfer_call)",
         withdraw(&taker_acc, &env, &t.id).await?,
-    );
-    println!(
-        "taker NEAR left after commit, claim and withdraw: {} yoctoNEAR of 0.2 NEAR",
-        stipend_left().await
     );
     let w = events(&o, "withdrawn");
     assert_eq!(w.len(), 1);
@@ -911,5 +900,108 @@ async fn bad_open_is_refunded_by_the_token() -> R<()> {
     report("open with a used swap id (refunded by token)", &o);
     assert_eq!(o.json::<String>()?, "0");
     assert_eq!(ft_balance(&env.token, env.escrow.id()).await?, AMOUNT);
+    Ok(())
+}
+
+// =============================================================================== stipend
+
+/// Step 11 of the design plans a stipend of about 0.01 NEAR for the taker's key. NEAR
+/// checks before it accepts a transaction that the signer holds the attached gas at a
+/// pessimistic price (measured here: about 10 times the gas price), plus the fees. This
+/// test shows that 0.01 NEAR cannot send even a 10 Tgas commit_claim, and that 0.03 NEAR
+/// lets the taker send commit_claim and claim herself.
+#[tokio::test]
+async fn stipend_needed_for_taker_commit_and_claim() -> R<()> {
+    let env = setup().await?;
+    let price = env.worker.gas_price().await?;
+    println!(
+        "sandbox gas price: {} yoctoNEAR per gas",
+        price.as_yoctonear()
+    );
+    let t = taker(11);
+    ok(
+        "maker -> taker stipend 0.01 NEAR",
+        env.maker
+            .transfer_near(&t.id.parse()?, NearToken::from_millinear(10))
+            .await?,
+    );
+    let taker_acc = taker_account(&t, &env.worker)?;
+    let now = now_s(&env.worker).await?;
+    let (id, o) = open(
+        &env,
+        &env.maker,
+        1,
+        &t,
+        AMOUNT,
+        now + 600,
+        now + 1200,
+        now + 1800,
+        600,
+    )
+    .await?;
+    ok("open", o);
+    ok(
+        "set_ready",
+        env.maker
+            .call(env.escrow.id(), "set_ready")
+            .args_json(json!({ "id": id }))
+            .transact()
+            .await?,
+    );
+    let a = le_hex(A_SEC);
+    let commitment: String = env
+        .escrow
+        .view("commitment_of")
+        .args_json(json!({ "id": id, "a": a }))
+        .await?
+        .json()?;
+    let msg: String = env
+        .escrow
+        .view("commit_message")
+        .args_json(json!({ "id": id, "commitment": commitment }))
+        .await?
+        .json()?;
+    let sig = hex::encode(t.key.sign(&hex::decode(&msg)?).to_bytes());
+    let commit = || {
+        taker_acc
+            .call(env.escrow.id(), "commit_claim")
+            .args_json(json!({ "id": id, "commitment": commitment, "signature": sig }))
+            .gas(Gas::from_tgas(10))
+            .transact()
+    };
+    let rejected = commit().await;
+    let reason = format!("{:?}", rejected.as_ref().err());
+    println!("commit_claim with a 0.01 NEAR stipend: {reason}");
+    assert!(reason.contains("NotEnoughBalance"));
+
+    ok(
+        "maker -> taker stipend top-up to 0.03 NEAR",
+        env.maker
+            .transfer_near(&t.id.parse()?, NearToken::from_millinear(20))
+            .await?,
+    );
+    ok(
+        "commit_claim by the taker (10 Tgas attached)",
+        commit().await?,
+    );
+    ok(
+        "claim by the taker (25 Tgas attached)",
+        taker_acc
+            .call(env.escrow.id(), "claim")
+            .args_json(json!({ "id": id, "a": a }))
+            .gas(Gas::from_tgas(25))
+            .transact()
+            .await?,
+    );
+    // Gas refunds arrive in later blocks; wait for them before reading the balance.
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    let left = env
+        .worker
+        .view_account(&t.id.parse()?)
+        .await?
+        .balance
+        .as_yoctonear();
+    println!("taker NEAR left of the 0.03 NEAR stipend after refunds: {left} yoctoNEAR");
+    assert_eq!(get_swap(&env.escrow, &id).await?["state"], "Claimed");
     Ok(())
 }

@@ -1,0 +1,46 @@
+[package]
+name = "zecret-core"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Zecret shared core: keys, memo messages, the Zcash wallet, the NEAR client and the maker and taker state machines. No I/O; builds natively and for wasm32-unknown-unknown."
+
+# Versions follow the Cloakroom client (several are pinned pre-releases). orchard and
+# zcash_primitives are used without `multicore`, so the core builds for the browser; a
+# native binary switches `multicore` on. zcash_client_backend is used only for its
+# protobuf message types (no tonic).
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+blake2b_simd = "1"
+bs58 = "0.5"
+chacha20poly1305 = "0.10"
+ed25519-dalek = "2"
+ff = "0.14"
+group = "0.14"
+halo2_proofs = { version = "0.4", default-features = false }
+hex = "0.4.3"
+incrementalmerkletree = "0.9"
+orchard = { version = "0.16.0", default-features = false, features = ["circuit", "std", "zeroize"] }
+pasta_curves = "0.6.1"
+pczt = { version = "=0.10.0-pre.1", features = ["orchard", "io-finalizer", "prover", "signer", "tx-extractor", "zcp-builder"] }
+prost = "0.14"
+rand = "0.10"
+rand_core = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+shardtree = "0.8"
+zcash_address = "=0.14.0-pre.1"
+zcash_client_backend = { version = "=0.25.0-pre.1", default-features = false, features = ["orchard"] }
+zcash_note_encryption = "0.5.1"
+zcash_primitives = { version = "=0.31.0-pre.1", default-features = false, features = ["std", "circuits"] }
+zcash_protocol = { version = "=0.11.0-pre.0", features = ["local-consensus"] }
+
+# The browser has no OS random source: one entry per getrandom major version in the
+# tree, each with its browser backend (0.3 also needs the cfg in crates/.cargo/config.toml).
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }

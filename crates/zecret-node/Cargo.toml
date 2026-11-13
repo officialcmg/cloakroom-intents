@@ -1,0 +1,22 @@
+[package]
+name = "zecret-node"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Native Zecret programs on top of zecret-core: the maker daemon, the reference taker and tools for the local test network."
+
+[[bin]]
+name = "zecret"
+path = "src/main.rs"
+
+[dependencies]
+zecret-core = { path = "../zecret-core" }
+anyhow = "1"
+hex = "0.4.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking"] }
+# Native builds prove with all cores.
+orchard = { version = "0.16.0", features = ["multicore"] }
+zcash_primitives = { version = "=0.31.0-pre.1", features = ["multicore"] }

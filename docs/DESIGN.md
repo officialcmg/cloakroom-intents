@@ -33,7 +33,7 @@ This section is always current. The numbered sections below give the detail.
 2. The maker sends a quote. The quote is also an encrypted memo.
 3. The taker sends an acceptance memo. The same transaction pays a small premium to the
    maker.
-4. The maker locks USDC in the escrow. The maker also sends a small amount of NEAR to a
+4. The maker locks USDC in the escrow. The maker also sends 0.03 NEAR to a
    new key that the taker made. This NEAR pays for the taker's transactions.
 5. The taker sends the ZEC to a shared address. The key of this address has two halves.
    The taker holds one half. The maker holds the other half.
@@ -66,6 +66,8 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | The maker always pays USDC on NEAR. The token and chain that the user selects are not in the quote or the escrow. The app does the exit through NEAR Intents as a second step. |
 | 2026-11-13 | The taker software runs in the browser as WebAssembly. The user visits a website and downloads nothing. One shielded send costs about 25 s of computing in the browser. Tested in `experiments/wasm-prover`. |
 | 2026-11-13 | The website makes a temporary Zcash wallet. The user pays into it once, by QR code. It reads Zcash through a gRPC-web light-wallet server. Tested in `experiments/grpc-web`. |
+| 2026-11-13 | The stipend is 0.03 NEAR, not 0.01. NEAR accepts a transaction only if the sender holds about 10 times the gas cost. With 0.01 NEAR the taker's commit is rejected. The real cost of commit and claim is about 0.002 NEAR. Measured in `contracts/near-escrow` sandbox tests. |
+| 2026-11-13 | The maker pays in advance for the storage of its swaps in the escrow. The escrow has `add_storage_funds`. Without this, any account could fill the escrow's storage. |
 | 2026-11-13 | The maker sends a NEAR stipend to the taker's new key. The taker submits the commit and the claim. No relayer is necessary. Tested in `experiments/intents-sandbox`. |
 
 **Open**
@@ -116,7 +118,7 @@ premium), the shared address, and the escrow rules.
 What is new:
 
 - **Step 4, one payment.** The user's wallet never needs to know about the protocol.
-- **Step 11, the stipend.** With `open`, the maker sends about 0.01 NEAR to the account
+- **Step 11, the stipend.** After `open`, the maker sends 0.03 NEAR to the account
   named by the taker's fresh ed25519 key. That creates the account.
 - **Steps 16 and 17, the taker sends her own commit and claim.** No relayer. The maker
   never sees `a` before it is on-chain, so the maker cannot take the ZEC and withhold
@@ -165,7 +167,8 @@ nothing new is revealed, and the taker's own money never touches NEAR gas.
 
 Limits that stay:
 
-- The stipend costs the maker about 0.01 NEAR for each opened swap. The premium covers it.
+- The stipend costs the maker 0.03 NEAR for each opened swap. The premium covers it.
+  Commit and claim use about 0.002 NEAR of it; the rest stays in the taker's account.
 - The light-wallet server, the NEAR RPC and the 1Click API each see the user's IP
   address unless the user uses Tor or a VPN.
 - The paper's timing analysis still applies: a swap that is not delayed hides among few
@@ -225,7 +228,7 @@ measurement before real parameters are fixed.
 | Does the Pallas key-half check fit in NEAR gas? | Yes: 16.2 Tgas of 300. | `experiments/gas-spike` |
 | Does the ed25519 signature check work natively? | Yes: 1.8 Tgas. | `experiments/gas-spike` |
 | Can a key with no NEAR account own funds in Intents and move them with a signature? | Yes, against the code live on `intents.near`. | `experiments/intents-sandbox` |
-| Does a small stipend make a fresh key usable? | Yes: 0.01 NEAR creates the account and the key can send transactions. | `experiments/intents-sandbox` |
+| Does a small stipend make a fresh key usable? | Yes. 0.01 NEAR creates the account, but 0.03 NEAR is needed to send the commit and the claim. | `contracts/near-escrow` sandbox tests |
 | Does an exit quote work without an API key? | Yes: 5 USDC to Base quoted at 4.997 USDC, 12 s. | 1Click dry run |
 | How fast is NEAR? | About 8 s to inclusion, 10 s to fully final on testnet. | `experiments/near-timing` |
 | Does the prover run in a browser? | Yes: about 25 s for one proof in Chromium. | `experiments/wasm-prover` |

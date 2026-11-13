@@ -34,5 +34,10 @@ debug = false
 panic = "abort"
 overflow-checks = true
 
+# Keep test builds small on disk.
+[profile.dev]
+debug = false
+incremental = false
+
 # A standalone crate, not a member of any parent workspace.
 [workspace]
