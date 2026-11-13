@@ -1,22 +1,80 @@
-/* Zecret design tokens. Light is the default; dark follows the system unless the user picks one. */
+/* Zecret design tokens. Light is the default; dark follows the system unless the user picks one.
+   The look follows the style reference in design-system/vaynex-notes.md: deep green and mint,
+   a grotesk for headings with a serif italic accent, Inter for text, a mono for labels. */
 
+/* Fonts: all SIL OFL 1.1, Latin subset, served by the site (font-src 'self').
+   Licences are next to the files in src/assets/fonts/. */
 @font-face {
-  font-family: 'Archivo';
-  src: url('../assets/fonts/Archivo-variable.woff2') format('woff2');
-  font-weight: 400 800;
+  font-family: 'Inter';
+  src: url('../assets/fonts/Inter-latin-wght.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: 'IBM Plex Mono';
-  src: url('../assets/fonts/IBMPlexMono-400.woff2') format('woff2');
-  font-weight: 400;
+  font-family: 'Hanken Grotesk';
+  src: url('../assets/fonts/HankenGrotesk-latin-wght.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
   font-display: swap;
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('../assets/fonts/InstrumentSerif-latin-400-italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../assets/fonts/GeistMono-latin-500.woff2') format('woff2');
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Local fallbacks scaled to the metrics of each web font, so the text does not move when the
+   font arrives. Measured in Chromium against Arial, Times New Roman and Courier New (and their
+   metric twins Liberation Sans, Serif and Mono). */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial'), local('Liberation Sans'), local('Helvetica');
+  size-adjust: 106.26%;
+  ascent-override: 91.28%;
+  descent-override: 22.59%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Hanken Grotesk Fallback';
+  src: local('Arial'), local('Liberation Sans'), local('Helvetica');
+  size-adjust: 94.87%;
+  ascent-override: 105.41%;
+  descent-override: 31.62%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Instrument Serif Fallback';
+  src: local('Times New Roman Italic'), local('Liberation Serif Italic'), local('Times New Roman'), local('Liberation Serif');
+  font-style: italic;
+  size-adjust: 85.18%;
+  ascent-override: 116.22%;
+  descent-override: 36.39%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Geist Mono Fallback';
+  src: local('Courier New'), local('Liberation Mono');
+  size-adjust: 99.98%;
+  ascent-override: 101.02%;
+  descent-override: 30%;
+  line-gap-override: 0%;
 }
 
 :root {
-  --font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-serif: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --font-sans: 'Inter', 'Inter Fallback', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Hanken Grotesk', 'Hanken Grotesk Fallback', 'Inter', system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', 'Instrument Serif Fallback', Georgia, 'Times New Roman', serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', ui-monospace, Menlo, monospace;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -27,120 +85,205 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-28: 112px;
 
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  --radius-xs: 9px;
+  --radius-sm: 12px;
+  --radius-tile: 14px;
+  --radius-md: 18px;
+  --radius-float: 22px;
+  --radius-lg: 26px;
+  --radius-xl: 30px;
+  --radius-panel: 44px;
   --radius-pill: 999px;
+
+  /* Widths: the content column of the landing page, the app's columns. */
+  --w-content: 1152px;
+  --w-nav: 1180px;
+  --w-form: 600px;
+  --w-wide: 1040px;
 
   /* Side padding of the page; never less than the screen's safe area (notches, rounded corners). */
   --gutter: max(var(--space-4), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
 
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* A spring-like ease with a small overshoot, for elements that appear. */
+  --ease-spring: cubic-bezier(0.22, 1.2, 0.36, 1);
   --dur: 180ms;
+  --dur-appear: 720ms;
+
+  /* Brand colours that do not change with the theme: the deep greens of the hero and the
+     dark panels, and the mint of their glow. Text on them is white. */
+  --green-950: #072b23;
+  --green-900: #0a3a2f;
+  --green-800: #0d4f3e;
+  --green-700: #11523f;
+  --green-600: #17735a;
+  --green-500: #2a8f72;
+  --green-400: #3e8a70;
+  --mint-300: #9fe3c6;
+  --mint-200: #cfe5dc;
+  --mint-glow: 160 230 200;
+  --on-dark: #ffffff;
+  --on-dark-2: rgb(255 255 255 / 80%);
+  --on-dark-focus: #b6f2d7;
 }
 
 :root,
 [data-theme='light'] {
   color-scheme: light;
-  --bg: #f4f1ea;
-  --bg-wash: #ece6d8;
-  --surface: #fffdf9;
-  --surface-sunk: #f1ece2;
+  --bg: #ffffff;
+  --bg-tint: #f5faf7;
+  --bg-tint-2: #eaf3ee;
+  --surface: #ffffff;
+  --surface-sunk: #f2f7f4;
   --surface-raised: #ffffff;
-  --text: #17191e;
-  --text-2: #464a52;
-  --text-3: #5f636b;
-  --line: #e1dacc;
-  --line-strong: #c4bba9;
+  --surface-glass: rgb(255 255 255 / 76%);
+  --text: #0b2a22;
+  --text-2: #4c5f58;
+  --text-3: #56685f;
+  --line: #e3ece7;
+  --line-strong: #c7d7cf;
   /* Borders of fields and buttons: at least 3:1 against their background (WCAG 1.4.11). */
-  --field-border: #8f8674;
-  --accent: #e8b23a;
-  --accent-hover: #f1c159;
-  --on-accent: #1a1406;
-  --accent-ink: #7a5200;
-  --accent-soft: #f8ecc9;
-  --seal: #1c2331;
-  --on-seal: #f4f1ea;
-  --ok: #1d6638;
-  --ok-soft: #e0f0e4;
-  --info: #23519b;
-  --info-soft: #e2e9f6;
-  --warn: #835000;
-  --warn-soft: #faefd5;
-  --danger: #a2261c;
-  --danger-soft: #f8e2df;
-  --focus: #23519b;
-  --shadow-card: 0 1px 2px rgb(23 25 30 / 6%), 0 12px 32px -18px rgb(23 25 30 / 28%);
-  --shadow-pop: 0 2px 6px rgb(23 25 30 / 10%), 0 24px 48px -20px rgb(23 25 30 / 35%);
-  --qr-ink: #17191e;
+  --field-border: #74887e;
+  --brand: #0e5c48;
+  --brand-soft: #e2f1ea;
+  --tint-1: rgb(14 92 72 / 4%);
+  --tint-2: rgb(14 92 72 / 8%);
+  --tint-3: rgb(22 122 95 / 12%);
+  /* The primary button: green with white text. */
+  --accent: #17735a;
+  --accent-2: #0d4f3e;
+  --accent-hover: #1b7f64;
+  --on-accent: #ffffff;
+  --accent-ink: #0e5c48;
+  --accent-soft: #e2f1ea;
+  --seal: #17735a;
+  --on-seal: #ffffff;
+  --ok: #156b45;
+  --ok-soft: #e1f2e9;
+  --info: #2a54a8;
+  --info-soft: #e7eefa;
+  --warn: #8a5100;
+  --warn-soft: #fbf0da;
+  --danger: #a3261c;
+  --danger-soft: #fbe7e4;
+  --focus: #2a54a8;
+  --shadow-card: 0 1px 2px rgb(11 42 34 / 5%), 0 40px 80px -50px rgb(6 8 12 / 35%);
+  --shadow-float: 0 30px 60px -24px rgb(6 30 24 / 34%);
+  --shadow-pop: 0 2px 6px rgb(11 42 34 / 8%), 0 40px 80px -30px rgb(6 8 12 / 40%);
+  --shadow-nav: 0 20px 50px -24px rgb(11 42 34 / 32%);
+  --shadow-btn: inset 0 1px 0 rgb(255 255 255 / 22%), 0 10px 24px -10px rgb(13 79 62 / 55%);
+  --panel-light: linear-gradient(180deg, #f5faf7 0%, #eaf3ee 100%);
+  --panel-split: linear-gradient(160deg, #1f7d62 0%, #145f4a 45%, #0b3d31 120%);
+  --card-tint: linear-gradient(155deg, #f7fcfa 0%, #dcefe7 100%);
+  --qr-ink: #0b2a22;
   --qr-paper: #ffffff;
+  --token-l: 90%;
+  --token-s: 50%;
+  --token-ink-l: 22%;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #0e1015;
-    --bg-wash: #151924;
-    --surface: #161a22;
-    --surface-sunk: #11141a;
-    --surface-raised: #1c212b;
-    --text: #edece7;
-    --text-2: #bfc2c9;
-    --text-3: #9ea2ab;
-    --line: #272c37;
-    --line-strong: #3b4250;
-    --field-border: #646c7d;
-    --accent: #e8b23a;
-    --accent-hover: #f1c159;
-    --on-accent: #1a1406;
-    --accent-ink: #f2c561;
-    --accent-soft: #3a2d0c;
-    --seal: #e8b23a;
-    --on-seal: #1a1406;
-    --ok: #82d39c;
-    --ok-soft: #13301d;
-    --info: #a3bff2;
-    --info-soft: #15233f;
+    --bg: #06110e;
+    --bg-tint: #0a1915;
+    --bg-tint-2: #0c1e19;
+    --surface: #0d1f1a;
+    --surface-sunk: #0a1915;
+    --surface-raised: #12271f;
+    --surface-glass: rgb(13 31 26 / 78%);
+    --text: #e9f4ef;
+    --text-2: #b4c8c0;
+    --text-3: #9db3aa;
+    --line: #1b3029;
+    --line-strong: #2b4a41;
+    --field-border: #5b7b70;
+    --brand: #7fdcb5;
+    --brand-soft: #123329;
+    --tint-1: rgb(127 220 181 / 4%);
+    --tint-2: rgb(127 220 181 / 7%);
+    --tint-3: rgb(127 220 181 / 11%);
+    --accent: #8fe3c0;
+    --accent-2: #5ccc9c;
+    --accent-hover: #a3ebcc;
+    --on-accent: #052019;
+    --accent-ink: #8fe3c0;
+    --accent-soft: #123329;
+    --seal: #2a8f72;
+    --on-seal: #ffffff;
+    --ok: #86dba7;
+    --ok-soft: #10301f;
+    --info: #a9c3f5;
+    --info-soft: #14233f;
     --warn: #f2c561;
-    --warn-soft: #382a0b;
-    --danger: #ff9187;
-    --danger-soft: #3b1512;
-    --focus: #f2c561;
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 16px 40px -20px rgb(0 0 0 / 70%);
-    --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 24px 48px -16px rgb(0 0 0 / 80%);
+    --warn-soft: #362a0d;
+    --danger: #ff978d;
+    --danger-soft: #3b1613;
+    --focus: #b6f2d7;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 40px 80px -40px rgb(0 0 0 / 80%);
+    --shadow-float: 0 30px 60px -20px rgb(0 0 0 / 70%);
+    --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 40px 80px -24px rgb(0 0 0 / 85%);
+    --shadow-nav: 0 20px 50px -20px rgb(0 0 0 / 70%);
+    --shadow-btn: inset 0 1px 0 rgb(255 255 255 / 35%), 0 10px 24px -10px rgb(95 207 159 / 35%);
+    --panel-light: linear-gradient(180deg, #0b1c17 0%, #0a1814 100%);
+    --panel-split: linear-gradient(160deg, #17694f 0%, #0d4436 45%, #072b23 120%);
+    --card-tint: linear-gradient(155deg, #11281f 0%, #0d1f1a 100%);
+    --token-l: 26%;
+    --token-s: 35%;
+    --token-ink-l: 86%;
   }
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0e1015;
-  --bg-wash: #151924;
-  --surface: #161a22;
-  --surface-sunk: #11141a;
-  --surface-raised: #1c212b;
-  --text: #edece7;
-  --text-2: #bfc2c9;
-  --text-3: #9ea2ab;
-  --line: #272c37;
-  --line-strong: #3b4250;
-  --field-border: #646c7d;
-  --accent: #e8b23a;
-  --accent-hover: #f1c159;
-  --on-accent: #1a1406;
-  --accent-ink: #f2c561;
-  --accent-soft: #3a2d0c;
-  --seal: #e8b23a;
-  --on-seal: #1a1406;
-  --ok: #82d39c;
-  --ok-soft: #13301d;
-  --info: #a3bff2;
-  --info-soft: #15233f;
+  --bg: #06110e;
+  --bg-tint: #0a1915;
+  --bg-tint-2: #0c1e19;
+  --surface: #0d1f1a;
+  --surface-sunk: #0a1915;
+  --surface-raised: #12271f;
+  --surface-glass: rgb(13 31 26 / 78%);
+  --text: #e9f4ef;
+  --text-2: #b4c8c0;
+  --text-3: #9db3aa;
+  --line: #1b3029;
+  --line-strong: #2b4a41;
+  --field-border: #5b7b70;
+  --brand: #7fdcb5;
+  --brand-soft: #123329;
+  --tint-1: rgb(127 220 181 / 4%);
+  --tint-2: rgb(127 220 181 / 7%);
+  --tint-3: rgb(127 220 181 / 11%);
+  --accent: #8fe3c0;
+  --accent-2: #5ccc9c;
+  --accent-hover: #a3ebcc;
+  --on-accent: #052019;
+  --accent-ink: #8fe3c0;
+  --accent-soft: #123329;
+  --seal: #2a8f72;
+  --on-seal: #ffffff;
+  --ok: #86dba7;
+  --ok-soft: #10301f;
+  --info: #a9c3f5;
+  --info-soft: #14233f;
   --warn: #f2c561;
-  --warn-soft: #382a0b;
-  --danger: #ff9187;
-  --danger-soft: #3b1512;
-  --focus: #f2c561;
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 16px 40px -20px rgb(0 0 0 / 70%);
-  --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 24px 48px -16px rgb(0 0 0 / 80%);
+  --warn-soft: #362a0d;
+  --danger: #ff978d;
+  --danger-soft: #3b1613;
+  --focus: #b6f2d7;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 40px 80px -40px rgb(0 0 0 / 80%);
+  --shadow-float: 0 30px 60px -20px rgb(0 0 0 / 70%);
+  --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 40px 80px -24px rgb(0 0 0 / 85%);
+  --shadow-nav: 0 20px 50px -20px rgb(0 0 0 / 70%);
+  --shadow-btn: inset 0 1px 0 rgb(255 255 255 / 35%), 0 10px 24px -10px rgb(95 207 159 / 35%);
+  --panel-light: linear-gradient(180deg, #0b1c17 0%, #0a1814 100%);
+  --panel-split: linear-gradient(160deg, #17694f 0%, #0d4436 45%, #072b23 120%);
+  --card-tint: linear-gradient(155deg, #11281f 0%, #0d1f1a 100%);
+  --token-l: 26%;
+  --token-s: 35%;
+  --token-ink-l: 86%;
 }

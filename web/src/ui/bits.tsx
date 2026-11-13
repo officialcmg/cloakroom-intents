@@ -1,16 +1,23 @@
 // Small shared pieces: logo, notices, copy buttons, hashes, progress bars, amounts.
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
 
 export function Logo() {
+  const id = `logo-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   return (
     <span className="logo">
-      <svg className="logo-mark" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
-        <circle cx="16" cy="16" r="15" fill="var(--seal)" />
-        <circle cx="16" cy="16" r="11.5" fill="none" stroke="var(--on-seal)" strokeOpacity="0.35" strokeWidth="1" />
-        <path d="M10.5 11h11l-11 10h11" fill="none" stroke="var(--on-seal)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <svg className="logo-mark" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#2a8f72" />
+            <stop offset="1" stopColor="#0d4a3a" />
+          </linearGradient>
+        </defs>
+        <rect width="30" height="30" rx="9" fill={`url(#${id})`} />
+        <rect x="0.5" y="0.5" width="29" height="29" rx="8.5" fill="none" stroke="#fff" strokeOpacity="0.18" />
+        <path d="M9.5 10h11l-11 10h11" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="logo-word">zecret</span>
+      <span className="logo-word">Zecret</span>
     </span>
   );
 }

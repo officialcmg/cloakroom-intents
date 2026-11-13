@@ -18,6 +18,7 @@ const PATHS: Record<string, string> = {
   file: 'M14 3H6v18h12V7l-4-4zM14 3v4h4M9 13h6M9 17h6',
   upload: 'M12 16V4M7 9l5-5 5 5M4 20h16',
   close: 'M6 6l12 12M18 6L6 18',
+  plus: 'M12 5v14M5 12h14',
   info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v6M12 7.5h.01',
   eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
   search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4',
