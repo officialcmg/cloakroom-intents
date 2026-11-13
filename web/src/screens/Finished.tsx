@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { SwapState } from '../engine';
 import { appStore } from '../app/useZecret';
-import { destAmount, formatUsdcAmount, refundReason, shortAddr } from '../app/stageCopy';
+import { destAmount, exitAmount, formatUsdcAmount, refundReason, shortAddr } from '../app/stageCopy';
 import { formatZec } from '../lib/units';
 import { Icon } from '../ui/Icon';
 import { Hash, Notice } from '../ui/bits';
@@ -71,6 +71,7 @@ export function DoneScreen({ swap }: { swap: SwapState }) {
   const delivered = swap.exit?.deliveredAmount ?? swap.exit?.amountOut;
   const delivery = swap.txs.find((t) => t.id === 'delivery');
   const simulated = swap.engine === 'simulated';
+  const direct = swap.exit?.direct;
   return (
     <div className="stack-lg">
       <section className="card card-main done" aria-labelledby="done-title">
@@ -79,14 +80,17 @@ export function DoneScreen({ swap }: { swap: SwapState }) {
         </span>
         <p className="now-kicker">Swap complete</p>
         <h1 id="done-title" className="display-sm" data-testid="done-title">
-          You received {delivered ? destAmount(swap, delivered) : d.symbol} on {chainName(d.chain)}
+          {direct
+            ? `You received ${delivered ? exitAmount(swap, delivered) : direct.symbol} on NEAR`
+            : `You received ${delivered ? destAmount(swap, delivered) : d.symbol} on ${chainName(d.chain)}`}
         </h1>
         <p className="lede">
-          Sent to <span className="mono">{shortAddr(d.address)}</span>.
+          Sent to <span className="mono">{direct ? direct.nearAccount : shortAddr(d.address)}</span>.
+          {direct && ` On this test network the exit has no 1Click: the engine sent ${direct.symbol} from NEAR Intents to your NEAR account. No ${d.symbol} was delivered on ${chainName(d.chain)}.`}
         </p>
         {delivery && (
           <div className="kv kv-inline">
-            <span className="label">{chainName(d.chain)} transaction</span>
+            <span className="label">{direct ? 'NEAR' : chainName(d.chain)} transaction</span>
             <Hash value={delivery.hash} href={simulated ? undefined : delivery.url} label="delivery transaction" />
           </div>
         )}
@@ -101,10 +105,12 @@ export function DoneScreen({ swap }: { swap: SwapState }) {
               <dd>{formatUsdcAmount(swap.quote.usdc)}</dd>
             </div>
           )}
-          <div className="row">
-            <dt>Your guaranteed minimum was</dt>
-            <dd>{destAmount(swap, swap.params.minDestinationAmount)}</dd>
-          </div>
+          {!direct && (
+            <div className="row">
+              <dt>Your guaranteed minimum was</dt>
+              <dd>{destAmount(swap, swap.params.minDestinationAmount)}</dd>
+            </div>
+          )}
           {swap.claim?.punishPath && (
             <div className="row">
               <dt>Claim</dt>

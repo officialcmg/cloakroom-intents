@@ -233,6 +233,123 @@
         }
       ],
       "verifier": "intents.zecret-3f109eea1e.testnet"
+    },
+    {
+      "amount": "1000000",
+      "destination": "zecret-3f109eea1e.testnet",
+      "escrow": "escrow2.zecret-3f109eea1e.testnet",
+      "maker": "maker.zecret-3f109eea1e.testnet",
+      "network": "testnet",
+      "started_at": "2026-11-13T05:13:38Z",
+      "swap_id": "5d9f0899e7e06bbd1c27d83527266274e8a8d6502a336bba1005de1705bb0706",
+      "taker": "4c98a7819f3a5425edf52e975ea42ff8f097d489fb993913fea2d665e9a6d770",
+      "taker_near_left_yocto": "28040927742178700000000",
+      "timing_summary": {
+        "final_s": [
+          3.79,
+          4.53,
+          7.99
+        ],
+        "included_final_s": [
+          2.69,
+          2.71,
+          3.09
+        ],
+        "included_s": [
+          1.22,
+          1.57,
+          1.62
+        ],
+        "samples": 7
+      },
+      "token": "usdc.zecret-3f109eea1e.testnet",
+      "transactions": [
+        {
+          "block_hash": "7QMrpPfuiHzHgsHBgdwAv2tG97wzpCz8yqkh8HGccsgX",
+          "block_height": 277465882,
+          "final_ms": 4148,
+          "gas_burnt_tgas": 8.57,
+          "hash": "DCgWZNgQXvnH5KLfiKQ8jHeiQXkSwP1UHvEwuK72KdMa",
+          "included_final_ms": 2704,
+          "included_ms": 1589,
+          "receiver": "4c98a7819f3a5425edf52e975ea42ff8f097d489fb993913fea2d665e9a6d770",
+          "signer": "maker.zecret-3f109eea1e.testnet",
+          "step": "maker -> taker stipend 0.03 NEAR"
+        },
+        {
+          "block_hash": "3bcPWvmxc9uuDLHjhg3o7pQ6KDScSmiExA3H5WEroU7R",
+          "block_height": 277465889,
+          "final_ms": 5303,
+          "gas_burnt_tgas": 12.45,
+          "hash": "EUHDYSjCXfjWLteoM4FrCBRm1SDvwk1HdLQVi6YEi1Q7",
+          "included_final_ms": 2706,
+          "included_ms": 1242,
+          "receiver": "usdc.zecret-3f109eea1e.testnet",
+          "signer": "maker.zecret-3f109eea1e.testnet",
+          "step": "open: token.ft_transfer_call -> escrow"
+        },
+        {
+          "block_hash": "yd8zyagxMJUKTJnjgMyJoRYwYC1w6CUMiJER8qTKkk5",
+          "block_height": 277465899,
+          "final_ms": 4527,
+          "gas_burnt_tgas": 2.59,
+          "hash": "ErgGucmjf7Sh5hkahBMZvaWQ8AyHowzWHJyx47YyNCb2",
+          "included_final_ms": 3042,
+          "included_ms": 1573,
+          "receiver": "escrow2.zecret-3f109eea1e.testnet",
+          "signer": "maker.zecret-3f109eea1e.testnet",
+          "step": "set_ready (maker)"
+        },
+        {
+          "block_hash": "74ntiERMAwx5NWkPc5nkF8SZsfYSQJQwYtNyD5uMeUSh",
+          "block_height": 277465907,
+          "final_ms": 4217,
+          "gas_burnt_tgas": 10.2,
+          "hash": "GAjCc38PL8w93pRh6nZdMxpDRo87uLTEcpwgPU6UuZfX",
+          "included_final_ms": 3094,
+          "included_ms": 1617,
+          "receiver": "escrow2.zecret-3f109eea1e.testnet",
+          "signer": "4c98a7819f3a5425edf52e975ea42ff8f097d489fb993913fea2d665e9a6d770",
+          "step": "commit_claim (taker key, 10 Tgas)"
+        },
+        {
+          "block_hash": "3Rjpr1kwwBwmftQQop1TnDvjTbh3DXZiS247aptKiKqk",
+          "block_height": 277465914,
+          "final_ms": 3790,
+          "gas_burnt_tgas": 24.44,
+          "hash": "3WEk6ARNuYFxQ9NK38ECWvoe4ghAtrcRPaakLuKqKET4",
+          "included_final_ms": 2699,
+          "included_ms": 1223,
+          "receiver": "escrow2.zecret-3f109eea1e.testnet",
+          "signer": "4c98a7819f3a5425edf52e975ea42ff8f097d489fb993913fea2d665e9a6d770",
+          "step": "claim(a) (taker key, 25 Tgas)"
+        },
+        {
+          "block_hash": "J6VrWR3SvhzYSL3omPNG1VHRrCHQiobwqYKF7MiLdP7t",
+          "block_height": 277465921,
+          "final_ms": 7990,
+          "gas_burnt_tgas": 21.65,
+          "hash": "E1FSqhzLbWbBpitqXaCnFNCnN8VQZYQ7FEaKsDs64vqb",
+          "included_final_ms": 3040,
+          "included_ms": 1568,
+          "receiver": "escrow2.zecret-3f109eea1e.testnet",
+          "signer": "maker.zecret-3f109eea1e.testnet",
+          "step": "withdraw (taker credit -> Verifier, sent by maker)"
+        },
+        {
+          "block_hash": "5RUo7T1ymmpubQfzYAHnR5fqHSKtBfkZrRMzSiQL5iWR",
+          "block_height": 277465936,
+          "final_ms": 5330,
+          "gas_burnt_tgas": 11.35,
+          "hash": "5wiuNp2LzCheAL2ipNnBD1fvk3wRwk26sNhKZb2hNYEA",
+          "included_final_ms": 2687,
+          "included_ms": 1581,
+          "receiver": "intents.zecret-3f109eea1e.testnet",
+          "signer": "maker.zecret-3f109eea1e.testnet",
+          "step": "execute_intents(ft_withdraw signed by taker key)"
+        }
+      ],
+      "verifier": "intents.zecret-3f109eea1e.testnet"
     }
   ]
 }

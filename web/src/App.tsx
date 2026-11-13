@@ -10,7 +10,7 @@ import { PayScreen, RecoveryStep } from './screens/Pay';
 import { ProgressScreen } from './screens/Progress';
 import { DoneScreen, RefundedScreen } from './screens/Finished';
 import { RestoreScreen } from './screens/Restore';
-import { DemoBanner, Footer, Header } from './screens/Shell';
+import { DemoBanner, Footer, Header, NetworkBanner } from './screens/Shell';
 
 type View = 'auto' | 'restore' | 'recovery';
 
@@ -109,7 +109,7 @@ export default function App() {
       <div className="stack-lg narrow">
         <section className="card card-main stack" aria-labelledby="fail-title">
           <h1 id="fail-title" className="h1">
-            {app.failure?.kind === 'directory' ? 'The maker’s details did not load' : 'The swap engine could not start'}
+            {app.failure?.kind === 'directory' ? 'The maker’s details did not load' : app.failure?.kind === 'config' ? 'The network settings did not load' : 'The swap engine could not start'}
           </h1>
           <Notice tone="danger" role="alert">
             {app.failure?.message}
@@ -146,6 +146,7 @@ export default function App() {
       </a>
       <Header init={app.init} network={app.terms?.network} onHome={() => !swap && setView('auto')} />
       <DemoBanner settings={app.settings} init={app.init} swap={swap} />
+      <NetworkBanner network={app.network} />
       <main id="main" ref={main} className={`main main-${screenKey}`}>
         {app.warnings.map((w, i) => (
           <Notice key={i} tone="warn" title="Storage is off in this browser" role="alert">

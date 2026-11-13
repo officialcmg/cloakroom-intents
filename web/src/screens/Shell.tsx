@@ -4,6 +4,7 @@ import { appStore, usePref } from '../app/useZecret';
 import { FAILURES, SPEEDS, settingsUrl, type PageSettings } from '../app/settings';
 import { Icon } from '../ui/Icon';
 import { Logo, Notice } from '../ui/bits';
+import type { NetworkConfig } from '../lib/netconfig';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -57,6 +58,20 @@ export function Footer() {
       </p>
       <p className="muted">Prices for the delivery come from NEAR Intents. Amounts round down.</p>
     </footer>
+  );
+}
+
+/** What is real on a test network, for the real engine. */
+export function NetworkBanner({ network }: { network?: NetworkConfig }) {
+  if (!network || network.network === 'mainnet') return null;
+  return (
+    <div className="demo-banner" role="note" data-testid="network-banner">
+      <Icon name="info" size={16} />
+      <span>
+        {network.label}. Real transactions, test money with no value.
+        {(network.honesty ?? []).map((l) => ` ${l}`).join('')}
+      </span>
+    </div>
   );
 }
 

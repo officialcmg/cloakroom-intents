@@ -3,7 +3,7 @@ import type { SwapState, TxRef } from '../engine';
 import { remainingMs } from '../engine/timeline';
 import { appStore, useApp } from '../app/useZecret';
 import type { ExitControl } from '../app/useExit';
-import { destAmount, groupState, groupsFor, nowCopy, refundReason, stageLabel, formatUsdcAmount } from '../app/stageCopy';
+import { destAmount, groupState, groupsFor, nowCopy, receiveLine, refundReason, stageLabel, formatUsdcAmount } from '../app/stageCopy';
 import { validateZcashReturnAddress } from '../lib/address/zcash';
 import { formatZec } from '../lib/units';
 import { Icon } from '../ui/Icon';
@@ -29,7 +29,7 @@ export function useEta(swap: SwapState): { leftMs?: number; doneBy?: number } {
 export function ProgressScreen({ swap, exit }: { swap: SwapState; exit: ExitControl }) {
   const copy = nowCopy(swap);
   const eta = useEta(swap);
-  const d = swap.params.destination;
+  const { network } = useApp();
   const refund = swap.stage === 'refunding' || swap.stage === 'recovering' || swap.stage === 'recovered';
 
   return (
@@ -38,9 +38,7 @@ export function ProgressScreen({ swap, exit }: { swap: SwapState; exit: ExitCont
         <p className="summary-line summary-line-lg">
           <span>{formatZec(BigInt(swap.params.amountZats))} ZEC</span>
           <Icon name="arrow" size={18} />
-          <span>
-            at least {destAmount(swap, swap.params.minDestinationAmount)} on {chainName(d.chain)}
-          </span>
+          <span>{receiveLine(swap, network?.near.tokenSymbol)}</span>
         </p>
         {eta.leftMs !== undefined && (
           <p className="eta" data-testid="eta">

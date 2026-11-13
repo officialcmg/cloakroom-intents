@@ -355,6 +355,12 @@ function PriceCard({ price, token, payZats, zecUsd }: { price: ReturnType<typeof
     <section className={`price${stale ? ' is-stale' : ''}`} aria-label="Price" aria-busy={price.status === 'loading'}>
       {shown && shown.payZats === payZats ? (
         <>
+          {app.network?.exit.mode === 'direct' && (
+            <p className="hint" data-testid="preview-note">
+              <strong>Mainnet preview.</strong> The line below is the live NEAR Intents price on mainnet for {token.symbol} on {chain}. On this network the swap pays{' '}
+              {payTokenLabel()} and sends it to your NEAR account; no {token.symbol} is delivered.
+            </p>
+          )}
           <p className="price-line" data-testid="price-line">
             <span className="price-pay">
               You pay <strong>{formatZec(shown.payZats)} ZEC</strong>.

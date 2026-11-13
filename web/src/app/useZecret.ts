@@ -6,6 +6,7 @@ import { reduceSwap } from '../engine/reducer';
 import { directoryUrl, fetchDirectory, type MakerDirectory, type MakerTerms } from '../lib/directory';
 import { configUrl, fetchNetworkConfig, type NetworkConfig } from '../lib/netconfig';
 import { readSettings, type PageSettings } from './settings';
+import { setPayToken } from './stageCopy';
 
 export interface AppState {
   phase: 'loading' | 'ready' | 'failed';
@@ -73,6 +74,7 @@ class Store {
       this.set({ phase: 'failed', failure: { kind: 'directory', message: (e as Error).message } });
       return;
     }
+    if (network) setPayToken(network.near.tokenSymbol === 'USDC' ? 'USDC' : network.near.tokenSymbol);
     this.set({ directory, terms, network });
     const engine = createEngine(network ? 'real' : 'simulated');
     this.engine = engine;

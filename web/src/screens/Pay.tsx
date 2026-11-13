@@ -6,8 +6,7 @@ import { formatZec } from '../lib/units';
 import { Icon } from '../ui/Icon';
 import { CopyButton, Notice, TimedProgress } from '../ui/bits';
 import { QrCode } from '../ui/QrCode';
-import { chainName } from '../ui/TokenPicker';
-import { destAmount } from '../app/stageCopy';
+import { receiveLine } from '../app/stageCopy';
 
 /** Downloads the recovery file. Returns the file name, or throws. */
 export async function saveRecoveryFile(): Promise<string> {
@@ -43,14 +42,12 @@ export function Steps({ current }: { current: 1 | 2 | 3 }) {
 }
 
 function SwapSummary({ swap }: { swap: SwapState }) {
-  const d = swap.params.destination;
+  const { network } = useApp();
   return (
     <p className="summary-line">
       <span>{formatZec(BigInt(swap.params.amountZats))} ZEC</span>
       <Icon name="arrow" size={16} />
-      <span>
-        at least {destAmount(swap, swap.params.minDestinationAmount)} on {chainName(d.chain)}
-      </span>
+      <span>{receiveLine(swap, network?.near.tokenSymbol)}</span>
     </p>
   );
 }
