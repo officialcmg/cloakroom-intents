@@ -14,3 +14,12 @@
 [maker 1794560658] bc9e71dc STIPEND of 30000000000000000000000 yoctoNEAR sent to c584e0e06b19ddcf51288b5259975e7354f0fbfd8d6b6521d6b48270ddb56da7, tx 4UqYkJ7AxgGBmq9a3Ua8FaNxa3CSTQY8pidkf4uXPZFs
 [maker 1794560658] bc9e71dc stage Opened
 [maker 1794560658] VANISH at stage Opened (process exits; state is stored)
+
+===== start maker --exit-after 1 =====
+[maker 1794560676] up: UA uregtest19u0cyjcjxw22md48e6sheszq5jg3cu7yx7cgnlxcjc3u5gtu734g5a4xcd38dmg6e6fpxf6y4yl894xg6mv8964lv2rjnlzcpc8qwuxz NEAR maker.test.near key ed25519:3jvBFbxDGs7bHfQk4zVwAKDZP3oJGozuhcioE1MD6icp
+[maker 1794560682] {"type":"near_tx","swap":"bc9e71dc10d64c1add7aacb842951a07","what":"withdraw","hash":"AGbhY3zUyMTysG7jpjussfFsUya5BXvKtwTe9hy2YWL6"}
+[maker 1794560682] bc9e71dc withdraw for the taker into intents.near, tx AGbhY3zUyMTysG7jpjussfFsUya5BXvKtwTe9hy2YWL6 (executed)
+[maker 1794560682] bc9e71dc stage Aborted
+[maker 1794560682] bc9e71dc CLAIMED via the punish path, but no joint note exists: the maker was offline for all of [t1, t2) (assumption L_M violated) and lost the escrowed tokens
+[maker 1794560682] bc9e71dc DONE Aborted
+[maker 1794560682] 1 swap(s) terminal; exiting

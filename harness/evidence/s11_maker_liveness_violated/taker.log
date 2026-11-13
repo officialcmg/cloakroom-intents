@@ -24,3 +24,21 @@
 [taker 1794560660] bc9e71dc stage Funded
 [taker 1794560665] bc9e71dc [MISBEHAVE free-claim] commit_claim without Ready before t2 REJECTED by the escrow: {"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: NotClaimable: commit_claim needs Ready before t1, or any time from t2"}}}} at escrow.test.near; waiting for t2
 [taker 1794560665] bc9e71dc R2c: claim window closed (NEAR time 1794561784, t1 1794561731, budget 15s); not committing; waiting for the maker's refund or for t2 1794561791
+[taker 1794560670] {"type":"near_tx","swap":"bc9e71dc10d64c1add7aacb842951a07","what":"commit_claim","hash":"CP8AbChdXf6wzaxYcvxRivuYoihFj1W9eksepdcJNzse"}
+[taker 1794560670] bc9e71dc past t2 with escrow Open: LOCKED via the punish path, tx CP8AbChdXf6wzaxYcvxRivuYoihFj1W9eksepdcJNzse [MISBEHAVE free-claim, never funded]
+[taker 1794560670] bc9e71dc stage Committed
+[taker 1794560672] bc9e71dc lock final (block 1976); revealing a before the deadline 1794561841
+[taker 1794560672] bc9e71dc stage Revealed
+[taker 1794560672] bc9e71dc claim(a) signed and stored, tx CzLeHrYhxKGq1dWZjUJmFTto2DJKiBWemVZ4cV3ZPndW; it goes out on the next step
+[taker 1794560674] {"type":"near_tx","swap":"bc9e71dc10d64c1add7aacb842951a07","what":"claim","hash":"CzLeHrYhxKGq1dWZjUJmFTto2DJKiBWemVZ4cV3ZPndW"}
+[taker 1794560674] bc9e71dc REVEALED a with claim, tx CzLeHrYhxKGq1dWZjUJmFTto2DJKiBWemVZ4cV3ZPndW; waiting for the claim to be final
+[taker 1794560676] bc9e71dc claim is final (block 1983)
+[taker 1794560676] bc9e71dc stage Claimed
+[taker 1794560676] bc9e71dc the taker's account holds 27854143989901100000000 yoctoNEAR, less than the 200000000000000000000000 that a withdraw needs; the maker sends withdraw
+[taker 1794560676] bc9e71dc claim final; waiting for the payout (credit 30000000000000000000000000, in intents 0)
+[taker 1794560680] bc9e71dc claim final; waiting for the payout (credit 0, in intents 0)
+[taker 1794560684] bc9e71dc PAYOUT: 30000000000000000000000000 of wrap.test.near in intents.near, owned by c584e0e06b19ddcf51288b5259975e7354f0fbfd8d6b6521d6b48270ddb56da7
+[taker 1794560684] bc9e71dc payout 30000000000000000000000000 wrap.test.near to c584e0e06b19ddcf51288b5259975e7354f0fbfd8d6b6521d6b48270ddb56da7 in intents
+[taker 1794560684] bc9e71dc stage Completed
+[taker 1794560684] bc9e71dc DONE Completed
+[taker 1794560684] finished: Completed

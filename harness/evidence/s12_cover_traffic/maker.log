@@ -1,32 +1,3 @@
 
 ===== start maker --exit-after 1 =====
-[maker 1794544063] up: UA uregtest1jyvgd594ww6lmhrhljeez6nglp7z8xvjqjcm65w4j8h5al4mluvssh6hkyd55jgljeu6as8zw0ukseajhc764tzxmju6nj9erqk897ph NEAR maker.test.near key ed25519:DmU43XuYxFL4Vtj4XcGMNKkPiQrpSRwCe9ks4xmSzMBE
-[maker 1794544071] 978014aa RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
-[maker 1794544071] 978014aa stage Quoting
-[maker 1794544115] 978014aa QUOTE: cover: waited 38s over 4 random draw(s), 5 look-alike txs mined since height 239
-[maker 1794544115] {"type":"zcash_tx","swap":"978014aaed9626474d116f8baed0d861","what":"quote","txid":"6bc90b7a3d9d6471f2c27961c293022bc06d2d12850b19e122de5ace6abb38df"}
-[maker 1794544115] 978014aa encrypted QUOTE sent in tx 6bc90b7a3d9d6471f2c27961c293022bc06d2d12850b19e122de5ace6abb38df
-[maker 1794544115] 978014aa stage Quoted
-[maker 1794544152] 978014aa ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id 77fd7f47
-[maker 1794544152] 978014aa stage Opening
-[maker 1794544182] 978014aa OPEN: cover: waited 31s over 4 random draw(s), 4 look-alike txs mined since height 271
-[maker 1794544187] {"type":"near_tx","swap":"978014aaed9626474d116f8baed0d861","what":"open","hash":"9jZ1JqXRZeudX3ycR7V5K21WCnLoq1u1kPWc7NqSSXhN"}
-[maker 1794544187] 978014aa escrow OPEN id 77fd7f47540235709a7175af0bcf36fee722f81ad1c887f743ef2337c8fc4b72 amount 30000000000000000000000000 t0=1794545437 t1=1794545497 t2=1794545557 W=45, tx 9jZ1JqXRZeudX3ycR7V5K21WCnLoq1u1kPWc7NqSSXhN
-[maker 1794544187] {"type":"near_tx","swap":"978014aaed9626474d116f8baed0d861","what":"stipend","hash":"D8bhDwk7mZxhUuWejrWEWCN8wbyfidNzJaiPYuFqg295"}
-[maker 1794544187] 978014aa STIPEND of 30000000000000000000000 yoctoNEAR sent to 975c9dc14c55248a47a24d981c7ec93717ecaa107fcbf6083fbd2f8131d89c80, tx D8bhDwk7mZxhUuWejrWEWCN8wbyfidNzJaiPYuFqg295
-[maker 1794544187] 978014aa stage Opened
-[maker 1794544278] 978014aa READY: cover: waited 39s over 4 random draw(s), 5 look-alike txs mined since height 304
-[maker 1794544278] {"type":"near_tx","swap":"978014aaed9626474d116f8baed0d861","what":"set_ready","hash":"7a6WXUZQqUjpn9SLb1avM7KyHBgzAsriCC7Kui3rHNQq"}
-[maker 1794544278] 978014aa joint note 100010000 zats with 16 confirmations (k_Z = 2); READY, tx 7a6WXUZQqUjpn9SLb1avM7KyHBgzAsriCC7Kui3rHNQq
-[maker 1794544278] 978014aa stage Ready
-[maker 1794544292] {"type":"near_tx","swap":"978014aaed9626474d116f8baed0d861","what":"withdraw","hash":"65gFu1oNVKtAfwCW6FAEWjDorKtP4igb8CCawUg2NdC2"}
-[maker 1794544292] 978014aa withdraw for the taker into intents.near, tx 65gFu1oNVKtAfwCW6FAEWjDorKtP4igb8CCawUg2NdC2 (executed)
-[maker 1794544325] 978014aa SWEEP: cover: waited 34s over 3 random draw(s), 4 look-alike txs mined since height 324
-[maker 1794544325] 978014aa CLAIMED: read a from the escrow
-[maker 1794544326] {"type":"zcash_tx","swap":"978014aaed9626474d116f8baed0d861","what":"sweep","txid":"49cda1b3dc106cbb170b3b3e623a17074a6e9ea9c33fd5e36938f1392f1c60b5"}
-[maker 1794544326] 978014aa swept the joint note with (a+b) to the maker's wallet, tx 49cda1b3dc106cbb170b3b3e623a17074a6e9ea9c33fd5e36938f1392f1c60b5; waiting for 2 confirmations
-[maker 1794544326] 978014aa stage Sweeping
-[maker 1794544328] 978014aa sweep 49cda1b3dc106cbb170b3b3e623a17074a6e9ea9c33fd5e36938f1392f1c60b5 has 2 confirmations (k_Z = 2); done
-[maker 1794544328] 978014aa stage Swept
-[maker 1794544328] 978014aa DONE Swept
-[maker 1794544328] 1 swap(s) terminal; exiting
+[maker 1794560702] up: UA uregtest1550valgs3wyaxtlprdfm2mev5lrv4r99rmkvxhc795yc2nymcrfc04kwe50r9ycc5h5egcag6np7ymfd0u2aztsztf5gr7s4hqnae0u9 NEAR maker.test.near key ed25519:3jvBFbxDGs7bHfQk4zVwAKDZP3oJGozuhcioE1MD6icp
