@@ -1,8 +1,8 @@
 {
   "site": "https://zecret-chrismgs-projects.vercel.app",
-  "amountZec": "0.01",
+  "amountZec": "0.05",
   "nearAccount": "zecret-3f109eea1e.testnet",
-  "startedAt": "2026-11-13T12:07:03.963Z",
+  "startedAt": "2026-11-13T12:45:19.493Z",
   "checks": [
     {
       "check": "the site opened with the real engine on testnet by default (network banner)",
@@ -17,7 +17,7 @@
     {
       "check": "the page shows a testnet deposit address and amount",
       "pass": true,
-      "detail": "1000000 zats"
+      "detail": "5000000 zats"
     },
     {
       "check": "the page reached done",
@@ -32,95 +32,103 @@
   ],
   "facts": {
     "payerBefore": {
-      "height": 4615850,
+      "height": 4615939,
       "ua": "utest1zdyw8dscgrelws7muvgznaa2xwld5aysr50w7xy46p4aqyrvlw7t2ejxllda8j6qp9dtc557f6cnnj7uypn8wkmqknzmcd225ca9ca04",
-      "zats": 84909000
+      "zats": 83899000
     },
-    "preview": "You pay 0.01 ZEC. You receive at least 0.2795 USDC on Base.",
+    "preview": "You pay 0.05 ZEC. You receive at least 1.4554 USDC on Base.",
     "deposit": {
-      "expectedZats": 1000000
+      "expectedZats": 5000000
     },
-    "payTx": "9fba50e7efeb09aac0246f86135272c306a83f350b7e22f8b13a179e8a75639e",
+    "faucet": {
+      "request_id": "01M7AF2PMFWXT7V5S7533Q1D97",
+      "network": "testnet",
+      "state": "broadcasting",
+      "outcome": "accepted",
+      "txid": "f9105dd87822797f511f703725078d040a723fdd8516fea478193297239b74a5",
+      "claim_amount_zat": 100000000
+    },
+    "payTx": "faucet:{\"request_id\":\"01M7AF2PMFWXT7V5S7533Q1D97\",\"network\":\"testnet\",\"state\":\"broadcasting\",\"outcome\":\"accepted\",\"txid\":\"f9105dd87822797f511f703725078d040a723fdd8516fea478193297239b74a5\",\"claim_amount_zat\":100000000}",
     "finalStage": "done",
     "history": [
       {
         "stage": "awaiting_deposit",
-        "at": "2026-11-13T12:07:31.938Z",
-        "secs": 29.7
+        "at": "2026-11-13T12:45:48.513Z",
+        "secs": 30.2
       },
       {
         "stage": "deposit_seen",
-        "at": "2026-11-13T12:08:01.592Z",
+        "at": "2026-11-13T12:46:18.691Z",
         "secs": 0
       },
       {
         "stage": "deposit_confirmed",
-        "at": "2026-11-13T12:08:01.594Z",
-        "secs": 30.7
+        "at": "2026-11-13T12:46:18.692Z",
+        "secs": 28.6
       },
       {
         "stage": "request_sent",
-        "at": "2026-11-13T12:08:32.254Z",
-        "secs": 84.3
+        "at": "2026-11-13T12:46:47.331Z",
+        "secs": 43.2
       },
       {
         "stage": "quote_received",
-        "at": "2026-11-13T12:09:56.557Z",
-        "secs": 32.6
+        "at": "2026-11-13T12:47:30.510Z",
+        "secs": 31.4
       },
       {
         "stage": "accepted",
-        "at": "2026-11-13T12:10:29.176Z",
-        "secs": 49.2
+        "at": "2026-11-13T12:48:01.868Z",
+        "secs": 30
       },
       {
         "stage": "escrow_open",
-        "at": "2026-11-13T12:11:18.345Z",
-        "secs": 33.7
+        "at": "2026-11-13T12:48:31.845Z",
+        "secs": 32.7
       },
       {
         "stage": "funding_sent",
-        "at": "2026-11-13T12:11:52.002Z",
-        "secs": 98.9
+        "at": "2026-11-13T12:49:04.544Z",
+        "secs": 40.4
       },
       {
         "stage": "funding_confirming",
-        "at": "2026-11-13T12:13:30.945Z",
-        "secs": 14
+        "at": "2026-11-13T12:49:44.979Z",
+        "secs": 67.1
       },
       {
         "stage": "ready",
-        "at": "2026-11-13T12:13:44.940Z",
-        "secs": 4.9
+        "at": "2026-11-13T12:50:52.050Z",
+        "secs": 0
       },
       {
         "stage": "committing",
-        "at": "2026-11-13T12:13:49.805Z",
-        "secs": 2.2
+        "at": "2026-11-13T12:50:52.052Z",
+        "secs": 0.9
       },
       {
         "stage": "claiming",
-        "at": "2026-11-13T12:13:51.980Z",
-        "secs": 6.6
+        "at": "2026-11-13T12:50:52.985Z",
+        "secs": 5.2
       },
       {
         "stage": "claimed",
-        "at": "2026-11-13T12:13:58.594Z",
-        "secs": 6.2
+        "at": "2026-11-13T12:50:58.146Z",
+        "secs": 8.7
       },
       {
         "stage": "paid_out",
-        "at": "2026-11-13T12:14:04.801Z",
+        "at": "2026-11-13T12:51:06.876Z",
         "secs": 0
       },
       {
         "stage": "exiting",
-        "at": "2026-11-13T12:14:04.804Z",
-        "secs": 6.1
+        "at": "2026-11-13T12:51:06.879Z",
+        "secs": 5.4
       },
       {
         "stage": "done",
-        "at": "2026-11-13T12:14:10.933Z",
+        "at": "2026-11-13T12:51:12.229Z",
         "secs": null
       }
     ],
@@ -129,73 +137,73 @@
         "id": "request",
         "chain": "zcash",
         "label": "Request to the maker (encrypted memo)",
-        "hash": "cc72efd93389c0ea16441e1f8f764efa3969627291a22c8adc727c5e997322bc",
-        "url": "https://testnet.zcashexplorer.app/transactions/cc72efd93389c0ea16441e1f8f764efa3969627291a22c8adc727c5e997322bc",
-        "at": 1794571712253
+        "hash": "f5320a8d6f48ecef33f10cd8e0ccaf3fcac1bc30808aa547a0caa8a3c966389a",
+        "url": "https://testnet.zcashexplorer.app/transactions/f5320a8d6f48ecef33f10cd8e0ccaf3fcac1bc30808aa547a0caa8a3c966389a",
+        "at": 1794574007330
       },
       {
         "id": "accept",
         "chain": "zcash",
         "label": "Acceptance and premium to the maker",
-        "hash": "e490eac9c116bfa25a82f0cfd0aee116287de83cc2c1ed3648c01f74712e6d91",
-        "url": "https://testnet.zcashexplorer.app/transactions/e490eac9c116bfa25a82f0cfd0aee116287de83cc2c1ed3648c01f74712e6d91",
-        "at": 1794571829175
+        "hash": "a696ac7db1c9eb6a78633dd51351c6c533e3eb0b083a5ecb75f77bf7034c245e",
+        "url": "https://testnet.zcashexplorer.app/transactions/a696ac7db1c9eb6a78633dd51351c6c533e3eb0b083a5ecb75f77bf7034c245e",
+        "at": 1794574081867
       },
       {
         "id": "funding",
         "chain": "zcash",
         "label": "Your ZEC to the shared address",
-        "hash": "e2eff18977c1133a72df4bff7f4b7589b07d64af65f59fbe7abf8915b6122e8e",
-        "url": "https://testnet.zcashexplorer.app/transactions/e2eff18977c1133a72df4bff7f4b7589b07d64af65f59fbe7abf8915b6122e8e",
-        "at": 1794571912002
+        "hash": "32201776780197c1f188d5557524a01234ea73b6af587cfd1637f13327624c76",
+        "url": "https://testnet.zcashexplorer.app/transactions/32201776780197c1f188d5557524a01234ea73b6af587cfd1637f13327624c76",
+        "at": 1794574144543
       },
       {
         "id": "commit",
         "chain": "near",
         "label": "Claim commitment (reveals nothing)",
-        "hash": "9z3av19SmUrqjyqhU7uCsvJTNmFRUPDsdnwrSxKJzPW",
-        "url": "https://testnet.nearblocks.io/txns/9z3av19SmUrqjyqhU7uCsvJTNmFRUPDsdnwrSxKJzPW",
-        "at": 1794572029805
+        "hash": "HwMr8MSseJzrqk5oPGQ2vamSiqa4JE629BxDX9Ty9wH5",
+        "url": "https://testnet.nearblocks.io/txns/HwMr8MSseJzrqk5oPGQ2vamSiqa4JE629BxDX9Ty9wH5",
+        "at": 1794574252050
       },
       {
         "id": "claim",
         "chain": "near",
         "label": "Claim with your key half",
-        "hash": "8xVtDKbzCcnmQCddE8EwW5EJqQZciXJmmvbMHXFbDCWY",
-        "url": "https://testnet.nearblocks.io/txns/8xVtDKbzCcnmQCddE8EwW5EJqQZciXJmmvbMHXFbDCWY",
-        "at": 1794572036201
+        "hash": "Ckg42b1nRMdWWzp3kHKGasGVnMCRCT6p3oQjJnXCYRQg",
+        "url": "https://testnet.nearblocks.io/txns/Ckg42b1nRMdWWzp3kHKGasGVnMCRCT6p3oQjJnXCYRQg",
+        "at": 1794574257064
       },
       {
         "id": "exit-1",
         "chain": "near",
         "label": "Exit intent executed (ft_withdraw from NEAR Intents)",
-        "hash": "C9T9LJvohjbuhfcjXuVG9ZiFpHvh6dF2pQYFksDbuNAJ",
-        "url": "https://testnet.nearblocks.io/txns/C9T9LJvohjbuhfcjXuVG9ZiFpHvh6dF2pQYFksDbuNAJ",
-        "at": 1794572050692
+        "hash": "DJ1BgVavScKvPnZE1S2EGapybLaAh7mem78zAQpfz3JR",
+        "url": "https://testnet.nearblocks.io/txns/DJ1BgVavScKvPnZE1S2EGapybLaAh7mem78zAQpfz3JR",
+        "at": 1794574271998
       },
       {
         "id": "delivery",
         "chain": "near",
         "label": "test USDC sent to zecret-3f109eea1e.testnet",
-        "hash": "C9T9LJvohjbuhfcjXuVG9ZiFpHvh6dF2pQYFksDbuNAJ",
-        "url": "https://testnet.nearblocks.io/txns/C9T9LJvohjbuhfcjXuVG9ZiFpHvh6dF2pQYFksDbuNAJ",
-        "at": 1794572050933
+        "hash": "DJ1BgVavScKvPnZE1S2EGapybLaAh7mem78zAQpfz3JR",
+        "url": "https://testnet.nearblocks.io/txns/DJ1BgVavScKvPnZE1S2EGapybLaAh7mem78zAQpfz3JR",
+        "at": 1794574272229
       }
     ],
     "escrow": {
       "contract": "escrow2.zecret-3f109eea1e.testnet",
-      "swapId": "3523db9ccb7f2dfc1a708fedb8df3244e94cf2f1244eebb57a69ea94332dff5a",
-      "takerAccount": "bdb36c89bb87f932dd6c33938040f98995261808cba7b53b1bda665cd66ca72d",
+      "swapId": "80c5d8cc34a955a2ee989fc280e1663fd2e45a48224c34ef9bf923f68f980c88",
+      "takerAccount": "040f110c1be1ae6081262960aa763fbadce91a127e03a2b1edb964fb46d24856",
       "stipendYocto": "30000000000000000000000"
     },
     "payout": {
-      "usdc": "287700",
-      "intentsAccount": "bdb36c89bb87f932dd6c33938040f98995261808cba7b53b1bda665cd66ca72d"
+      "usdc": "1487700",
+      "intentsAccount": "040f110c1be1ae6081262960aa763fbadce91a127e03a2b1edb964fb46d24856"
     },
     "exit": {
       "phase": "done",
-      "deliveredAmount": "287700",
-      "intentHash": "AecTEkmU5KXiXD7gRQipZ3r7YvokC9tSbU9xFFRqwZFm",
+      "deliveredAmount": "1487700",
+      "intentHash": "5vRomZmcWCSyoycwuiS3viDwAgAjx71rrMAm8KfdsX6U",
       "direct": {
         "nearAccount": "zecret-3f109eea1e.testnet",
         "token": "usdc.zecret-3f109eea1e.testnet",
@@ -204,14 +212,14 @@
       }
     },
     "quote": {
-      "usdc": "287700",
+      "usdc": "1487700",
       "premiumZats": "1000",
-      "expiresAt": 1794572396557
+      "expiresAt": 1794574650510
     },
     "engineTimings": [
       {
         "what": "wasm_load",
-        "secs": 0.5
+        "secs": 0.4
       },
       {
         "what": "verify_maker",
@@ -219,27 +227,27 @@
       },
       {
         "what": "proving_key_build",
-        "secs": 21
+        "secs": 20.8
       },
       {
         "what": "proof_request",
-        "secs": 29.4
+        "secs": 27.7
       },
       {
         "what": "proof_accept",
-        "secs": 30.2
+        "secs": 28.8
       },
       {
         "what": "proof_fund",
-        "secs": 31.9
+        "secs": 31
       },
       {
         "what": "direct_exit_relay",
-        "secs": 4.8
+        "secs": 3.9
       }
     ],
-    "doneTitle": "You received 0.2877 test USDC on NEAR"
+    "doneTitle": "You received 1.4877 test USDC on NEAR"
   },
-  "finishedAt": "2026-11-13T12:14:11.617Z",
-  "totalSecs": 428
+  "finishedAt": "2026-11-13T12:51:13.134Z",
+  "totalSecs": 354
 }
