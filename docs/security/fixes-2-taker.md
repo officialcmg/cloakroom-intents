@@ -248,7 +248,7 @@ After the change: see the report of this change for the outputs; summary:
 | `cargo build -p zecret-wasm --target wasm32-unknown-unknown --release` | builds |
 | `python3 -I harness/run.py` | all 21 scenarios PASS, including the new `s22_maker_refuses` and `s23_refund_with_two_joint_notes` |
 | `node harness/browser/run.mjs` | all 5 PASS (`harness/BROWSER_RESULTS.md`) |
-| `cd web && npm run typecheck && npm run lint && npm test && npm run build && npm run e2e` | pass |
+| `cd web && npm run typecheck && npm run lint && npm test && npm run build && npm run e2e` | typecheck and lint clean; vitest 78 tests in 7 files pass; build succeeds; Playwright 50 pass |
 
 Two traps met on the way, for whoever runs these next:
 
