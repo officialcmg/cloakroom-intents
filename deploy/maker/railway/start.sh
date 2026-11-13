@@ -9,7 +9,11 @@
 #     (base64 of a tar.gz of a maker folder), only when the volume has no wallet.json,
 #     and only the files that are absent;
 #   - near_key.json from ZECRET_NEAR_KEY: when absent, or when the variable changed
-#     (key rotation; the old file is kept as near_key.json.prev-<time>);
+#     (key rotation; the old file is kept as near_key.json.prev-<time>). Without
+#     ZECRET_NEAR_KEY and with ZECRET_NEW_NEAR_KEY=1, a new key is created on the volume
+#     and only its public key is printed;
+#   - a new wallet with ZECRET_NEW_WALLET=1, when the volume has none and
+#     ZECRET_MAKER_STATE is not set;
 #   - config.json from the image (the repository's testnet template): when absent, or
 #     when the image's settings differ and no swap is open. With an open swap it keeps
 #     the volume's settings: the maker uses them for its deadlines.
@@ -77,6 +81,7 @@ elif [ -n "${ZECRET_MAKER_STATE:-}" ]; then
 fi
 
 # 2. The maker account's NEAR key (one line, ed25519:...).
+new_near_key=0
 if [ -n "${ZECRET_NEAR_KEY:-}" ]; then
   if [ ! -e "$D/near_key.json" ]; then
     printf '%s' "$ZECRET_NEAR_KEY" > "$D/near_key.json"
@@ -87,7 +92,12 @@ if [ -n "${ZECRET_NEAR_KEY:-}" ]; then
     log "ZECRET_NEAR_KEY changed: wrote near_key.json, kept the old file as near_key.json.prev-*"
   fi
 elif [ ! -e "$D/near_key.json" ]; then
-  die "no near_key.json in $D and ZECRET_NEAR_KEY is not set"
+  if [ "${ZECRET_NEW_NEAR_KEY:-}" = 1 ]; then
+    new_near_key=1
+    log "no near_key.json on the volume; a new key is created below (ZECRET_NEW_NEAR_KEY=1)"
+  else
+    die "no near_key.json in $D and ZECRET_NEAR_KEY is not set (set ZECRET_NEW_NEAR_KEY=1 for a new key)"
+  fi
 fi
 
 # 3. Settings.
@@ -120,8 +130,17 @@ find "$D" -type d -exec chmod 0700 {} +
 unset ZECRET_MAKER_STATE ZECRET_NEAR_KEY
 
 run() { setpriv --reuid="$UID_ZECRET" --regid="$UID_ZECRET" --clear-groups -- env HOME="$D" "$@"; }
-if [ ! -e "$D/wallet.json" ]; then
-  run "$ZECRET_BIN" init --dir "$D"
+# Public values only: the wallet's address, the NEAR public key, the directory entry.
+# `init` creates the wallet when it is absent and prints its unified address.
+log "wallet address: $(run "$ZECRET_BIN" init --dir "$D")"
+if [ "$new_near_key" = 1 ]; then
+  log "created near_key.json; add this public key to $(jq -r .near_account "$D/config.json") as a full-access key:"
+fi
+log "NEAR public key: $(run "$ZECRET_BIN" near-key --dir "$D")"
+if entry="$(run "$ZECRET_BIN" directory --dir "$D" 2>&1)"; then
+  log "directory entry: $entry"
+else
+  log "WARNING: zecret directory failed: $entry"
 fi
 log "starting: zecret maker --dir $D --relay 0.0.0.0:$PORT"
 exec setpriv --reuid="$UID_ZECRET" --regid="$UID_ZECRET" --clear-groups -- \

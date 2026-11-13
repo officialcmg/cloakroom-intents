@@ -10,6 +10,8 @@ Tools to put Zecret's NEAR contracts on a network and check them.
 | `deployment.testnet.json` | The testnet deployment: account ids, code hashes, transaction hashes and block heights. No keys. Earlier escrows of the deployment are under `retired_escrows`. |
 | `e2e.testnet.json` | The end-to-end runs on testnet: every transaction hash and its timings. |
 | `maker/` | Dockerfile and notes for running the maker daemon as a service. |
+| `maker/railway/` | The hosted testnet maker on Railway: Dockerfile, start script, its signed directory entry (`docs/HOSTING.md`). |
+| `web/` | The Vercel build of the website with the browser engine, its ignored-build-step script, and the directory converter (`docs/HOSTING.md`). |
 | `.keys/` | Private keys the tool makes or uses. Not in git (see `.gitignore`), mode 0700, files mode 0600. |
 
 Steps, costs and checks for testnet and mainnet are in [`docs/DEPLOY.md`](../docs/DEPLOY.md).

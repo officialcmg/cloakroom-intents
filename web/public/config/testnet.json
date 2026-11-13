@@ -21,10 +21,10 @@
   "timing": { "inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 600, "k_z": 3 },
   "minStipend": "30000000000000000000000",
   "quoteTimeoutSecs": 600,
-  "exit": { "mode": "direct", "relayUrl": "http://127.0.0.1:3410/execute-intents" },
+  "exit": { "mode": "direct", "relayUrl": "https://zecret-maker-production.up.railway.app/execute-intents" },
   "honesty": [
     "A test USDC token with no value stands in for USDC.",
     "The Verifier is a copy of the intents.near code on NEAR testnet. NEAR Intents has no testnet, so the tokens go to your NEAR testnet account, and the price for the chosen chain is a mainnet preview.",
-    "The exit needs the maker's relay; this file points at a maker running on this computer."
+    "The exit needs the maker's relay. This file points at the hosted testnet maker."
   ]
 }

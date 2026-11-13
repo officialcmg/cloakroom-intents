@@ -287,13 +287,16 @@ Other measurements from these runs:
 
 See [`deploy/maker/README.md`](../deploy/maker/README.md). In short: build the image from
 `deploy/maker/Dockerfile`, export the maker key with `zecret-deploy maker-key`, write
-`config.json`, and run the container with that folder as `/data`. Not deployed to any
-host.
+`config.json`, and run the container with that folder as `/data`.
+
+The testnet maker with its relay is hosted on Railway from
+`deploy/maker/railway/Dockerfile`; see [`docs/HOSTING.md`](HOSTING.md).
 
 ## Hosting the website
 
-The website is static (`web/`, Vite). `web/vercel.json` sets the build (`npm run build`,
-output `dist`) and security headers. Not deployed to any host.
+The website is static (`web/`, Vite). `web/vercel.json` sets the build
+(`deploy/web/vercel-build.sh`: the browser engine, then `npm run build`, output `dist`)
+and security headers. It is hosted on Vercel; see [`docs/HOSTING.md`](HOSTING.md).
 
 What it reads today (`web/src/vite-env.d.ts`):
 
@@ -328,11 +331,8 @@ server. A Content-Security-Policy header (not yet in `vercel.json`) must allow t
 
 - The tool has not run on mainnet. The mainnet guard is tested (unit tests and a run
   without the flag that stops before any network access).
-- The maker as a service (in the Docker image) on testnet. The image builds and its
-  `init` and `directory` commands ran before the TLS fix. Since then the `zecret` binary
-  uses reqwest with `rustls-tls` (`crates/zecret-node/Cargo.toml`), and the native maker
-  and taker ran a full swap on Zcash testnet and NEAR testnet with the escrow `escrow2`
-  (`docs/TESTNET.md`). The image was not rebuilt with the TLS fix, and the daemon was not
-  run in the container. Details in `deploy/maker/README.md`.
+- The image of `deploy/maker/Dockerfile` itself was not rebuilt with the TLS fix. The
+  Railway image (`deploy/maker/railway/Dockerfile`) was built and runs the daemon on
+  testnet (`docs/HOSTING.md`).
 - The website with the deployed testnet contracts: the browser engine that connects them
   (package E) is still being built.

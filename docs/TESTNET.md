@@ -286,3 +286,41 @@ NEAR) came from the maker's storage funds.
 89,949,000 zats) and their records. Another swap needs a new taker run with an amount
 between 100,000 and 10,000,000 zats; the maker's directory entry does not change. The
 Fauzec cooldown for these two addresses ends 24 hours after 05:36 UTC on 2026-11-13.
+
+## Hosted setup (2026-11-13)
+
+The website and a maker with its relay are hosted for public use on the same test
+networks. Hosts, settings, secrets and how a push to `main` redeploys:
+[`docs/HOSTING.md`](HOSTING.md).
+
+### What was run
+
+1. Railway project `zecret`, service `zecret-maker`, built from
+   `deploy/maker/railway/Dockerfile` on the branch `main` (commit `d6bac89`). The first
+   build took about 2 minutes.
+2. At its first start the service made a new wallet and a new NEAR key on its volume
+   (`ZECRET_NEW_WALLET=1`, `ZECRET_NEW_NEAR_KEY=1`, then set back to `0`). It printed only
+   public values:
+   - wallet `utest10kyef9lq7c637hlxx3fwdfrkukqnttzswcr4ukes5h3ewzca4e4nzycm73txxfgf44azfyngreys08dpzxqp8eah8dwacktj3s5yu0wv`;
+   - NEAR public key `ed25519:4aQfVk7LxZzASG5mLRsjDn1AxkzsCDjjmtf5q6ApZyHH`;
+   - the signed directory entry with limits (100,000 to 10,000,000 zats, premium 1,000
+     zats), kept in `deploy/maker/railway/directory-entry.testnet.json`.
+
+   The earlier plan was to copy the wallet of the native run into a Railway variable. It
+   was not done: the key would have passed through the build machine's session in clear.
+   A key made on the volume never leaves it.
+3. The native maker wallet of the run above paid 50,000,000 zats to the hosted wallet for
+   its quote fees: Zcash txid
+   `b49b2d844aee5e15b2a5272cdda5ea732be38881eef9790479517b6708947f99`.
+4. The website's directory `web/public/config/testnet-directory.json` was made from the
+   hosted entry with `deploy/web/directory-from-entry.mjs` (rate 30 tUSDC per TAZ, the
+   maker's `price_per_zec`).
+5. A second deployment (a redeploy at 11:00 UTC) started with the same wallet and NEAR
+   key and logged `config.json matches the image`: the volume kept its files.
+
+### Checked
+
+- The relay answers over HTTPS from outside Railway: `OPTIONS /execute-intents` returns
+  204 with `access-control-allow-origin: *`; `POST` with `{}` returns 400.
+- `zecret maker --relay` with `chains.network` `main` stops with "--relay is for the local
+  network and testnet only" (run on the build machine with the same code).
