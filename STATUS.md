@@ -37,3 +37,6 @@ Nothing.
 - Main session: `session_01UpiMzVjgad99bzMjoPrgGL`.
 - Agents edit separate folders and do not commit. The main session reviews, runs the
   check and commits.
+- Because this machine is temporary, the main session also pushes snapshots of
+  work in progress. Their commit messages start with "WIP". A package counts as done
+  only when it is listed under "Done" above.
