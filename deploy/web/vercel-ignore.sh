@@ -2,11 +2,16 @@
 # Vercel "Ignored Build Step" for the website (docs/HOSTING.md).
 # Exit 0: skip the build. Exit 1: build.
 #
+# It skips every commit whose message starts with "WIP".
 # It builds when a file changed, since the last successful deployment of this branch,
 # under web/, under the crates that the browser engine is built from, or in deploy/web/.
 # When the previous deployment's commit is unknown or not in the clone, it builds.
 set -u
 cd "$(git rev-parse --show-toplevel)" || exit 1
+# A commit whose message starts with "WIP" holds unfinished work: never build it.
+case "${VERCEL_GIT_COMMIT_MESSAGE:-}" in
+  WIP*) echo "Work-in-progress commit: skip."; exit 0 ;;
+esac
 prev="${VERCEL_GIT_PREVIOUS_SHA:-}"
 if [ -z "$prev" ]; then
   echo "No previous deployment on this branch: build."

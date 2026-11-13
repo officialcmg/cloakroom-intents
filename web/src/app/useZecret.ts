@@ -1,6 +1,6 @@
 // Boots the page: reads the maker directory, starts the engine in its worker, resumes any
 // stored swap, and keeps a live copy of the swap by folding engine events.
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { createEngine, type EngineClient, type EngineErrorData, type InitStatus, type SwapState } from '../engine';
 import { reduceSwap } from '../engine/reducer';
 import { directoryUrl, fetchDirectory, type MakerDirectory, type MakerTerms } from '../lib/directory';
@@ -192,22 +192,4 @@ export function useEngine(): EngineClient | undefined {
   return appStore.engine;
 }
 
-/** Local UI preference that survives reloads (theme, last token). */
-export function usePref<T extends string>(key: string, initial: T): [T, (v: T) => void] {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      return (localStorage.getItem(`zecret.${key}`) as T | null) ?? initial;
-    } catch {
-      return initial;
-    }
-  });
-  const set = (v: T) => {
-    setValue(v);
-    try {
-      localStorage.setItem(`zecret.${key}`, v);
-    } catch {
-      // Storage refused: the preference lasts for this visit only.
-    }
-  };
-  return [value, set];
-}
+export { usePref } from './prefs';
