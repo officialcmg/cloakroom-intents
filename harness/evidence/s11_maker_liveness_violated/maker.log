@@ -6,3 +6,20 @@
 [maker 1794544013] {"type":"zcash_tx","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","what":"quote","txid":"a81b98a68157a09e8b3a12f320d33c5e7e3de201d499467fc3b21ebc577c469c"}
 [maker 1794544013] 4c59e9e3 encrypted QUOTE sent in tx a81b98a68157a09e8b3a12f320d33c5e7e3de201d499467fc3b21ebc577c469c
 [maker 1794544013] 4c59e9e3 stage Quoted
+[maker 1794544017] 4c59e9e3 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 09986f1d
+[maker 1794544017] 4c59e9e3 stage Opening
+[maker 1794544022] {"type":"near_tx","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","what":"open","hash":"DqTJcf2SyeKXyjimP9No1EyVRQLPyZxXWhk7ECdUQth5"}
+[maker 1794544022] 4c59e9e3 escrow OPEN id 09986f1d6f03a4d33d25f130870a7547e93a076b5f59a68cbd6d99657264117c amount 30000000000000000000000000 t0=1794545046 t1=1794545106 t2=1794545166 W=45, tx DqTJcf2SyeKXyjimP9No1EyVRQLPyZxXWhk7ECdUQth5
+[maker 1794544022] {"type":"near_tx","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","what":"stipend","hash":"FSrbQXtngLXcxK7eeQpZqbkMfg5MifBcz8P9nhp4GbfR"}
+[maker 1794544022] 4c59e9e3 STIPEND of 30000000000000000000000 yoctoNEAR sent to f63464c758a425c725663e2092dc25f60afb4c7b87240a85a2dc1f5c1e73883f, tx FSrbQXtngLXcxK7eeQpZqbkMfg5MifBcz8P9nhp4GbfR
+[maker 1794544022] 4c59e9e3 stage Opened
+[maker 1794544022] VANISH at stage Opened (process exits; state is stored)
+
+===== start maker --exit-after 1 =====
+[maker 1794544041] up: UA uregtest1cn8p70k6d4hxyd8gj7jtqx8wu2nccdlftx7ry0vn4lceqj9r36gpr0jrr2c4sdchqlqqp0u3rk7ll9ac8h37vfxwdatpxnwvkuhgra82 NEAR maker.test.near key ed25519:DmU43XuYxFL4Vtj4XcGMNKkPiQrpSRwCe9ks4xmSzMBE
+[maker 1794544045] {"type":"near_tx","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","what":"withdraw","hash":"DhvbJ2rpFt9czKpfgSSEzQ7ZUPjEgfovaU4z4K4fJdpM"}
+[maker 1794544045] 4c59e9e3 withdraw for the taker into intents.near, tx DhvbJ2rpFt9czKpfgSSEzQ7ZUPjEgfovaU4z4K4fJdpM (executed)
+[maker 1794544045] 4c59e9e3 stage Aborted
+[maker 1794544045] 4c59e9e3 CLAIMED via the punish path, but no joint note exists: the maker was offline for all of [t1, t2) (assumption L_M violated) and lost the escrowed tokens
+[maker 1794544045] 4c59e9e3 DONE Aborted
+[maker 1794544045] 1 swap(s) terminal; exiting
