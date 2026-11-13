@@ -9,6 +9,7 @@ their checks.
 
 | Package | Result |
 |---|---|
+| S2-fix (taker side) | PASS. The main session reran the core tests (65), clippy, and scenarios s1, s22 and s23; the agent reports all 21 native scenarios, all 5 browser scenarios and 50 Playwright tests passing on the same code. Fixed: F2-01, F2-02, F2-03, H1, H5, H6. Added: a signed refusal memo, signed maker limits in the directory, a payout-pending stage, testnet timing sized from measured block intervals. Not run on testnet yet. See `docs/security/fixes-2-taker.md`. |
 | S3. Security review 3 (website, browser engine, relay) | Done. 2 bugs, both in the maker's relay: F3-02 medium (one slow client stops the relay and can grow the maker's memory without limit), F3-01 low (anyone who sent one request can make the relay pay for transactions without limit). No way found for a third party to take a user's funds through the website or the engine. 2 open questions: a link can replace the whole network configuration (`?config=`), blocked on Vercel by the CSP but not on other hosts; two tabs on one swap have no lock. Report: `docs/security/review-3.md`. Fixes are in progress. |
 | S3-fix. Fixes for review 3 | Partly rerun by the main session: relay tests (11 unit, 9 relay), web type-check, lint and 78 unit tests pass. The agent also ran the build and 50 Playwright tests; the main session did not rerun those, to avoid disturbing the running browser scenarios. Relay: request deadline, size caps, 4 workers, one `ft_withdraw` per payload for a swap with a payout, at most 3 per swap, refused on mainnet. Website: production builds accept only known config names; a second tab shows "open in another tab"; the engine stops after a failed save; restored addresses are recomputed from the wallet key. Not verified: the relay end to end with the browser engine (the wasm sandbox test needs an update, passed to the taker-side agent). See `docs/security/fixes-3.md`. |
 | E. Taker engine in the browser, wired into the website | PASS. The agent ran five browser scenarios with the taker only in headless Chromium through the real page and the maker as the native program, on Zebra regtest and a NEAR sandbox with the real escrow: (a) full swap with exit, (b) maker goes quiet and the browser recovers the ZEC, (c) two reloads in the middle of a swap, (d) restore from the recovery file in a fresh browser, (e) quote below the minimum. The main session reran (a): PASS in 181 s, every Zcash transaction fully shielded. Browser timings: key build 20 to 26 s, one proof 27 to 33 s. On local and test networks the maker relays the taker's signed exit (`zecret maker --relay`), because the leftover stipend cannot pay for it. Not verified: a browser swap on public test networks (a partial check ran), the 1Click exit with real funds, Firefox and Safari. See `harness/BROWSER_RESULTS.md`, `web/README.md`. |
@@ -33,13 +34,11 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 
-## Running now (resumed 08:15 UTC)
+## Running now (10:25 UTC)
 
-The 5-hour usage limit was reached at about 07:12 UTC and reset at 08:10 UTC. Both agents below stopped at their first step and were resumed at 08:15 UTC. About one hour was lost. The next reset is 13:10 UTC; from now on at most two agents run at the same time.
+- Testnet hosting (owner approved): the website on Vercel and the maker with its relay on Railway, both connected to `main` so a push redeploys them; then one browser swap through the hosted site. A machine restart at about 10:18 UTC stopped the first attempt; a second agent resumed it. Its progress notes are in `deploy/HOSTING_PROGRESS.md`.
 
-- Taker-side fixes: F2-01, F2-02, F2-03, H1, H6, the refusal reply, published limits, the payout-pending state, testnet timing configs. In `crates/` and `harness/`. It must rerun all native scenarios and all five browser scenarios.
-
-After these: fixes for review 3, a browser swap on public test networks with a local maker and relay, update the README status table and demo script, the final wording pass with `docs/WRITING_CHECKLIST.md`.
+After this: update the README status table and demo script, then the final wording pass with `docs/WRITING_CHECKLIST.md`.
 
 ## Next
 
@@ -47,13 +46,9 @@ After E: a security review of the browser engine and the website, the taker-side
 
 Plan change: packages C and D are merged into one (CD), because the browser spike showed the right structure is one shared core crate with no I/O. The website (F) starts now against a documented engine interface with a simulated engine, so UX work runs in parallel.
 
-## Next fix round (after package E finishes)
+## Fix rounds
 
-- Taker side of security review 2: F2-01, F2-02, F2-03, H1, H6, and compiling the `misbehave` branches out (`crates/zecret-core/src/taker.rs`; notes in `docs/security/fixes-2-core.md` section 6). Also the clippy lint at `taker.rs:576`.
-- `web/public/maker-directory.json` (the bundled sample directory) shows a premium minimum of 0.0002 ZEC (20,000 zats). With the stipend of 0.03 NEAR and the default costs of 0.015 NEAR, that passes the maker's premium check only if 1 ZEC is worth at least 225 NEAR. `deploy/maker/README.md` now uses 450,000 zats.
-- From the testnet swap: the maker sends no answer to a request above its limit, so the taker waits the full quote timeout (`maker.rs` around line 440); the maker's directory entry should publish its limits; a wrong "0 spendable zats" warning in the maker log.
-- The taker can never pay for `withdraw` (200 Tgas needs about 0.2 NEAR). If the maker stops after the claim, the USDC waits in the escrow until any account sends `withdraw`. Decide: a larger stipend, or say it plainly in the app and docs.
-- Zcash testnet blocks arrive every 23 s on average; the configs are sized for 75 s blocks.
+All fix rounds are done. Still open by decision, not by omission: one NEAR RPC endpoint is trusted; the taker cannot pay for `withdraw` itself (the app shows a payout-pending state with the exact call), and the bundled sample directory's premium minimum.
 
 ## For the owner
 
