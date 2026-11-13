@@ -393,7 +393,7 @@ mod tests {
         testing_env!(ctx("alice.testnet", NearToken::from_yoctonear(1)).build());
         let _ = c.ft_transfer_call(acc("escrow.testnet"), U128(30), None, "{}".into());
         // The receiver's ft_on_transfer returned "10" unused.
-        let mut b = ctx("usdc.testnet", NearToken::from_yoctonear(0));
+        let b = ctx("usdc.testnet", NearToken::from_yoctonear(0));
         testing_env!(
             b.build(),
             near_sdk::test_vm_config(),

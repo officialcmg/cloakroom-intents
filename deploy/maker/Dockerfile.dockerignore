@@ -1,0 +1,5 @@
+# Only crates/ is needed to build the maker. Keep everything else out of the context.
+*
+!crates/
+crates/target/
+crates/**/target/

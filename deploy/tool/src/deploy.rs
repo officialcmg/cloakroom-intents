@@ -164,7 +164,9 @@ pub async fn top_up_from_faucet(ctx: &mut Ctx, need: u128) -> Res<()> {
                 Err(e) if e.is::<crate::chain::Dropped>() && attempt < 4 => {
                     println!("  {e}; sending again");
                     if ctx.chain.rpc.account(&fid).await?.is_none() {
-                        return Err(format!("{fid} is gone although its delete was not seen").into());
+                        return Err(
+                            format!("{fid} is gone although its delete was not seen").into()
+                        );
                     }
                 }
                 Err(e) => return Err(e),
@@ -173,9 +175,10 @@ pub async fn top_up_from_faucet(ctx: &mut Ctx, need: u128) -> Res<()> {
         // The gas refund goes to the signer, which no longer exists, so NEAR reports that
         // one refund receipt as failed (AccountDoesNotExist on the deleted account). The
         // transaction itself must have succeeded and that must be the only failure.
-        let only_refund = o.receipt_failures.iter().all(|f| {
-            f.starts_with(&format!("{fid}:")) && f.contains("AccountDoesNotExist")
-        });
+        let only_refund = o
+            .receipt_failures
+            .iter()
+            .all(|f| f.starts_with(&format!("{fid}:")) && f.contains("AccountDoesNotExist"));
         if !o.ok || !only_refund {
             return Err(format!(
                 "faucet top-up {} failed: {:?} {:?}",
@@ -187,7 +190,6 @@ pub async fn top_up_from_faucet(ctx: &mut Ctx, need: u128) -> Res<()> {
             println!("  (the failed receipt is the gas refund to the deleted account; expected)");
         }
         let _ = std::fs::remove_file(ctx.keys.dir().join(format!("{fid}.json")));
-
     }
 }
 

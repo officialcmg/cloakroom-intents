@@ -16,3 +16,15 @@
 [maker 1794543591] {"type":"near_tx","swap":"6c0c454e8d7a40e3c0be15532fa5c205","what":"set_ready","hash":"C1gJScbcH375WrSmyzh8zq3NHzcvw7h5hiyRAPbNiSYW"}
 [maker 1794543591] 6c0c454e joint note 100010000 zats with 2 confirmations (k_Z = 2); READY, tx C1gJScbcH375WrSmyzh8zq3NHzcvw7h5hiyRAPbNiSYW
 [maker 1794543591] 6c0c454e stage Ready
+[maker 1794543599] 6c0c454e final block 497 (t=1794543849) is past t1 with state Ready; refunding
+[maker 1794543599] 6c0c454e stage RefundSent
+[maker 1794543601] {"type":"alert","swap":"6c0c454e8d7a40e3c0be15532fa5c205","message":"t1 1794543848 is near (NEAR time 1794543849) and the escrow is Ready"}
+[maker 1794543601] 6c0c454e ALERT: t1 1794543848 is near (NEAR time 1794543849) and the escrow is Ready
+[maker 1794543601] {"type":"near_tx","swap":"6c0c454e8d7a40e3c0be15532fa5c205","what":"refund","hash":"3FZ5YSecmKUswZYs43GDBG4EKaZRsNAYA7iK7nfDGtUK"}
+[maker 1794543601] 6c0c454e REFUND publishes b, tx 3FZ5YSecmKUswZYs43GDBG4EKaZRsNAYA7iK7nfDGtUK (executed); waiting for it to be final
+[maker 1794543601] {"type":"alert","swap":"6c0c454e8d7a40e3c0be15532fa5c205","message":"t1 1794543848 is near (NEAR time 1794543851) and the escrow is Ready"}
+[maker 1794543601] 6c0c454e ALERT: t1 1794543848 is near (NEAR time 1794543851) and the escrow is Ready
+[maker 1794543605] 6c0c454e refund is final (block <= 502); tokens withdrawn, tx q9ebzuJy6AAh7qb7hzU8vX2CsQo7p9pbtvfytrmw1J2
+[maker 1794543605] 6c0c454e stage Refunded
+[maker 1794543605] 6c0c454e DONE Refunded
+[maker 1794543605] 1 swap(s) terminal; exiting

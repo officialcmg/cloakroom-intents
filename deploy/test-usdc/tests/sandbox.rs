@@ -80,7 +80,11 @@ async fn token_in_sandbox() -> R<()> {
         .gas(Gas::from_tgas(100))
         .transact()
         .await?;
-    assert!(o.is_success(), "the outer call succeeds: {:?}", o.failures());
+    assert!(
+        o.is_success(),
+        "the outer call succeeds: {:?}",
+        o.failures()
+    );
     let used: String = o.json()?;
     assert_eq!(used, "0");
     assert_eq!(balance(&token, alice.id()).await?, 5_000_000);

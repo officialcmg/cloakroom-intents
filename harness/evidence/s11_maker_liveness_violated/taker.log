@@ -1,0 +1,14 @@
+
+===== start taker --zats 100000000 =====
+[taker 1794544002] new swap 4c59e9e3 for 100000000 zats; NEAR account f63464c758a425c725663e2092dc25f60afb4c7b87240a85a2dc1f5c1e73883f; wallet uregtest1p6ck6kqtxfm6s96h9kh5sap3tguzf5r3xh4r9aeel0sgg5ne627k2l7t9tvhzprllypyzzhaxn6c83xqu44clxwak5ft3rj6xc8khvxx
+[taker 1794544002] 4c59e9e3 stage WaitingDeposit
+[taker 1794544003] balance 208333333 zats
+[taker 1794544003] {"type":"activity","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794544007] balance 0 zats
+[taker 1794544007] {"type":"zcash_tx","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","what":"rfq","txid":"6bbbbca9a23580ed44b64959a61a8dc640d1c784924539bee9cf4a04a7d20880"}
+[taker 1794544007] 4c59e9e3 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 6bbbbca9a23580ed44b64959a61a8dc640d1c784924539bee9cf4a04a7d20880
+[taker 1794544007] 4c59e9e3 stage RfqSent
+[taker 1794544009] balance 208323333 zats
+[taker 1794544013] 4c59e9e3 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+[taker 1794544013] {"type":"quote","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest14fmfrpzfuhnr9lk3k9ve2jr64zlrvxc0nsnk0anhvdzyw86fcgfm97xr882hterk4j9fyyxqqmrdk4d59yve9wxh9d97jt8mdswcmsey"}
+[taker 1794544014] {"type":"activity","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}

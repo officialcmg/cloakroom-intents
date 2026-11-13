@@ -1,0 +1,26 @@
+
+===== start maker --exit-after 1 =====
+[maker 1794543928] up: UA uregtest1ldklzausvpu49r7w3qmz0qeuc8g64hnmkl59c9x27mcgj8rnfkn9x6250mxkrr37j57cwqwv5lx4y46t90vsxtwwsew0rpnmvuz5tuvl NEAR maker.test.near key ed25519:DmU43XuYxFL4Vtj4XcGMNKkPiQrpSRwCe9ks4xmSzMBE
+[maker 1794543942] 2fd46aa4 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794543942] 2fd46aa4 stage Quoting
+[maker 1794543942] {"type":"zcash_tx","swap":"2fd46aa4aedc4f547fb256df540d11ca","what":"quote","txid":"c53376d061f483ed0b6d5846f9bcb29012de589a287dd36e077e2984d77f22e5"}
+[maker 1794543942] 2fd46aa4 encrypted QUOTE sent in tx c53376d061f483ed0b6d5846f9bcb29012de589a287dd36e077e2984d77f22e5
+[maker 1794543942] 2fd46aa4 stage Quoted
+[maker 1794543946] 2fd46aa4 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 3e38e132
+[maker 1794543946] 2fd46aa4 stage Opening
+[maker 1794543952] {"type":"near_tx","swap":"2fd46aa4aedc4f547fb256df540d11ca","what":"open","hash":"4xEFqyRYyTNPMU46QDy1gSnmMEpb6QGqB1zbSAoFWwa1"}
+[maker 1794543952] 2fd46aa4 escrow OPEN id 3e38e13223a626268bd5e994820b877879374601bc2c48401b36f55d9af717de amount 30000000000000000000000000 t0=1794544935 t1=1794544995 t2=1794545055 W=45, tx 4xEFqyRYyTNPMU46QDy1gSnmMEpb6QGqB1zbSAoFWwa1
+[maker 1794543952] {"type":"near_tx","swap":"2fd46aa4aedc4f547fb256df540d11ca","what":"stipend","hash":"4S1hfkLEkALr6WRbHx45t9u46CMFX3x4rg53ihuDLfqi"}
+[maker 1794543952] 2fd46aa4 STIPEND of 30000000000000000000000 yoctoNEAR sent to 45a813e78b499c87a3e7ac67b2a1c6197ef380174fb79f052a2b0ad21824b41a, tx 4S1hfkLEkALr6WRbHx45t9u46CMFX3x4rg53ihuDLfqi
+[maker 1794543952] 2fd46aa4 stage Opened
+[maker 1794543962] {"type":"near_tx","swap":"2fd46aa4aedc4f547fb256df540d11ca","what":"set_ready","hash":"2uBSBzCHjoUVJfmNd2jXmXv8TT7kk7JePow3KQQCYSWD"}
+[maker 1794543962] 2fd46aa4 joint note 100010000 zats with 2 confirmations (k_Z = 2); READY, tx 2uBSBzCHjoUVJfmNd2jXmXv8TT7kk7JePow3KQQCYSWD
+[maker 1794543962] 2fd46aa4 stage Ready
+[maker 1794543973] 2fd46aa4 the taker locked but did not reveal by 1794544881 (final block 1622); refunding
+[maker 1794543973] 2fd46aa4 stage RefundSent
+[maker 1794543975] {"type":"near_tx","swap":"2fd46aa4aedc4f547fb256df540d11ca","what":"refund","hash":"HW2pzCUndzmyMdxrx3qv6v1X8rxEX4dgeMtqH6NkqicK"}
+[maker 1794543975] 2fd46aa4 REFUND publishes b, tx HW2pzCUndzmyMdxrx3qv6v1X8rxEX4dgeMtqH6NkqicK (executed); waiting for it to be final
+[maker 1794543979] 2fd46aa4 refund is final (block <= 1627); tokens withdrawn, tx 9PcuiS6QP4BdpiCupayXLeMYxLu8uKKE3pZuSy62zk6q
+[maker 1794543979] 2fd46aa4 stage Refunded
+[maker 1794543979] 2fd46aa4 DONE Refunded
+[maker 1794543979] 1 swap(s) terminal; exiting

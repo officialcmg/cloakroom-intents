@@ -210,6 +210,18 @@ the figures include client and RPC latency):
 | Submitted to included in a final block | 8.4 s | 8.7 s | 9.2 s |
 | Submitted to fully final | 9.6 s | 10.0 s | 10.4 s |
 
+A second measurement on 2026-11-13, during two full swaps on testnet (14 transactions,
+status polled every 0.2 s), was faster:
+
+| Step | Min | Median | Max |
+|---|---|---|---|
+| Submitted to included | 0.9 s | 1.6 s | 2.0 s |
+| Submitted to its block being final | 2.4 s | 2.9 s | 3.3 s |
+| Submitted to all receipts final | 3.9 s | 4.5 s | 6.9 s |
+
+The first measurement waited on the RPC server's own "wait until" answer, which is the
+likely cause of the difference; this was not investigated further.
+
 With generous bounds of `D = 30 s`, `F = 10 s` and `R = 2`, the budget is `B_R = 110 s`.
 The token-side windows shrink from hours to a few minutes. Mainnet needs its own
 measurement before real parameters are fixed.
@@ -219,7 +231,7 @@ measurement before real parameters are fixed.
 | Mode | Zcash | NEAR | Exit through Intents | Use |
 |---|---|---|---|---|
 | Local | Zebra regtest in Docker, through a small CORS proxy | Sandbox 2.14.1 with the live `intents.near` code | Signed message executed in the sandbox | Development and automatic tests |
-| Testnet | Zcash testnet over ChainSafe's gRPC-web | NEAR testnet | Live quote shown; no execution, because Intents has no testnet | Public demo with no real money |
+| Testnet | Zcash testnet over ChainSafe's gRPC-web | NEAR testnet, with a test USDC token and a copy of the `intents.near` code as a stand-in verifier (`deploy/deployment.testnet.json`) | The payout into the stand-in verifier and a signed withdrawal run for real. The cross-chain delivery shows a live quote only, because Intents has no testnet | Public demo with no real money |
 | Mainnet | Zcash mainnet | NEAR mainnet | Real | Full demo with small amounts. Needs the owner's funds and approval. |
 
 ## 9. What has been tested

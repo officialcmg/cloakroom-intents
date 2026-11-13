@@ -332,9 +332,16 @@ fn write_e2e(ctx: &Ctx, rep: &e2e::E2eReport) -> Res<()> {
     if !all["runs"].is_array() {
         all = serde_json::json!({ "runs": [all] });
     }
-    all["runs"].as_array_mut().unwrap().push(serde_json::to_value(rep)?);
+    all["runs"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::to_value(rep)?);
     std::fs::write(&p, serde_json::to_string_pretty(&all)? + "\n")?;
-    println!("end-to-end record: {} ({} runs)", p.display(), all["runs"].as_array().unwrap().len());
+    println!(
+        "end-to-end record: {} ({} runs)",
+        p.display(),
+        all["runs"].as_array().unwrap().len()
+    );
     Ok(())
 }
 

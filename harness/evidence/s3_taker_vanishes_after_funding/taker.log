@@ -28,3 +28,18 @@
 [taker 1794543585] 6c0c454e FUNDED the joint address in fully shielded tx e6d0261c8aefe8bd603be39366934f60ef6daab9a02a895fd2414fb519bebca6
 [taker 1794543585] 6c0c454e stage Funded
 [taker 1794543585] VANISH at stage Funded (process exits; state is stored)
+
+===== start taker  =====
+[taker 1794543600] resuming swap 6c0c454e at stage Funded
+[taker 1794543600] balance 108243333 zats
+[taker 1794543600] 6c0c454e R2c: claim window closed (NEAR time 1794543850, t1 1794543848, budget 15s); not committing; waiting for the maker's refund or for t2 1794543908
+[taker 1794543602] {"type":"activity","swap":"6c0c454e8d7a40e3c0be15532fa5c205","kind":"proving","label":"Building the proof that takes the ZEC back from the shared address","estimated_secs":25}
+[taker 1794543609] 6c0c454e maker REFUNDED: read b from the escrow
+[taker 1794543609] {"type":"zcash_tx","swap":"6c0c454e8d7a40e3c0be15532fa5c205","what":"sweep","txid":"3d9a509307bfda0b374e8b81b8a14d73aeba1e16c61d128c3a889a01437d29b6"}
+[taker 1794543609] 6c0c454e swept the joint note back with (a+b), tx 3d9a509307bfda0b374e8b81b8a14d73aeba1e16c61d128c3a889a01437d29b6; waiting for 2 confirmations
+[taker 1794543609] 6c0c454e stage Recovering
+[taker 1794543611] balance 208243333 zats
+[taker 1794543613] 6c0c454e recovery sweep 3d9a509307bfda0b374e8b81b8a14d73aeba1e16c61d128c3a889a01437d29b6 has 2 confirmations (k_Z = 2); done
+[taker 1794543613] 6c0c454e stage Recovered
+[taker 1794543613] 6c0c454e DONE Recovered
+[taker 1794543613] finished: Recovered

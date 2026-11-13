@@ -1,0 +1,15 @@
+
+===== start taker --zats 100000000 =====
+[taker 1794543698] new swap 352c0936 for 100000000 zats; NEAR account 59dd7f12dd80dad752729ffddd9ea7f58dcc68e3693c318334b93c378c6fccff; wallet uregtest1g8xvxjqr48tu7glh7teszhta4fqpmw0j5kkxlkf3m880k8psgsfxvykeqyj2vc77fn39pz2w99cej2w2s35xd0l3hkvykhn3cgzsk03w
+[taker 1794543698] 352c0936 stage WaitingDeposit
+[taker 1794543698] balance 208333333 zats
+[taker 1794543698] {"type":"activity","swap":"352c09367cc4860f0be8806ec11e8514","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794543705] balance 0 zats
+[taker 1794543705] {"type":"zcash_tx","swap":"352c09367cc4860f0be8806ec11e8514","what":"rfq","txid":"e94a1c4a5060d281f79f720cfc0da5980c621ebc414378d3df680899c1a9c42e"}
+[taker 1794543705] 352c0936 encrypted RFQ for 100000000 zats sent to the maker in shielded tx e94a1c4a5060d281f79f720cfc0da5980c621ebc414378d3df680899c1a9c42e
+[taker 1794543705] 352c0936 stage RfqSent
+[taker 1794543707] balance 208323333 zats
+[taker 1794543713] 352c0936 ABORT: QUOTE REJECTED: maker proof of knowledge INVALID (possible rogue-key attack); nothing was funded
+[taker 1794543713] 352c0936 stage Aborted
+[taker 1794543713] 352c0936 DONE Aborted
+[taker 1794543713] finished: Aborted

@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-13 04:05 UTC. Deadline: 2026-11-14 23:59 UTC.
+Updated: 2026-11-13 04:30 UTC. Deadline: 2026-11-14 23:59 UTC.
 
 Any session can resume from this file. Read `docs/BUILD_PLAN.md` for the packages and
 their checks.
@@ -9,6 +9,7 @@ their checks.
 
 | Package | Result |
 |---|---|
+| I1. Deployment tooling, live on NEAR testnet | Done. Escrow `escrow.zecret-3f109eea1e.testnet`, test USDC, stand-in verifier and a funded maker are deployed (`deploy/deployment.testnet.json`). The main session checked by RPC: the escrow has 0 access keys, its code hash equals the local build, and its Intents account is the stand-in verifier. Two full contract-level swaps ran on testnet (hashes in `deploy/e2e.testnet.json`). The tool's own tests were not rerun by the main session. Keys are in `deploy/.keys/` (untracked); losing this machine loses them, and the deployment must then be redone. Mainnet estimate: about 6 NEAR. See `docs/DEPLOY.md`. |
 | F. Website | PASS, rerun by the main session: type-check and lint clean, 54 unit tests, build, 34 browser tests on desktop and phone. Screens reviewed by eye in both themes. Runs against a simulated engine behind the interface in `web/ENGINE_API.md`; the real engine replaces it with a one-line change in `web/src/engine/index.ts`. Not yet done: Content-Security-Policy header, Firefox and Safari. |
 | S1. Security review 1 (escrow, Intents library) | Done. 2 bugs: F-01 medium (a third party can block a maker's swap through a fake token), F-02 low (quote freshness read from an unsigned field). 2 items need facts from outside the repo (escrow deployment without keys; USDC's resolve step). No way found to steal funds. Report: `docs/security/review-1.md`. |
 | S1-fix. Fixes for review 1 | PASS, rerun by the main session. F-01, F-02 and NV-01 fixed, each with a regression test: escrow 50 unit and 6 sandbox tests, Intents library 24 unit and 21 recorded tests. The escrow's `new` is private, so deployment is: create the account, then one transaction signed by the escrow that deploys, calls `new` and deletes its key. NV-02 (USDC resolve step) is still open. See `docs/security/fixes-1.md`. |
@@ -22,7 +23,6 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 | CD. Shared core crate and NEAR adapter | 02:50 | `crates/`, `node/` (uncommitted until reviewed) |
-| I1. Testnet deployment tooling | 04:00 | `deploy/` (uncommitted until reviewed) |
 | NV-02. Check the real USDC contract's resolve step; bring `docs/INTENTS.md` in line with the fixes | 04:05 | `docs/security/`, `docs/INTENTS.md` |
 
 ## Next
@@ -33,7 +33,8 @@ Plan change: packages C and D are merged into one (CD), because the browser spik
 
 ## Blocked or skipped
 
-Nothing.
+- The maker binary cannot reach HTTPS servers yet (reqwest has no TLS feature in `crates/zecret-node`). Passed to the core agent. Until fixed, the maker cannot run against Zcash testnet.
+- Public hosting of the website and the maker: not approved by the owner. Prepared only.
 
 ## Notes for whoever resumes
 
