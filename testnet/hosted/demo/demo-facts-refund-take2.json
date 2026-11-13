@@ -1,0 +1,395 @@
+{
+  "swap": {
+    "site": "https://zecret.chrismg.dev",
+    "amountZec": "0.01",
+    "nearAccount": "zecret-3f109eea1e.testnet",
+    "banner": "Testnet. Test money only. Details",
+    "preview": "You pay 0.01 ZEC. You receive at least 0.2795 USDC on Base.",
+    "payTx": "14a7e49eaec064d0c712c760df13d75d4dd5bde155d21cc8b4326fe15f81ba61",
+    "finalStage": "refunded",
+    "doneTitle": "",
+    "txs": [
+      {
+        "id": "request",
+        "chain": "zcash",
+        "label": "Request to the maker (encrypted memo)",
+        "hash": "670e38ec35f95de70bff09f53f8e24b66065356f851a7fd2f3af67892681dbd5",
+        "url": "https://testnet.zcashexplorer.app/transactions/670e38ec35f95de70bff09f53f8e24b66065356f851a7fd2f3af67892681dbd5",
+        "at": 1794581269142
+      },
+      {
+        "id": "refund",
+        "chain": "zcash",
+        "label": "ZEC back to your return address",
+        "hash": "37dd359dd32a1a47ddb29521d2893987476c3707080a89b5a3b7a5a32fd2c212",
+        "url": "https://testnet.zcashexplorer.app/transactions/37dd359dd32a1a47ddb29521d2893987476c3707080a89b5a3b7a5a32fd2c212",
+        "at": 1794581904993
+      }
+    ],
+    "escrow": null,
+    "payout": null,
+    "exit": null,
+    "lastError": {
+      "code": "MAKER_TIMEOUT",
+      "message": "The maker did not answer in time."
+    },
+    "history": [
+      {
+        "stage": "awaiting_deposit",
+        "at": "2026-11-13T14:43:14.113Z",
+        "atEpoch": 1794580994.113,
+        "secs": 210.3
+      },
+      {
+        "stage": "deposit_seen",
+        "at": "2026-11-13T14:46:44.384Z",
+        "atEpoch": 1794581204.384,
+        "secs": 0
+      },
+      {
+        "stage": "deposit_confirmed",
+        "at": "2026-11-13T14:46:44.388Z",
+        "atEpoch": 1794581204.388,
+        "secs": 64.8
+      },
+      {
+        "stage": "request_sent",
+        "at": "2026-11-13T14:47:49.143Z",
+        "atEpoch": 1794581269.143,
+        "secs": 601
+      },
+      {
+        "stage": "refunding",
+        "at": "2026-11-13T14:57:50.173Z",
+        "atEpoch": 1794581870.173,
+        "secs": 125
+      },
+      {
+        "stage": "refunded",
+        "at": "2026-11-13T14:59:55.144Z",
+        "atEpoch": 1794581995.144,
+        "secs": null
+      }
+    ],
+    "engineTimings": [
+      {
+        "what": "wasm_load",
+        "secs": 0.3
+      },
+      {
+        "what": "verify_maker",
+        "secs": 0.7
+      },
+      {
+        "what": "proving_key_build",
+        "secs": 30.3
+      },
+      {
+        "what": "proof_request",
+        "secs": 63.9
+      },
+      {
+        "what": "proof_refund",
+        "secs": 34.7
+      }
+    ],
+    "startedAt": "2026-11-13T14:42:07.438Z",
+    "finishedAt": "2026-11-13T15:01:00.837Z"
+  },
+  "realDuration": {
+    "paymentSentToFinalStageSecs": 971.8,
+    "paymentSentToFinalStageMinutes": 16.2,
+    "paymentSentAt": 1794581023.597,
+    "recordingSecs": 1123.8
+  },
+  "stageChangesSeenByScript": [
+    {
+      "stage": "awaiting_deposit",
+      "secsAfterPayment": -22.4
+    },
+    {
+      "stage": "deposit_confirmed",
+      "secsAfterPayment": 181.0
+    },
+    {
+      "stage": "request_sent",
+      "secsAfterPayment": 245.7
+    },
+    {
+      "stage": "refunding",
+      "secsAfterPayment": 846.8
+    },
+    {
+      "stage": "refunded",
+      "secsAfterPayment": 971.8
+    }
+  ],
+  "segments": [
+    {
+      "sourceFromSecs": 3.03,
+      "sourceToSecs": 23.62,
+      "speed": 1.0,
+      "kind": "real",
+      "outputFromSecs": 0.0,
+      "outputSecs": 20.59
+    },
+    {
+      "sourceFromSecs": 23.62,
+      "sourceToSecs": 25.59,
+      "speed": 1.64,
+      "kind": "wait",
+      "outputFromSecs": 20.59,
+      "outputSecs": 1.2
+    },
+    {
+      "sourceFromSecs": 25.59,
+      "sourceToSecs": 37.0,
+      "speed": 1.5,
+      "kind": "ui",
+      "outputFromSecs": 21.79,
+      "outputSecs": 7.61
+    },
+    {
+      "sourceFromSecs": 36.95,
+      "sourceToSecs": 43.94,
+      "speed": 1.0,
+      "kind": "real",
+      "outputFromSecs": 29.4,
+      "outputSecs": 6.99
+    },
+    {
+      "sourceFromSecs": 43.94,
+      "sourceToSecs": 57.31,
+      "speed": 8.36,
+      "kind": "wait",
+      "outputFromSecs": 36.39,
+      "outputSecs": 1.6
+    },
+    {
+      "sourceFromSecs": 57.31,
+      "sourceToSecs": 66.96,
+      "speed": 1.5,
+      "kind": "ui",
+      "outputFromSecs": 37.99,
+      "outputSecs": 6.44
+    },
+    {
+      "sourceFromSecs": 66.96,
+      "sourceToSecs": 70.76,
+      "speed": 1.0,
+      "kind": "real",
+      "outputFromSecs": 44.43,
+      "outputSecs": 3.8
+    },
+    {
+      "sourceFromSecs": 70.76,
+      "sourceToSecs": 86.63,
+      "speed": 10.58,
+      "kind": "paying",
+      "outputFromSecs": 48.23,
+      "outputSecs": 1.5
+    },
+    {
+      "sourceFromSecs": 86.63,
+      "sourceToSecs": 267.09,
+      "speed": 46.0,
+      "kind": "fast",
+      "outputFromSecs": 49.73,
+      "outputSecs": 3.92
+    },
+    {
+      "sourceFromSecs": 267.09,
+      "sourceToSecs": 269.19,
+      "speed": 1.0,
+      "kind": "progress-real",
+      "outputFromSecs": 53.65,
+      "outputSecs": 2.1
+    },
+    {
+      "sourceFromSecs": 269.19,
+      "sourceToSecs": 331.84,
+      "speed": 46.0,
+      "kind": "fast",
+      "outputFromSecs": 55.75,
+      "outputSecs": 1.36
+    },
+    {
+      "sourceFromSecs": 331.84,
+      "sourceToSecs": 333.94,
+      "speed": 1.0,
+      "kind": "progress-real",
+      "outputFromSecs": 57.11,
+      "outputSecs": 2.1
+    },
+    {
+      "sourceFromSecs": 333.94,
+      "sourceToSecs": 932.93,
+      "speed": 46.0,
+      "kind": "fast",
+      "outputFromSecs": 59.21,
+      "outputSecs": 13.02
+    },
+    {
+      "sourceFromSecs": 932.93,
+      "sourceToSecs": 935.03,
+      "speed": 1.0,
+      "kind": "progress-real",
+      "outputFromSecs": 72.23,
+      "outputSecs": 2.1
+    },
+    {
+      "sourceFromSecs": 935.03,
+      "sourceToSecs": 1057.91,
+      "speed": 46.0,
+      "kind": "fast",
+      "outputFromSecs": 74.33,
+      "outputSecs": 2.67
+    },
+    {
+      "sourceFromSecs": 1057.91,
+      "sourceToSecs": 1060.01,
+      "speed": 1.0,
+      "kind": "progress-real",
+      "outputFromSecs": 77.01,
+      "outputSecs": 2.1
+    },
+    {
+      "sourceFromSecs": 1060.01,
+      "sourceToSecs": 1089.11,
+      "speed": 46.0,
+      "kind": "fast",
+      "outputFromSecs": 79.11,
+      "outputSecs": 0.63
+    },
+    {
+      "sourceFromSecs": 1089.11,
+      "sourceToSecs": 1096.41,
+      "speed": 1.0,
+      "kind": "real",
+      "outputFromSecs": 79.74,
+      "outputSecs": 7.3
+    }
+  ],
+  "progressSpeedFactor": 46.0,
+  "captions": [
+    {
+      "fromSecs": 0.0,
+      "toSecs": 5.0,
+      "text": "Zecret on testnet: shielded ZEC to tokens on other chains, no custodian"
+    },
+    {
+      "fromSecs": 5.4,
+      "toSecs": 20.29,
+      "text": "Runs on Zcash testnet and NEAR testnet today (test money)"
+    },
+    {
+      "fromSecs": 20.49,
+      "toSecs": 24.39,
+      "text": "One real swap on the live site, start to finish"
+    },
+    {
+      "fromSecs": 24.79,
+      "toSecs": 31.53,
+      "text": "Enter the amount and where the tokens go"
+    },
+    {
+      "fromSecs": 31.53,
+      "toSecs": 35.99,
+      "text": "On testnet, test USDC goes to a NEAR testnet account"
+    },
+    {
+      "fromSecs": 37.99,
+      "toSecs": 44.53,
+      "text": "Save the recovery file"
+    },
+    {
+      "fromSecs": 44.73,
+      "toSecs": 51.73,
+      "text": "Pay once, from any shielded wallet (here: a testnet wallet)"
+    },
+    {
+      "fromSecs": 52.13,
+      "toSecs": 60.73,
+      "text": "The browser sends the maker an encrypted request (a Zcash memo)"
+    },
+    {
+      "fromSecs": 61.13,
+      "toSecs": 79.54,
+      "text": "Real time: about 16 minutes. Sped up here."
+    },
+    {
+      "fromSecs": 79.74,
+      "toSecs": 87.04,
+      "text": "The maker did not answer in time. The ZEC went back to the return address."
+    }
+  ],
+  "endCardSecs": 3.0,
+  "outputSecs": 90.04,
+  "note": "Not the intended demo: both real swaps on 2026-11-13 refunded with MAKER_TIMEOUT (the hosted maker sent no quote within 10 minutes). This video shows take 2 as it happened.",
+  "take1": {
+    "payTx": "ed012cee980576876ff6b4d6a4806d66b0b08be517014c5570e4f87ca1ca5976",
+    "finalStage": "refunded",
+    "lastError": {
+      "code": "MAKER_TIMEOUT",
+      "message": "The maker did not answer in time."
+    },
+    "txs": [
+      {
+        "id": "request",
+        "chain": "zcash",
+        "label": "Request to the maker (encrypted memo)",
+        "hash": "a2adb9c16adab49690baf5c29958bd835c83d7eac7df80101e62e9131caa5389",
+        "url": "https://testnet.zcashexplorer.app/transactions/a2adb9c16adab49690baf5c29958bd835c83d7eac7df80101e62e9131caa5389",
+        "at": 1794580188507
+      },
+      {
+        "id": "refund",
+        "chain": "zcash",
+        "label": "ZEC back to your return address",
+        "hash": "f1a1d2e7de299c3f2f9e9fdbb93cf98bffcb89ee8e0fabd2622b2e02ee48d8ec",
+        "url": "https://testnet.zcashexplorer.app/transactions/f1a1d2e7de299c3f2f9e9fdbb93cf98bffcb89ee8e0fabd2622b2e02ee48d8ec",
+        "at": 1794580822611
+      }
+    ],
+    "history": [
+      {
+        "stage": "awaiting_deposit",
+        "at": "2026-11-13T14:28:15.856Z",
+        "atEpoch": 1794580095.856,
+        "secs": 61.5
+      },
+      {
+        "stage": "deposit_seen",
+        "at": "2026-11-13T14:29:17.357Z",
+        "atEpoch": 1794580157.357,
+        "secs": 0
+      },
+      {
+        "stage": "deposit_confirmed",
+        "at": "2026-11-13T14:29:17.359Z",
+        "atEpoch": 1794580157.359,
+        "secs": 31.1
+      },
+      {
+        "stage": "request_sent",
+        "at": "2026-11-13T14:29:48.508Z",
+        "atEpoch": 1794580188.508,
+        "secs": 601.6
+      },
+      {
+        "stage": "refunding",
+        "at": "2026-11-13T14:39:50.086Z",
+        "atEpoch": 1794580790.086,
+        "secs": 45.3
+      },
+      {
+        "stage": "refunded",
+        "at": "2026-11-13T14:40:35.340Z",
+        "atEpoch": 1794580835.34,
+        "secs": null
+      }
+    ],
+    "startedAt": "2026-11-13T14:27:16.881Z",
+    "finishedAt": "2026-11-13T14:41:40.884Z"
+  }
+}

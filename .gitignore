@@ -38,3 +38,4 @@ node_modules/
 dist/
 pkg/
 *.wasm
+testnet/hosted/demo/*.mp4

@@ -47,26 +47,37 @@ const mark = (name, extra = {}) => {
 const facts = { site, amountZec: amount, nearAccount, startedAt: new Date().toISOString() };
 
 // The cursor: a dot that follows mouse events, with a ring on press. Playwright draws none.
+// Styles are set through the CSSOM: the site's Content-Security-Policy blocks <style> tags.
 const CURSOR = `(() => {
+  const set = (el, css) => { for (const [k, v] of Object.entries(css)) el.style.setProperty(k, v); };
   const add = () => {
     if (document.getElementById('__demo_cursor')) return;
-    const s = document.createElement('style');
-    s.textContent = '#__demo_cursor{position:fixed;left:0;top:0;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:rgba(12,24,20,.82);border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35);z-index:2147483647;pointer-events:none;transition:transform .12s ease-out;will-change:transform}#__demo_cursor.down{transform:scale(.72)}#__demo_cursor::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:3px solid rgba(23,115,90,.0);transition:border-color .25s,inset .25s}#__demo_cursor.down::after{border-color:rgba(23,115,90,.65);inset:-20px}';
-    document.documentElement.appendChild(s);
     const c = document.createElement('div');
     c.id = '__demo_cursor';
     const p = window.__demoCursorPos || [640, 360];
-    c.style.left = p[0] + 'px';
-    c.style.top = p[1] + 'px';
+    set(c, { position: 'fixed', left: p[0] + 'px', top: p[1] + 'px', width: '22px', height: '22px', margin: '-11px 0 0 -11px',
+      'border-radius': '50%', background: 'rgba(12,24,20,.85)', border: '3px solid #fff', 'box-sizing': 'border-box',
+      'box-shadow': '0 1px 6px rgba(0,0,0,.4)', 'z-index': '2147483647', 'pointer-events': 'none', transition: 'transform .12s ease-out' });
+    const r = document.createElement('div');
+    set(r, { position: 'absolute', left: '50%', top: '50%', width: '46px', height: '46px', margin: '-23px 0 0 -23px', 'border-radius': '50%',
+      border: '3px solid rgba(23,115,90,0)', 'box-sizing': 'border-box', transition: 'border-color .25s, transform .25s', transform: 'scale(.6)' });
+    c.appendChild(r);
     document.documentElement.appendChild(c);
+  };
+  const press = (down) => {
+    const c = document.getElementById('__demo_cursor');
+    if (!c) return;
+    c.style.setProperty('transform', down ? 'scale(.75)' : 'scale(1)');
+    c.firstChild.style.setProperty('border-color', down ? 'rgba(23,115,90,.7)' : 'rgba(23,115,90,0)');
+    c.firstChild.style.setProperty('transform', down ? 'scale(1.3)' : 'scale(.6)');
   };
   document.addEventListener('mousemove', (e) => {
     window.__demoCursorPos = [e.clientX, e.clientY];
     const c = document.getElementById('__demo_cursor');
-    if (c) { c.style.left = e.clientX + 'px'; c.style.top = e.clientY + 'px'; }
+    if (c) { c.style.setProperty('left', e.clientX + 'px'); c.style.setProperty('top', e.clientY + 'px'); }
   }, true);
-  document.addEventListener('mousedown', () => document.getElementById('__demo_cursor')?.classList.add('down'), true);
-  document.addEventListener('mouseup', () => setTimeout(() => document.getElementById('__demo_cursor')?.classList.remove('down'), 120), true);
+  document.addEventListener('mousedown', () => press(true), true);
+  document.addEventListener('mouseup', () => setTimeout(() => press(false), 140), true);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
   new MutationObserver(add).observe(document, { childList: true, subtree: true });
 })();`;
@@ -268,7 +279,8 @@ try {
   mark('continue');
   await page.getByRole('heading', { name: 'Save your recovery file' }).waitFor({ timeout: 240_000 });
   mark('recovery_shown');
-  await sleep(1500);
+  await scrollTo((await docTop(page.getByRole('heading', { name: 'Save your recovery file' }))) - 230, 900);
+  await sleep(1200);
   const dl = page.waitForEvent('download');
   await clickOn(page.getByRole('button', { name: 'Save recovery file' }));
   const recoveryPath = path.join(PRIVATE, `recovery-demo-${stamp}.json`);
@@ -284,8 +296,7 @@ try {
   if (!lastState?.deposit) throw new Error('the payment screen did not appear');
   await page.getByTestId('deposit-address').waitFor({ timeout: 60_000 });
   if ((await page.evaluate(() => scrollY)) > 0) await scrollTo(0, 800);
-  const qrBox = await page.getByTestId('deposit-address').boundingBox();
-  await moveMouse(qrBox.x + qrBox.width / 2, qrBox.y + qrBox.height / 2 + 40, 900);
+  await moveMouse(445, 487, 900); // over the QR code
   mark('pay_screen');
   const zats = Number(lastState.deposit.expectedZats);
   facts.deposit = { address: lastState.deposit.address, expectedZats: zats };
@@ -322,7 +333,8 @@ try {
   await sleep(300);
   if ((await page.evaluate(() => scrollY)) > 0) await scrollTo(0, 900);
   mark('final_screen');
-  facts.doneTitle = await page.getByTestId('done-title').innerText().catch(() => '');
+  const title = page.getByTestId(st.stage === 'done' ? 'done-title' : 'refunded-title');
+  facts.doneTitle = (await title.count()) ? await title.innerText() : '';
   await sleep(4500);
   const revealed = page.getByRole('heading', { name: 'What this swap revealed' });
   if (await revealed.count()) {
