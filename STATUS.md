@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-13 06:58 UTC. Deadline: 2026-11-14 23:59 UTC.
+Updated: 2026-11-13 07:08 UTC. Deadline: 2026-11-14 23:59 UTC.
 
 Any session can resume from this file. Read `docs/BUILD_PLAN.md` for the packages and
 their checks.
@@ -9,6 +9,7 @@ their checks.
 
 | Package | Result |
 |---|---|
+| E. Taker engine in the browser, wired into the website | PASS. The agent ran five browser scenarios with the taker only in headless Chromium through the real page and the maker as the native program, on Zebra regtest and a NEAR sandbox with the real escrow: (a) full swap with exit, (b) maker goes quiet and the browser recovers the ZEC, (c) two reloads in the middle of a swap, (d) restore from the recovery file in a fresh browser, (e) quote below the minimum. The main session reran (a): PASS in 181 s, every Zcash transaction fully shielded. Browser timings: key build 20 to 26 s, one proof 27 to 33 s. On local and test networks the maker relays the taker's signed exit (`zecret maker --relay`), because the leftover stipend cannot pay for it. Not verified: a browser swap on public test networks (a partial check ran), the 1Click exit with real funds, Firefox and Safari. See `harness/BROWSER_RESULTS.md`, `web/README.md`. |
 | K. README, submission notes, demo script | Written. The agent ran every "do X, see Y" step in the README (escrow tests incl. real USDC, one scenario and the full 19, testnet `verify`, the simulated website, the Intents tests). The main session read the opening sections but did not rerun the steps. The README's Status table must be updated when package E finishes. |
 | S2-fix (maker side) | PASS, rerun by the main session: core 26 unit tests, 11 bounds tests, the review's proof of concept, node tests, and scenarios s1 and s3 with the new escrow. F2-04 fixed: with 3,000 stuck requests a maker tick takes about 20 ms and 3 to 6 RPC calls, and the refund still goes out. Also: a Zcash sync failure no longer stops the maker's NEAR duties; the file store writes owner-only files atomically; the test-only `misbehave` setting is refused without a cargo feature; a `premium_check` setting refuses a premium worth less than the stipend and costs; `withdraw` uses 200 Tgas and the maker calls `sweep` before a retry. One clippy lint in `taker.rs:576` is open. See `docs/security/fixes-2-core.md`. |
 | T. A swap on public test networks | Done. The native maker and taker swapped 0.1 testnet ZEC for 3 test USDC on Zcash testnet and NEAR testnet through `escrow2`, then the taker's signed withdrawal moved the tokens out of the stand-in verifier. Taker finished in 222 s, 322 s with the exit. The main session checked on NEAR by RPC: the claim was sent by the taker's own key and succeeded, and the escrow shows the swap as Claimed for 3,000,000 units. The Zcash side was checked by the agent only (6 transactions, all fully shielded). Testnet ZEC came from the Zcash Foundation faucet. Evidence: `docs/TESTNET.md`, `testnet/EVIDENCE.json`. The two wallets in `.tools/testnet/` (untracked) still hold funds. |
@@ -29,7 +30,6 @@ their checks.
 
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
-| E. Taker engine in the browser, wired into the website | 04:44 | `crates/zecret-wasm/`, `web/`, `harness/` |
 
 ## Next
 

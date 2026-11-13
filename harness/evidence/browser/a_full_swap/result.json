@@ -5,12 +5,12 @@
     {
       "check": "the page showed the live mainnet 1Click price as a labelled preview",
       "pass": true,
-      "detail": "Mainnet preview. The line below is the live NEAR Intents price on mainnet for USDC on Base. On this network the swap pays wNEAR and sends it to your NEAR account; no USDC is delivered. | You pay 1.0005 ZEC. You receive at least 29.386 USDC on Base."
+      "detail": "Mainnet preview. The line below is the live NEAR Intents price on mainnet for USDC on Base. On this network the swap pays wNEAR and sends it to your NEAR account; no USDC is delivered. | You pay 1.0005 ZEC. You receive at least 29.3867 USDC on Base."
     },
     {
       "check": "the deposit QR address is the browser wallet and asks for the amount",
       "pass": true,
-      "detail": "zcash:uregtest1k20pfgg5ahmx2akxdx6gqmdtq"
+      "detail": "zcash:uregtest16nzea3p8272ndpxj6ulu08mj3"
     },
     {
       "check": "the page reached done",
@@ -69,87 +69,87 @@
     }
   ],
   "facts": {
-    "preview": "Mainnet preview. The line below is the live NEAR Intents price on mainnet for USDC on Base. On this network the swap pays wNEAR and sends it to your NEAR account; no USDC is delivered. | You pay 1.0005 ZEC. You receive at least 29.386 USDC on Base.",
+    "preview": "Mainnet preview. The line below is the live NEAR Intents price on mainnet for USDC on Base. On this network the swap pays wNEAR and sends it to your NEAR account; no USDC is delivered. | You pay 1.0005 ZEC. You receive at least 29.3867 USDC on Base.",
     "timings": {
       "stages": [
         {
           "stage": "awaiting_deposit",
-          "at": "2026-11-13T06:31:39.515Z",
-          "secs": 8.5
+          "at": "2026-11-13T07:01:34.663Z",
+          "secs": 7.4
         },
         {
           "stage": "deposit_seen",
-          "at": "2026-11-13T06:31:48.051Z",
+          "at": "2026-11-13T07:01:42.052Z",
           "secs": 0
         },
         {
           "stage": "deposit_confirmed",
-          "at": "2026-11-13T06:31:48.052Z",
-          "secs": 32.3
+          "at": "2026-11-13T07:01:42.054Z",
+          "secs": 30
         },
         {
           "stage": "request_sent",
-          "at": "2026-11-13T06:32:20.396Z",
-          "secs": 7.7
+          "at": "2026-11-13T07:02:12.079Z",
+          "secs": 9
         },
         {
           "stage": "quote_received",
-          "at": "2026-11-13T06:32:28.081Z",
-          "secs": 30.3
+          "at": "2026-11-13T07:02:21.050Z",
+          "secs": 32.2
         },
         {
           "stage": "accepted",
-          "at": "2026-11-13T06:32:58.421Z",
-          "secs": 11.6
+          "at": "2026-11-13T07:02:53.256Z",
+          "secs": 10.8
         },
         {
           "stage": "escrow_open",
-          "at": "2026-11-13T06:33:10.052Z",
-          "secs": 31.3
+          "at": "2026-11-13T07:03:04.036Z",
+          "secs": 29.3
         },
         {
           "stage": "funding_sent",
-          "at": "2026-11-13T06:33:41.361Z",
+          "at": "2026-11-13T07:03:33.329Z",
           "secs": 1.7
         },
         {
           "stage": "funding_confirming",
-          "at": "2026-11-13T06:33:43.049Z",
-          "secs": 8.1
+          "at": "2026-11-13T07:03:35.060Z",
+          "secs": 7.9
         },
         {
           "stage": "ready",
-          "at": "2026-11-13T06:33:51.132Z",
+          "at": "2026-11-13T07:03:42.983Z",
           "secs": 0
         },
         {
           "stage": "committing",
-          "at": "2026-11-13T06:33:51.135Z",
-          "secs": 1.9
+          "at": "2026-11-13T07:03:42.983Z",
+          "secs": 2
         },
         {
           "stage": "claiming",
-          "at": "2026-11-13T06:33:53.037Z",
+          "at": "2026-11-13T07:03:45.025Z",
           "secs": 4
         },
         {
           "stage": "claimed",
-          "at": "2026-11-13T06:33:57.019Z",
+          "at": "2026-11-13T07:03:49.015Z",
           "secs": 6
         },
         {
           "stage": "paid_out",
-          "at": "2026-11-13T06:34:03.048Z",
+          "at": "2026-11-13T07:03:55.029Z",
           "secs": 0
         },
         {
           "stage": "exiting",
-          "at": "2026-11-13T06:34:03.052Z",
-          "secs": 5.6
+          "at": "2026-11-13T07:03:55.032Z",
+          "secs": 6.1
         },
         {
           "stage": "done",
-          "at": "2026-11-13T06:34:08.697Z",
+          "at": "2026-11-13T07:04:01.135Z",
           "secs": null
         }
       ],
@@ -164,37 +164,37 @@
         },
         {
           "what": "proving_key_build",
-          "secs": 21.5
+          "secs": 20.4
         },
         {
           "what": "proof_request",
-          "secs": 32
+          "secs": 29.7
         },
         {
           "what": "proof_accept",
-          "secs": 29.5
+          "secs": 31.6
         },
         {
           "what": "proof_fund",
-          "secs": 31
+          "secs": 29
         },
         {
           "what": "direct_exit_relay",
-          "secs": 2.6
+          "secs": 3
         }
       ],
-      "total_secs": 149
+      "total_secs": 146
     },
-    "taker_account": "010cb17b5d49c5fc4a51986a771ac5c403d1bfa2789d6648419240b795370740",
+    "taker_account": "f6867cacd876e9c818cc9c9ec632585da3a7d31002256dfeae94afa455b746f4",
     "zcash_txs": [
-      "38fbe8f1c32a7d1cc9ef73888e760e40f9f12bfc9ae1976e9bd814a6dcf7f4da",
-      "3a2572306a829fc6b0e8cbfcd463b5e2557bdcca1c503aaf80459bbbf1579964",
-      "7fb200666739b468fe2927ff896066f78b95dc629dec9b7a94693e2376890a6f",
-      "924f01b351e60576f622c2863ad7123c7feddfbd75130980a7109742683b6ff1",
-      "600431d4792cc62684cc85a90e117d6ae0d17fc0c0b6c9e6f6cd27f757c3006a",
-      "3e23d805c7c9eb8b601a38a7629b87871f729897ec25b7a9f77737a539c44350"
+      "b261f7f58ebe700242b4db4d4cfeb8040f7ac863bed0cabba69b4bf14300cca2",
+      "847ef1d4e867c4d047437dd7376f5c30c056cdb7a2d3ee5521de29c03a512d0a",
+      "414f6fdfa076d275e17f7a9b6266eae6b6e0641792479786f2ea3f2496b68430",
+      "4ab601e621fa68bfa9807e8d105f1c8159549fb168cbdc943cf84585b9c40ec9",
+      "214f1e5e9411892b966be7a1da1213674a2bb7ed2e64b72c4e815d42273c5501",
+      "041b9983856d16286eb0acf02506f516d5f2ec3afcb9c6ba95798245ce579b81"
     ]
   },
-  "secs": 185,
-  "ran_at": "2026-11-13T06:34:09Z"
+  "secs": 181,
+  "ran_at": "2026-11-13T07:04:01.393Z"
 }
