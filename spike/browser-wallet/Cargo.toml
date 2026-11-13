@@ -1,0 +1,61 @@
+[package]
+name = "browser-wallet"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Spike: the Cloakroom light wallet compiled to WebAssembly and run in a browser Web Worker"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "sendmemo"
+path = "src/bin/sendmemo.rs"
+
+[[bin]]
+name = "memocheck"
+path = "src/bin/memocheck.rs"
+
+# Versions follow node/Cargo.toml (several are pinned pre-releases).
+# Differences: orchard and zcash_primitives without `multicore`; zcash_client_backend
+# without tonic (only its prost message types are used); no reqwest/tokio/tonic on wasm.
+[dependencies]
+anyhow = "1"
+blake2b_simd = "1"
+ff = "0.14"
+group = "0.14"
+hex = "0.4.3"
+incrementalmerkletree = "0.9"
+orchard = { version = "0.16.0", default-features = false, features = ["circuit", "std", "zeroize"] }
+pasta_curves = "0.6.1"
+pczt = { version = "=0.10.0-pre.1", features = ["orchard", "io-finalizer", "prover", "signer", "tx-extractor", "zcp-builder"] }
+prost = "0.14"
+rand = "0.10"
+rand_core = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+shardtree = "0.8"
+zcash_address = "=0.14.0-pre.1"
+zcash_client_backend = { version = "=0.25.0-pre.1", default-features = false, features = ["orchard"] }
+zcash_note_encryption = "0.5.1"
+zcash_primitives = { version = "=0.31.0-pre.1", default-features = false, features = ["std", "circuits"] }
+zcash_protocol = { version = "=0.11.0-pre.0", features = ["local-consensus"] }
+halo2_proofs = { version = "0.4", default-features = false }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["blocking"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["XmlHttpRequest", "XmlHttpRequestResponseType", "WorkerGlobalScope", "Performance", "console"] }
+# One entry per getrandom major version in the tree, each with its browser backend.
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+
+[profile.release]
+opt-level = 3
+
+[profile.dev]
+opt-level = 3
