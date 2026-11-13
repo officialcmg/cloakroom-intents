@@ -97,12 +97,7 @@ async function call(path: string, init: RequestInit | undefined, signal?: AbortS
     if ((e as Error).name === 'AbortError') throw e;
     throw new OneClickError('NEAR Intents could not be reached. Check your connection.', 0, 'network');
   }
-  let body: unknown = null;
-  try {
-    body = await res.json();
-  } catch {
-    body = null;
-  }
+  const body: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     const msg = typeof (body as { message?: unknown })?.message === 'string' ? (body as { message: string }).message : '';
     throw classifyError(res.status, msg);

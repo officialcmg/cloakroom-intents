@@ -1,6 +1,6 @@
 // The live price on the swap form: maker side from the directory, exit side from a dry
 // 1Click quote. Quotes refresh every 30 seconds while the form is open.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { MakerTerms } from '../lib/directory';
 import { DRY_REFUND_ACCOUNT, fetchExitQuote, fetchTokens, OneClickError, type ExitQuote, type Token, type TokenList } from '../lib/oneclick';
 import { combine, computeZecSide, type CombinedPrice, type ZecSideError } from '../lib/price';
@@ -20,7 +20,11 @@ export function useTokens(): { list?: TokenList; error?: string; retry: () => vo
     let live = true;
     tokenCache ??= fetchTokens();
     tokenCache.then(
-      (l) => live && (setList(l), setError(undefined)),
+      (l) => {
+        if (!live) return;
+        setList(l);
+        setError(undefined);
+      },
       (e: Error) => {
         tokenCache = undefined;
         if (live) setError(e.message);
@@ -42,37 +46,34 @@ export type PriceState =
   | { status: 'ok'; price: CombinedPrice; quote: ExitQuote; recipientChecked: boolean }
   | { status: 'error'; error: OneClickError; previous?: CombinedPrice };
 
+type Result = { key: string } & ({ ok: true; price: CombinedPrice; quote: ExitQuote; recipientChecked: boolean } | { ok: false; error: OneClickError });
+
 export function usePrice(payZats: bigint | undefined, token: Token | undefined, address: string, terms: MakerTerms | undefined): PriceState & { refresh: () => void } {
-  const [state, setState] = useState<PriceState>({ status: 'idle' });
   const [tick, setTick] = useState(0);
-  const last = useRef<CombinedPrice | undefined>(undefined);
+  const [result, setResult] = useState<Result>();
+  const [lastOk, setLastOk] = useState<CombinedPrice>();
 
   const addressOk = token ? validateDestinationAddress(token.blockchain, address).ok : false;
   const recipient = token ? (addressOk ? address.trim() : quoteSampleAddress(token.blockchain)) : undefined;
+  const zec = useMemo(() => (terms && payZats !== undefined ? computeZecSide(payZats, terms) : undefined), [terms, payZats]);
+  const key = zec?.ok && token && recipient ? `${zec.value.payZats}|${token.assetId}|${recipient}|${tick}` : undefined;
 
   useEffect(() => {
-    if (!terms || payZats === undefined || !token || !recipient) {
-      setState({ status: 'idle' });
-      return;
-    }
-    const zec = computeZecSide(payZats, terms);
-    if (!zec.ok) {
-      setState({ status: 'invalid', error: zec.error });
-      return;
-    }
+    if (!key || !zec?.ok || !token || !recipient) return;
     const ctrl = new AbortController();
-    setState({ status: 'loading', previous: last.current });
+    const zecSide = zec.value;
+    const checked = addressOk;
     const timer = setTimeout(() => {
-      fetchExitQuote({ amountIn: zec.value.usdcExpected, destinationAsset: token.assetId, recipient, refundTo: DRY_REFUND_ACCOUNT, dry: true }, ctrl.signal).then(
+      fetchExitQuote({ amountIn: zecSide.usdcExpected, destinationAsset: token.assetId, recipient, refundTo: DRY_REFUND_ACCOUNT, dry: true }, ctrl.signal).then(
         (quote) => {
-          const price = combine(zec.value, quote);
-          last.current = price;
-          setState({ status: 'ok', price, quote, recipientChecked: addressOk });
+          const price = combine(zecSide, quote);
+          setLastOk(price);
+          setResult({ key, ok: true, price, quote, recipientChecked: checked });
         },
         (e) => {
           if ((e as Error).name === 'AbortError') return;
-          const err = e instanceof OneClickError ? e : new OneClickError((e as Error).message, 0, 'other');
-          setState({ status: 'error', error: err, previous: last.current });
+          const error = e instanceof OneClickError ? e : new OneClickError((e as Error).message, 0, 'other');
+          setResult({ key, ok: false, error });
         },
       );
     }, 450);
@@ -82,10 +83,16 @@ export function usePrice(payZats: bigint | undefined, token: Token | undefined, 
       clearTimeout(timer);
       clearTimeout(refresh);
     };
-    // `addressOk` is derived from `recipient`; listing it would refetch for nothing.
+    // The key covers every input of the request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payZats, token?.assetId, recipient, terms, tick]);
+  }, [key]);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
+  let state: PriceState;
+  if (!zec || !token || !recipient) state = { status: 'idle' };
+  else if (!zec.ok) state = { status: 'invalid', error: zec.error };
+  else if (result?.key !== key) state = { status: 'loading', previous: lastOk };
+  else if (result.ok) state = { status: 'ok', price: result.price, quote: result.quote, recipientChecked: result.recipientChecked };
+  else state = { status: 'error', error: result.error, previous: lastOk };
   return { ...state, refresh };
 }

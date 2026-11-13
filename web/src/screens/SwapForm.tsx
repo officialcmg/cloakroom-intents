@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import type { CreateSwapParams, EngineError } from '../engine';
 import { appStore, useApp, usePref } from '../app/useZecret';
 import { usePrice, useTokens } from '../app/usePrice';
@@ -33,7 +33,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
   const [returnAddress, setReturnAddress] = useState('');
   const [returnTouched, setReturnTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string>();
+  const [submitFailure, setSubmitFailure] = useState<{ message: string; inputs: string }>();
   const [triedSubmit, setTriedSubmit] = useState(false);
   const ids = { amount: useId(), token: useId(), address: useId(), ret: useId() };
 
@@ -51,7 +51,9 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
   const showRetError = (returnTouched || triedSubmit) && retCheck && !retCheck.ok;
   const amtErr = amountError(amount);
 
-  useEffect(() => setSubmitError(undefined), [amount, tokenId, address, returnAddress]);
+  // An error from the engine applies to the inputs it was given; editing them hides it.
+  const inputs = [amount, tokenId, address, returnAddress].join('|');
+  const submitError = submitFailure?.inputs === inputs ? submitFailure.message : undefined;
 
   const ready = price.status === 'ok' && addrCheck?.ok && price.recipientChecked && (!retCheck || retCheck.ok) && !!token;
   const blocker = !payZats
@@ -88,7 +90,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
       await appStore.engine!.createSwap(params);
       onCreated();
     } catch (err) {
-      setSubmitError((err as EngineError).message);
+      setSubmitFailure({ message: (err as EngineError).message, inputs });
     } finally {
       setSubmitting(false);
     }

@@ -65,10 +65,6 @@ export function TokenPicker({
   const chains = useMemo(() => new Set(tokens.map((t) => t.blockchain)).size, [tokens]);
 
   useEffect(() => {
-    setActive(0);
-  }, [query]);
-
-  useEffect(() => {
     document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: 'nearest' });
   }, [active, listId]);
 
@@ -139,7 +135,10 @@ export function TokenPicker({
             className="input search-input"
             placeholder="Search, for example usdc solana"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0);
+            }}
             onKeyDown={onKey}
             role="combobox"
             aria-expanded="true"

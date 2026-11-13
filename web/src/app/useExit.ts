@@ -68,9 +68,12 @@ export function useExit(engine: EngineClient | undefined, swap: SwapState | null
   const stage = swap?.stage;
   useEffect(() => {
     if (stage !== 'paid_out') return;
-    void run('auto');
+    const first = setTimeout(() => void run('auto'), 0);
     const id = setInterval(() => void run('auto'), RETRY_MS);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
     // Run once per arrival in paid_out, not on every state update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, swap?.id]);

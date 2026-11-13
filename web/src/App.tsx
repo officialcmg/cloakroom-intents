@@ -96,10 +96,6 @@ export default function App() {
     window.scrollTo({ top: 0 });
   }, [screenKey]);
 
-  // A restored or newly created swap leaves the restore view.
-  useEffect(() => {
-    if (view === 'restore' && swap) setView('auto');
-  }, [swap, view]);
 
   let content: React.ReactNode;
   if (app.phase === 'loading') {
