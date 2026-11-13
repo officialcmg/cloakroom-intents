@@ -2,7 +2,8 @@
 
 The Zecret website in `web/`: its pages, screens, states, and the decisions taken and
 why. The interface to the swap engine is in `web/ENGINE_API.md`. How to build and test is
-in `web/README.md`. The hosted copy is https://zecret-chrismgs-projects.vercel.app on
+in `web/README.md`. The hosted copy is https://zecret.chrismg.dev (also
+https://zecret-chrismgs-projects.vercel.app) on
 Zcash testnet and NEAR testnet (`docs/HOSTING.md`).
 
 ## Pages and routes
@@ -233,7 +234,9 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
 | No token logos. | They would load images from third parties and tell them the user's IP address and choice. |
 | `Referrer-Policy: no-referrer`. | Explorer links do not reveal that the user came from Zecret. |
 | Testnet only for the simulator. | Its deposit address is random. A testnet address cannot receive mainnet ZEC by mistake. |
-| Fraunces for headings and amounts, Archivo for text, IBM Plex Mono for addresses; warm paper and ink colours with a gold accent. | A calm, editorial look of its own, not Cloakroom's black outlines. Archivo and Plex Mono come from `design-system/`; all fonts are served by the site. |
+| Deep green and mint, white surfaces, large rounded panels and cards, floating glass cards, pill buttons and mono badges. Hanken Grotesk for headings and amounts with Instrument Serif italic for one or two words, Inter for text, Geist Mono for labels and addresses. The style reference is the Vaynex template; its measured values are in `web/design-system/vaynex-notes.md`. | A designed look that the landing page and every app screen share. All four fonts are SIL OFL 1.1, Latin subsets (about 115 KB together), served by the site with metric-matched fallbacks, so text does not move when they load. The reference's heading font, General Sans, has a licence that forbids subsetting and distribution from a repository, so Hanken Grotesk, the closest open match, replaces it. No image, icon, text or code of the template is used. |
+| Light by default, with a dark variant of the same greens. | The style reference is light only. The dark variant follows the system unless the user picks a theme. |
+| Motion: the hero rises in on load; sections and card groups fade and rise once when they scroll into view; chain names and large words move sideways. | Taken from the reference. `prefers-reduced-motion` turns all of it off, and the moving rows then stand still. Nothing is hidden before the script that reveals it runs. |
 | Theme follows the system, with a toggle that is remembered. | Both themes are designed; the user decides. |
 
 ## Accessibility
@@ -244,7 +247,7 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
   `aria-live` for the payment wait, the "now" panel and copy confirmations, and
   `role="progressbar"` with values.
 - Colours meet WCAG AA in both themes: every text and status colour pair used is at
-  least 4.94:1 (light) and 5.26:1 (dark), computed from the tokens; field and button
+  least 5.08:1 (light) and 7.08:1 (dark), computed from the tokens; field and button
   borders are at least 3:1. Status is never shown by colour alone.
 - `prefers-reduced-motion` stops the pulses, the spinner and the sliding bar.
 
@@ -261,7 +264,7 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
 - End to end, `web/e2e/landing.spec.ts`: the landing page loads no engine, its links open
   the app at `/swap` and Back returns; old links with app settings open the app; the
   one-line banners and their details; a failed maker check on testnet.
-- End to end, `web/e2e/responsive.spec.ts`: every screen at 320 and 390 px wide.
+- End to end, `web/e2e/responsive.spec.ts`: every screen at 320, 390, 768 and 1024 px wide.
 - End to end, `web/e2e/tabs.spec.ts`: two tabs of one browser on one swap; a production
   build refuses settings from a link.
 - End to end (`web/e2e/journey.spec.ts`), on a desktop and a phone viewport: the full
@@ -269,8 +272,8 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
   fresh browser; form checks with keyboard-only token selection; 1Click errors; the
   token list down; the tab-close guard; page responsiveness while the worker busy-loops;
   the theme toggle.
-- Counts on 2026-11-13: 88 unit tests (`npm test`) and 74 Playwright tests (`npm run
-  e2e`: desktop and phone, the 320 and 390 px runs, and 14 screenshot tests).
+- Counts on 2026-11-13: 101 unit tests (`npm test`) and 90 Playwright tests (`npm run
+  e2e`: desktop and phone, the 320, 390, 768 and 1024 px runs, and 18 screenshot tests).
 
 ## Headers
 

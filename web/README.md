@@ -113,7 +113,7 @@ The automatic check runs five scenarios through the page the same way:
 `../deploy/deployment.testnet.json`, and the relay of the hosted testnet maker
 (`https://zecret-maker-production.up.railway.app/execute-intents`).
 `public/config/testnet-directory.json` holds that maker's signed entry. The hosted site
-(https://zecret-chrismgs-projects.vercel.app/swap) uses these files; see
+(https://zecret.chrismg.dev/swap, also https://zecret-chrismgs-projects.vercel.app/swap) uses these files; see
 [`../docs/HOSTING.md`](../docs/HOSTING.md).
 
 A swap needs testnet ZEC in a wallet that can pay a unified address, and a NEAR testnet
@@ -191,10 +191,12 @@ first (it needs Rust), or the site runs only the demo.
 | `src/lib/` | Pure code: amounts (`units.ts`), price math (`price.ts`), maker directory, 1Click client, ZIP 321 URIs, address checks for 35 chains and Zcash unified addresses (`address/`) |
 | `src/app/` | Page state: boot and engine events (`useZecret.ts`), live price, exit control, stage copy, URL settings |
 | `src/screens/`, `src/ui/` | Screens and components |
-| `src/styles/` | Design tokens (light and dark) and styles |
+| `src/styles/` | Design tokens (light and dark) and styles. The look follows the style reference measured in `design-system/vaynex-notes.md` |
+| `src/assets/fonts/` | Hanken Grotesk, Inter, Instrument Serif italic and Geist Mono: Latin woff2 subsets with their SIL OFL licences |
+| `design-system/vaynex-notes.md` | Measured type, colour, shape, depth, layout and motion of the style reference |
 | `tests/unit/` | Unit tests |
 | `e2e/` | Playwright tests, the 1Click mock and its fixture |
-| `screenshots/` | Key screens, light and dark, desktop and phone (`npm run screenshots`); `*@2x.png`: landing page and swap form, dark, 390 and 1440 px wide |
+| `screenshots/` | Key screens, light and dark, desktop and phone (`npm run screenshots`); `*@2x.png`: landing page and swap form, light and dark, 390 and 1440 px wide, full page |
 
 ## Test vectors
 
