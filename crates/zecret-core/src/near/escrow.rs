@@ -31,6 +31,8 @@ pub const GAS_REVEAL: u64 = 25 * TGAS;
 /// 110 Tgas; docs/security/fixes-2.md §8 asks clients to attach 200.
 pub const GAS_WITHDRAW: u64 = 200 * TGAS;
 pub const GAS_STORAGE: u64 = 10 * TGAS;
+/// `sweep(token)` needs at least 90 Tgas (contracts/near-escrow/README.md, Sweep).
+pub const GAS_SWEEP: u64 = 150 * TGAS;
 
 /// `sha256(DOMAIN_SWAP_ID ‖ len(maker) as u8 ‖ maker ‖ salt)`.
 pub fn swap_id(maker: &str, salt: &[u8; 32]) -> [u8; 32] {
@@ -204,6 +206,13 @@ impl Escrow<'_> {
 
     pub fn withdraw(&self, owner: &str) -> (String, Vec<Action>) {
         self.call("withdraw", json!({"token": self.token, "owner": owner}), GAS_WITHDRAW)
+    }
+
+    /// Public `sweep(token)`: brings tokens left in the escrow's own Intents account (a
+    /// deposit whose `mt_transfer` failed) back to the escrow's token balance. It pays
+    /// nobody and changes no credit.
+    pub fn sweep(&self) -> (String, Vec<Action>) {
+        self.call("sweep", json!({"token": self.token}), GAS_SWEEP)
     }
 
     fn call(&self, method: &str, args: Value, gas: u64) -> (String, Vec<Action>) {

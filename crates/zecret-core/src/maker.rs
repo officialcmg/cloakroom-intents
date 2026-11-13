@@ -130,6 +130,9 @@ pub struct MakerSwap {
     /// `quote_ttl_secs`). Records from before this field get the time of their next tick.
     #[serde(default)]
     pub created_at: Option<u64>,
+    /// NEAR time of the maker's last withdraw of its own credit after a refund.
+    #[serde(default)]
+    pub withdraw_at: Option<u64>,
 }
 
 impl MakerSwap {
@@ -523,6 +526,7 @@ impl Maker {
             taker_withdraw_at: None,
             log: vec![],
             created_at: Some(now),
+            withdraw_at: None,
         };
         let tag = c.misbehave.map(|m| format!(" [MISBEHAVE {m:?}]")).unwrap_or_default();
         let line = format!("RFQ for {} zats decrypted and verified; quoting price {} (premium {} zats, stipend {} yocto){tag}", s.zats, s.price, s.premium, s.stipend);
@@ -952,15 +956,27 @@ impl Maker {
     }
 
     fn on_refunded(&mut self, s: &mut MakerSwap, fin: &crate::near::rpc::BlockInfo, now: u64) -> Result<Next> {
-        // The refund is final (read at a final block). Withdraw the maker's credit.
+        // The refund is final (read at a final block). Withdraw the maker's credit, and stay
+        // here until a final block shows it paid: the escrow restores the credit when its
+        // ft_transfer fails, for example while tokens wait in the escrow's own Intents
+        // account. Then the maker sweeps them back and withdraws again.
         let credit = self.esc().credit(&self.cfg.near_account, &At::Block(fin.hash.clone()))?;
         if credit.direct > 0 {
-            let (to, actions) = self.esc().withdraw(&self.cfg.near_account);
-            let out = self.near.transact(&self.signer, &to, actions)?.ok().context("withdraw")?;
-            self.log(s, format!("refund is final (block <= {}); tokens withdrawn, tx {}", fin.height, out.hash));
-        } else {
-            self.log(s, format!("refund is final (block <= {}); nothing left to withdraw", fin.height));
+            let t = &self.cfg.timing;
+            let due = s.withdraw_at.map(|w| fin.secs() >= w + t.inclusion_secs + t.finality_secs).unwrap_or(true);
+            if due {
+                if s.withdraw_at.is_some() {
+                    self.sweep(s, "the maker's withdraw left its credit in the escrow")?;
+                }
+                let (to, actions) = self.esc().withdraw(&self.cfg.near_account);
+                s.withdraw_at = Some(fin.secs());
+                let out = self.near.transact(&self.signer, &to, actions)?.ok().context("withdraw")?;
+                self.log(s, format!("refund is final (block <= {}); withdraw of {} for the maker, tx {}", fin.height, credit.direct, out.hash));
+            }
+            return Ok(Next::At(now + POLL_SECS));
         }
+        let line = if s.withdraw_at.is_some() { "the maker's credit is withdrawn" } else { "nothing left to withdraw" };
+        self.log(s, format!("refund is final (block <= {}); {line}", fin.height));
         if s.stage != MakerStage::RefundSent {
             // Someone else sent our refund (b was already public): fine, same result.
             self.log(s, "the escrow was refunded".into());
@@ -1008,11 +1024,26 @@ impl Maker {
     /// Pays the taker's credit into intents.near if nobody has yet. Anyone may call
     /// `withdraw`; the taker's stipend does not cover its gas, so the maker does it.
     /// Returns the credit still waiting.
+    /// Calls the escrow's public `sweep(token)` (see contracts/near-escrow/README.md).
+    fn sweep(&mut self, s: &mut MakerSwap, why: &str) -> Result<()> {
+        let (to, actions) = self.esc().sweep();
+        let out = self.near.transact(&self.signer, &to, actions)?;
+        self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "sweep".into(), hash: out.hash.clone() });
+        self.log(s, format!("{why}: SWEEP of the escrow's Intents account before the retry, tx {} ({})", out.hash, out.failure().unwrap_or("executed")));
+        Ok(())
+    }
+
     fn pay_taker(&mut self, s: &mut MakerSwap) -> Result<u128> {
         let fin = self.near.block(&At::Final)?;
         let credit = self.esc().credit(&s.taker_account, &At::Block(fin.hash.clone()))?;
         let due = s.taker_withdraw_at.map(|t| fin.secs() >= t + self.cfg.timing.inclusion_secs + self.cfg.timing.finality_secs).unwrap_or(true);
         if credit.intents > 0 && due {
+            if s.taker_withdraw_at.is_some() {
+                // The last withdraw ended with the credit restored (its transfer failed);
+                // tokens may wait in the escrow's own Intents account. Bring them back
+                // first so this retry can pay.
+                self.sweep(s, "the taker's credit was restored after a withdraw")?;
+            }
             let (to, actions) = self.esc().withdraw(&s.taker_account);
             s.taker_withdraw_at = Some(fin.secs());
             let out = self.near.transact(&self.signer, &to, actions)?;
