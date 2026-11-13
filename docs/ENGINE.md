@@ -296,7 +296,7 @@ Other differences:
 - The taker signs `commit_claim`'s message with this key and sends `commit_claim` and
   `claim` itself; there is no relayer. A signer must hold the prepaid gas at a pessimistic
   price (about 10^9 yoctoNEAR per gas): the engine attaches 15 Tgas to `commit_claim` and 25
-  Tgas to `claim` (it burns 16.8 Tgas). Both cost about 0.002 NEAR in total. A 100 Tgas
+  Tgas to `claim` (it burns 16.8 Tgas). Both cost about 0.002 NEAR in total. A 200 Tgas
   `withdraw` does not fit in the stipend; the maker sends it.
 - Transactions are built, borsh-serialized and signed in `near::tx`, and sent with
   `send_tx` (`wait_until: EXECUTED`). Views use `finality: final` or a final block's hash.
@@ -344,3 +344,13 @@ Maker settings for requests that nobody has paid for yet (all optional):
 
 `misbehave` (test-only) is refused unless the binary is built with the cargo feature
 `misbehave`; `harness/run.py` builds it that way, release builds do not.
+
+Withdraws with the escrow of `docs/security/fixes-2.md`: the maker attaches 200 Tgas to
+`withdraw` and 150 Tgas to `sweep`. NEAR checks that the signer holds the prepaid gas at a
+pessimistic price (about 10^9 yoctoNEAR per gas in the sandbox), so the maker's NEAR
+account must keep at least about 0.2 NEAR free besides the stipends it sends. The escrow
+restores a credit when the transfer of a withdraw fails. A swap therefore ends
+(`Swept` or `Refunded`) only when a final block shows the taker's credit, or the maker's
+own credit after a refund, paid. Before it retries a withdraw (at most every D + F
+seconds) the maker calls the public `sweep(token)`, which brings tokens left in the
+escrow's own Intents account back to the escrow, so the retry can pay.

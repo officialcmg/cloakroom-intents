@@ -65,6 +65,8 @@ struct Chains {
     mock: Rc<Mock>,
     near_time: Rc<Cell<u64>>,
     zcash_down: Cell<bool>,
+    /// (direct, intents) credit that `get_credit` reports for any owner.
+    credit: Rc<Cell<(u64, u64)>>,
 }
 
 impl Transport for Chains {
@@ -80,11 +82,17 @@ impl Transport for Chains {
 fn chains(escrow_state: &'static str) -> Rc<Chains> {
     let near_time = Rc::new(Cell::new(T1 + 10));
     let nt = near_time.clone();
+    let credit = Rc::new(Cell::new((0u64, 0u64)));
+    let cr = credit.clone();
     let mock = Rc::new(Mock::new(move |m, p| match m {
         "getblockcount" => json!(100),
         "block" => block_result(nt.get()),
         "query" => match p["request_type"].as_str() {
             Some("call_function") if p["method_name"] == "get_swap" => view_result(&victim_view(escrow_state)),
+            Some("call_function") if p["method_name"] == "get_credit" => {
+                let (d, i) = cr.get();
+                view_result(&json!({"direct": d.to_string(), "intents": i.to_string()}))
+            }
             Some("view_access_key") => json!({"nonce": 7, "permission": "FullAccess", "block_height": 1, "block_hash": "11111111111111111111111111111111"}),
             _ => Value::Null,
         },
@@ -96,7 +104,7 @@ fn chains(escrow_state: &'static str) -> Rc<Chains> {
         }),
         _ => Value::Null,
     }));
-    Rc::new(Chains { mock, near_time, zcash_down: Cell::new(false) })
+    Rc::new(Chains { mock, near_time, zcash_down: Cell::new(false), credit })
 }
 
 fn victim_view(state: &str) -> Value {
@@ -376,4 +384,52 @@ fn misbehave_is_refused_without_the_feature() {
     assert!(serde_json::from_value::<zecret_core::config::TakerConfig>(t.clone()).is_err());
     t["misbehave"] = Value::Null;
     serde_json::from_value::<zecret_core::config::TakerConfig>(t).unwrap();
+}
+
+fn sweeps(events: &[Event]) -> usize {
+    events.iter().filter(|e| matches!(e, Event::NearTx { what, .. } if what == "sweep")).count()
+}
+
+/// New escrow (docs/security/fixes-2.md): a withdraw can end with the credit restored while
+/// tokens wait in the escrow's own Intents account. The maker then sweeps and retries the
+/// taker's withdraw, and finishes only when the credit is paid.
+#[test]
+fn restored_taker_credit_is_swept_and_retried() {
+    let c = chains("Claimed");
+    let mut j = swap_json(VICTIM, "Sweeping", [0; 32]);
+    j["sweep_txid"] = json!("ab".repeat(32));
+    j["sweep_height"] = json!(90);
+    let (_, mut store2) = maker_with(0, None, 0, &c, cfg());
+    put_json(&mut store2, &format!("swap/{VICTIM}"), &j).unwrap();
+    let mut m2 = Maker::open(cfg(), c.clone(), &mut store2).unwrap();
+    m2.wallet.height = 100;
+    c.credit.set((0, 300_000));
+    let t = m2.tick(1_000_000, &mut store2);
+    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (0, 1), "first try: withdraw only");
+    let t = m2.tick(1_000_001, &mut store2);
+    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (0, 1), "no retry before D + F");
+    c.near_time.set(c.near_time.get() + 41);
+    let t = m2.tick(1_000_002, &mut store2);
+    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (1, 3), "credit still there: sweep, then withdraw again");
+    c.credit.set((0, 0));
+    m2.tick(1_000_003, &mut store2);
+    assert_eq!(victim(&m2), MakerStage::Swept);
+}
+
+/// The same for the maker's own credit after a refund: it stays in RefundSent until a
+/// final block shows the credit paid, sweeping before each retry.
+#[test]
+fn restored_maker_credit_is_swept_and_retried() {
+    let c = chains("Refunded");
+    let (mut m, mut store) = maker_with(0, Some("RefundSent"), 0, &c, cfg());
+    c.credit.set((300_000, 0));
+    let t = m.tick(1_000_000, &mut store);
+    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (0, 1));
+    assert_eq!(victim(&m), MakerStage::RefundSent, "not Refunded while the credit is unpaid");
+    c.near_time.set(c.near_time.get() + 41);
+    let t = m.tick(1_000_001, &mut store);
+    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (1, 3));
+    c.credit.set((0, 0));
+    m.tick(1_000_002, &mut store);
+    assert_eq!(victim(&m), MakerStage::Refunded);
 }

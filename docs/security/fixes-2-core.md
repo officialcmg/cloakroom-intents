@@ -13,12 +13,12 @@ Line numbers refer to the working tree on the date above.
 | Change | Where | Why |
 |---|---|---|
 | New settings `max_pending_quotes` (default 32), `quote_ttl_secs` (3600), `max_quotes_per_tick` (1), checked by `check_limits` (each ≥ 1). | `crates/zecret-core/src/config.rs:273-285`, `:365` | The review's fix. Defaults are small because each quote is a proof (seconds of CPU) and an attacker chooses how many requests arrive. |
-| `MakerSwap.created_at` (wall clock, `#[serde(default)]`). A record without it (older store) gets the time of its next tick. | `maker.rs:129-132`, set in `on_rfq` at `maker.rs:525` | The TTL needs the time the request was taken. |
-| `step` is split into: sync; advance swaps from `Opening` on; read memos; expire and quote. | `maker.rs:266-363` (`step`, `advance_all`) | Deadline duties (R3d, R3l, L_M) run before any work that unpaid requests cause. The attacker no longer chooses the order (it chose the rfq_id). |
-| `on_rfq` refuses a request while `Quoting` + `Quoted` ≥ `max_pending_quotes`. The count is taken once per tick (`maker.rs:290`) and raised for each new swap (`maker.rs:531`), so the check is O(1). | `maker.rs:427-429` | Bounds the number of unpaid swaps. A refused request is marked handled, like every other rejected request. |
-| `Quoting`/`Quoted` with no transaction in flight become `Aborted("request expired")` after `quote_ttl_secs`; `save` erases b, s_m, e_m (R4). | `maker.rs:591-600` | Unpaid work ends. A quote that is in flight is not expired: it is mined, or it dies at its expiry height (`quote expired unmined`). |
-| The quote budget for the tick is `max_quotes_per_tick` when the wallet's spendable ZEC (computed once per tick, no RPC) covers `zip317_fee(1, 2)`, else 0. `send_quote` returns at once when the budget is 0, and takes one unit before it does anything that costs work (reply address scan, `build_pay`). | `maker.rs:327-341`, `:661-671` | No RPC round trip and no O(n) scan per stuck request. A failed build also uses the budget, so failures are bounded too. A `warning` is emitted once when requests wait and the wallet cannot pay a quote fee. |
-| An Accept for an unknown request is logged and marked handled. | `maker.rs:537-543` | It was retried, with a warning, on every tick. |
+| `MakerSwap.created_at` (wall clock, `#[serde(default)]`). A record without it (older store) gets the time of its next tick. | `maker.rs:129-132`, set in `on_rfq` at `maker.rs:528` | The TTL needs the time the request was taken. |
+| `step` is split into: sync; advance swaps from `Opening` on; read memos; expire and quote. | `maker.rs:269-366` (`step`, `advance_all`) | Deadline duties (R3d, R3l, L_M) run before any work that unpaid requests cause. The attacker no longer chooses the order (it chose the rfq_id). |
+| `on_rfq` refuses a request while `Quoting` + `Quoted` ≥ `max_pending_quotes`. The count is taken once per tick (`maker.rs:293`) and raised for each new swap (`maker.rs:535`), so the check is O(1). | `maker.rs:430-432` | Bounds the number of unpaid swaps. A refused request is marked handled, like every other rejected request. |
+| `Quoting`/`Quoted` with no transaction in flight become `Aborted("request expired")` after `quote_ttl_secs`; `save` erases b, s_m, e_m (R4). | `maker.rs:594-603` | Unpaid work ends. A quote that is in flight is not expired: it is mined, or it dies at its expiry height (`quote expired unmined`). |
+| The quote budget for the tick is `max_quotes_per_tick` when the wallet's spendable ZEC (computed once per tick, no RPC) covers `zip317_fee(1, 2)`, else 0. `send_quote` returns at once when the budget is 0, and takes one unit before it does anything that costs work (reply address scan, `build_pay`). | `maker.rs:330-344`, `:664-674` | No RPC round trip and no O(n) scan per stuck request. A failed build also uses the budget, so failures are bounded too. A `warning` is emitted once when requests wait and the wallet cannot pay a quote fee. |
+| An Accept for an unknown request is logged and marked handled. | `maker.rs:540-546` | It was retried, with a warning, on every tick. |
 
 Measured with the review's mock (one tick, debug profile with `opt-level = 3`):
 
@@ -68,10 +68,10 @@ report of this change).
 | Note | Done? | Change / reason |
 |---|---|---|
 | H1 `reject_quote` fails open | No | It is in `taker.rs`, which another session is editing. Open for the next person (section 6). |
-| H2 Zcash sync blocks the maker's NEAR duties | Yes | `maker.rs:277-283`: a sync error is a `warning`, and the tick goes on with the last synced view (`zcash_stale`). With an old view: no early refund R3e (`maker.rs:940-943`, the funding may be there unseen; R3d after t1 needs no Zcash data); no `Aborted` with b erased because no joint note is visible (`maker.rs:983-986`); pending Zcash transactions are not driven, except that `Sweeping` still pays the taker's credit (`maker.rs:601-606`); no quotes. Allowed: R3d and R3l refunds, re-sent refunds, `open` and the stipend, `withdraw`, and Ready. Ready on an old view is safe: it needs a joint note already seen with k_Z confirmations, and an old tip only gives fewer confirmations. Tests: `zcash_outage_does_not_stop_refunds` (failed before), `zcash_outage_blocks_no_early_refund_decision` (guard for the new path; it also passed before, because the old code did nothing at all). |
+| H2 Zcash sync blocks the maker's NEAR duties | Yes | `maker.rs:280-286`: a sync error is a `warning`, and the tick goes on with the last synced view (`zcash_stale`). With an old view: no early refund R3e (`maker.rs:943-946`, the funding may be there unseen; R3d after t1 needs no Zcash data); no `Aborted` with b erased because no joint note is visible (`maker.rs:999-1002`); pending Zcash transactions are not driven, except that `Sweeping` still pays the taker's credit (`maker.rs:604-609`); no quotes. Allowed: R3d and R3l refunds, re-sent refunds, `open` and the stipend, `withdraw`, and Ready. Ready on an old view is safe: it needs a joint note already seen with k_Z confirmations, and an old tip only gives fewer confirmations. Tests: `zcash_outage_does_not_stop_refunds` (failed before), `zcash_outage_blocks_no_early_refund_decision` (guard for the new path; it also passed before, because the old code did nothing at all). |
 | H3 gRPC-web frame length overflow | Yes | `zcash.rs:74-79`: `(i + 5).checked_add(len)`; an overflow or a short body is "truncated gRPC-web frame". Shared with the browser; the change is these lines only. Test `huge_frame_length_is_an_error_not_a_panic`. On a 64-bit host the old code did not overflow either, so this test passes before and after there; the overflow only exists on wasm32, where tests are not run. The wasm32 build of zecret-core with the change succeeds. |
 | H4 FileStore durability and permissions | Yes | `crates/zecret-node/src/io.rs:38-125`: write to `<key>.tmp` created with mode 0600 (and set to 0600 if an old one exists), `write_all`, `fsync` the file, rename, `fsync` the directory; new directories are created with 0700 and their parent is synced; `FileStore::new` sets the store directory to 0700 (an error if it cannot). Test `file_store_is_private` (failed before: directory mode 0755). The `fsync` calls are not tested (no power-loss test). Existing files with a wider mode are not changed; the 0700 directory protects them. |
-| H5 test-only `misbehave` in production configs | Yes, at the configuration boundary | `config.rs:183-193` `de_misbehave`: without the cargo feature `misbehave`, a configuration (maker or taker JSON) that sets `misbehave` is an error. `Maker::open` also refuses a set value (`maker.rs:183-185`). Feature `misbehave` in `crates/zecret-core/Cargo.toml` and `crates/zecret-node/Cargo.toml`; `harness/run.py:180-182` builds `zecret-node --features misbehave`. The release Dockerfile (`cargo build --release -p zecret-node`) does not enable it. The enum and the field still compile in every build, because `taker.rs` reads them and that file was not to be edited; compiling them out is a follow-up for whoever owns `taker.rs`. Test `misbehave_is_refused_without_the_feature`. |
+| H5 test-only `misbehave` in production configs | Yes, at the configuration boundary | `config.rs:183-193` `de_misbehave`: without the cargo feature `misbehave`, a configuration (maker or taker JSON) that sets `misbehave` is an error. `Maker::open` also refuses a set value (`maker.rs:186-188`). Feature `misbehave` in `crates/zecret-core/Cargo.toml` and `crates/zecret-node/Cargo.toml`; `harness/run.py:180-182` builds `zecret-node --features misbehave`. The release Dockerfile (`cargo build --release -p zecret-node`) does not enable it. The enum and the field still compile in every build, because `taker.rs` reads them and that file was not to be edited; compiling them out is a follow-up for whoever owns `taker.rs`. Test `misbehave_is_refused_without_the_feature`. |
 | H6 rebuilt request reuses a nonce | No | The taker builds the request (`taker.rs`). |
 | H7 reserved notes are not stored | No | After a restart a new build can spend the inputs of a pending transaction. The result is a conflicting transaction, not a loss (review §6). The clean fix (re-reserve the nullifiers of stored pending transactions at `open`) needs a parse of the stored raw transaction with its branch id; not small enough for this change. |
 | H8 the light wallet trusts its server | No (documentation) | No code change. The statement for ENGINE.md: the light wallet has no reorg handling and does not check that block hashes link; it relies on k_Z and an honest lightwalletd. Left for the documentation writer, as ENGINE.md §1-2 is being edited by another session. |
@@ -96,7 +96,7 @@ report of this change).
   one swap. Default 0.015 NEAR. `deploy/maker/README.md` says a swap costs about 0.04 NEAR
   with the 0.03 stipend; measure it on the network in use.
 
-`MakerConfig::check_premium`, called by `Maker::open` (`maker.rs:182`) before anything
+`MakerConfig::check_premium`, called by `Maker::open` (`maker.rs:185`) before anything
 else is set up, refuses to start when `premium_zats × yocto_near_per_zec / 10^8 <
 stipend + costs_per_request_yocto`, and names the smallest premium that passes. It is
 required when `chains.network` is `main` (or `mainnet`); on other networks it runs when it
@@ -172,8 +172,36 @@ clippy, the wasm32 build and the harness).
 - Related, also taker side: H6 (request nonce reuse), and compiling the `misbehave` branches
   of `taker.rs` out of non-test builds (H5; the configuration boundary is already closed).
 
-Found while running the tests, not from review 2: `crates/zecret-core/src/near/escrow.rs`
-still attaches `GAS_WITHDRAW = 100 Tgas`, but the escrow changed in `fixes-2.md` needs
-200 Tgas (at least 110). `cargo test -p zecret-node --test sandbox` fails on the maker's
-withdraw with "Exceeded the prepaid gas". The maker's own `withdraw` calls (`on_refunded`,
-`pay_taker`) use the same constant. That file was not changed here.
+## 7. The client side of the new escrow (`fixes-2.md`)
+
+Requested with this change, after the escrow's payout fix landed:
+
+| Change | Where | Why |
+|---|---|---|
+| `GAS_WITHDRAW` 100 → 200 Tgas. | `crates/zecret-core/src/near/escrow.rs:30-32` | The new `withdraw` needs at least 110 Tgas (Intents route). With 100 Tgas, `cargo test -p zecret-node --test sandbox` failed on the maker's withdraw for the taker ("Exceeded the prepaid gas"); with 200 it passes. |
+| `GAS_SWEEP` = 150 Tgas and `Escrow::sweep()` (`sweep(token)`). | `escrow.rs:33-35`, `:211-216` | The escrow's new public method (at least 90 Tgas). |
+| `Maker::sweep`; `pay_taker` calls it before it retries a taker withdraw whose credit is still there D + F after the last try (the credit was restored). | `maker.rs:1028-1053` | So that tokens left in the escrow's own Intents account (a failed `mt_transfer`) are back in the escrow's balance before the retry. `Sweeping` already waited for the credit to be paid. |
+| `on_refunded` now stays in its stage until a final block shows the maker's own credit paid. It withdraws, and on each retry (at most every D + F, field `MakerSwap.withdraw_at`) sweeps first. Before, it set `Refunded` right after one withdraw, so a restored credit was never withdrawn again. | `maker.rs:958-985`, `:133-135` | Same failure mode as the taker's withdraw: the escrow's `ft_transfer` can fail while tokens wait in its Intents account, and the credit is restored. |
+| Testnet configs name `escrow2.zecret-3f109eea1e.testnet` and code hash `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` (from `deploy/deployment.testnet.json`). | `crates/zecret-node/config/testnet-maker.json`, `testnet-taker.json`, `crates/zecret-node/README.md` | The old escrow is retired. |
+
+Balance and gas price: NEAR checks at submission that the signer holds prepaid gas × a
+pessimistic price (about 10^9 yoctoNEAR per gas in the 2.14.1 sandbox, `escrow.rs`
+comment). A 200 Tgas `withdraw` therefore needs about 0.2 NEAR held, a 150 Tgas `sweep`
+about 0.15 NEAR; unused gas is refunded a few blocks later. The maker's calls are
+sequential, so the maker's account must keep at least about 0.2 NEAR free besides the
+stipends (0.03 NEAR each) and storage funds. The local network's maker has 100 NEAR plus
+its wNEAR. The testnet maker's NEAR balance is not in `deploy/deployment.testnet.json`;
+the operator should check it. The taker's stipend never paid for a withdraw (100 Tgas
+did not fit either), so nothing changes for the taker. A sweep and a withdraw are sent
+again every D + F seconds while transfers keep failing (for example while the token is
+paused); that costs gas each time, and the maker does not back off.
+
+Tests: `restored_taker_credit_is_swept_and_retried` and
+`restored_maker_credit_is_swept_and_retried` in `tests/maker_bounds.rs` (first try:
+withdraw only; no retry before D + F; then sweep and withdraw again; the stage ends only
+once the credit reads 0). These were written with the change and not run against the
+code before it.
+
+The harness (`harness/run.py`) builds the escrow wasm from `contracts/near-escrow` and
+computes the expected code hash from that build (`zecret devnet`), so no hash had to be
+changed there.
