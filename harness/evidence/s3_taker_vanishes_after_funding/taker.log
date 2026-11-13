@@ -16,3 +16,15 @@
 [taker 1794543574] {"type":"zcash_tx","swap":"6c0c454e8d7a40e3c0be15532fa5c205","what":"accept","txid":"a52835352149e2e87a65de990f59a91d8aad25c47972593042895835e3c75e86"}
 [taker 1794543574] 6c0c454e encrypted ACCEPT with 50000 zats premium sent in tx a52835352149e2e87a65de990f59a91d8aad25c47972593042895835e3c75e86; joint address uregtest1h26gt43kesdskwxyjjv63w7ek7mg64fz6nu4jxthtnxvn89a0d2dr5ah9p346pegc5c6w4vvastw3752t6ljxgzkrhx8dlxpsv7uy6d0
 [taker 1794543574] 6c0c454e stage Accepted
+[taker 1794543576] balance 208263333 zats
+[taker 1794543580] 6c0c454e escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+[taker 1794543582] 6c0c454e escrow d21deaa7 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794543582] {"type":"escrow_verified","swap":"6c0c454e8d7a40e3c0be15532fa5c205","escrow_id":"d21deaa7a3a0f9f8f3aa5ccf84863281ca8734f2abe2565de8aab442c5afff3d","t0":1794543788,"t1":1794543848,"t2":1794543908}
+[taker 1794543582] {"type":"activity","swap":"6c0c454e8d7a40e3c0be15532fa5c205","kind":"proving","label":"Building the proof for the payment to the shared address","estimated_secs":25}
+[taker 1794543585] 6c0c454e escrow d21deaa7 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794543585] {"type":"escrow_verified","swap":"6c0c454e8d7a40e3c0be15532fa5c205","escrow_id":"d21deaa7a3a0f9f8f3aa5ccf84863281ca8734f2abe2565de8aab442c5afff3d","t0":1794543788,"t1":1794543848,"t2":1794543908}
+[taker 1794543585] balance 0 zats
+[taker 1794543585] {"type":"zcash_tx","swap":"6c0c454e8d7a40e3c0be15532fa5c205","what":"fund","txid":"e6d0261c8aefe8bd603be39366934f60ef6daab9a02a895fd2414fb519bebca6"}
+[taker 1794543585] 6c0c454e FUNDED the joint address in fully shielded tx e6d0261c8aefe8bd603be39366934f60ef6daab9a02a895fd2414fb519bebca6
+[taker 1794543585] 6c0c454e stage Funded
+[taker 1794543585] VANISH at stage Funded (process exits; state is stored)
