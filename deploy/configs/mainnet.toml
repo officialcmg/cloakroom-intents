@@ -1,0 +1,32 @@
+# Zecret on NEAR mainnet. REAL FUNDS. The tool refuses to send any transaction with this
+# config unless the owner adds --i-am-the-owner-and-accept-spending-real-funds.
+# Before use: set owner_account and put its key in keys_dir/<owner_account>.json
+# (near-cli credentials format, mode 600). See docs/DEPLOY.md.
+network = "mainnet"
+rpc_url = "https://rpc.mainnet.fastnear.com"
+owner_account = "OWNER.near"
+keys_dir = "../.keys/mainnet"
+deployment_file = "../deployment.mainnet.json"
+
+[escrow]
+sub_account = "escrow"
+wasm = "../../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm"
+# Stays locked in the escrow account forever (it has no keys).
+margin_near = "0.2"
+
+[token]
+# Circle's USDC on NEAR. Read review-1 NV-02 before using it with the escrow.
+deploy = false
+account_id = "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
+decimals = 6
+
+[intents]
+deploy = false
+account_id = "intents.near"
+
+[maker]
+sub_account = "maker"
+initial_balance_near = "1"
+# The tool cannot mint real USDC. It only reports the maker's balance against this.
+token_target = "0"
+storage_funds_near = "0.1"

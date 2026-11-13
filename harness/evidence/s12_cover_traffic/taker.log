@@ -10,3 +10,9 @@
 [taker 1794542627] balance 208323333 zats
 [taker 1794542669] 310fa624 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
 [taker 1794542669] {"type":"quote","swap":"310fa62426717a21bbb3c7487a002485","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest12eh28afwqaqds4usedjzej0gp5fvzcgkg40erqjz3qkmfk0ut8x6gqcx0haum2h9w75wmcsf054xva95huxcj0vu3e6skykdu5fg9m8y"}
+[taker 1794542713] 310fa624 ACCEPT: cover: waited 40s over 3 random draw(s), 5 look-alike txs mined since height 259
+[taker 1794542714] balance 0 zats
+[taker 1794542714] {"type":"zcash_tx","swap":"310fa62426717a21bbb3c7487a002485","what":"accept","txid":"ed834355ba61764cc5cb18297bf37cb686dee5c9c942d90f8206bf502845aab5"}
+[taker 1794542714] 310fa624 encrypted ACCEPT with 50000 zats premium sent in tx ed834355ba61764cc5cb18297bf37cb686dee5c9c942d90f8206bf502845aab5; joint address uregtest12eh28afwqaqds4usedjzej0gp5fvzcgkg40erqjz3qkmfk0ut8x6gqcx0haum2h9w75wmcsf054xva95huxcj0vu3e6skykdu5fg9m8y
+[taker 1794542714] 310fa624 stage Accepted
+[taker 1794542715] balance 208263333 zats

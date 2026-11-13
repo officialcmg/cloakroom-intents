@@ -1,0 +1,39 @@
+# Zecret on NEAR testnet: public demo with no real money (docs/DESIGN.md section 8).
+# Paths are relative to this file. `$NAME/...` reads the environment variable NAME.
+network = "testnet"
+rpc_url = "https://rpc.testnet.fastnear.com"
+faucet_url = "https://helper.testnet.near.org"
+max_faucet_accounts = 6
+# Empty: the first run picks zecret-<random>.testnet, creates it through the faucet and
+# records it in the deployment file. Later runs use the recorded owner.
+owner_account = ""
+keys_dir = "../.keys/testnet"
+deployment_file = "../deployment.testnet.json"
+
+[escrow]
+sub_account = "escrow"
+wasm = "../../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm"
+margin_near = "0.2"
+
+[token]
+# The stand-in USDC (deploy/test-usdc): NEP-141, 6 decimals, open mint.
+deploy = true
+sub_account = "usdc"
+wasm = "../target/wasm32-unknown-unknown/release/test_usdc.wasm"
+margin_near = "0.3"
+decimals = 6
+
+[intents]
+# The stand-in Verifier: the code live on mainnet intents.near. Intents has no testnet.
+deploy = true
+sub_account = "intents"
+wasm = "$ZECRET_WASM_DIR/intents.near.wasm"
+wnear_id = "wrap.testnet"
+margin_near = "0.5"
+
+[maker]
+sub_account = "maker"
+initial_balance_near = "2"
+# 20 000 tUSDC (6 decimals).
+token_target = "20000000000"
+storage_funds_near = "0.5"

@@ -1,0 +1,30 @@
+# Local rehearsal in a fresh nearcore sandbox (`zecret-deploy rehearse`). The owner is the
+# sandbox root account. Nothing here touches a public network.
+network = "sandbox"
+keys_dir = "../target/sandbox/keys"
+deployment_file = "../target/sandbox/deployment.sandbox.json"
+
+[escrow]
+sub_account = "escrow"
+wasm = "../../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm"
+margin_near = "0.2"
+
+[token]
+deploy = true
+sub_account = "usdc"
+wasm = "../target/wasm32-unknown-unknown/release/test_usdc.wasm"
+margin_near = "0.3"
+decimals = 6
+
+[intents]
+deploy = true
+sub_account = "intents"
+wasm = "$ZECRET_WASM_DIR/intents.near.wasm"
+wnear_id = "wrap.test.near"
+margin_near = "0.5"
+
+[maker]
+sub_account = "maker"
+initial_balance_near = "2"
+token_target = "20000000000"
+storage_funds_near = "0.5"

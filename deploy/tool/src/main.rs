@@ -176,6 +176,9 @@ async fn run(argv: Vec<String>) -> Res<bool> {
             Ok(r.passed())
         }
         "verify" => {
+            if cfg.network == Network::Sandbox {
+                return Err("verify reads a live network; use rehearse for the sandbox".into());
+            }
             let ctx_owner = verify_owner(&cfg, &base)?;
             let record_path = config::resolve(&base, &cfg.deployment_file)?;
             let record: Deployment = if record_path.exists() {
@@ -191,9 +194,6 @@ async fn run(argv: Vec<String>) -> Res<bool> {
                 record_path,
                 verbose: true,
             };
-            if cfg.network == Network::Sandbox {
-                return Err("verify reads a live network; use rehearse for the sandbox".into());
-            }
             let ids = ids(&cfg, &ctx_owner);
             let r = verify::verify(&chain, &cfg, &base, &ids).await?;
             println!("{}", if r.passed() { "ALL CHECKS PASSED" } else { "SOME CHECKS FAILED" });
