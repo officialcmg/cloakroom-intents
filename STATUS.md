@@ -27,6 +27,7 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 | E. Taker engine in the browser, wired into the website | 04:44 | `crates/zecret-wasm/`, `web/`, `harness/` |
+| T. A swap on public test networks (native maker and taker; needs testnet ZEC) | 05:35 | `docs/TESTNET.md`, `testnet/`, wallets in `.tools/testnet/` (untracked) |
 | S2-fix (maker side). Fixes for review 2 that are outside `taker.rs` | 05:30 | `crates/zecret-core` (not `taker.rs`), `crates/zecret-node` |
 
 ## Next

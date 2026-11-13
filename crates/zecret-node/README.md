@@ -47,8 +47,9 @@ zecret devnet    --rpc URL --root-key validator_key.json --wasm-dir DIR \
 ## NEAR testnet and Zcash testnet
 
 `config/testnet-maker.json` and `config/testnet-taker.json` use the deployment in
-`deploy/deployment.testnet.json`: escrow `escrow.zecret-3f109eea1e.testnet` (code hash
-`D9YwW6hJoKEzWkr9XW3fGT7ByCiEQZoWhfb45Q3jA7Lz`, no access keys), token
+`deploy/deployment.testnet.json`: escrow `escrow2.zecret-3f109eea1e.testnet` (code hash
+`DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1`, no access keys; it replaces
+`escrow.zecret-3f109eea1e.testnet`, see `docs/security/fixes-2.md`), token
 `usdc.zecret-3f109eea1e.testnet` (6 decimals), Verifier `intents.zecret-3f109eea1e.testnet`,
 maker `maker.zecret-3f109eea1e.testnet`, NEAR RPC `https://rpc.testnet.fastnear.com` and
 the gRPC-web light-wallet server `https://zcash-testnet.chainsafe.dev`. Timing: D = 30 s,

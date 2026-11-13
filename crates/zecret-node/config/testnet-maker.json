@@ -4,7 +4,7 @@
     "birthday": 0,
     "network": "test",
     "near_rpc": "https://rpc.testnet.fastnear.com",
-    "escrow": "escrow.zecret-3f109eea1e.testnet",
+    "escrow": "escrow2.zecret-3f109eea1e.testnet",
     "token": "usdc.zecret-3f109eea1e.testnet",
     "intents": "intents.zecret-3f109eea1e.testnet"
   },
