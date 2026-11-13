@@ -1,8 +1,24 @@
 # The website
 
-This document describes the Zecret website in `web/`: its screens, the states behind
-them, and the decisions taken and why. The interface to the swap engine is in
-`web/ENGINE_API.md`. How to build and test is in `web/README.md`.
+The Zecret website in `web/`: its pages, screens, states, and the decisions taken and
+why. The interface to the swap engine is in `web/ENGINE_API.md`. How to build and test is
+in `web/README.md`. The hosted copy is https://zecret-chrismgs-projects.vercel.app on
+Zcash testnet and NEAR testnet (`docs/HOSTING.md`).
+
+## Pages and routes
+
+| URL | Page |
+|---|---|
+| `/` | The landing page: what Zecret does, how a swap works, who holds the money, what stays private and what is public, what happens on a failure, status, questions. It loads no engine, no maker directory and no network settings. |
+| `/swap` | The swap app. The engine (worker and WebAssembly, about 9 MB) starts only here. |
+| `/?demo=1`, `/?config=testnet`, `/?speed=20`, … | The swap app as well. A link to `/` that names an app setting (`demo`, `config`, `speed`, `fail`, `pause`, `cpu`, `directory`) opens the app and keeps its URL (`web/src/app/route.ts`). |
+
+The two pages move with the History API, so going back to the landing page during a swap
+does not stop the engine. While the engine reports a swap, the landing page shows "This
+browser holds a swap" with a link to it.
+
+On the hosted site, `/swap` runs the real engine on testnet, and `/?demo=1` runs the
+simulated engine.
 
 ## What the website does
 
@@ -19,13 +35,16 @@ engines implement the same interface:
   network configuration (`?config=local`, `?config=testnet`, or `VITE_ZECRET_CONFIG` at
   build time; any other file or URL in `?config=` only in a development build, with a red
   warning that names it);
-- the simulated engine (the demo), when it has none, or with `?demo=1`. The page then
-  shows a banner: "Demo with a simulated engine: no real funds move."
+- the simulated engine (the demo), when it has none, or with `?demo=1`.
 
-On a test network the real engine's page shows a banner with the network's name and what
-is real there (from the configuration's `honesty` lines): real transactions, test money,
-the stand-in token, and that the exit goes to a NEAR account because NEAR Intents has no
-testnet.
+Each engine shows a one-line banner with a "Details" button:
+
+- demo: "Demo. No real money moves." The details give the demo's speed and failure case,
+  and "Demo controls";
+- test network: "Testnet. Test money only." (or "Local test network."). The details give
+  the network's name and the configuration's `honesty` lines: real transactions, test
+  money, the stand-in token, and that the exit goes to a NEAR account because NEAR
+  Intents has no testnet.
 
 One tab of a browser runs the engine at a time. The page takes a Web Lock before it starts
 the engine; a second tab shows "This swap is open in another tab", starts no engine, and
@@ -46,7 +65,7 @@ Screenshots of each screen, light and dark, desktop and phone, are in `web/scree
 | Done | `done` | `10-done` |
 | Refunded | `refunded` | `14-refunded` |
 | Restore | The user chose "Restore a swap" | `16-restore` |
-| Start failed | The maker directory or the engine did not load | `17-directory-failed` |
+| Start failed | The network settings, the maker directory, the maker check or the engine failed | `17-directory-failed` |
 | Another tab | Another tab of this browser runs the engine | no stored screenshot |
 
 ### Swap form
@@ -65,8 +84,9 @@ Screenshots of each screen, light and dark, desktop and phone, are in `web/scree
   reverses F4Jumble and reads the receivers. A transparent or Sapling address gets a
   plain explanation.
 - **The price.** One sentence in large type, the expected amount under it, the time of
-  the last quote and a refresh link. "How this price is made" lists every part: Zcash
-  network fees for three transactions, the maker's premium, the ZEC sold, the maker's
+  the last quote and a refresh link. "How this price is made" lists every part: four
+  Zcash network fees (the three sends from the temporary wallet and the spend from the
+  shared address, as the engine reserves them), the maker's premium, the ZEC sold, the maker's
   rate against the market price, the USDC from the maker and the 1% floor below which the
   swap stops, the NEAR Intents fee from the quote (`appFees`), the cost of the exit
   together, and "Your minimum" with what the engine enforces: no maker price below the
@@ -147,8 +167,7 @@ confirmation. In the demo, a dashed box offers "Simulate the payment" and "Pay o
 | No exit quote for a moment | The engine asks again in 20 s. | Nothing. |
 | Page closed and reopened | The swap continues; the engine catches up with the networks first. | Nothing. |
 | Browser data lost | The form shows; "Have a recovery file? Restore a swap". | Choose or drop the file. |
-| Maker directory or engine fails | What failed and a likely reason. | "Try again". |
-| A link names network settings the site does not ship | "The network settings did not load", with the reason. | Use the site's own link. |
+| The app cannot start | A title that names the cause (below), what it means for the user's money, the next step, and the engine's message as "Technical detail" with a copy button. | "Try again", where a retry can help. |
 | The browser refuses to store the swap | A red notice: the engine has stopped and does nothing until the browser stores the swap again; it retries every few seconds. | Keep the tab open, free disk space, save the recovery file. |
 | The WebAssembly engine crashes | The page starts a new engine from the stored swap and says so. After three crashes in ten minutes: the start-failed screen. | Nothing, or "Try again". |
 | The swap is open in another tab | "This swap is open in another tab". | Use the other tab, or close it. |
@@ -164,6 +183,24 @@ the maker knows, and the IP address seen by the services unless Tor or a VPN is 
 Refunded: the amount on its way back, the address, the reason, the transaction.
 
 "Start a new swap" deletes the finished swap and its keys from the browser.
+
+### Start failures
+
+`web/src/app/failureCopy.ts` picks the title from the cause, in this order:
+
+| Cause | Title |
+|---|---|
+| A link names network settings the site does not use | "This link asks for network settings this site does not use" |
+| The network settings did not load | "The network settings did not load" |
+| The maker directory did not load | "The maker’s details did not load" |
+| NEAR did not answer during the maker check | "The maker could not be checked" |
+| The maker's signed entry failed the check | "The maker could not be verified" |
+| The engine download failed | "The swap engine did not load" |
+| The engine stopped several times in ten minutes | "The swap engine stopped" |
+| Any other start failure | "The swap engine could not start" (the browser may block workers, WebAssembly or storage) |
+
+Each says "Nothing was sent and no money moved", or, when this browser holds a swap,
+that the swap is stored and continues when the page starts again.
 
 ## States
 
@@ -221,6 +258,10 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
   may choose), `realEngine.test.ts` (with a scripted WebAssembly module: a failed write
   stops the core calls, a trap stops the engine, the version guard, the payment address of
   a restored file).
+- End to end, `web/e2e/landing.spec.ts`: the landing page loads no engine, its links open
+  the app at `/swap` and Back returns; old links with app settings open the app; the
+  one-line banners and their details; a failed maker check on testnet.
+- End to end, `web/e2e/responsive.spec.ts`: every screen at 320 and 390 px wide.
 - End to end, `web/e2e/tabs.spec.ts`: two tabs of one browser on one swap; a production
   build refuses settings from a link.
 - End to end (`web/e2e/journey.spec.ts`), on a desktop and a phone viewport: the full
@@ -228,6 +269,8 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
   fresh browser; form checks with keyboard-only token selection; 1Click errors; the
   token list down; the tab-close guard; page responsiveness while the worker busy-loops;
   the theme toggle.
+- Counts on 2026-11-13: 88 unit tests (`npm test`) and 74 Playwright tests (`npm run
+  e2e`: desktop and phone, the 320 and 390 px runs, and 14 screenshot tests).
 
 ## Headers
 
@@ -235,7 +278,7 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
 
 | Header | Value and why |
 |---|---|
-| `Content-Security-Policy` | `default-src 'self'`; `script-src 'self' 'wasm-unsafe-eval'` plus the SHA-256 of the one inline script (the theme, before first paint); `worker-src 'self'`; `connect-src 'self'` plus exactly the hosts the engine and the page call on testnet: `https://1click.chaindefuser.com`, `https://zcash-testnet.chainsafe.dev`, `https://rpc.testnet.fastnear.com`; `img-src 'self' data: blob:`; `style-src 'self'`; `font-src 'self'`; `object-src 'none'`; `base-uri 'none'`; `form-action 'none'`; `frame-ancestors 'none'`. WebAssembly needs `wasm-unsafe-eval`. The synchronous XMLHttpRequests of the worker are governed by `connect-src`. `tests/unit/csp.test.ts` checks the hash and the hosts against the https endpoints of `public/config/testnet.json`, including `exit.relayUrl`, and refuses any `http:` host. A deployment with the maker's relay at a public https URL writes that URL into the configuration; the test then fails until `connect-src` lists it. |
+| `Content-Security-Policy` | `default-src 'self'`; `script-src 'self' 'wasm-unsafe-eval'` plus the SHA-256 of the one inline script (the theme, before first paint); `worker-src 'self'`; `connect-src 'self'` plus exactly the hosts the engine and the page call on testnet: `https://1click.chaindefuser.com`, `https://zcash-testnet.chainsafe.dev`, `https://rpc.testnet.fastnear.com`, and the maker's relay `https://zecret-maker-production.up.railway.app`; `img-src 'self' data: blob:`; `style-src 'self'`; `font-src 'self'`; `object-src 'none'`; `base-uri 'none'`; `form-action 'none'`; `frame-ancestors 'none'`. WebAssembly needs `wasm-unsafe-eval`. The synchronous XMLHttpRequests of the worker are governed by `connect-src`. `tests/unit/csp.test.ts` checks the hash and the hosts against the https endpoints of `public/config/testnet.json`, including `exit.relayUrl`, and refuses any `http:` host. The relay URL is in the configuration, so a new relay URL makes the test fail until `connect-src` lists it. |
 | `Referrer-Policy` | `no-referrer` |
 | `X-Content-Type-Options`, `X-Frame-Options` | `nosniff`, `DENY` |
 | `Cross-Origin-Opener-Policy` | `same-origin` |
@@ -252,4 +295,6 @@ versions.
 ## Not done here
 
 - Firefox and Safari were not tested; only Chromium.
+- No wallet app was tested as the payer. The testnet payments came from the project's
+  command-line wallet (`zecret pay`).
 - Destination tags (XRP) and memos are not supported; the page says so for XRP.

@@ -173,6 +173,31 @@ It reads at a final block and spends nothing. It checks:
 - the Verifier answers `current_salt`;
 - the maker exists, its token balance, its escrow storage funds.
 
+Output on testnet, 2026-11-13 (the block and the balances change over time):
+
+```text
+verify testnet at final block 277471610 (4Fyruberb4M6eSxGe3RgWD2DJ9LKbzwucEqgXyPykDDq)
+escrow escrow2.zecret-3f109eea1e.testnet (local wasm 525881 bytes, code hash DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1)
+  [PASS] escrow code hash DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1 equals the local wasm
+  [PASS] escrow code hash equals the recorded DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1
+  [PASS] escrow has no access keys (found 0)
+  [PASS] escrow get_intents_account = "intents.zecret-3f109eea1e.testnet" (expected intents.zecret-3f109eea1e.testnet)
+  [PASS] token usdc.zecret-3f109eea1e.testnet has 6 decimals (symbol "tUSDC")
+  [PASS] token code hash 5znPiqS6ocnsGYgeByDsED99dmFS9kv2b7S8dEaL7bRE equals local test-usdc wasm
+  [PASS] escrow2.zecret-3f109eea1e.testnet is registered on the token
+  [PASS] intents.zecret-3f109eea1e.testnet is registered on the token
+  [PASS] maker.zecret-3f109eea1e.testnet is registered on the token
+  [PASS] Verifier intents.zecret-3f109eea1e.testnet code hash BtA1BEFNS619KkvXFsgcpQ21Tb5yMm32aaUkn7xNothk equals local intents.near wasm
+  [PASS] Verifier current_salt = "1aa14f40"
+  [info] maker maker.zecret-3f109eea1e.testnet holds 0.83401 NEAR
+  [PASS] maker token balance 19996000000 (target 20000000000)
+  [PASS] maker escrow storage funds 0.48552 NEAR
+ALL CHECKS PASSED
+```
+
+The first `[PASS]` line shows that a fresh build of the escrow gives the code hash of the
+deployed escrow. The build took about 2.5 min and `verify` 3 s on the build machine.
+
 The same checks by hand, with any NEAR RPC (example for testnet):
 
 ```sh
@@ -298,20 +323,21 @@ The website is static (`web/`, Vite). `web/vercel.json` sets the build
 (`deploy/web/vercel-build.sh`: the browser engine, then `npm run build`, output `dist`)
 and security headers. It is hosted on Vercel; see [`docs/HOSTING.md`](HOSTING.md).
 
-What it reads today (`web/src/vite-env.d.ts`):
+Build-time values (`web/src/vite-env.d.ts`):
 
 | Value | Where | Default | Testnet value |
 |---|---|---|---|
 | Maker directory URL | `VITE_DIRECTORY_URL` at build time, or `?directory=` in the page URL | `/maker-directory.json` (a bundled sample) | the URL where the maker's directory JSON is served |
 | 1Click API | `VITE_ONECLICK_URL` | `https://1click.chaindefuser.com` | the same (quotes only; there is no execution on testnet) |
 
-The bundled `web/public/maker-directory.json` names `maker.zecret.testnet` and
-`escrow.zecret.testnet`. Those are sample values. For the testnet demo the directory must
-name `maker.zecret-3f109eea1e.testnet` and `escrow2.zecret-3f109eea1e.testnet`.
+The bundled sample `web/public/maker-directory.json` names
+`maker.zecret-3f109eea1e.testnet` and `escrow2.zecret-3f109eea1e.testnet`; its Zcash
+address and request key are sample values. The hosted site reads the hosted maker's
+signed entry from `web/public/config/testnet-directory.json` (`docs/HOSTING.md`).
 
-What the real browser engine (package E) needs. These are the fields of
-`TakerConfig` in `crates/zecret-core/src/config.rs`. Package E is still being built and
-wires these values into the website; see `web/README.md` for its current state.
+The browser engine reads these values from the network configuration
+(`web/public/config/testnet.json`). They are the fields of `TakerConfig` in
+`crates/zecret-core/src/config.rs`.
 
 | Value | Testnet | Mainnet |
 |---|---|---|
@@ -323,9 +349,10 @@ wires these values into the website; see `web/README.md` for its current state.
 | Token (`chains.token`) | `usdc.zecret-3f109eea1e.testnet` | `17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1` |
 | Intents Verifier (`chains.intents`) | `intents.zecret-3f109eea1e.testnet` | `intents.near` |
 
-The page connects to the directory URL, the 1Click API, the NEAR RPC and the light-wallet
-server. A Content-Security-Policy header (not yet in `vercel.json`) must allow these in
-`connect-src`, and `wasm-unsafe-eval` in `script-src` for the WebAssembly engine.
+The page connects to the 1Click API, the NEAR RPC, the light-wallet server and the
+maker's relay. The Content-Security-Policy in `web/vercel.json` allows exactly these in
+`connect-src`, and `wasm-unsafe-eval` in `script-src` for the WebAssembly engine
+(`docs/WEB.md`, "Headers").
 
 ## Not verified
 
@@ -334,5 +361,5 @@ server. A Content-Security-Policy header (not yet in `vercel.json`) must allow t
 - The image of `deploy/maker/Dockerfile` itself was not rebuilt with the TLS fix. The
   Railway image (`deploy/maker/railway/Dockerfile`) was built and runs the daemon on
   testnet (`docs/HOSTING.md`).
-- The website with the deployed testnet contracts: the browser engine that connects them
-  (package E) is still being built.
+- The website on mainnet. On testnet, one swap ran through the hosted website with these
+  contracts (`docs/TESTNET.md`, "Hosted swap").

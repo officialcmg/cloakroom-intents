@@ -180,5 +180,6 @@ its `Cargo.toml` now enables reqwest's `rustls-tls` and `rustls-tls-native-roots
 features. The native binary (not the container) then ran a full swap on Zcash testnet
 and NEAR testnet over HTTPS (`docs/TESTNET.md`).
 
-Not checked: the image rebuilt with the TLS fix, and the daemon run in the container
-against testnet; the systemd unit.
+Not checked: this image rebuilt with the TLS fix; the systemd unit. A separate image,
+`deploy/maker/railway/Dockerfile`, runs the hosted testnet maker on Railway
+(`docs/HOSTING.md`).

@@ -6,6 +6,10 @@ testnet ZEC (TAZ). The taker received 3 test USDC (tUSDC) inside the stand-in NE
 Intents Verifier. Then a signed `ft_withdraw` moved the 3 tUSDC out of the Verifier to a
 NEAR testnet account.
 
+Later the same day, two more swaps ran through the hosted website, with the taker in the
+browser: see [Hosted swap](#hosted-swap-2026-11-13-1133-to-1142-utc) and
+[Hosted swap after the price fix](#hosted-swap-after-the-price-fix-1207-to-1214-utc).
+
 Public ids, hashes, timings and balances: [`testnet/EVIDENCE.json`](../testnet/EVIDENCE.json).
 Logs, the configs that were used and the audit output: [`testnet/`](../testnet/).
 
@@ -263,8 +267,9 @@ NEAR) came from the maker's storage funds.
    and the taker checks them before it sends anything; the taker no longer tries a
    `withdraw` it cannot pay for and reports `PayoutPending` with the call if the maker
    does not send it; the false warning is gone; the testnet configs now use the measured
-   block times. See `docs/security/fixes-2-taker.md` sections 6 to 8. None of this was
-   run on testnet again.
+   block times. See `docs/security/fixes-2-taker.md` sections 6 to 8. The hosted swap
+   below ran with this code and with the maker's signed limits. It did not cause a
+   refusal or `PayoutPending`, so those two paths were not run on testnet.
 4. The deploy tool was not built (disk space), so `zecret-deploy maker-key` was not run;
    the same file was written by a short script (step 2).
 
@@ -328,7 +333,9 @@ networks. Hosts, settings, secrets and how a push to `main` redeploys:
 ### Hosted swap (2026-11-13, 11:33 to 11:42 UTC)
 
 One swap through the hosted site in headless Chromium, run by `testnet/hosted/run.mjs`.
-The payer was the native testnet taker wallet. Result file: `testnet/hosted/result.json`.
+The payer was the native testnet taker wallet. Result file:
+[`testnet/hosted/result-0.05.json`](../testnet/hosted/result-0.05.json) (`run.mjs`
+writes `result.json` on each run; this is the copy of this run).
 
 | Item | Value |
 |---|---|
@@ -372,3 +379,33 @@ Cause: the website's price estimate subtracted three network fees
 `crates/zecret-core/src/taker.rs`). For 1,000,000 zats the site set a minimum of 287,793
 micro-USDC and the maker's correct quote was 287,700. The difference is larger than the
 1% tolerance for amounts below about 1,050,000 zats.
+
+### Hosted swap after the price fix (12:07 to 12:14 UTC)
+
+A rerun with 0.01 TAZ on the site with the fixed price estimate (commit `5d35000`), run
+the same way by `testnet/hosted/run.mjs`. Result file:
+[`testnet/hosted/result-0.01-fixed.json`](../testnet/hosted/result-0.01-fixed.json). The
+result file of the 0.05 TAZ run above is
+[`testnet/hosted/result-0.05.json`](../testnet/hosted/result-0.05.json).
+
+| Item | Value |
+|---|---|
+| Site | `https://zecret-chrismgs-projects.vercel.app` (commit `5d35000`) |
+| Paid | 0.01 TAZ (1,000,000 zats) |
+| Received | 0.2877 test USDC (287,700 micro-USDC) on NEAR testnet, account `zecret-3f109eea1e.testnet` |
+| Time from payment to done | 392 s (12:07:40 to 12:14:11) |
+| Page | Reached "done"; no Content-Security-Policy violation |
+
+| Step | Chain | Transaction |
+|---|---|---|
+| Payment to the page's wallet | Zcash | `9fba50e7efeb09aac0246f86135272c306a83f350b7e22f8b13a179e8a75639e` |
+| Request memo | Zcash | `cc72efd93389c0ea16441e1f8f764efa3969627291a22c8adc727c5e997322bc` |
+| Acceptance and premium | Zcash | `e490eac9c116bfa25a82f0cfd0aee116287de83cc2c1ed3648c01f74712e6d91` |
+| Funding of the shared address | Zcash | `e2eff18977c1133a72df4bff7f4b7589b07d64af65f59fbe7abf8915b6122e8e` |
+| `commit_claim` | NEAR | `9z3av19SmUrqjyqhU7uCsvJTNmFRUPDsdnwrSxKJzPW` |
+| `claim` | NEAR | `8xVtDKbzCcnmQCddE8EwW5EJqQZciXJmmvbMHXFbDCWY` |
+| Signed exit, sent by the maker's relay | NEAR | `C9T9LJvohjbuhfcjXuVG9ZiFpHvh6dF2pQYFksDbuNAJ` |
+
+The transactions of this run are taken from the page's result file. They were not
+audited separately (no RPC check and no `zecret-testnet-audit` run, unlike the 0.05 TAZ
+run).

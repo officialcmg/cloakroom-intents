@@ -109,24 +109,31 @@ The automatic check runs five scenarios through the page the same way:
 ### Against Zcash testnet and NEAR testnet
 
 `public/config/testnet.json` uses `https://zcash-testnet.chainsafe.dev` (gRPC-web),
-`https://rpc.testnet.fastnear.com` and the escrow, test USDC and Verifier of
-`../deploy/deployment.testnet.json`. It also needs, before a swap can run:
+`https://rpc.testnet.fastnear.com`, the escrow, test USDC and Verifier of
+`../deploy/deployment.testnet.json`, and the relay of the hosted testnet maker
+(`https://zecret-maker-production.up.railway.app/execute-intents`).
+`public/config/testnet-directory.json` holds that maker's signed entry. The hosted site
+(https://zecret-chrismgs-projects.vercel.app/swap) uses these files; see
+[`../docs/HOSTING.md`](../docs/HOSTING.md).
 
-1. a maker running on testnet with testnet ZEC for its quote fees, started with
+A swap needs testnet ZEC in a wallet that can pay a unified address, and a NEAR testnet
+account registered with the test USDC token (`storage_deposit`).
+
+To run your own maker instead:
+
+1. start a maker on testnet with testnet ZEC for its quote fees:
    `zecret maker --dir M --relay 127.0.0.1:3410` (`../crates/zecret-node/README.md`, "NEAR
    testnet and Zcash testnet");
-2. its directory: `node ../harness/browser/make-directory.mjs M <USDC per ZEC> testnet >
+2. write its directory: `node ../harness/browser/make-directory.mjs M <USDC per ZEC> testnet >
    public/config/testnet-directory.json`;
-3. the site: `npm run build && npx vite preview --port 4173`, then
-   `http://localhost:4173/?config=testnet`;
-4. testnet ZEC in a wallet that can pay a unified address, and a NEAR testnet account
-   registered with the test USDC token (`storage_deposit`).
+3. set `exit.relayUrl` in `public/config/testnet.json` to `http://127.0.0.1:3410/execute-intents`;
+4. serve the site: `npm run build && npx vite preview --port 4173`, then open
+   `http://localhost:4173/?config=testnet`.
 
-The relay at `http://127.0.0.1:3410` works only from a site served without the headers of
-`vercel.json` (as in step 3): the deployed CSP allows no `http:` host. For the deployed
-site, run the relay behind a public https URL, put that URL into `exit.relayUrl` of
-`public/config/testnet.json` and its origin into `connect-src` of `vercel.json`;
-`tests/unit/csp.test.ts` fails until both agree.
+A relay at an `http:` address works only from a site served without the headers of
+`vercel.json` (as in step 4): the deployed CSP allows no `http:` host. A deployed site
+needs the relay at a public https URL, in `exit.relayUrl` and in `connect-src` of
+`vercel.json`; `tests/unit/csp.test.ts` fails until both agree.
 
 The relay pays `execute_intents` only for one `ft_withdraw` of the maker's token, from the
 taker account of a swap that paid out, at most 3 times per swap and 6 requests a minute per
@@ -162,13 +169,19 @@ file that does not match, with the reason.
 
 ## Deploying
 
-Vercel: set the project root to `web/`. `vercel.json` sets the install (`npm ci`, the
-locked versions), the build (`npm run build`, output `dist/`) and headers: a Content-Security-Policy that allows exactly the hosts of
-the testnet configuration and 1Click (see `../docs/WEB.md`, "Headers"), and
-`Referrer-Policy: no-referrer`, so explorer links do not tell explorers where the user
-came from. The build does not compile the WebAssembly engine: run
-`crates/zecret-wasm/build.sh` before `npm run build` (it needs Rust), or the site runs
-only the demo.
+The site is hosted on Vercel with the project root `web/` ([`../docs/HOSTING.md`](../docs/HOSTING.md)).
+`vercel.json` sets:
+
+- the install: `npm ci` (the locked versions);
+- the build: `bash ../deploy/web/vercel-build.sh`. It builds the WebAssembly engine, then
+  runs `npm run build` with `VITE_ZECRET_CONFIG=testnet` (output `dist/`);
+- the ignored build step: `bash ../deploy/web/vercel-ignore.sh`;
+- the headers: a Content-Security-Policy that allows exactly the hosts of the testnet
+  configuration and 1Click (`../docs/WEB.md`, "Headers"), and `Referrer-Policy:
+  no-referrer`, so explorer links do not tell explorers where the user came from.
+
+`npm run build` alone does not compile the engine. Run `crates/zecret-wasm/build.sh`
+first (it needs Rust), or the site runs only the demo.
 
 ## Layout
 

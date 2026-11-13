@@ -23,10 +23,11 @@ Nobody needs a Vercel or Railway login to redeploy: push to `main`.
   - install: `npm ci`;
   - build: `bash ../deploy/web/vercel-build.sh`;
   - ignored build step: `bash ../deploy/web/vercel-ignore.sh`.
-- `deploy/web/vercel-ignore.sh` skips the build when nothing changed, since the last
-  deployment of the branch, under `web/`, `crates/zecret-wasm`, `crates/zecret-core`,
-  `crates/zecret-intents`, `crates/Cargo.toml`, `crates/Cargo.lock`, `crates/.cargo` or
-  `deploy/web/`. When it cannot tell, it builds.
+- `deploy/web/vercel-ignore.sh` skips the build in two cases: the commit message starts
+  with "WIP", or nothing changed since the last deployment of the branch under `web/`,
+  `crates/zecret-wasm`, `crates/zecret-core`, `crates/zecret-intents`,
+  `crates/Cargo.toml`, `crates/Cargo.lock`, `crates/.cargo` or `deploy/web/`. When it
+  cannot find the previous deployment's commit, it builds.
 - `deploy/web/vercel-build.sh` builds the browser engine on Vercel, then the site:
   1. installs `clang` and `llvm` with `dnf` (the engine has C code that is compiled for
      wasm32);
@@ -52,7 +53,8 @@ token as a repository secret.
   `deploy/maker/railway/Dockerfile`, watch paths `/crates/**` and `/deploy/maker/**`,
   restart policy "always", one replica.
 - A push to `main` that changes a file under `crates/` or `deploy/maker/` builds the image
-  and restarts the maker. Other pushes do not.
+  and restarts the maker. Other pushes do not. Both hosts redeployed this way for commit
+  `908f763`.
 - The image builds `zecret` (`crates/zecret-node`) in release mode and copies the
   repository's testnet maker settings (`crates/zecret-node/config/testnet-maker.json`) with
   `chains.birthday` set to 4,614,922.
@@ -81,12 +83,13 @@ No secret is in git or in a log.
 | Maker request key (`rfq_key.json`) | Railway volume, `/data/rfq_key.json` | same |
 | NEAR keys of the testnet deployment | `deploy/.keys/testnet/` on the build machine (not in git) | the build machine |
 
-The hosted maker made its wallet and its NEAR key on the volume at its first start. Only
-the public values were printed: the wallet's address, the NEAR public key and the signed
-directory entry. Its NEAR public key, `ed25519:4aQfVk7LxZzASG5mLRsjDn1AxkzsCDjjmtf5q6ApZyHH`,
-must be a full-access key of `maker.zecret-3f109eea1e.testnet` before the maker can open
-a swap. On 2026-11-13 at 11:15 UTC it was not yet added. To add it, on the build machine
-(it signs with the existing maker key in `deploy/.keys/testnet/`, which it does not print):
+The hosted maker made its own wallet and its own NEAR key on the volume at its first
+start. Only the public values were printed: the wallet's address, the NEAR public key and
+the signed directory entry. The NEAR public key,
+`ed25519:4aQfVk7LxZzASG5mLRsjDn1AxkzsCDjjmtf5q6ApZyHH`, is a full-access key of
+`maker.zecret-3f109eea1e.testnet`. It was added on 2026-11-13 in NEAR testnet transaction
+`BTpC5EAxUnFxUcMHSfvWJBFqXpky8nkHECgZK6v939fK`, with these commands on the build machine
+(they sign with the existing maker key in `deploy/.keys/testnet/` and do not print it):
 
 ```sh
 cd /home/user/zecret && source .tools/env.sh
@@ -96,14 +99,18 @@ crates/target/release/zecret-testnet-addkey \
   maker.zecret-3f109eea1e.testnet ed25519:4aQfVk7LxZzASG5mLRsjDn1AxkzsCDjjmtf5q6ApZyHH
 ```
 
-### Temporary start command
+### Start command
+
+In the final state the service has no custom start command. The image's entrypoint runs
+`deploy/maker/railway/start.sh`. With `ZECRET_NEW_NEAR_KEY=0` that script refuses to make
+a new NEAR key on an empty volume.
 
 The first deployments ran from commit `d6bac89`, whose start script cannot make a NEAR
-key. The service therefore has a start command set in Railway (Settings → Deploy →
-Custom Start Command) that makes the key, prints the public values and then runs the
-image's entrypoint. After the current `deploy/maker/railway/start.sh` is on `main`, clear
-that start command: the start script does the same and, with `ZECRET_NEW_NEAR_KEY=0`,
-refuses to make a new key on an empty volume.
+key. For them, a custom start command was set on the Railway service. It made the key,
+printed the public values and then ran the image's entrypoint.
+
+That custom start command was cleared on 2026-11-13. Since then the service runs the
+image's entrypoint (`deploy/maker/railway/start.sh`).
 
 Railway variables of the service:
 
@@ -138,20 +145,19 @@ node deploy/web/directory-from-entry.mjs entry.json 30 > web/public/config/testn
 
 ## How to stop the services
 
-- Maker: Railway dashboard → project `zecret` → service `zecret-maker` → Settings →
-  "Remove" is permanent; to pause, open the active deployment's menu (⋮) and choose
-  "Remove" or scale replicas to 0. The volume and its keys stay until the volume is
-  deleted. With an open swap, stopping the maker lets the taker's deadlines run out: the
-  taker takes its ZEC back after `t1`, and the maker must be running again before `t0 +
-  t1 + t2` to take back its tokens.
-- Website: Vercel dashboard → project `zecret` → Settings → General → "Pause Project"
-  (or delete the project).
+- Maker: remove the service's active deployment, or remove the service `zecret-maker`.
+  Either stops the maker and its relay. The volume `zecret-maker-data` holds the wallet
+  key and the NEAR key. It stays until it is deleted. Deleting the volume loses the
+  wallet and its test funds.
+- With an open swap, a stopped maker lets the deadlines run out. The taker takes its ZEC
+  back after `t1`. The maker must run again before `t0 + t1 + t2` to take back its
+  tokens.
+- Website: pause or delete the Vercel project `zecret`.
 
 ## What the owner pays for
 
-- Railway: the service runs all the time (about 0.1 vCPU and 50 to 100 MB of memory when
-  idle; not measured over a full day), plus a 1 GB volume. It is billed against the
-  workspace plan's usage.
+- Railway: the service runs all the time, and it has a 1 GB volume. Both are billed
+  against the workspace plan's usage. CPU and memory use were not measured.
 - Vercel: one static site on the team's plan. Each build that compiles the engine takes
   several minutes of build time.
 - No domain was bought. No paid add-on was turned on.
@@ -161,7 +167,7 @@ node deploy/web/directory-from-entry.mjs entry.json 30 > web/public/config/testn
 
 This is a list, not a plan that was run.
 
-1. Deploy the escrow on mainnet (`docs/DEPLOY.md`, about 6 NEAR).
+1. Deploy the escrow on mainnet (`docs/DEPLOY.md`, about 6.6 NEAR).
 2. Build the site with `VITE_MAINNET_ESCROW` and `VITE_MAINNET_ESCROW_CODE_HASH`, and add a
    mainnet configuration with the 1Click exit; the relay is not used on mainnet.
 3. Run the maker without `--relay`, with `chains.network` `main`, `premium_check` set, and

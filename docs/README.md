@@ -10,10 +10,11 @@ What each document in `docs/` is for and who should read it. Start with the repo
 | [`DESIGN.md`](DESIGN.md) | The design. Its first section, "The design in plain words", is always current and has the log of decisions. The numbered sections give the detail: system map, one swap, escrow, gas trail, browser taker, timing, networks, tests, risks. | anyone; read this first |
 | [`BUILD_PLAN.md`](BUILD_PLAN.md) | How the hackathon build was organized: work packages, the check each must pass, what needs the owner. | a reviewer of the process |
 | [`ENGINE.md`](ENGINE.md) | The interface of the shared swap code (`crates/zecret-core`): network, storage and time, the taker's configuration, stages and events, the maker's rules. | an engineer who hosts the engine or reads the code |
-| [`WEB.md`](WEB.md) | The website: screens, states, decisions, accessibility, tests, security headers. | a reviewer of the website |
+| [`WEB.md`](WEB.md) | The website: pages and routes, screens, states, decisions, accessibility, tests, security headers. | a reviewer of the website |
 | [`INTENTS.md`](INTENTS.md) | The exit through NEAR Intents: the 1Click flow, the check before signing, what needs an API key, measured quote behaviour, errors, what is not verified. | a reviewer of the NEAR Intents integration |
 | [`DEPLOY.md`](DEPLOY.md) | The NEAR deployment: what is deployed on testnet, steps and costs for testnet and mainnet, how to check a deployment, measured transaction times. | an operator, or a judge checking the testnet contracts |
-| [`TESTNET.md`](TESTNET.md) | The swap on Zcash testnet and NEAR testnet: what is real and what is a stand-in, commands, every transaction, timings, balances, problems met. | a judge checking the testnet evidence |
+| [`TESTNET.md`](TESTNET.md) | The swaps on Zcash testnet and NEAR testnet (native programs; hosted website): what is real and what is a stand-in, commands, every transaction, timings, balances, problems met. | a judge checking the testnet evidence |
+| [`HOSTING.md`](HOSTING.md) | The hosted website (Vercel) and maker with its relay (Railway) on testnet: settings, secrets, how a push to `main` redeploys, how to stop them. | an operator |
 
 ## Submission
 
@@ -31,14 +32,18 @@ What each document in `docs/` is for and who should read it. Start with the repo
 | [`security/nv02-usdc.md`](security/nv02-usdc.md) | The escrow's payout with Circle's USDC code: the double-payment risk, reproduced in a sandbox. |
 | [`security/fixes-2.md`](security/fixes-2.md) | The two-step payout that fixes NV-02, its tests and residual risks. |
 | [`security/review-2.md`](security/review-2.md) | Review 2: the swap engines (`zecret-core`, `zecret-node`). Findings F2-01 to F2-04. |
-| [`security/fixes-2-core.md`](security/fixes-2-core.md) | Fixes for the maker side of review 2, the premium check, the RPC trust statement, and what is still open on the taker side. |
-| `security/findings-1.json`, `security/findings-2.json` | Machine-readable records of both reviews. |
-| `security/poc/`, `security/poc2/` | Proof-of-concept tests of the findings. |
+| [`security/fixes-2-core.md`](security/fixes-2-core.md) | Fixes for the maker side of review 2, the premium check and the RPC trust statement. |
+| [`security/fixes-2-taker.md`](security/fixes-2-taker.md) | Fixes for the taker side of review 2 (F2-01, F2-02, F2-03) and for the problems met on testnet. |
+| [`security/review-3.md`](security/review-3.md) | Review 3: the website, the browser engine (`zecret-wasm`) and the maker's relay. Findings F3-01, F3-02. |
+| [`security/fixes-3.md`](security/fixes-3.md) | Fixes for review 3, with tests. |
+| `security/findings-1.json`, `security/findings-2.json`, `security/findings-3.json` | Machine-readable records of the reviews. |
+| `security/poc/`, `security/poc2/`, `security/poc3/` | Proof-of-concept tests of the findings. |
 
 ## Measurements
 
-Write-ups of short experiments made before and during the build. The code that made
-them is not in this repository.
+Write-ups of short experiments made before and during the build. The code of the
+browser wallet measurement is in `spike/browser-wallet/`; the code of the others is not
+in this repository.
 
 | Document | Question |
 |---|---|
@@ -66,7 +71,7 @@ The `.mmd` files next to the diagrams are their Mermaid sources.
 |---|---|
 | [`../STATUS.md`](../STATUS.md) | Where the build is: done, running, next. |
 | [`../BASELINE.md`](../BASELINE.md) | What was imported from Cloakroom: baseline commit `2f8e2f7`, branch `pre-hackathon-baseline` (tag `pre-hackathon` in the build clone). |
-| [`../harness/RESULTS.md`](../harness/RESULTS.md) | Results of the 19 two-party scenarios on local chains. |
+| [`../harness/RESULTS.md`](../harness/RESULTS.md) | Results of the 21 two-party scenarios on local chains. |
 | [`../harness/BROWSER_RESULTS.md`](../harness/BROWSER_RESULTS.md) | Results of the scenarios with the taker in a browser. |
 | [`../contracts/near-escrow/README.md`](../contracts/near-escrow/README.md) | The escrow's interface, deployment rules, gas and tests. |
 | [`../crates/zecret-core/README.md`](../crates/zecret-core/README.md), [`../crates/zecret-node/README.md`](../crates/zecret-node/README.md), [`../crates/zecret-intents/README.md`](../crates/zecret-intents/README.md) | The Rust crates. |

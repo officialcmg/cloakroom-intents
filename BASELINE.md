@@ -8,7 +8,7 @@ ZEC against an ERC-20 token on Base.
 
 The commit is `2f8e2f7`. It is pushed as the branch `pre-hackathon-baseline`. In the
 build clone it is also tagged `pre-hackathon`; the git proxy of the build environment
-refuses to push tags, so I push the tag separately. Nothing in the commit was written for
+refuses to push tags, so the tag is not on GitHub; the branch is. Nothing in the commit was written for
 NEAR HACKATHON. The diff of the hackathon work:
 <https://github.com/officialcmg/zecret/compare/pre-hackathon-baseline...main>.
 

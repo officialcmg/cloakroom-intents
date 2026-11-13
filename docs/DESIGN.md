@@ -160,8 +160,9 @@ What is new:
 **Duration:** the first estimate was about 10 minutes, most of it waiting for Zcash
 blocks. One swap on Zcash testnet and NEAR testnet (2026-11-13, native maker and taker,
 cover delays off) took 222 s from the taker's start to `Completed`, and 322 s to the end
-of the exit (`docs/TESTNET.md`). Zcash testnet blocks came faster than the 75 s that the
-configs assume. A swap on mainnet was not measured.
+of the exit (`docs/TESTNET.md`). One swap through the hosted website took 493 s from
+the payment to the end. Zcash testnet blocks come every 20 s on average. The testnet
+configs now use these measured block times. A swap on mainnet was not measured.
 
 ## 4. Escrow contract
 
@@ -262,7 +263,7 @@ measurement before real parameters are fixed.
 | Mode | Zcash | NEAR | Exit through Intents | Use |
 |---|---|---|---|---|
 | Local | Zebra regtest in Docker, through a small CORS proxy | Sandbox 2.14.1 with the live `intents.near` code | Signed message executed in the sandbox | Development and automatic tests |
-| Testnet | Zcash testnet over ChainSafe's gRPC-web | NEAR testnet, with a test USDC token and a copy of the `intents.near` code as a stand-in verifier (`deploy/deployment.testnet.json`) | The payout into the stand-in verifier and a signed withdrawal run for real. The cross-chain delivery shows a live quote only, because Intents has no testnet | Tests on public networks with no real money. One full swap ran here with the native maker and taker on 2026-11-13 (`docs/TESTNET.md`). The website is not hosted. |
+| Testnet | Zcash testnet over ChainSafe's gRPC-web | NEAR testnet, with a test USDC token and a copy of the `intents.near` code as a stand-in verifier (`deploy/deployment.testnet.json`) | The payout into the stand-in verifier and a signed withdrawal run for real. The cross-chain delivery shows a live quote only, because Intents has no testnet | Tests on public networks with no real money. Three full swaps ran here on 2026-11-13: one with the native maker and taker, two through the hosted website (`docs/TESTNET.md`). The website and one maker are hosted on this network (`docs/HOSTING.md`). |
 | Mainnet | Zcash mainnet | NEAR mainnet | Real | Full demo with small amounts. Needs the owner's funds and approval. Not deployed. |
 
 ## 9. What has been tested
@@ -279,10 +280,10 @@ measurement before real parameters are fixed.
 | Can a browser read Zcash blocks? | Yes, over gRPC-web. | `experiments/grpc-web` |
 | Does a local Zcash node run in the build environment? | Yes, Zebra regtest in Docker. | manual |
 | Does the Zcash wallet run in a browser worker, end to end? | Yes, on Zebra regtest: it receives a shielded payment, reads its memo, and builds, proves and sends a shielded transaction. | `experiments/browser-wallet`, `spike/browser-wallet/` |
-| Do the native maker and taker complete a swap as two programs? | Yes: 19 scenarios on Zebra regtest and a NEAR sandbox, with the happy path, refund, punish and malicious-party cases. | `harness/RESULTS.md` |
-| Does a full swap run on public test networks? | Yes, once: 0.1 testnet ZEC for 3 test USDC on Zcash testnet and NEAR testnet, native maker and taker, happy path only. | `docs/TESTNET.md` |
+| Do the native maker and taker complete a swap as two programs? | Yes: 21 scenarios on Zebra regtest and a NEAR sandbox, with the happy path, refund, punish and malicious-party cases. | `harness/RESULTS.md` |
+| Does a full swap run on public test networks? | Yes, twice, happy path only. The native maker and taker swapped 0.1 testnet ZEC for 3 test USDC. The hosted website and the hosted maker swapped 0.05 testnet ZEC for 1.4877 test USDC, and after the price fix 0.01 testnet ZEC for 0.2877 test USDC. | `docs/TESTNET.md` |
 | Can the real USDC contract make the escrow pay twice? | Yes, with the old one-step payout: a USDC pause or blocklist between delivery and USDC's resolve step made a second withdraw pay again. Fixed with the two-step payout; 8 sandbox tests with the USDC code from mainnet pass on the new escrow and fail on the old one. | `docs/security/nv02-usdc.md`, `docs/security/fixes-2.md` |
-| Does the taker run in the browser as the real engine, wired into the website? | In progress (package E). Not verified. | `STATUS.md` |
+| Does the taker run in the browser as the real engine, wired into the website? | Yes. Five browser scenarios pass in Chromium on Zebra regtest and a NEAR sandbox. One swap ran through the hosted website on testnet. | `harness/BROWSER_RESULTS.md`, `docs/TESTNET.md` |
 
 Tests must use NEAR sandbox 2.14.1, the version on mainnet. Version 2.9.0 rejects the
 live Intents code.
@@ -291,12 +292,12 @@ live Intents code.
 
 | Risk | Why it matters | Plan |
 |---|---|---|
-| The taker engine in the browser is not finished | The browser spike ran scanning, memo decryption, transaction building and sending in WebAssembly on Zebra regtest. The full taker engine in the browser, wired into the website, is still being built (package E) and is not verified. | Finish package E and its browser scenarios. The website runs against a simulated engine until then. |
-| Sending a transaction over gRPC-web | The native client sent all its Zcash transactions through ChainSafe's gRPC-web server in the testnet swap. From a browser, sending was tested only on regtest, through Zebra's JSON-RPC. | Test a send from the browser on testnet. |
+| The browser engine is tested in Chromium only | Firefox and Safari were not tested. No wallet app was tested as the payer: the testnet payments came from the project's command-line wallet. | Open. |
+| Sending a transaction over gRPC-web | The native client and the browser engine sent their Zcash transactions on testnet through ChainSafe's gRPC-web server (`docs/TESTNET.md`). | Done on testnet. |
 | ChainSafe's public endpoints | We depend on a third party's free server. | Run our own gRPC-web proxy in front of a light-wallet server if needed. |
 | Intents has no testnet | The exit only executes on mainnet. | Sandbox for tests, live quote on testnet, real exit on mainnet with the owner's approval. |
 | 1Click exit with real funds | Quote, generate and submit all answer without an API key (tested live with an unfunded key). Execution with funds is not verified. | First real run on mainnet with a tiny amount. See `docs/INTENTS.md`. |
-| Price movement before the exit | Measured over 15 minutes: USDC to USDC moved 0.004 %; USDC to SOL or ETH fell at most 0.32 % within 10 minutes. | Show a guaranteed minimum with 1 % slippage and fetch a fresh quote at exit time. |
+| Price movement before the exit | Measured over 15 minutes: USDC to USDC moved 0.004 %; USDC to SOL or ETH fell at most 0.32 % within 10 minutes. | Show a minimum with 1 % slippage ("Your minimum", not a guarantee) and fetch a fresh quote at exit time. |
 | Keys in browser storage | A cleared browser loses the swap's keys. | Recovery file, shown before any money moves. |
 | The build environment is temporary | Docker, the sandbox binary and helper tools must be set up again on a new machine. | Done: `scripts/setup-env.sh`. Commit and push often. |
 | The taker trusts one NEAR RPC endpoint | The taker reads every NEAR fact it acts on from one endpoint, without proofs. An endpoint that works with the maker can show an escrow that does not exist, and the maker then takes the taker's ZEC. An endpoint alone can only delay a swap. | Not built. Options: let the user choose the endpoint; compare two or more endpoints; light-client proofs. See `docs/security/fixes-2-core.md` section 4. |

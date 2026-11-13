@@ -60,7 +60,8 @@ zecret devnet    --rpc URL --root-key validator_key.json --wasm-dir DIR \
 maker `maker.zecret-3f109eea1e.testnet`, NEAR RPC `https://rpc.testnet.fastnear.com` and
 the gRPC-web light-wallet server `https://zcash-testnet.chainsafe.dev`. Timing: D = 30 s,
 F = 10 s, R = 2 (B_R = 110 s; measured on testnet: included in at most 2.0 s, final in at
-most 6.9 s), k_Z = 3 and ∆fund = 900 s for 75 s Zcash blocks.
+most 6.9 s), k_Z = 3 and ∆fund = 600 s, sized from measured Zcash testnet block times
+(`docs/security/fixes-2-taker.md` §8).
 
 Steps. These ran end to end on testnet on 2026-11-13: one swap of 0.1 TAZ for 3 tUSDC.
 The exact commands, logs and transaction ids are in `docs/TESTNET.md`.
