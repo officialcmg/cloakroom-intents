@@ -1,0 +1,19 @@
+{
+  "at": "2026-11-13T06:30:16.556Z",
+  "results": {
+    "the page loaded with the real engine on testnet (network banner)": true,
+    "the live mainnet 1Click preview price shows": true,
+    "the recovery file is for testnet and holds the wallet key and the swap record": true,
+    "the payment screen asks for testnet ZEC at a utest address": true,
+    "transient_errors": 0,
+    "the engine scanned Zcash testnet over gRPC-web and waits for the deposit": true,
+    "no Content-Security-Policy violation with the production headers": true
+  },
+  "console": [
+    "[zecret-timing] wasm_load 77",
+    "[zecret-timing] verify_maker 778",
+    "[zecret-timing] proving_key_build 23923",
+    "[zecret-engine] swap 5f023058dbc90ab97a5e035e88a16ebb created: sells 959000 zats, deposit 1000000 to utest1xjnhmk7h0juw8k9nwh3wu5s88amtay64eleqwr8vnrszr2jjas8rfggegsfxajzv6kh37jr5rj5fdd9f0kulfpa8qc9l2v8ykyhx9xhp",
+    "[zecret-engine] waiting for a deposit: 0 of 1000000 zats in utest1xjnhmk7h0juw8k9nwh3wu5s88amtay64eleqwr8vnrszr2jjas8rfggegsfxajzv6kh37jr5rj5fdd9f0kulfpa8qc9l2v8ykyhx9xhp"
+  ]
+}

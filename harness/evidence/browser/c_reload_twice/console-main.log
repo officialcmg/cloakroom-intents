@@ -1,28 +1,31 @@
-2026-11-13T06:17:35.037Z [zecret-timing] wasm_load 129
-2026-11-13T06:17:35.079Z [zecret-timing] verify_maker 45
-2026-11-13T06:17:57.925Z [zecret-timing] proving_key_build 21825
-2026-11-13T06:17:57.951Z [zecret-engine] swap 0d6ba49be682fdb61aa24e977a2c743a created: sells 99960000 zats, deposit 100050000 to uregtest1zu5r6qeur58n2terxk2aray3n0g44hw2a8pwt0mw77g0j2xc8gf67ulj4qau3csf2lsyue729vgzcxphruetlw965uj92uupsqgll66z
-2026-11-13T06:17:58.142Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest1zu5r6qeur58n2terxk2aray3n0g44hw2a8pwt0mw77g0j2xc8gf67ulj4qau3csf2lsyue729vgzcxphruetlw965uj92uupsqgll66z
-2026-11-13T06:18:03.821Z [zecret-engine] tick took 4820 ms
-2026-11-13T06:18:35.554Z [zecret-timing] proof_request 30495
-2026-11-13T06:18:35.555Z [zecret-engine] tick took 30487 ms
-2026-11-13T06:18:35.881Z [zecret-engine] encrypted RFQ for 99960000 zats sent to the maker in shielded tx 5178765a91f9d5ecc3f483b868f554b19e53fc932e5329b1db196dbb8823b011
-2026-11-13T06:18:45.052Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
-2026-11-13T06:18:45.247Z [zecret-timing] wasm_load 70
-2026-11-13T06:18:45.288Z [zecret-timing] verify_maker 41
-2026-11-13T06:19:06.230Z [zecret-timing] proving_key_build 20472
-2026-11-13T06:19:33.307Z [zecret-timing] proof_accept 47575
-2026-11-13T06:19:33.308Z [zecret-engine] tick took 27071 ms
-2026-11-13T06:19:33.569Z [zecret-engine] encrypted ACCEPT with 50000 zats premium sent in tx 03a05361bd8b8fc01e257c1dd8a5298e63d5af39475a6950d7d02392044634b7; joint address uregtest16qa8akg9vumalj39ssmu4hllw5z3kggavzjxd2whlxw7uef5knt2v7ggd7vdkp4cw2yqgvnuq8e6uxznhyr39e0m605tw76fasmynygu
-2026-11-13T06:19:41.039Z [zecret-engine] escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
-2026-11-13T06:19:45.033Z [zecret-engine] escrow 282c0684 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
-2026-11-13T06:20:12.212Z [zecret-timing] proof_fund 27177
-2026-11-13T06:20:12.212Z [zecret-engine] tick took 27175 ms
-2026-11-13T06:20:12.212Z [zecret-engine] escrow 282c0684 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
-2026-11-13T06:20:12.515Z [zecret-engine] FUNDED the joint address in fully shielded tx c15d0995dd55ff3114a31899ef26f3437976a68915790a8c7261d640e9d85391
-2026-11-13T06:20:22.275Z [zecret-engine] escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx 39sc2qvTrqM4rvEHdqurc4Rpbqyu2tDRFGunkjr8rCZ7
-2026-11-13T06:20:22.578Z [zecret-timing] wasm_load 67
-2026-11-13T06:20:22.631Z [zecret-timing] verify_maker 50
-2026-11-13T06:20:23.380Z [zecret-engine] lock final (block 338); revealing a before the deadline 1794550881
-2026-11-13T06:20:25.312Z [zecret-engine] REVEALED a with claim, tx FxpZ7UggPS1YNpVQCVdfcxAWycTAeUnSvLDAHWdNmrCZ; waiting for the claim to be final
-2026-11-13T06:20:27.026Z [zecret-engine] claim is final (block 344)
+2026-11-13T06:38:12.816Z [zecret-timing] wasm_load 73
+2026-11-13T06:38:12.863Z [zecret-timing] verify_maker 46
+2026-11-13T06:38:36.069Z [zecret-timing] proving_key_build 22185
+2026-11-13T06:38:36.093Z [zecret-engine] swap 64871012cf236a82d5377b6a5feab0f2 created: sells 99960000 zats, deposit 100050000 to uregtest1hfqf7d8l5vlaj65vkerwljg3u7f5vwpu92327hlr4tsnfw8a9em73espexuml9z9fmwdeh2cm5fyrpc2en60vldexp55xm45ksxasp60
+2026-11-13T06:38:37.489Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest1hfqf7d8l5vlaj65vkerwljg3u7f5vwpu92327hlr4tsnfw8a9em73espexuml9z9fmwdeh2cm5fyrpc2en60vldexp55xm45ksxasp60
+2026-11-13T06:38:44.504Z [zecret-engine] tick took 6503 ms
+2026-11-13T06:39:14.640Z [zecret-timing] proof_request 28590
+2026-11-13T06:39:14.641Z [zecret-engine] tick took 28583 ms
+2026-11-13T06:39:14.905Z [zecret-engine] encrypted RFQ for 99960000 zats sent to the maker in shielded tx 3ca83a3138f5826a9a82654c5539f2a2ad78a82e976d42d2e60da0dc9aa5f26d
+2026-11-13T06:39:24.057Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+2026-11-13T06:39:24.436Z [zecret-timing] wasm_load 83
+2026-11-13T06:39:24.501Z [zecret-timing] verify_maker 67
+2026-11-13T06:39:50.220Z [zecret-timing] proving_key_build 23502
+2026-11-13T06:40:25.726Z [zecret-timing] proof_accept 59059
+2026-11-13T06:40:25.726Z [zecret-engine] tick took 35508 ms
+2026-11-13T06:40:26.041Z [zecret-engine] encrypted ACCEPT with 50000 zats premium sent in tx a189f2171960efb922cb89a40c8bf6b92f3a97a5fd5ca15974990ac2584e20a5; joint address uregtest158s8zuwe005wmqj2hqspu6ky9qfz0q08aj0dwz74939mga9xa0n6ucnj5exada035cxvf7xckc8w46jsx5hsf5zfvmpj8afqegjv6l3p
+2026-11-13T06:40:31.077Z [zecret-engine] escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+2026-11-13T06:40:35.051Z [zecret-engine] escrow 7c502e56 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-13T06:41:08.482Z [zecret-timing] proof_fund 33428
+2026-11-13T06:41:08.482Z [zecret-engine] tick took 33419 ms
+2026-11-13T06:41:08.482Z [zecret-engine] escrow 7c502e56 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-13T06:41:08.838Z [zecret-engine] FUNDED the joint address in fully shielded tx 9653d50b155a7b433dea1824296813afe11c4639d2e8f0d58f2edac89e198621
+2026-11-13T06:41:17.942Z [zecret-engine] escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx 4kwjQ7CTss4UmSoJpRkcBejYUHnoFjG5tP4CtFwMHday
+2026-11-13T06:41:18.266Z [zecret-timing] wasm_load 100
+2026-11-13T06:41:18.348Z [zecret-timing] verify_maker 81
+2026-11-13T06:41:21.016Z [zecret-engine] lock final (block 1361); revealing a before the deadline 1794552534
+2026-11-13T06:41:23.389Z [zecret-engine] REVEALED a with claim, tx EWRiPUfeprfgB1Z9HtP3HFzMjSgptzUkdEVbzhbr1z35; waiting for the claim to be final
+2026-11-13T06:41:25.025Z [zecret-engine] claim is final (block 1367)
+2026-11-13T06:41:50.738Z [zecret-timing] proving_key_build 25689
+2026-11-13T06:41:50.855Z [zecret-engine] PAYOUT: 29988000000000000000000000 of wrap.test.near in intents.near, owned by bd5f86d5c99df515dd03f64931e2e474987505947611029dd7022f48ae51ea51
+2026-11-13T06:41:53.656Z [zecret-timing] direct_exit_relay 2747

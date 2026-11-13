@@ -1,0 +1,178 @@
+{
+  "scenario": "d_restore_fresh_profile",
+  "title": "The browser is lost after the funding; the recovery file saved before the payment is opened in a fresh browser profile; the engine reads the swap back from the chains (request, acceptance and funding already sent) and completes it without sending anything twice",
+  "checks": [
+    {
+      "check": "the restored swap completed",
+      "pass": true,
+      "detail": "done \"\""
+    },
+    {
+      "check": "the NEAR account received the price",
+      "pass": true,
+      "detail": "29988000000000000000000000"
+    },
+    {
+      "check": "the maker swept the one funding note with a (one request, one acceptance, one funding)",
+      "pass": true,
+      "detail": "Swept"
+    },
+    {
+      "check": "the restored swap shows exactly one request, one acceptance and one funding",
+      "pass": true,
+      "detail": "request,accept,funding"
+    },
+    {
+      "check": "the engine reconciled the early record with the chain",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "no second proof for request, acceptance or funding in the fresh browser",
+      "pass": true,
+      "detail": "wasm_load,verify_maker,proving_key_build,direct_exit_relay"
+    },
+    {
+      "check": "privacy audit: all 6 Zcash transactions (user payment, browser taker, maker) are fully shielded Ironwood, no transparent or Sapling parts",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "facts": {
+    "lost_at": "funding_sent",
+    "timings": {
+      "stages": [
+        {
+          "stage": "awaiting_deposit",
+          "at": "2026-11-13T06:49:18.813Z",
+          "secs": 158.8
+        },
+        {
+          "stage": "deposit_seen",
+          "at": "2026-11-13T06:51:57.626Z",
+          "secs": 0
+        },
+        {
+          "stage": "deposit_confirmed",
+          "at": "2026-11-13T06:51:57.628Z",
+          "secs": 0
+        },
+        {
+          "stage": "funding_sent",
+          "at": "2026-11-13T06:51:57.628Z",
+          "secs": 2.1
+        },
+        {
+          "stage": "request_sent",
+          "at": "2026-11-13T06:51:59.775Z",
+          "secs": 0
+        },
+        {
+          "stage": "quote_received",
+          "at": "2026-11-13T06:51:59.778Z",
+          "secs": 0
+        },
+        {
+          "stage": "accepted",
+          "at": "2026-11-13T06:51:59.780Z",
+          "secs": 0
+        },
+        {
+          "stage": "funding_sent",
+          "at": "2026-11-13T06:51:59.783Z",
+          "secs": 0
+        },
+        {
+          "stage": "ready",
+          "at": "2026-11-13T06:51:59.785Z",
+          "secs": 0
+        },
+        {
+          "stage": "committing",
+          "at": "2026-11-13T06:51:59.786Z",
+          "secs": 1.2
+        },
+        {
+          "stage": "claiming",
+          "at": "2026-11-13T06:52:01.018Z",
+          "secs": 4
+        },
+        {
+          "stage": "claimed",
+          "at": "2026-11-13T06:52:05.013Z",
+          "secs": 6
+        },
+        {
+          "stage": "paid_out",
+          "at": "2026-11-13T06:52:11.058Z",
+          "secs": 0
+        },
+        {
+          "stage": "exiting",
+          "at": "2026-11-13T06:52:11.060Z",
+          "secs": 5.7
+        },
+        {
+          "stage": "done",
+          "at": "2026-11-13T06:52:16.723Z",
+          "secs": null
+        }
+      ],
+      "engine": [
+        {
+          "what": "wasm_load",
+          "secs": 0.1
+        },
+        {
+          "what": "verify_maker",
+          "secs": 0
+        },
+        {
+          "what": "proving_key_build",
+          "secs": 21.9
+        },
+        {
+          "what": "direct_exit_relay",
+          "secs": 2.6
+        }
+      ],
+      "total_secs": 178
+    },
+    "timings_first": [
+      {
+        "what": "wasm_load",
+        "secs": 0.073
+      },
+      {
+        "what": "verify_maker",
+        "secs": 0.055
+      },
+      {
+        "what": "proving_key_build",
+        "secs": 23.684
+      },
+      {
+        "what": "proof_request",
+        "secs": 35.725
+      },
+      {
+        "what": "proof_accept",
+        "secs": 32.999
+      },
+      {
+        "what": "proof_fund",
+        "secs": 31.161
+      }
+    ],
+    "zcash_txs": [
+      "ff14a959d89c7475fb517316355430cdd736ba2342cd24bdf8c89c606a069ab7",
+      "2858087c48794a0f1b0a33aa9f312fde5cf82cca7cd6fa7ed4d7f3cebc05049b",
+      "e8c4d14ff8cfa3bc1612e0a6f7aa40256ae86033571817352cac794c5cccb722",
+      "4d76f5321a9c5983707023006753792f25bcf55511af3fb68c5bf817e86b6a38",
+      "e82609bb10fed5602aa4d3611787cb44f70f30def2f539b6fc5e5689a6e549cd",
+      "95756f000988ad3f23a34346bcd872a804cfdc78404486d5889ff4cbf691a452"
+    ]
+  },
+  "secs": 218,
+  "ran_at": "2026-11-13T06:52:17.363Z"
+}

@@ -711,7 +711,7 @@ export class RealEngine implements EngineBackend {
           await this.onBalance(e.zats);
           break;
         case 'activity':
-          this.provingSince = { what: e.label.includes('request') ? 'request' : e.label.includes('acceptance') ? 'accept' : e.label.includes('shared address') ? 'fund' : 'sweep', at: now() };
+          this.provingSince = { what: e.label.includes('request') ? 'request' : e.label.includes('acceptance') ? 'accept' : e.label.includes('back') ? 'sweep' : e.label.includes('shared address') ? 'fund' : 'other', at: now() };
           await this.activity({ kind: 'proving', label: e.label, startedAt: now(), estimatedMs: PROOF_MS });
           break;
         case 'zcash_tx': {

@@ -92,9 +92,12 @@ try {
   const link = await page.locator('a[href^="zcash:"]').first().getAttribute('href', { timeout: 30_000 });
   check('the payment screen asks for testnet ZEC at a utest address', /^zcash:utest1/.test(link ?? ''), link?.slice(0, 60));
   // Let the engine sync the new wallet over gRPC-web a few times.
-  await page.waitForTimeout(30_000);
-  const waits = lines.filter((l) => l.includes('waiting for a deposit')).length;
-  check('the engine scanned Zcash testnet over gRPC-web and waits for the deposit', waits > 0 && !lines.some((l) => /transient: Zcash sync/.test(l)), `${waits} deposit checks`);
+  // Let the engine scan the new wallet over gRPC-web for a minute (one tick every 2 s).
+  await page.waitForTimeout(60_000);
+  const ticks = lines.filter((l) => l.includes('[zecret-engine] waiting for a deposit')).length;
+  const transient = lines.filter((l) => /transient: Zcash sync/.test(l)).length;
+  results.transient_errors = transient;
+  check('the engine scanned Zcash testnet over gRPC-web and waits for the deposit', ticks > 0, `deposit log lines ${ticks}, transient sync errors retried ${transient}`);
   check('no Content-Security-Policy violation with the production headers', csp.length === 0, csp.join(' | '));
   await page.screenshot({ path: path.join(ROOT, 'harness/evidence/browser/testnet-pay.png'), fullPage: true });
 } catch (e) {

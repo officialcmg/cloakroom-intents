@@ -15,7 +15,8 @@ shielded Zcash today passes through a transparent address held by an exchange, a
 or an intent network, which publishes amounts and timing and can hold funds." Inside
 NEAR Intents, ZEC is the NEP-141 token `nep141:zec.omft.near` (1Click token list, read
 on 2026-11-13), not shielded ZEC. Zecret keeps the ZEC in the shielded pool for the whole
-swap, and no party can take both sides.
+swap. The protocol is designed so that neither party can take both sides; the open
+issues are listed under [Security](#security).
 
 Zecret builds on Cloakroom, the author's earlier protocol for shielded ZEC and ERC-20
 tokens on Base (built for ZECATHON). Cloakroom is the disclosed baseline at the git tag
@@ -38,9 +39,9 @@ Built at NEAR HACKATHON (2026-11-01 to 2026-11-14).
 
 ## Status
 
-This is the only status table in this file. It states what `STATUS.md` said at
-2026-11-13 06:xx UTC (STATUS-PLACEHOLDER) and what was re-run for this README. It never
-claims more than `STATUS.md`.
+This is the only status table in this file. It states what `STATUS.md` said when it was
+read at 2026-11-13 06:52 UTC (its header says "Updated: 2026-11-13 05:56 UTC"), and what
+was re-run for this README. It never claims more than `STATUS.md`.
 
 <!-- STATUS TABLE: update this table, and only this table, when STATUS.md changes. -->
 
@@ -50,7 +51,7 @@ claims more than `STATUS.md`.
 | Maker and taker as native programs | **Works locally.** 19 two-party scenarios pass on Zebra regtest and a NEAR sandbox: the happy path, the maker's refund, the punish path, and malicious-maker and malicious-taker cases. | [`harness/RESULTS.md`](harness/RESULTS.md) |
 | A swap on public test networks | **Done, once.** The native maker and taker swapped 0.1 testnet ZEC for 3 test USDC on Zcash testnet and NEAR testnet; 222 s to the taker's end. Happy path only. The browser taker was not used. | [`docs/TESTNET.md`](docs/TESTNET.md), [`testnet/EVIDENCE.json`](testnet/EVIDENCE.json) |
 | Website | **Works locally against a simulated engine.** Every screen and failure case runs in a browser with no money and no chains. Not hosted. | [`docs/WEB.md`](docs/WEB.md), [`web/README.md`](web/README.md) |
-| Taker engine in the browser | BROWSER-PLACEHOLDER | [`STATUS.md`](STATUS.md), [`harness/BROWSER_RESULTS.md`](harness/BROWSER_RESULTS.md) |
+| Taker engine in the browser | **In progress, not verified.** `STATUS.md` lists it under "Running" (package E, started 04:44 UTC): the Rust taker compiled to WebAssembly, in a Web Worker, wired into the website. Not yet checked by the main build session. The latest browser scenario report (06:47 UTC), written while the work runs, shows 4 of 5 scenarios passing. | [`STATUS.md`](STATUS.md), [`harness/BROWSER_RESULTS.md`](harness/BROWSER_RESULTS.md) |
 | Exit through NEAR Intents on mainnet | **Not verified.** The library is built and tested: against the live `intents.near` code in a sandbox, and against recorded answers of the live 1Click API. Quote, generate and submit answered without an API key. No exit with real funds was run. On testnet the exit is a direct withdrawal from a stand-in Verifier, because NEAR Intents has no testnet. | [`docs/INTENTS.md`](docs/INTENTS.md) |
 | Mainnet deployment | **Not done.** It needs the owner's funds and approval (about 6.6 NEAR). | [`docs/DEPLOY.md`](docs/DEPLOY.md) |
 | Security reviews | **Two reviews done.** Review 1 (escrow, Intents library): fixed. Review 2 (swap engines): maker side fixed; taker side open (F2-01 and F2-02 medium, F2-03 low). | [`docs/security/`](docs/security/) |
@@ -244,11 +245,27 @@ One scenario, the happy path:
 python3 -I harness/run.py s1
 ```
 
-You see, at the end:
+You see, at the end (amounts are in the stand-in token's base units):
 
 ```text
-S1-OUTPUT-PLACEHOLDER
+[harness 06:27:43]   PASS  taker's balance inside intents.near equals the price 30000000000000000000000000
+[harness 06:27:43]   PASS  escrow credit of the taker is zero after withdraw
+[harness 06:27:43]   PASS  maker paid exactly the price 30000000000000000000000000
+[harness 06:27:43]   PASS  maker ZEC: +lot + premium - quote fee (exact) 100040000
+[harness 06:27:43]   PASS  taker ZEC: -(lot + sweep fee) - premium - 3 tx fees (exact) 100090000
+[harness 06:27:43]   PASS  privacy audit: all 5 Zcash txs by maker/taker are fully shielded Ironwood v6 (no transparent in/out) []
+[harness 06:27:43]   PASS  R4: per-swap secrets erased by every party in a terminal stage (b, s_M, e_M / a, s_T, e_T; joint FVK) checked=['maker:Swept', 'taker:Completed'] not_terminal=[] bad=[]
+[harness 06:27:45] SUMMARY: s1 PASS (79s)
 ```
+
+Above these lines the runner prints the earlier checks of the same scenario: the taker
+reached `Completed`, the maker reached `Swept`, the escrow is `Claimed` at a final block,
+the taker's NEAR account is the hex of its key and was created by the stipend, and the
+taker sent `commit_claim` and `claim` itself. The step-by-step logs of both programs
+(encrypted request, quote, acceptance, `open`, stipend, funding, `set_ready`, claim,
+sweep, payout) are written to `harness/RESULTS.md` under `s1_happy`.
+
+Re-run for this README: yes; 1 min 48 s in total, of which the scenario took 79 s.
 
 The full set of 19 scenarios:
 
@@ -256,8 +273,19 @@ The full set of 19 scenarios:
 python3 -I harness/run.py
 ```
 
-You see one `SUMMARY` line with every scenario and `PASS`, and the report in
-`harness/RESULTS.md`, which the runner writes again. FULL-OUTPUT-PLACEHOLDER
+You see, at the end:
+
+```text
+[harness 06:51:28] SUMMARY: s1 PASS (75s), s2 PASS (46s), s3 PASS (70s), s4 PASS (79s), s5 PASS (28s), s6 PASS (67s), s8 PASS (67s), s9 PASS (70s), s10 PASS (78s), s11 PASS (66s), s12 PASS (328s), s15 PASS (16s), s16 PASS (32s), s17 PASS (31s), s18 PASS (68s), s19 PASS (53s), s20 PASS (53s), s21 PASS (65s), s7 PASS (75s)
+```
+
+The runner writes the report again to `harness/RESULTS.md`; the table at its top says
+what each scenario tests. `s12` is slow because it waits for cover traffic.
+
+Re-run for this README: yes, all 19 PASS, 23 min in total. One difference: another
+process was using the runner's NEAR sandbox network port (24667) at that time, so the
+full set ran from a copy of `harness/run.py` that differs only in that port (24767). The
+single-scenario command above ran from the file as it is.
 
 Notes:
 
@@ -393,7 +421,10 @@ time; `STATUS.md` records 34 browser tests passing.
 
 Against local chains, with the real engine in the browser: see
 [`web/README.md`](web/README.md), "Against the local network". It builds the WebAssembly
-engine and runs Zebra regtest, a NEAR sandbox and a maker on the build machine. WEB-LOCAL-PLACEHOLDER
+engine and runs Zebra regtest, a NEAR sandbox and a maker on the build machine.
+
+Not re-run for this README: the engine was still being built, and its builder was using
+the ports and the build output (`web/dist`) of that setup.
 
 ### 6. Run the Intents library tests
 

@@ -1,0 +1,3 @@
+# Recovery files hold (test) keys; screenshots are large. Both stay local.
+*/recovery.json
+*.png

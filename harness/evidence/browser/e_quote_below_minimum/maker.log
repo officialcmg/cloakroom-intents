@@ -1,0 +1,8 @@
+[maker 1794552333] relay for direct exits on http://127.0.0.1:3410/execute-intents
+[maker 1794552333] up: UA uregtest1rqfvw6cjfa99lvqxc4wq7vz3rkudyhk8cydx8z9pyvs45u2ej0s2zx9je9hr4psj6d4uanpa88ck6g7pm48wxwjnh5vqwfs5kyy2fvpa NEAR maker.test.near key ed25519:HhWzFDth5j7yXDKfddKujTPRqr4z6STdESrBvd3FYPwx
+[maker 1794552421] 72ffc5af RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794552421] 72ffc5af stage Quoting
+[maker 1794552421]  transient: requests wait for a quote, but the wallet has 0 spendable zats, less than a quote fee (10000)
+[maker 1794552421] {"type":"zcash_tx","swap":"72ffc5afe6896f670173a0c46aff9b8f","what":"quote","txid":"1a5247eccaae3355d25825f54008da3801aa7b3d1f9c93cb9ad66d70f24e118c"}
+[maker 1794552421] 72ffc5af encrypted QUOTE sent in tx 1a5247eccaae3355d25825f54008da3801aa7b3d1f9c93cb9ad66d70f24e118c
+[maker 1794552421] 72ffc5af stage Quoted
