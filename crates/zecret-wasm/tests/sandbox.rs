@@ -88,7 +88,7 @@ fn world() -> World {
     let root_id = key["account_id"].as_str().unwrap().to_string();
     let root = Signer::new(&root_id, NearKey::from_secret_str(key["secret_key"].as_str().unwrap()).unwrap());
     let dir = PathBuf::from(std::env::var("ZECRET_WASM_DIR").expect("ZECRET_WASM_DIR (source .tools/env.sh)"));
-    let mut make = |name: &str, code: Vec<u8>| {
+    let make = |name: &str, code: Vec<u8>| {
         let id = format!("{name}.{root_id}");
         let actions = vec![Action::CreateAccount, Action::Transfer { deposit: 50 * ONE_NEAR }, Action::AddFullAccessKey { public_key: root.key.public_bytes() }, Action::DeployContract { code }];
         ok(&format!("create {id}"), rpc.transact(&root, &id, actions).unwrap());

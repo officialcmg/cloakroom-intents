@@ -170,6 +170,10 @@ impl TakerSwap {
     }
 }
 
+/// A quote found among the received memos: the quote, its plaintext, the maker's
+/// ephemeral key and the height it was mined at.
+type FoundQuote = (Quote, Vec<u8>, [u8; 32], u64);
+
 pub const KEY_WALLET: &str = "wallet";
 pub const PREFIX_SWAP: &str = "swap/";
 
@@ -573,7 +577,7 @@ impl Taker {
 
     /// The maker's quote for this swap among the received memos: the quote, its plaintext,
     /// the maker's ephemeral key and the height it was mined at.
-    fn find_quote(&self, s: &TakerSwap) -> Result<Option<(Quote, Vec<u8>, [u8; 32], u64)>> {
+    fn find_quote(&self, s: &TakerSwap) -> Result<Option<FoundQuote>> {
         let rfq_id = s.rfq_bytes()?;
         let e_t = keys::scalar_from_bytes(&keys::unhex32(&s.e_t)?)?;
         let e_t_pub = keys::unhex32(&s.e_t_pub)?;

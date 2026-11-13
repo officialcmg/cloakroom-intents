@@ -29,6 +29,7 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 | E. Taker engine in the browser, wired into the website | 04:44 | `crates/zecret-wasm/`, `web/`, `harness/` |
+| K. README, submission notes, demo script | 05:58 | root `README.md`, `docs/README.md`, `docs/SUBMISSION.md`, `docs/DEMO_SCRIPT.md` |
 
 ## Next
 
