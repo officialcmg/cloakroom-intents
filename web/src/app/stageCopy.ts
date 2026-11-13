@@ -67,7 +67,7 @@ const STAGE_LABEL: Record<Stage, string> = {
   claiming: 'Claim step 2: key half revealed',
   claimed: 'USDC claimed',
   paid_out: 'USDC moved into NEAR Intents',
-  exiting: 'Delivery started',
+  exiting: 'Delivery: firm price, signature, submission',
   exit_retry: 'Delivery paused',
   done: 'Delivered',
   refunding: 'Refund being sent',
@@ -158,13 +158,40 @@ export function nowCopy(s: SwapState): NowCopy {
       return { title: 'The USDC is yours', body: `The claim is final. The escrow now moves ${usdc(s.quote?.usdc)} into NEAR Intents, under the key made in this browser.`, safety: 'safe', safetyText: SAFE_CLOSE };
     case 'paid_out':
       return {
-        title: `Getting a fresh price for ${dest.symbol}`,
-        body: `${usdc(s.payout?.usdc)} is in NEAR Intents under your key. This browser asks NEAR Intents for a current price and signs the delivery to your address on ${chain}.`,
+        title: 'Your USDC is in NEAR Intents',
+        body: `${usdc(s.payout?.usdc)} is in NEAR Intents under the key made in this browser. The delivery to ${chain} starts now.`,
         safety: 'safe',
         safetyText: 'You can close this tab. The USDC stays under your key, and the delivery starts when you come back.',
       };
-    case 'exiting':
-      return { title: `Delivering ${dest.symbol} on ${chain}`, body: `NEAR Intents is sending about ${s.exit?.amountOut ? destAmount(s, s.exit.amountOut) : dest.symbol} to your address.`, safety: 'safe', safetyText: 'You can close this tab. The delivery no longer needs it.' };
+    case 'exiting': {
+      const e = s.exit;
+      const min = e ? destAmount(s, e.approvedMinimum) : '';
+      const leaveOk = 'You can close this tab. The USDC stays under your key until the delivery is final.';
+      if (!e || e.phase === 'quoting') {
+        const busy = s.lastError?.code === 'EXIT_NO_QUOTE';
+        return {
+          title: `Getting a firm price for ${dest.symbol}`,
+          body: busy
+            ? 'NEAR Intents has no price for this pair at this moment. This happens for a few seconds now and then. The engine asks again in 20 seconds.'
+            : `This browser asks NEAR Intents for a firm price for your USDC. It goes ahead only at ${min} or more.`,
+          safety: 'safe',
+          safetyText: leaveOk,
+        };
+      }
+      if (e.phase === 'signing')
+        return {
+          title: 'Checking and signing the delivery',
+          body: `The engine checks the request from NEAR Intents: one transfer of ${usdc(e.amountIn)}, for at least ${destAmount(s, e.minAmountOut ?? e.approvedMinimum)} to your address. Then it signs with your key.`,
+          safety: 'safe',
+          safetyText: leaveOk,
+        };
+      return {
+        title: `Delivering ${dest.symbol} on ${chain}`,
+        body: `NEAR Intents is sending about ${e.amountOut ? destAmount(s, e.amountOut) : dest.symbol} to your address${e.timeEstimateS ? `. It estimates ${e.timeEstimateS} seconds` : ''}. If it cannot deliver at least ${destAmount(s, e.minAmountOut ?? e.approvedMinimum)}, the USDC comes back to your key.`,
+        safety: 'safe',
+        safetyText: 'You can close this tab. The signed delivery no longer needs it.',
+      };
+    }
     case 'exit_retry':
       return { title: 'Delivery paused. Your USDC is safe.', body: '', safety: 'action', safetyText: 'Nothing moves until you choose.' };
     case 'done':

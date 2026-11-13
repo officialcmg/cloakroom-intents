@@ -33,13 +33,13 @@ export const STAGES = [
   'claiming', // claim(a) sent after the commit is final
   'claimed', // the claim is final; the USDC is the user's
   'paid_out', // the escrow paid the USDC into NEAR Intents under the user's NEAR key
-  'exiting', // the signed exit intent was submitted
+  'exiting', // the exit runs; exit.phase says where: quoting, signing, submitted, delivering
   'done', // the destination token arrived
   'refunding', // ZEC is being sent back to the return address
   'refunded', // ZEC arrived back at the return address
   'recovering', // the maker refunded the escrow; the engine takes the ZEC back from the shared address
   'recovered', // the ZEC is back in the temporary wallet
-  'exit_retry', // the exit failed or its price fell below the minimum; the USDC is safe; waiting for a decision
+  'exit_retry', // the exit failed, was refunded, or its price fell below the minimum; the USDC is safe; waiting for a decision
 ] as const;
 
 export type Stage = (typeof STAGES)[number];
@@ -62,9 +62,11 @@ export const ERROR_CODES = [
   'QUOTE_BELOW_MINIMUM', // the maker's firm quote was below params.minUsdc
   'MAKER_TIMEOUT', // the maker did not answer the request in time
   'MAKER_REFUNDED', // the maker refunded the escrow instead of setting it ready
-  'EXIT_FAILED', // the exit through NEAR Intents did not complete
-  'EXIT_BELOW_MINIMUM', // the exit quote is below params.minDestinationAmount
-  'EXIT_QUOTE_EXPIRED', // the exit quote's deadline passed
+  'EXIT_FAILED', // 1Click reported FAILED or REFUNDED; the USDC is back under the user's key
+  'EXIT_BELOW_MINIMUM', // the firm exit quote's minAmountOut is below the approved minimum
+  'EXIT_NO_QUOTE', // 1Click answered "Quoting for this pair is not available"; the engine retries by itself (transient)
+  'EXIT_AMOUNT_TOO_LOW', // 1Click answered "Amount is too low for bridge"; another destination is needed
+  'EXIT_REFUSED', // the engine's safety check refused the quote or the generated payload; nothing was signed
   'NETWORK', // a server could not be reached; the engine retries by itself
   'STORAGE', // the browser refused to store the swap
   'INTERNAL', // a bug; the message has details
@@ -105,11 +107,11 @@ export interface SimOptions {
   fail?: SimFailure;
   /** Busy-loop the worker during simulated proofs, as the real prover does. */
   burnCpu?: boolean;
-  /** Stop when the swap reaches this stage, until `sim.skip()`. For demos and screenshots. */
-  pauseAt?: Stage;
+  /** Stop when the swap reaches this stage (or exit phase, as "exiting.delivering"), until `sim.skip()`. For demos and screenshots. */
+  pauseAt?: Stage | `exiting.${ExitPhase}`;
 }
 
-export const SIM_FAILURES = ['quote-low', 'no-quote', 'maker-quiet', 'maker-gone', 'exit-fail'] as const;
+export const SIM_FAILURES = ['quote-low', 'no-quote', 'maker-quiet', 'maker-gone', 'exit-busy', 'exit-price', 'exit-fail'] as const;
 export type SimFailure = (typeof SIM_FAILURES)[number];
 
 export interface EngineConfig {
@@ -209,11 +211,20 @@ export interface SwapState {
   payout?: { usdc: string; intentsAccount: string };
   exit?: {
     attempts: number;
+    phase: ExitPhase;
+    /** The minimum the exit may deliver: params.minDestinationAmount, or a lower one the user accepted. */
+    approvedMinimum: string;
+    /** The firm 1Click quote of the current attempt. */
     amountIn?: string;
     amountOut?: string;
     minAmountOut?: string;
     depositAddress?: string;
-    /** A quote the engine refused (below minimum or expired), offered to the user. */
+    timeEstimateS?: number;
+    /** Fee in the quote (1Click appFees), in basis points. */
+    feeBps?: number;
+    /** Set after submit-intent. */
+    intentHash?: string;
+    /** A firm quote below the approved minimum, offered to the user. */
     offered?: { amountOut: string; minAmountOut: string };
     deliveredAmount?: string;
   };
@@ -254,20 +265,19 @@ export interface RecoveryFile {
   text: string;
 }
 
-export interface ExitQuoteInput {
-  amountIn: string;
-  amountOut: string;
-  minAmountOut: string;
-  /** Required by the real engine: the 1Click deposit address that the signed transfer pays. */
-  depositAddress?: string;
-  /** ISO time after which 1Click no longer honours the quote. */
-  deadline: string;
-}
+/**
+ * The exit, inside the `exiting` stage. The engine gets a firm 1Click quote, checks it and
+ * the generated payload against what the user approved, signs, submits and polls the
+ * status (docs/INTENTS.md §2 and §3).
+ */
+export type ExitPhase = 'quoting' | 'signing' | 'submitted' | 'delivering' | 'done' | 'refunded' | 'failed';
 
 export interface ExitRequest {
-  quote: ExitQuoteInput;
-  /** The user saw the lower amount and agreed to it. */
-  acceptBelowMinimum?: boolean;
+  /**
+   * The user saw `exit.offered` and accepts its minAmountOut as the new minimum
+   * (destination base units). It must not be above the minimum it replaces.
+   */
+  acceptMinimum?: string;
 }
 
 // ---------------------------------------------------------------- the interface
@@ -287,8 +297,11 @@ export interface Engine {
   exportRecovery(): Promise<RecoveryFile>;
   /** Restores a swap from a recovery file and continues it. */
   importRecovery(text: string): Promise<SwapState>;
-  /** Signs and submits the exit for the given 1Click quote. Allowed in paid_out and exit_retry. */
-  exit(request: ExitRequest): Promise<SwapState>;
+  /**
+   * Runs the exit again from a fresh firm quote. The engine starts the first exit by itself
+   * when the USDC is paid out; the page calls this only from exit_retry.
+   */
+  exit(request?: ExitRequest): Promise<SwapState>;
   /** Deletes the stored swap. Allowed before any payment arrives, and after done or refunded. */
   forget(): Promise<void>;
   dispose(): void;

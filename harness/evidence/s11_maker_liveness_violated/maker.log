@@ -1,0 +1,25 @@
+
+===== start maker --vanish-at Opened =====
+[maker 1794541418] up: UA uregtest1gpaws67dhrwn2ldy9wvck332a8sg5syxldgec0l3jdjucnesmhusqfr3c5ulzs869vh7l7zrrfe6ufkufur5lc2jz300dppjh5vy953w NEAR maker.test.near key ed25519:AZYrGBDkJ1CYaevJBu17PuJFkRgPPZ4SNAffuMvZYqPK
+[maker 1794541429] 0487ae11 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794541429] 0487ae11 stage Quoting
+[maker 1794541429] {"type":"zcash_tx","swap":"0487ae11b14e99c5c3024079f2e682e9","what":"quote","txid":"a3c2df55e254772484c4bdc0f0d7d7faac379a8efb07abe45c190b929bf602a4"}
+[maker 1794541429] 0487ae11 encrypted QUOTE sent in tx a3c2df55e254772484c4bdc0f0d7d7faac379a8efb07abe45c190b929bf602a4
+[maker 1794541429] 0487ae11 stage Quoted
+[maker 1794541438] 0487ae11 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id de5f3ea6
+[maker 1794541438] 0487ae11 stage Opening
+[maker 1794541438] {"type":"near_tx","swap":"0487ae11b14e99c5c3024079f2e682e9","what":"open","hash":"2CPiLRu16oCESvBgLfbuBQ5erzLFDuCLDDYLrBEzaLTC"}
+[maker 1794541438] 0487ae11 escrow OPEN id de5f3ea6cc17028a8b5862b5c4196c68a3d5f4ef96c030a06e20863cd2c5fc67 amount 30000000000000000000000000 t0=1794542465 t1=1794542525 t2=1794542585 W=45, tx 2CPiLRu16oCESvBgLfbuBQ5erzLFDuCLDDYLrBEzaLTC
+[maker 1794541438] {"type":"near_tx","swap":"0487ae11b14e99c5c3024079f2e682e9","what":"stipend","hash":"QtkVrkWtEzEC8J73N9U8m1jZFHAhse1fk8Lwss1j2Ny"}
+[maker 1794541438] 0487ae11 STIPEND of 30000000000000000000000 yoctoNEAR sent to 9c8ce14aa8df708399f5001f735dcfd5283cbd9f7409a132c5a2e33dd5ea0945, tx QtkVrkWtEzEC8J73N9U8m1jZFHAhse1fk8Lwss1j2Ny
+[maker 1794541438] 0487ae11 stage Opened
+[maker 1794541438] VANISH at stage Opened (process exits; state is stored)
+
+===== start maker --exit-after 1 =====
+[maker 1794541458] up: UA uregtest1gpaws67dhrwn2ldy9wvck332a8sg5syxldgec0l3jdjucnesmhusqfr3c5ulzs869vh7l7zrrfe6ufkufur5lc2jz300dppjh5vy953w NEAR maker.test.near key ed25519:AZYrGBDkJ1CYaevJBu17PuJFkRgPPZ4SNAffuMvZYqPK
+[maker 1794541462] {"type":"near_tx","swap":"0487ae11b14e99c5c3024079f2e682e9","what":"withdraw","hash":"HbGw8PjygNH9hpCSMYEYLmwK6ucPg4NxpaVUXmSBhhQJ"}
+[maker 1794541462] 0487ae11 withdraw for the taker into intents.near, tx HbGw8PjygNH9hpCSMYEYLmwK6ucPg4NxpaVUXmSBhhQJ (executed)
+[maker 1794541462] 0487ae11 stage Aborted
+[maker 1794541462] 0487ae11 CLAIMED via the punish path, but no joint note exists: the maker was offline for all of [t1, t2) (assumption L_M violated) and lost the escrowed tokens
+[maker 1794541462] 0487ae11 DONE Aborted
+[maker 1794541462] 1 swap(s) terminal; exiting

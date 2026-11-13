@@ -82,11 +82,10 @@ impl Store for FileStore {
         if let Ok(rd) = fs::read_dir(&d) {
             for e in rd {
                 let name = e?.file_name().to_string_lossy().to_string();
-                if let Some(k) = name.strip_suffix(".json") {
-                    if k.starts_with(stem) {
+                if let Some(k) = name.strip_suffix(".json")
+                    && k.starts_with(stem) {
                         out.push(if sub.is_empty() { k.to_string() } else { format!("{sub}/{k}") });
                     }
-                }
             }
         }
         out.sort();

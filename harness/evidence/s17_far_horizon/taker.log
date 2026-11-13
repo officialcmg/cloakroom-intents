@@ -1,0 +1,14 @@
+
+===== start taker --zats 100000000 =====
+[taker 1794541517] new swap 7fc94a95 for 100000000 zats; NEAR account 3945e8fbc6e5bb68b3e831e0f2f4c976c68fdea0a6d65e139a17c5dc0120d487; wallet uregtest1828284rltrracfj9uc5zj34kf9g8zun3acjh5z2tkkvu5xrqjzatukzksttyuy7unu76mlpghlct307sk0cefw6dmfvy56563q89xdre
+[taker 1794541517] 7fc94a95 stage WaitingDeposit
+[taker 1794541521] balance 208333333 zats
+[taker 1794541522] balance 0 zats
+[taker 1794541522] {"type":"zcash_tx","swap":"7fc94a95a3b8662469e113cb9e7cd6b4","what":"rfq","txid":"0fc52a45ccdc6f17065159196667804e52781c5e9282c85901adfd54c55d56b7"}
+[taker 1794541522] 7fc94a95 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 0fc52a45ccdc6f17065159196667804e52781c5e9282c85901adfd54c55d56b7
+[taker 1794541522] 7fc94a95 stage RfqSent
+[taker 1794541523] balance 208323333 zats
+[taker 1794541529] 7fc94a95 ABORT: QUOTE REJECTED: deadline horizon t2 - open = 4294967475s above the taker's limit of 172800s; nothing was funded
+[taker 1794541529] 7fc94a95 stage Aborted
+[taker 1794541529] 7fc94a95 DONE Aborted
+[taker 1794541529] finished: Aborted

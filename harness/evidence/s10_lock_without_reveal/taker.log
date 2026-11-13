@@ -1,0 +1,42 @@
+
+===== start taker --zats 100000000 --vanish-at Committed =====
+[taker 1794541345] new swap ac15ccee for 100000000 zats; NEAR account c1204ad5d13eea2e8476c04fc13184e749452e17566384353a75d8c0b8df84a7; wallet uregtest1wcm4kqwu9dxx7ya0xthx4ypv572jhsj4rsj0u6gqdgwx4glan9v9c7ys0s3yrpttwdnw9gzjqh4rntrjm2etlzrhsj6xep2srspfvt6w
+[taker 1794541345] ac15ccee stage WaitingDeposit
+[taker 1794541350] balance 208333333 zats
+[taker 1794541350] balance 0 zats
+[taker 1794541350] {"type":"zcash_tx","swap":"ac15ccee4539a2702034068a5c197b60","what":"rfq","txid":"63aa791422e329af579e5aabf94bb026a900ba8b0d7d749647c44bab76988ad5"}
+[taker 1794541350] ac15ccee encrypted RFQ for 100000000 zats sent to the maker in shielded tx 63aa791422e329af579e5aabf94bb026a900ba8b0d7d749647c44bab76988ad5
+[taker 1794541350] ac15ccee stage RfqSent
+[taker 1794541352] balance 208323333 zats
+[taker 1794541358] ac15ccee QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+[taker 1794541358] {"type":"quote","swap":"ac15ccee4539a2702034068a5c197b60","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest1rd6aallamlk7nednq5avgx5hyn6ytn7vfzjqp837z95ajnssql6etqvszur86zgjca66upjgttcpwg86wlcqja0y0lt82pxxtvqlmykk"}
+[taker 1794541362] balance 0 zats
+[taker 1794541362] {"type":"zcash_tx","swap":"ac15ccee4539a2702034068a5c197b60","what":"accept","txid":"fd9d7adde33fe15ea8a170e7bc204c6bad1bdeec8d4722863ed8a7742a19b45d"}
+[taker 1794541362] ac15ccee encrypted ACCEPT with 50000 zats premium sent in tx fd9d7adde33fe15ea8a170e7bc204c6bad1bdeec8d4722863ed8a7742a19b45d; joint address uregtest1rd6aallamlk7nednq5avgx5hyn6ytn7vfzjqp837z95ajnssql6etqvszur86zgjca66upjgttcpwg86wlcqja0y0lt82pxxtvqlmykk
+[taker 1794541362] ac15ccee stage Accepted
+[taker 1794541363] balance 208263333 zats
+[taker 1794541367] ac15ccee escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+[taker 1794541371] ac15ccee escrow c1da5328 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794541371] {"type":"escrow_verified","swap":"ac15ccee4539a2702034068a5c197b60","escrow_id":"c1da532870225eba2d1be5c6a39202e8805f700322abdd8cad84fbd0300019bf","t0":1794542352,"t1":1794542412,"t2":1794542472}
+[taker 1794541372] balance 0 zats
+[taker 1794541372] {"type":"zcash_tx","swap":"ac15ccee4539a2702034068a5c197b60","what":"fund","txid":"382bde720d114f9f7ba7986c0159f2874e90b87d18ff9bd1de43fb54e7d78839"}
+[taker 1794541372] ac15ccee FUNDED the joint address in fully shielded tx 382bde720d114f9f7ba7986c0159f2874e90b87d18ff9bd1de43fb54e7d78839
+[taker 1794541372] ac15ccee stage Funded
+[taker 1794541373] balance 108243333 zats
+[taker 1794541381] {"type":"near_tx","swap":"ac15ccee4539a2702034068a5c197b60","what":"commit_claim","hash":"6HA88uSY2V1A9MK87uzJAuEqvQbLKTv38q21HRsLFgnj"}
+[taker 1794541381] ac15ccee escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx 6HA88uSY2V1A9MK87uzJAuEqvQbLKTv38q21HRsLFgnj
+[taker 1794541381] ac15ccee stage Committed
+[taker 1794541381] VANISH at stage Committed (process exits; state is stored)
+
+===== start taker  =====
+[taker 1794541395] resuming swap ac15ccee at stage Committed
+[taker 1794541400] balance 108243333 zats
+[taker 1794541400] ac15ccee maker REFUNDED: read b from the escrow
+[taker 1794541400] {"type":"zcash_tx","swap":"ac15ccee4539a2702034068a5c197b60","what":"sweep","txid":"4a10afecb67059efd704093fb45406d9cc35d6e12c6da5cf2f4705d2e7985ccf"}
+[taker 1794541400] ac15ccee swept the joint note back with (a+b), tx 4a10afecb67059efd704093fb45406d9cc35d6e12c6da5cf2f4705d2e7985ccf; waiting for 2 confirmations
+[taker 1794541400] ac15ccee stage Recovering
+[taker 1794541402] balance 208243333 zats
+[taker 1794541404] ac15ccee recovery sweep 4a10afecb67059efd704093fb45406d9cc35d6e12c6da5cf2f4705d2e7985ccf has 2 confirmations (k_Z = 2); done
+[taker 1794541404] ac15ccee stage Recovered
+[taker 1794541404] ac15ccee DONE Recovered
+[taker 1794541404] finished: Recovered

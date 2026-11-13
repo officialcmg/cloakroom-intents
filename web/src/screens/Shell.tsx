@@ -63,14 +63,14 @@ export function Footer() {
 export function DemoBanner({ settings, init, swap }: { settings: PageSettings; init?: InitStatus; swap: SwapState | null }) {
   if (init?.engine !== 'simulated') return null;
   const speed = settings.sim.speed;
-  const fail = FAILURES.find((f) => f.id === (settings.sim.fail ?? settings.pageFailure));
+  const fail = FAILURES.find((f) => f.id === settings.sim.fail);
   return (
     <div className="demo-banner" role="note">
       <Icon name="info" size={16} />
       <span>
         Demo with a simulated engine: no real funds move.
         {speed === 1 ? ' Real-time: a swap takes about 10 minutes.' : ` Running ${speed}× faster than real time.`}
-        {fail ? ` Failure on: ${fail.label.toLowerCase()}.` : ''}
+        {fail ? ` Failure switched on: ${fail.label}.` : ''}
       </span>
       {speed === 1 && (
         <a className="demo-banner-link" href={settingsUrl({ speed: 20 })}>
@@ -86,7 +86,7 @@ export function DemoBanner({ settings, init, swap }: { settings: PageSettings; i
 export function DevPanel({ settings, swap }: { settings: PageSettings; swap: SwapState | null }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [msg, setMsg] = useState<string>();
-  const current = settings.sim.fail ?? settings.pageFailure ?? '';
+  const current = settings.sim.fail ?? '';
   const act = async (fn: () => Promise<unknown>, done: string) => {
     try {
       await fn();

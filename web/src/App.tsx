@@ -72,8 +72,7 @@ export default function App() {
   const app = useApp();
   const [view, setView] = useState<View>('auto');
   const swap = app.swap;
-  const simulated = app.init?.engine === 'simulated';
-  const exit = useExit(appStore.engine, swap, simulated, app.settings.pageFailure);
+  const exit = useExit(appStore.engine, swap);
   const main = useRef<HTMLElement>(null);
 
   useDocumentTitle(swap);

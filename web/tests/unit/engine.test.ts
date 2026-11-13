@@ -135,9 +135,6 @@ async function started(fail?: SimFailure, store?: KvStore) {
   return { ...p, t: tracker(p.client) };
 }
 
-const exitQuote = (usdc: string, min = '11500000000') => ({
-  quote: { amountIn: usdc, amountOut: '11600000000', minAmountOut: min, deadline: new Date(Date.now() + 600_000).toISOString() },
-});
 
 describe('simulated engine', () => {
   it('runs the full journey and ends with the delivery', async () => {
@@ -150,9 +147,15 @@ describe('simulated engine', () => {
     const paid = await t.until(at('paid_out'));
     expect(paid.payout?.usdc).toBe('937838000');
     expect(paid.escrow?.stipendYocto).toBe('30000000000000000000000');
-    await client.exit(exitQuote('937838000'));
+    // The engine runs the exit by itself: firm price, check and sign, submit, deliver.
+    const phases = new Set<string>();
+    client.subscribe((e) => {
+      if (e.type === 'stage' && e.patch?.exit?.phase) phases.add(e.patch.exit.phase);
+    });
     const done = await t.until(at('done'));
-    expect(done.exit?.deliveredAmount).toBe('11600000000');
+    expect([...phases]).toEqual(['quoting', 'signing', 'submitted', 'delivering', 'done']);
+    expect(done.exit).toMatchObject({ deliveredAmount: '11600000000', minAmountOut: '11484000000', approvedMinimum: PARAMS.minDestinationAmount, feeBps: 20 });
+    expect(done.exit?.depositAddress).toMatch(/^[0-9a-f]{64}$/);
     expect(done.history.map((h) => h.stage)).toEqual([
       'awaiting_deposit', 'deposit_seen', 'deposit_confirmed', 'request_sent', 'quote_received', 'accepted', 'escrow_open',
       'funding_sent', 'funding_confirming', 'ready', 'committing', 'claiming', 'claimed', 'paid_out', 'exiting', 'done',
@@ -174,7 +177,7 @@ describe('simulated engine', () => {
     expect(await fail(client.exportRecovery())).toBe('NO_SWAP');
     await client.createSwap(PARAMS);
     expect(await fail(client.createSwap(PARAMS))).toBe('SWAP_EXISTS');
-    expect(await fail(client.exit(exitQuote('1')))).toBe('WRONG_STAGE');
+    expect(await fail(client.exit())).toBe('WRONG_STAGE');
     expect(await fail(client.init({ network: 'mainnet', directory: { ...sample, network: 'mainnet' } }))).toBe('INIT_FAILED');
     close();
   });
@@ -238,34 +241,44 @@ describe('simulated engine', () => {
     close();
   }, 30000);
 
-  it('stops at exit_retry when the delivery fails, and succeeds on retry', async () => {
+  it('stops at exit_retry when the delivery is refunded, and succeeds on retry', async () => {
     const { client, close, t } = await started('exit-fail');
     await client.createSwap(PARAMS);
     await client.sim.pay();
-    await t.until(at('paid_out'));
-    await client.exit(exitQuote('937838000'));
     const r = await t.until(at('exit_retry'));
     expect(r.lastError?.code).toBe('EXIT_FAILED');
-    await client.exit(exitQuote('937838000'));
+    expect(r.exit?.phase).toBe('refunded');
+    expect(r.needs).toBe('exit_decision');
+    await client.exit();
     const done = await t.until(at('done'));
     expect(done.exit?.attempts).toBe(2);
     close();
   });
 
-  it('asks before delivering below the minimum, and checks the quote', async () => {
-    const { client, close, t } = await started();
+  it('retries by itself when NEAR Intents has no price for a moment', async () => {
+    const { client, close, t } = await started('exit-busy');
     await client.createSwap(PARAMS);
     await client.sim.pay();
-    await t.until(at('paid_out'));
-    const low = exitQuote('937838000', '10000000000');
-    const r = await client.exit(low);
-    expect(r.stage).toBe('exit_retry');
+    const busy = await t.until((s) => s.stage === 'exiting' && s.lastError?.code === 'EXIT_NO_QUOTE');
+    expect(busy.lastError?.transient).toBe(true);
+    const done = await t.until(at('done'));
+    expect(done.lastError).toBeNull();
+    close();
+  });
+
+  it('asks before delivering below the minimum, and only lets the user lower it', async () => {
+    const { client, close, t } = await started('exit-price');
+    await client.createSwap(PARAMS);
+    await client.sim.pay();
+    const r = await t.until(at('exit_retry'));
     expect(r.lastError?.code).toBe('EXIT_BELOW_MINIMUM');
-    expect(r.exit?.offered?.minAmountOut).toBe('10000000000');
-    await expect(client.exit({ quote: { ...low.quote, amountIn: '5' } })).rejects.toMatchObject({ code: 'INVALID_PARAMS' });
-    await expect(client.exit({ quote: { ...low.quote, deadline: new Date(Date.now() - 1).toISOString() } })).rejects.toMatchObject({ code: 'EXIT_QUOTE_EXPIRED' });
-    await client.exit({ ...low, acceptBelowMinimum: true });
-    await t.until(at('done'));
+    const offered = r.exit!.offered!;
+    expect(BigInt(offered.minAmountOut) < BigInt(PARAMS.minDestinationAmount)).toBe(true);
+    await expect(client.exit({ acceptMinimum: '99999999999999' })).rejects.toMatchObject({ code: 'INVALID_PARAMS' });
+    await expect(client.exit({ acceptMinimum: 'x' })).rejects.toMatchObject({ code: 'INVALID_PARAMS' });
+    await client.exit({ acceptMinimum: offered.minAmountOut });
+    const done = await t.until(at('done'));
+    expect(done.exit?.approvedMinimum).toBe(offered.minAmountOut);
     close();
   });
 
@@ -312,8 +325,6 @@ describe('simulated engine', () => {
     await client.sim.pay();
     await t.until(at('deposit_seen'));
     await expect(client.forget()).rejects.toMatchObject({ code: 'WRONG_STAGE' });
-    await t.until(at('paid_out'));
-    await client.exit(exitQuote('937838000'));
     await t.until(at('done'));
     await client.forget();
     expect(await client.getState()).toBeNull();

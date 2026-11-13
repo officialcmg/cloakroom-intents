@@ -1,0 +1,23 @@
+
+===== start maker --exit-after 1 =====
+[maker 1794541543] up: UA uregtest1kys0qvktx3uhd8s7l8c2kvsnmeg5qsggpw7ycwmclh8zsv4axm4xjakmk7nuvau4hjac8qy5ansd22v36fa2wqx8n9qs7f5m4vh9qysq NEAR maker.test.near key ed25519:AZYrGBDkJ1CYaevJBu17PuJFkRgPPZ4SNAffuMvZYqPK
+[maker 1794541554] 79e947b0 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794541554] 79e947b0 stage Quoting
+[maker 1794541555] {"type":"zcash_tx","swap":"79e947b0ac0619ac301b5e9c192977f3","what":"quote","txid":"79d92a16fcd66ffc967269288dd447f3751fc141894f62edc2a78c7f360676c6"}
+[maker 1794541555] 79e947b0 encrypted QUOTE sent in tx 79d92a16fcd66ffc967269288dd447f3751fc141894f62edc2a78c7f360676c6
+[maker 1794541555] 79e947b0 stage Quoted
+[maker 1794541565] 79e947b0 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 24d49e1f
+[maker 1794541565] 79e947b0 stage Opening
+[maker 1794541565] {"type":"near_tx","swap":"79e947b0ac0619ac301b5e9c192977f3","what":"open","hash":"eeT19Tqm9TyJ9ebdz6psU768vFFmSx8SdrSMPYB48GY"}
+[maker 1794541565] 79e947b0 escrow OPEN id 24d49e1f0545d2096dca9373cc124268beee1da29298b974be616e5816f95a2e amount 30000000000000000000000000 t0=1794542818 t1=1794542878 t2=1794542938 W=45, tx eeT19Tqm9TyJ9ebdz6psU768vFFmSx8SdrSMPYB48GY
+[maker 1794541565] {"type":"near_tx","swap":"79e947b0ac0619ac301b5e9c192977f3","what":"stipend","hash":"Bspz7hcB73ZjcMFnptUAx9bJAQ3bcN9r6xNZvH4LyAb9"}
+[maker 1794541565] 79e947b0 STIPEND of 30000000000000000000000 yoctoNEAR sent to fe81910fbff55aeecc9c0d7735bf57d39781b0b8fba534410e21136295bbe2e6, tx Bspz7hcB73ZjcMFnptUAx9bJAQ3bcN9r6xNZvH4LyAb9
+[maker 1794541565] 79e947b0 stage Opened
+[maker 1794541574] 79e947b0 no funding before t0; refunding
+[maker 1794541574] 79e947b0 stage RefundSent
+[maker 1794541577] {"type":"near_tx","swap":"79e947b0ac0619ac301b5e9c192977f3","what":"refund","hash":"9QPJhNPvWTZDSH3ZusGsEZE4KGJpV46AcgUxMtNKppzm"}
+[maker 1794541577] 79e947b0 REFUND publishes b, tx 9QPJhNPvWTZDSH3ZusGsEZE4KGJpV46AcgUxMtNKppzm (executed); waiting for it to be final
+[maker 1794541580] 79e947b0 refund is final (block <= 2117); tokens withdrawn, tx 5PuMjCRNBJ2zD6NGx4m5c7MSb86nMUSaWPTLFsJkRwtE
+[maker 1794541580] 79e947b0 stage Refunded
+[maker 1794541580] 79e947b0 DONE Refunded
+[maker 1794541580] 1 swap(s) terminal; exiting

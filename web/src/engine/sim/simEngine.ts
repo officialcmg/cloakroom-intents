@@ -59,7 +59,16 @@ interface LocalRecord {
 
 interface ChainRecord {
   state: SwapState;
-  sim: { speed: number; fail?: (typeof SIM_FAILURES)[number]; paidAt?: number; exitFailures: number; leftoverSent?: boolean; exitEstimateMs?: number };
+  sim: {
+    speed: number;
+    fail?: (typeof SIM_FAILURES)[number];
+    paidAt?: number;
+    exitFailures: number;
+    leftoverSent?: boolean;
+    /** When the exit entered its current phase. */
+    exitPhaseAt?: number;
+    exitBusyShown?: boolean;
+  };
 }
 
 interface Step {
@@ -185,7 +194,7 @@ export class SimEngine implements EngineBackend {
     const sim = config.sim ?? { speed: 1 };
     if (!(sim.speed > 0 && sim.speed <= 10_000)) throw new EngineError('INVALID_PARAMS', 'sim.speed must be between 0 and 10000.');
     if (sim.fail && !SIM_FAILURES.includes(sim.fail)) throw new EngineError('INVALID_PARAMS', `Unknown failure ${sim.fail}.`);
-    if (sim.pauseAt && !STAGES.includes(sim.pauseAt)) throw new EngineError('INVALID_PARAMS', `Unknown stage ${sim.pauseAt}.`);
+    if (sim.pauseAt && !STAGES.includes(sim.pauseAt as Stage) && !/^exiting\.(quoting|signing|submitted|delivering)$/.test(sim.pauseAt)) throw new EngineError('INVALID_PARAMS', `Unknown stage ${sim.pauseAt}.`);
     this.terms = terms;
     this.network = config.network;
     this.options = sim;
@@ -368,48 +377,40 @@ export class SimEngine implements EngineBackend {
 
   // ------------------------------------------------------------ exit
 
-  async exit(request: ExitRequest): Promise<SwapState> {
+  async exit(request: ExitRequest = {}): Promise<SwapState> {
     const s = this.requireSwap();
-    if (s.stage !== 'paid_out' && s.stage !== 'exit_retry') throw new EngineError('WRONG_STAGE', 'The exit runs after the USDC is paid out.');
-    const q = request?.quote;
-    if (!q || !isUint(q.amountIn) || !isUint(q.amountOut) || !isUint(q.minAmountOut) || typeof q.deadline !== 'string')
-      throw new EngineError('INVALID_PARAMS', 'The exit quote is incomplete.');
-    if (q.amountIn !== s.payout?.usdc) throw new EngineError('INVALID_PARAMS', 'The exit quote must spend exactly the USDC that was paid out.');
-    const now = this.now();
-    if (Date.parse(q.deadline) <= now) throw new EngineError('EXIT_QUOTE_EXPIRED', 'The price expired. Get a new one.');
-    const below = BigInt(q.minAmountOut) < BigInt(s.params.minDestinationAmount);
-    if (below && !request.acceptBelowMinimum) {
-      await this.emit({
-        type: 'stage',
-        swapId: s.id,
-        stage: 'exit_retry',
-        at: now,
-        patch: {
-          exit: { offered: { amountOut: q.amountOut, minAmountOut: q.minAmountOut } },
-          needs: 'exit_decision',
-          lastError: { code: 'EXIT_BELOW_MINIMUM', message: 'The current price for the delivery is below your minimum.' },
-        },
-      });
-      return this.state!;
+    if (s.stage !== 'exit_retry') {
+      if (s.stage === 'paid_out' || s.stage === 'exiting') return s; // the engine runs it already
+      throw new EngineError('WRONG_STAGE', 'The exit runs after the USDC is paid out.');
     }
-    const attempts = (s.exit?.attempts ?? 0) + 1;
-    const tx = this.tx(`exit-${attempts}`, 'near', 'Exit intent signed and submitted', now);
-    this.chain!.sim.exitEstimateMs = undefined;
+    let approvedMinimum = s.exit?.approvedMinimum ?? s.params.minDestinationAmount;
+    if (request.acceptMinimum !== undefined) {
+      if (!isUint(request.acceptMinimum) || BigInt(request.acceptMinimum) <= 0n) throw new EngineError('INVALID_PARAMS', 'acceptMinimum must be a positive whole number.');
+      if (BigInt(request.acceptMinimum) > BigInt(approvedMinimum)) throw new EngineError('INVALID_PARAMS', 'acceptMinimum may only lower the minimum.');
+      if (!s.exit?.offered) throw new EngineError('WRONG_STAGE', 'There is no lower price to accept.');
+      approvedMinimum = request.acceptMinimum;
+    }
+    await this.startExit((s.exit?.attempts ?? 0) + 1, approvedMinimum);
+    return this.state!;
+  }
+
+  private async startExit(attempts: number, approvedMinimum: string): Promise<void> {
+    const s = this.state!;
+    this.chain!.sim.exitPhaseAt = this.now();
+    this.chain!.sim.exitBusyShown = this.chain!.sim.exitBusyShown ?? false;
     await this.emit({
       type: 'stage',
       swapId: s.id,
       stage: 'exiting',
-      at: now,
+      at: this.now(),
       patch: {
-        exit: { attempts, amountIn: q.amountIn, amountOut: q.amountOut, minAmountOut: q.minAmountOut, depositAddress: q.depositAddress, offered: undefined },
+        exit: { attempts, phase: 'quoting', approvedMinimum, offered: undefined, amountOut: undefined, minAmountOut: undefined, depositAddress: undefined, intentHash: undefined },
         needs: null,
         lastError: null,
-        addTxs: [tx],
       },
     });
     await this.startActivity();
     this.pump();
-    return this.state!;
   }
 
   async forget(): Promise<void> {
@@ -449,8 +450,8 @@ export class SimEngine implements EngineBackend {
       this.pump();
     },
     skip: async () => {
-      if (!this.pending && this.state && this.options.pauseAt === this.state.stage) {
-        this.releasedAt = this.state.stageAt;
+      if (!this.pending && this.state && this.pausedHere(this.state)) {
+        this.releasedAt = this.pauseMark(this.state);
         this.pump();
       }
       const step = this.pending;
@@ -490,7 +491,7 @@ export class SimEngine implements EngineBackend {
     const s = this.state;
     const c = this.chain;
     if (!s || !c) return undefined;
-    if (this.options.pauseAt === s.stage && this.releasedAt !== s.stageAt) return undefined;
+    if (this.pausedHere(s) && this.releasedAt !== this.pauseMark(s)) return undefined;
     const sim = c.sim;
     const d = (ms: number) => this.scaled(ms);
     const at = s.stageAt;
@@ -602,28 +603,82 @@ export class SimEngine implements EngineBackend {
           stage: 'paid_out',
           patch: { payout: { usdc: s.quote!.usdc, intentsAccount: s.escrow!.takerAccount }, addTxs: [this.tx('withdraw', 'near', 'USDC paid into NEAR Intents under your key', this.now())] },
         }));
+      case 'paid_out':
+        return taker(2_000, () => ({
+          stage: 'exiting',
+          patch: { exit: { attempts: 1, phase: 'quoting', approvedMinimum: s.params.minDestinationAmount } },
+          record: { exitPhaseAt: this.now() },
+        }));
       case 'exiting': {
-        const failNow = sim.fail === 'exit-fail' && sim.exitFailures === 0;
-        return network(at + d(TYPICAL_MS.exiting!), () => {
-          if (failNow) {
-            return {
-              stage: 'exit_retry',
-              patch: { needs: 'exit_decision', lastError: { code: 'EXIT_FAILED', message: 'NEAR Intents could not complete the delivery. The USDC came back to your key.' } },
-              record: { exitFailures: sim.exitFailures + 1 },
-            };
-          }
-          const exit = s.exit!;
-          const leftover = BigInt(s.deposit.receivedZats) - BigInt(s.deposit.expectedZats);
-          return {
-            stage: 'done',
-            patch: {
-              exit: { deliveredAmount: exit.amountOut },
-              leftover: leftover > 0n ? { amountZats: (leftover - fee).toString() } : undefined,
-              needs: leftover > fee && !s.params.returnAddress ? 'return_address' : null,
-              addTxs: [this.tx('delivery', 'destination', `${s.params.destination.symbol} delivered`, this.now())],
-            },
-          };
+        const exit = s.exit!;
+        const base = sim.exitPhaseAt ?? at;
+        const phase = (next: Partial<NonNullable<SwapState['exit']>>, extra: SwapPatch = {}): SwapEventBatch => ({
+          stage: 'exiting',
+          patch: { exit: next, ...extra },
+          record: { exitPhaseAt: this.now() },
         });
+        switch (exit.phase) {
+          case 'quoting': {
+            const busyNow = sim.fail === 'exit-busy' && !sim.exitBusyShown;
+            const retrying = s.lastError?.code === 'EXIT_NO_QUOTE';
+            return network(base + d(retrying ? 20_000 : 1_500), () => {
+              if (busyNow) {
+                return {
+                  stage: 'exiting',
+                  patch: { lastError: { code: 'EXIT_NO_QUOTE', message: 'NEAR Intents has no price for this pair right now. The engine asks again in 20 seconds.', transient: true } },
+                  record: { exitBusyShown: true, exitPhaseAt: this.now() },
+                };
+              }
+              // A firm quote at the price the page showed, scaled to the USDC actually paid out.
+              const usdc = BigInt(s.payout!.usdc);
+              let amountOut = (BigInt(s.params.shown.destinationExpected) * usdc) / BigInt(s.params.shown.usdcExpected);
+              if (sim.fail === 'exit-price' && exit.attempts === 1) amountOut = (amountOut * 85n) / 100n;
+              const minAmountOut = (amountOut * 99n) / 100n;
+              const quote = { amountIn: usdc.toString(), amountOut: amountOut.toString(), minAmountOut: minAmountOut.toString(), depositAddress: randomHex(32), timeEstimateS: 20, feeBps: 20 };
+              if (minAmountOut < BigInt(exit.approvedMinimum)) {
+                return {
+                  stage: 'exit_retry',
+                  patch: {
+                    exit: { ...quote, offered: { amountOut: quote.amountOut, minAmountOut: quote.minAmountOut } },
+                    needs: 'exit_decision',
+                    lastError: { code: 'EXIT_BELOW_MINIMUM', message: 'The firm price for the delivery is below your minimum. Nothing was signed.' },
+                  },
+                };
+              }
+              return phase({ ...quote, phase: 'signing' }, { lastError: null });
+            });
+          }
+          case 'signing':
+            return taker(1_000, () =>
+              phase({ phase: 'submitted', intentHash: nearHash() }, {
+                addTxs: [{ ...this.tx(`exit-${exit.attempts}`, 'near', 'Exit intent signed and submitted', this.now()), hash: nearHash(), url: undefined }],
+              }),
+            );
+          case 'submitted':
+            return network(base + d(3_000), () => phase({ phase: 'delivering' }));
+          case 'delivering':
+            return network(base + d((exit.timeEstimateS ?? 20) * 1000), () => {
+              if (sim.fail === 'exit-fail' && sim.exitFailures === 0) {
+                return {
+                  stage: 'exit_retry',
+                  patch: { exit: { phase: 'refunded' }, needs: 'exit_decision', lastError: { code: 'EXIT_FAILED', message: 'NEAR Intents could not complete the delivery and refunded it. The USDC is back under your key.' } },
+                  record: { exitFailures: sim.exitFailures + 1 },
+                };
+              }
+              const leftover = BigInt(s.deposit.receivedZats) - BigInt(s.deposit.expectedZats);
+              return {
+                stage: 'done',
+                patch: {
+                  exit: { phase: 'done', deliveredAmount: exit.amountOut },
+                  leftover: leftover > 0n ? { amountZats: (leftover - fee).toString() } : undefined,
+                  needs: leftover > fee && !s.params.returnAddress ? 'return_address' : null,
+                  addTxs: [this.tx('delivery', 'destination', `${s.params.destination.symbol} delivered`, this.now())],
+                },
+              };
+            });
+          default:
+            return undefined;
+        }
       }
       case 'done': {
         if (!s.leftover || sim.leftoverSent || !s.params.returnAddress) return undefined;
@@ -647,6 +702,16 @@ export class SimEngine implements EngineBackend {
       default:
         return undefined;
     }
+  }
+
+  private pausedHere(s: SwapState): boolean {
+    const p = this.options.pauseAt;
+    return p === s.stage || (s.stage === 'exiting' && p === `exiting.${s.exit?.phase}`);
+  }
+
+  /** Identifies one arrival at the paused point, so that skip releases it once. */
+  private pauseMark(s: SwapState): number {
+    return s.stage === 'exiting' ? (this.chain?.sim.exitPhaseAt ?? s.stageAt) : s.stageAt;
   }
 
   private directoryEscrow(): string {
@@ -697,8 +762,15 @@ export class SimEngine implements EngineBackend {
         return wait('Waiting for the claim to be final on NEAR', NEAR_FINAL_MS);
       case 'claimed':
         return wait('Moving the USDC into NEAR Intents', NEAR_FINAL_MS);
-      case 'exiting':
-        return wait('NEAR Intents is delivering your tokens', TYPICAL_MS.exiting!);
+      case 'paid_out':
+        return wait('Starting the delivery', 2_000);
+      case 'exiting': {
+        const e = s.exit;
+        if (e?.phase === 'quoting') return s.lastError?.code === 'EXIT_NO_QUOTE' ? wait('Waiting to ask NEAR Intents again', 20_000) : wait('Getting a firm price from NEAR Intents', 1_500);
+        if (e?.phase === 'signing') return { kind: 'signing', label: 'Checking the delivery request and signing it with your key', startedAt: now, estimatedMs: this.scaled(1_000) };
+        if (e?.phase === 'submitted') return wait('Waiting for NEAR Intents to accept the signed request', 3_000);
+        return wait('NEAR Intents is delivering your tokens', (e?.timeEstimateS ?? 20) * 1000);
+      }
       case 'recovering':
         return proof('Building the transaction that takes your ZEC back');
       case 'refunding':
@@ -728,7 +800,7 @@ export class SimEngine implements EngineBackend {
     const batch = step.run();
     if (batch.record) Object.assign(this.chain!.sim, batch.record);
     await this.emit({ type: 'stage', swapId: this.state.id, stage: batch.stage, at: Math.min(step.at, this.now()), patch: batch.patch });
-    if (batch.stage !== before || batch.stage === 'funding_confirming') await this.startActivity();
+    if (batch.stage !== before || batch.stage === 'funding_confirming' || batch.stage === 'exiting') await this.startActivity();
     this.pump();
   }
 

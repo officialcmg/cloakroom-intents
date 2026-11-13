@@ -282,11 +282,10 @@ impl CoverWait {
             return Some("no cover delay configured".into());
         }
         let seen = w.lookalikes_since(self.trigger_height);
-        if let Some(d) = self.deadline_unix {
-            if now >= d {
+        if let Some(d) = self.deadline_unix
+            && now >= d {
                 return Some(format!("cover cut short by the protocol deadline after {}s ({} draw(s)): {seen} of {} look-alikes", now - self.start, self.draws, policy.k));
             }
-        }
         if now >= self.wait_from + self.delay {
             if seen >= policy.k {
                 return Some(format!("cover: waited {}s over {} random draw(s), {seen} look-alike txs mined since height {}", now - self.start, self.draws, self.trigger_height));
@@ -578,7 +577,7 @@ impl Wallet {
                 .map_err(|e| anyhow!("{e:?}"))?
                 .ok_or_else(|| anyhow!("no witness for position {}", r.pos))?;
             let fvk = self.fvk_of(&r.label)?;
-            b.add_ironwood_spend::<Infallible>(fvk, r.note.clone(), path.into())
+            b.add_ironwood_spend::<Infallible>(fvk, r.note, path.into())
                 .map_err(|e| anyhow!("add_ironwood_spend: {e:?}"))?;
         }
         for (to, value, memo, ovk) in &outputs {
@@ -712,7 +711,10 @@ impl Wallet {
 /// Node answers that mean "I already have this transaction".
 fn is_already_known(msg: &str) -> bool {
     let m = msg.to_ascii_lowercase();
-    m.contains("already") && (m.contains("mempool") || m.contains("exists") || m.contains("known") || m.contains("in chain") || m.contains("in block"))
+    // Zebra 7.0.0-rc.0 answers a mined transaction with "... transaction was committed to
+    // the best chain" (seen on regtest); mempool duplicates and other nodes say "already".
+    m.contains("committed to the best chain")
+        || (m.contains("already") && (m.contains("mempool") || m.contains("exists") || m.contains("known") || m.contains("in chain") || m.contains("in block")))
 }
 
 pub fn empty_memo() -> [u8; 512] {
@@ -727,5 +729,67 @@ struct LlErr(String);
 impl From<low_level_signer::OrchardParseError> for LlErr {
     fn from(e: low_level_signer::OrchardParseError) -> Self {
         LlErr(format!("{e:?}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::net::{Response, Transport};
+    use std::rc::Rc;
+
+    struct NoNet;
+    impl Transport for NoNet {
+        fn post(&self, _: &str, _: &[(&str, &str)], _: &[u8]) -> Result<Response> {
+            Err(anyhow!("no network in this test"))
+        }
+    }
+
+    fn wallet() -> Wallet {
+        Wallet::new(Backend::Zebra(Rpc::new(Rc::new(NoNet), "http://unused")), Net::Local(regtest_params(Some(2))))
+    }
+
+    #[test]
+    fn cover_wait_polls_without_sleeping() {
+        let w = wallet();
+        // no policy: go at once
+        let mut c = CoverWait::new(CoverPolicy::default(), 0, None, 100);
+        assert_eq!(c.poll(&w, 100).as_deref(), Some("no cover delay configured"));
+        // fixed 10 s wait, k = 0: not before 110, then go
+        let p = CoverPolicy { min_secs: 10, max_secs: 10, k: 0 };
+        let mut c = CoverWait::new(p, 0, None, 100);
+        assert!(c.poll(&w, 105).is_none());
+        assert!(c.poll(&w, 110).unwrap().starts_with("cover: waited 10s over 1"));
+        // k = 1 never met (no look-alikes): redraws until the deadline cuts it short
+        let p = CoverPolicy { min_secs: 1, max_secs: 3, k: 1 };
+        let mut c = CoverWait::new(p, 0, Some(150), 100);
+        let mut now = 100;
+        let out = loop {
+            if let Some(o) = c.poll(&w, now) {
+                break o;
+            }
+            now += 1;
+        };
+        assert_eq!(now, 150);
+        assert!(out.starts_with("cover cut short by the protocol deadline after 50s"), "{out}");
+    }
+
+    #[test]
+    fn already_known_answers_count_as_accepted() {
+        assert!(is_already_known("transaction is already in the mempool"));
+        assert!(is_already_known("{\"code\":-27,\"message\":\"transaction already exists in state\"}"));
+        assert!(is_already_known("any transaction with the same effects will be rejected from the mempool until a chain reset: transaction was committed to the best chain"));
+        assert!(!is_already_known("bad-txns-inputs-spent"));
+        assert!(!is_already_known("already spent"));
+    }
+
+    #[test]
+    fn tracked_transactions_and_fees() {
+        let mut w = wallet();
+        assert_eq!(w.mined_height("ab"), None);
+        w.track("ab");
+        assert_eq!(w.mined_height("ab"), None);
+        assert_eq!(zip317_fee(1, 1), 10_000);
+        assert_eq!(zip317_fee(3, 2), 15_000);
     }
 }

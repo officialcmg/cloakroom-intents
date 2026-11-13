@@ -1,0 +1,17 @@
+
+===== start taker --zats 100000000 =====
+[taker 1794541605] new swap cf35d0e0 for 100000000 zats; NEAR account 717340f4ff7b9fc0169d0a6f7d64415c75291d361b8dc35136ff0978af7e4769; wallet uregtest18lcp6sqma5hqvgtfvw8fa7gh75jcp0ma2mulxa0lnru3hgqal5j8jxvm2dzl96nva9dtfa9078w6s7phf0kxrsh5359hmj7hgsjag3w8
+[taker 1794541605] cf35d0e0 stage WaitingDeposit
+[taker 1794541615] balance 208333333 zats
+[taker 1794541615] balance 0 zats
+[taker 1794541615] {"type":"zcash_tx","swap":"cf35d0e0900bca3def6bd51f48b951cc","what":"rfq","txid":"f34abcc69ae5670adc78e2e0b043d8aceee112402cd07a1433d3311e3cf64f0e"}
+[taker 1794541615] cf35d0e0 encrypted RFQ for 100000000 zats sent to the maker in shielded tx f34abcc69ae5670adc78e2e0b043d8aceee112402cd07a1433d3311e3cf64f0e
+[taker 1794541615] cf35d0e0 stage RfqSent
+[taker 1794541617] balance 208323333 zats
+[taker 1794541627] cf35d0e0 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+[taker 1794541627] {"type":"quote","swap":"cf35d0e0900bca3def6bd51f48b951cc","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest1y08t0hkxapw362sgwddtvpu09fupl8vasskqyykwjgg7na9e52hwfk3u5wfzjjedgywz2r7tc9vtc5477ksde2axgxchghcdhuhffxrf"}
+[taker 1794541633] balance 0 zats
+[taker 1794541633] {"type":"zcash_tx","swap":"cf35d0e0900bca3def6bd51f48b951cc","what":"accept","txid":"20b53dea17d66e2cadd0bc50e4adbc35e54f9e106ac84fb267c6493f92b1cd27"}
+[taker 1794541633] cf35d0e0 encrypted ACCEPT with 50000 zats premium sent in tx 20b53dea17d66e2cadd0bc50e4adbc35e54f9e106ac84fb267c6493f92b1cd27; joint address uregtest1y08t0hkxapw362sgwddtvpu09fupl8vasskqyykwjgg7na9e52hwfk3u5wfzjjedgywz2r7tc9vtc5477ksde2axgxchghcdhuhffxrf
+[taker 1794541633] cf35d0e0 stage Accepted
+[taker 1794541634] balance 208263333 zats

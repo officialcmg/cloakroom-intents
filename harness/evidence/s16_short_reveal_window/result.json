@@ -1,0 +1,157 @@
+{
+  "scenario": "s16_short_reveal_window",
+  "title": "Malicious maker quotes a reveal window W <= F + B_R (a lock could never be revealed safely): taker rejects the quote (R1q) and never funds",
+  "chain_branch": "77190ad9",
+  "checks": [
+    {
+      "check": "taker rejected the quote (reveal window)",
+      "pass": true,
+      "detail": "{'Aborted': 'QUOTE REJECTED: reveal window 18s too short for finality (R1q needs W > F + B_R = 18s); nothing was funded'}"
+    },
+    {
+      "check": "taker never funded and paid no premium (only the request fee)",
+      "pass": true,
+      "detail": "10000"
+    },
+    {
+      "check": "privacy audit: all 2 Zcash txs by maker/taker are fully shielded Ironwood v6 (no transparent in/out)",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "check": "R4: per-swap secrets erased by every party in a terminal stage (b, s_M, e_M / a, s_T, e_T; joint FVK)",
+      "pass": true,
+      "detail": "checked=['taker:Aborted'] not_terminal=['maker:Quoted'] bad=[]"
+    }
+  ],
+  "facts": {
+    "before": {
+      "maker_zec": 208333333,
+      "taker_zec": 208333333,
+      "maker_wnear": 9939998750000000000000000000
+    },
+    "after": {
+      "maker_zec": 208323333,
+      "taker_zec": 208323333,
+      "maker_wnear": 9939998750000000000000000000
+    },
+    "zcash_txs": [
+      {
+        "txid": "163d7b6846b7223f6cad2ac1facf96806f65d2cd96bb921d216ff0b03b7ffedf",
+        "height": 226,
+        "version": 6,
+        "ironwood_actions": 2,
+        "ironwood_value_balance": 10000,
+        "transparent_in": 0,
+        "transparent_out": 0
+      },
+      {
+        "txid": "3457f6c898e69759efec1545e75df079b8713fd8f69e5064e0c3ee1674fcca94",
+        "height": 229,
+        "version": 6,
+        "ironwood_actions": 2,
+        "ironwood_value_balance": 10000,
+        "transparent_in": 0,
+        "transparent_out": 0
+      }
+    ],
+    "r4_checked": [
+      "taker:Aborted"
+    ],
+    "r4_not_terminal": [
+      "maker:Quoted"
+    ]
+  },
+  "maker_swap": {
+    "rfq_id": "698045e0e60a448ef51c9748dcd3ac36",
+    "stage": "Quoted",
+    "zats": 100000000,
+    "price": "30000000000000000000000000",
+    "premium": 50000,
+    "stipend": "30000000000000000000000",
+    "taker_pk": "3ef6d0cd3143239f12c598470c85af01488672073533e76fc6ecb58faa7bd4d6",
+    "taker_account": "3ef6d0cd3143239f12c598470c85af01488672073533e76fc6ecb58faa7bd4d6",
+    "a_pub": "f9cd6d8c26f29d17ade72591470878596c07dd4aa00777afd08405e5c21b2f97",
+    "commit_s_t": "1b95ba3a196010ecaa807b7b9d8f0a00d8c34a5cc9d8234ab75162c0e96d0fdf",
+    "b": "<redacted>",
+    "s_m": "<redacted>",
+    "e_m": "<redacted>",
+    "e_t_pub": "019de32fcf2881bd8cbccc3a35c9aabc9478daa6d31fc4fde8216f59a6a32281",
+    "quote_memo": "<redacted>",
+    "quote_hash": "18b6f90c79db5c902b9b1495f376ec1a97486d1f824b79690a5b17e02890603d",
+    "windows": {
+      "t0_secs": 120,
+      "t1_secs": 60,
+      "t2_secs": 60,
+      "reveal_secs": 18
+    },
+    "rfq_height": 226,
+    "accept_height": null,
+    "negated": false,
+    "joint_fvk": null,
+    "salt": null,
+    "escrow_id": null,
+    "t0": null,
+    "t1": null,
+    "t2": null,
+    "pending_then": null,
+    "pending": {
+      "what": "quote",
+      "txid": "3457f6c898e69759efec1545e75df079b8713fd8f69e5064e0c3ee1674fcca94",
+      "raw_hex": "<omitted>",
+      "expiry_height": 267,
+      "broadcast": true
+    },
+    "quote_txid": "3457f6c898e69759efec1545e75df079b8713fd8f69e5064e0c3ee1674fcca94",
+    "open_tx": null,
+    "stipend_tx": null,
+    "ready_tx": null,
+    "refund_tx": null,
+    "refund_at": null,
+    "sweep_txid": null,
+    "sweep_height": null,
+    "taker_withdraw_at": null,
+    "log": [
+      "RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE ShortReveal]",
+      "encrypted QUOTE sent in tx 3457f6c898e69759efec1545e75df079b8713fd8f69e5064e0c3ee1674fcca94"
+    ]
+  },
+  "taker_swap": {
+    "rfq_id": "698045e0e60a448ef51c9748dcd3ac36",
+    "stage": {
+      "Aborted": "QUOTE REJECTED: reveal window 18s too short for finality (R1q needs W > F + B_R = 18s); nothing was funded"
+    },
+    "zats": 100000000,
+    "a": "",
+    "s_t": "",
+    "e_t": "",
+    "e_t_pub": "019de32fcf2881bd8cbccc3a35c9aabc9478daa6d31fc4fde8216f59a6a32281",
+    "near_sk": "<redacted>",
+    "taker_account": "3ef6d0cd3143239f12c598470c85af01488672073533e76fc6ecb58faa7bd4d6",
+    "reply_index": 1615167593,
+    "created_at": 1794541488,
+    "stage_at": 1794541503,
+    "quote": null,
+    "negated": false,
+    "joint_fvk": null,
+    "joint_address": null,
+    "escrow_id": null,
+    "pending_then": null,
+    "pending": null,
+    "rfq_txid": "163d7b6846b7223f6cad2ac1facf96806f65d2cd96bb921d216ff0b03b7ffedf",
+    "accept_txid": null,
+    "fund_txid": null,
+    "fund_expiry": null,
+    "sweep_txid": null,
+    "sweep_height": null,
+    "commit_tx": null,
+    "claim_tx": null,
+    "claim_at": null,
+    "withdraw_tx": null,
+    "withdraw_at": null,
+    "log": [
+      "encrypted RFQ for 100000000 zats sent to the maker in shielded tx 163d7b6846b7223f6cad2ac1facf96806f65d2cd96bb921d216ff0b03b7ffedf",
+      "ABORT: QUOTE REJECTED: reveal window 18s too short for finality (R1q needs W > F + B_R = 18s); nothing was funded"
+    ]
+  }
+}

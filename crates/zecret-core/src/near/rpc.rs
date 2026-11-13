@@ -168,6 +168,12 @@ pub fn rpc_cause(e: &anyhow::Error) -> Option<&str> {
     e.downcast_ref::<RpcError>().map(|r| r.cause.as_str())
 }
 
+/// nearcore 2.14.1 answers `view_access_key` for a missing key with a result that holds
+/// an `error` string ("access key ... does not exist while viewing"), not a typed error.
+fn missing(e: &anyhow::Error) -> bool {
+    format!("{e:#}").contains("does not exist while viewing")
+}
+
 /// A NEAR account that signs transactions.
 pub struct Signer {
     pub account_id: String,
@@ -254,7 +260,7 @@ impl NearRpc {
                 amount: v["amount"].as_str().ok_or_else(|| anyhow!("account without amount"))?.parse()?,
                 storage_usage: v["storage_usage"].as_u64().unwrap_or(0),
             })),
-            Err(e) if rpc_cause(&e) == Some("UNKNOWN_ACCOUNT") => Ok(None),
+            Err(e) if rpc_cause(&e) == Some("UNKNOWN_ACCOUNT") || missing(&e) => Ok(None),
             Err(e) => Err(e),
         }
     }
@@ -270,7 +276,7 @@ impl NearRpc {
                 nonce: v["nonce"].as_u64().ok_or_else(|| anyhow!("access key without nonce"))?,
                 full_access: v["permission"].as_str() == Some("FullAccess"),
             })),
-            Err(e) if matches!(rpc_cause(&e), Some("UNKNOWN_ACCOUNT") | Some("UNKNOWN_ACCESS_KEY")) => Ok(None),
+            Err(e) if matches!(rpc_cause(&e), Some("UNKNOWN_ACCOUNT") | Some("UNKNOWN_ACCESS_KEY")) || missing(&e) => Ok(None),
             Err(e) => Err(e),
         }
     }

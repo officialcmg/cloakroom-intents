@@ -13,6 +13,8 @@ export interface MockOptions {
   priceFactor?: number;
   /** Fail /v0/tokens. */
   tokensDown?: boolean;
+  /** Error messages answered (HTTP 400) to the first quote calls, one per call. */
+  quoteErrors?: string[];
   /** Delay for each response, in ms. */
   delayMs?: number;
 }
@@ -40,6 +42,8 @@ export async function mockOneClick(page: Page, opts: MockOptions = {}): Promise<
       const body = req.postDataJSON();
       handle.quotes.push({ amount: body.amount, destinationAsset: body.destinationAsset, recipient: body.recipient, dry: body.dry });
       if (opts.rejectRecipients?.includes(body.recipient)) return json(400, { message: 'recipient is not valid' });
+      const scripted = opts.quoteErrors?.shift();
+      if (scripted) return json(400, { message: scripted });
       const t = TOKENS.find((x) => x.assetId === body.destinationAsset);
       if (!t || !t.price) return json(400, { message: 'No liquidity available' });
       const usd = Number(body.amount) / 1e6;
@@ -57,7 +61,8 @@ export async function mockOneClick(page: Page, opts: MockOptions = {}): Promise<
           timeEstimate: 20,
           ...(body.dry ? {} : { depositAddress: 'f'.repeat(64) }),
         },
-        quoteRequest: body,
+        // Without an API key, 1Click adds an app fee of 1 bp (stablecoins) to 20 bp.
+        quoteRequest: { ...body, appFees: [{ recipient: '5880ad2b362620fadf759cbceb1cd5737ce8c6ed7fb8e9942881e6731f9247dd', fee: /USD/.test(t.symbol) ? 1 : 20 }] },
         timestamp: new Date().toISOString(),
       });
     }

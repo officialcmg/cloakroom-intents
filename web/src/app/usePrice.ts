@@ -7,6 +7,7 @@ import { combine, computeZecSide, type CombinedPrice, type ZecSideError } from '
 import { quoteSampleAddress, validateDestinationAddress } from '../lib/address/chains';
 
 export const QUOTE_REFRESH_MS = 30_000;
+export const BUSY_RETRY_MS = 20_000;
 
 // ---------------------------------------------------------------- tokens
 
@@ -61,6 +62,7 @@ export function usePrice(payZats: bigint | undefined, token: Token | undefined, 
   useEffect(() => {
     if (!key || !zec?.ok || !token || !recipient) return;
     const ctrl = new AbortController();
+    let retry: ReturnType<typeof setTimeout> | undefined;
     const zecSide = zec.value;
     const checked = addressOk;
     const timer = setTimeout(() => {
@@ -74,6 +76,8 @@ export function usePrice(payZats: bigint | undefined, token: Token | undefined, 
           if ((e as Error).name === 'AbortError') return;
           const error = e instanceof OneClickError ? e : new OneClickError((e as Error).message, 0, 'other');
           setResult({ key, ok: false, error });
+          // "No price for this pair" clears within about 20 s: ask again then.
+          if (error.kind === 'busy' || error.kind === 'network') retry = setTimeout(() => setTick((t) => t + 1), BUSY_RETRY_MS);
         },
       );
     }, 450);
@@ -82,6 +86,7 @@ export function usePrice(payZats: bigint | undefined, token: Token | undefined, 
       ctrl.abort();
       clearTimeout(timer);
       clearTimeout(refresh);
+      clearTimeout(retry);
     };
     // The key covers every input of the request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,7 +96,7 @@ export function usePrice(payZats: bigint | undefined, token: Token | undefined, 
   let state: PriceState;
   if (!zec || !token || !recipient) state = { status: 'idle' };
   else if (!zec.ok) state = { status: 'invalid', error: zec.error };
-  else if (result?.key !== key) state = { status: 'loading', previous: lastOk };
+  else if (!result || result.key !== key) state = { status: 'loading', previous: lastOk };
   else if (result.ok) state = { status: 'ok', price: result.price, quote: result.quote, recipientChecked: result.recipientChecked };
   else state = { status: 'error', error: result.error, previous: lastOk };
   return { ...state, refresh };

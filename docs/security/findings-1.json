@@ -1,0 +1,615 @@
+[
+ {
+  "verdict": "rejected",
+  "fingerprint": "near-escrow/claim/token-can-block-reveal",
+  "title": "A token or credit problem makes claim or refund fail",
+  "description": "Checked whether a share-revealing call can fail for token reasons.",
+  "claimed_root_cause": "claim/refund might call the token or grow storage.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 563,
+    "scope": "Escrow::claim",
+    "description": "add_credit."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 440,
+    "description": "Both credit entries are created and paid at open."
+   }
+  ],
+  "reason": "claim and refund make no cross-contract calls and only overwrite fixed-size entries created at open. The only token-independent panic is 'credit overflow', which needs more than 2^128 units credited to one (USDC, owner) key; USDC supply makes that unreachable, and a fake token's credits are in other keys. Not a bug."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "near-escrow/commit_claim/signature-replay",
+  "title": "The commit_claim signature replays across swaps, escrows or networks",
+  "description": "Checked the signed message.",
+  "claimed_root_cause": "Missing domain fields.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 274,
+    "scope": "build_commit_message",
+    "description": "Signed bytes."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 277,
+    "description": "Domain tag, length-prefixed escrow account, swap id and commitment."
+   }
+  ],
+  "reason": "The id binds maker and salt, the escrow account binds the contract and (by its .near/.testnet suffix) the network, and a swap accepts a commit only in Open/Ready. Replaying the same signature on the same swap only performs the taker's own commit (ported test late_commit_signature_replayable_at_t2). Not a bug."
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "near-escrow/deployment/mutable-escrow-and-unprotected-init",
+  "title": "The taker does not verify that the escrow is immutable, and `new` can be front-run if deploy and init are separate",
+  "description": "The escrow has no owner and no upgrade method, but nothing in the repository makes the deployed account immutable. devnet.rs creates the escrow account with a full-access key and deploys the code, then calls `new` in a second transaction; `new` is #[init] without #[private]. The taker's 10 checks in taker.rs:663-674 read get_swap only; none checks the escrow's code hash, its access keys, or get_intents_account(). Whoever holds a key of the escrow account (the operator, which is also the maker) could redeploy code that keeps the maker's tokens after `claim` publishes `a`, so the maker gets both the ZEC and the USDC. If init is a separate transaction on testnet or mainnet, any account can call `new` first with its own contract as intents_account and receive every taker withdrawal.",
+  "claimed_root_cause": "Escrow immutability and init ordering are deployment facts that the taker never checks; `new` is not #[private].",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "crates/zecret-node/src/devnet.rs",
+    "line": 52,
+    "scope": "Devnet::run",
+    "description": "The escrow account is created with the root full-access key and the code deployed."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-node/src/devnet.rs",
+    "line": 64,
+    "scope": "Devnet::run",
+    "description": "`new` is called in a separate transaction."
+   },
+   {
+    "kind": "propagation",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 292,
+    "scope": "Escrow::new",
+    "description": "#[init] without #[private]: any account may initialise an undeployed-but-uninitialised escrow."
+   },
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 663,
+    "scope": "Taker::on_open",
+    "description": "The taker funds the shared address after checks that do not cover code hash, keys or intents_account."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/README.md",
+    "line": 43,
+    "description": "README states 'The contract has no owner and no upgrade method' (code property, not account property)."
+   },
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 621,
+    "description": "The taker's credit leaves with ft_transfer_call to self.intents_account."
+   }
+  ],
+  "blockers": [
+   "No testnet or mainnet deployment script is in the repository, so it is unknown whether the deployed escrow account keeps any access key and whether deploy and init are one batched transaction."
+  ],
+  "validation_plan": {
+   "local": "In the sandbox, deploy the escrow with DeployContract in one transaction and call `new` from a second account before the owner does; observe that it succeeds and sets an attacker intents_account.",
+   "deployment": "For the testnet escrow account, the owner runs view_access_key_list and checks that it is empty, and checks that the code hash equals the reviewed wasm and that get_intents_account returns intents.near. Fix regardless: add #[private] to `new`, batch create/deploy/init/delete-key in one transaction, and add taker checks for code hash, an empty key list and get_intents_account at a final block before funding."
+  }
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "near-escrow/exit/exactly-one-exit",
+  "title": "Both claim and refund succeed on one swap",
+  "description": "Checked whether any time or state sequence lets both exits run, or one run twice.",
+  "claimed_root_cause": "State guards might overlap at window edges.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 574,
+    "scope": "Escrow::refund",
+    "description": "Refund doors."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 543,
+    "description": "claim requires Locked and now < locked_at + W; refund from Locked requires now >= locked_at + W; Claimed/Refunded are absorbing."
+   }
+  ],
+  "reason": "Windows are disjoint (half-open intervals, u128 sums), every exit moves to a terminal state, and exactly_one_exit_over_time_grid (tests.rs:1053) covers the grid. Not a bug."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "near-escrow/frontrun/claim-refund-commit",
+  "title": "Front-running claim, refund or commit_claim redirects funds",
+  "description": "Checked who receives credits.",
+  "claimed_root_cause": "Anyone may call these methods.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 557,
+    "scope": "Escrow::claim",
+    "description": "Credit key."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 586,
+    "description": "Refund credits swap.maker; claim credits the taker account derived from taker_pk."
+   }
+  ],
+  "reason": "Payees are fixed in the swap, so a copier only performs the same transition. commit_claim needs the taker's signature. A maker who sees `a` in a pending claim cannot refund before locked_at + W, and claim is valid only before it. Not a bug."
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "near-escrow/ft_on_transfer/swap-id-squat-via-third-party-storage-funds",
+  "title": "A third party can take a maker's swap id with a fake token and block the maker's open",
+  "description": "ft_on_transfer accepts any caller as the token and trusts its sender_id as the maker. Storage funds are keyed by (owner, token) to stop a fake token from spending the maker's funds, but add_storage_funds lets any caller deposit for any account_id. An attacker therefore funds (maker, fake-token), then calls ft_on_transfer from the fake token with sender_id = maker and the maker's salt. The swap is stored at swap_id(maker, salt) with token = fake-token, and the maker's real open with that salt fails with BadState. The salt is derived per swap from both parties' seeds (zecret-core keys::escrow_salt), so the maker cannot retry with another salt: the swap is dead. The Solidity escrow proved the opposite property (check_open_cannotTouchOtherMakersId, mutant M15), so this is a regression.",
+  "root_cause": "add_storage_funds accepts an arbitrary account_id (lib.rs:310), so the per-(owner, token) storage-funds gate in ft_on_transfer (lib.rs:447-464) does not authenticate the maker for a fake token, and the swap id (lib.rs:400) is scoped only by the unauthenticated sender_id, not by the token.",
+  "intended_behavior": "Only the maker, through the real token's ft_transfer_call, can create a swap at swap_id(maker, salt). The test comment at tests.rs:541-545 states this intent: a fake token 'cannot open swaps (or take swap ids) in the maker's name'.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 308,
+    "scope": "Escrow::add_storage_funds",
+    "description": "Any caller passes account_id = maker and token = fake-token and attaches NEAR."
+   },
+   {
+    "kind": "propagation",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 310,
+    "scope": "Escrow::add_storage_funds",
+    "description": "The funds owner is account_id when given; no check that it equals the predecessor."
+   },
+   {
+    "kind": "propagation",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 378,
+    "scope": "Escrow::ft_on_transfer",
+    "description": "The caller (any account) becomes `token`; sender_id (attacker-chosen = maker) becomes the maker."
+   },
+   {
+    "kind": "propagation",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 400,
+    "scope": "Escrow::ft_on_transfer",
+    "description": "id = compute_swap_id(sender_id, salt): the token is not part of the id."
+   },
+   {
+    "kind": "propagation",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 453,
+    "scope": "Escrow::ft_on_transfer",
+    "description": "The storage gate passes because (maker, fake-token) was funded by the attacker."
+   },
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 401,
+    "scope": "Escrow::ft_on_transfer",
+    "description": "The maker's later real open with the same salt hits 'swap id already used' and the token refunds the maker."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 425,
+    "description": "self.swaps.insert(id, swap) stores maker = sender_id and token = predecessor."
+   },
+   {
+    "file": "contracts/near-escrow/src/tests.rs",
+    "line": 546,
+    "description": "fake_token_cannot_spend_maker_storage_funds covers only funds deposited by the maker, not funds deposited for the maker by someone else."
+   },
+   {
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 597,
+    "description": "On retry the maker daemon treats any existing swap at the id as its own open and sends the stipend without checking token or amount."
+   },
+   {
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 664,
+    "description": "The taker checks token == configured USDC, so the taker refuses to fund a squatted swap: no ZEC is lost, the swap aborts."
+   },
+   {
+    "file": "contracts/audit/REPORT.md",
+    "line": 138,
+    "description": "Solidity mutant M15 'open: id not maker-scoped' and check_open_cannotTouchOtherMakersId: the property held on Base because msg.sender is authenticated."
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "timing_dependency",
+    "description": "The salt is secret until the maker's ft_transfer_call is broadcast. The attacker must read it from the pending or just-included transaction and get its own direct ft_on_transfer call (one receipt: attacker -> escrow) executed before the maker's (two receipts: maker -> token -> escrow). The race was reasoned from receipt order, not run in the sandbox."
+   },
+   {
+    "kind": "data_state",
+    "description": "The attacker spends about 0.0074 NEAR of storage per squatted swap; it does not get it back."
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "Any NEAR account, with no relation to the maker or the token.",
+   "payloads": [
+    "add_storage_funds {\"token\":\"fake-token.near\",\"account_id\":\"maker.near\"} with 0.1 NEAR attached",
+    "ft_on_transfer {\"sender_id\":\"maker.near\",\"amount\":\"1\",\"msg\":\"<the maker's OpenTerms JSON, same salt>\"} called directly by fake-token.near"
+   ],
+   "instructions": [
+    "Append docs/security/poc/f01_swap_id_squat.rs to contracts/near-escrow/src/tests.rs.",
+    "cd contracts/near-escrow && cargo test --lib poc_f01"
+   ],
+   "observed_result": "On the reviewed code the test fails: 'F-01: a third party (funded=true, squatted=true) created swap 6852...3147 under the maker's id with token fake-token.near'. With the fix below applied in a scratch copy, the PoC and all 48 existing unit tests pass."
+  },
+  "remediation": {
+   "strategy": "Let only the caller add storage funds for itself. Then a fake token can only use funds deposited for (owner, fake-token) by the owner, which a maker never does. Optionally also bind the swap id to the token (defence in depth; changes the id formula in contract and clients). Update README 'Storage funds' and the comment on fake_token_cannot_spend_maker_storage_funds.",
+   "code_changes": [
+    {
+     "file_name": "contracts/near-escrow/src/lib.rs",
+     "fixed_code": "    #[payable]\n    pub fn add_storage_funds(&mut self, token: AccountId, account_id: Option<AccountId>) -> U128 {\n        let owner = env::predecessor_account_id();\n        if account_id.is_some_and(|a| a != owner) {\n            fail(ERR_BAD_PARAMS, \"storage funds can only be added for the caller\");\n        }\n        let key = FundsKey { owner, token };\n        // ... rest unchanged"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "medium",
+    "reason": "Needs a bot that watches NEAR blocks or pending transactions for the escrow's open and wins a one-receipt race. No funds or special access are needed; the cost is about 0.0074 NEAR per swap."
+   },
+   "impact": {
+    "score": "medium",
+    "reason": "Any chosen swap can be blocked permanently (deterministic salt), repeatably for every swap. The taker loses the premium already paid, and the maker's retry path sends the stipend for a swap that cannot proceed. No escrowed tokens or ZEC are stolen: the token refunds the maker and the taker's token check stops funding."
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "The boundary failure is reproduced by a unit test on the reviewed code and fixed by the one-line change. Only the on-chain race timing is reasoned, not executed."
+  }
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "near-escrow/identity/predecessor-signer",
+  "title": "Predecessor vs signer confusion",
+  "description": "Checked identity sources.",
+  "claimed_root_cause": "signer_account_id used for authority.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 491,
+    "scope": "Escrow::set_ready",
+    "description": "Maker check."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 341,
+    "description": "withdraw_storage_funds uses predecessor."
+   }
+  ],
+  "reason": "The contract never reads signer_account_id; set_ready and withdraw_storage_funds use predecessor. The unauthenticated identity is sender_id in ft_on_transfer, covered by F-01. Not a separate bug."
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "near-escrow/on_withdraw/failed-result-after-delivery",
+  "title": "on_withdraw restores the whole Intents credit when ft_transfer_call fails; a token whose resolve step can fail after delivery would pay twice",
+  "description": "For Route::Intents, on_withdraw treats PromiseError::Failed as 'nothing delivered' and restores the credit. With a NEP-141 token, the result of ft_transfer_call is the result of ft_resolve_transfer. If that resolve step fails after the receiver kept the tokens, the transfer stands, the credit is restored, and a second withdraw pays again from tokens that belong to other swaps in the same token. With the near-contract-standards implementation the resolve step has statically reserved gas and no caller can make it fail, so this is not reachable for wrap.near (used in the sandbox tests). The product token is Circle's USDC on NEAR, whose ft_transfer_call and ft_resolve_transfer (pause, blocklist, gas constants) are not in the repository.",
+  "claimed_root_cause": "The Failed branch assumes failure means no delivery, which holds only if the token's resolve step cannot fail after its receiver accepted.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 603,
+    "scope": "Escrow::withdraw",
+    "description": "Anyone calls withdraw for the taker's Intents credit; the credit is set to 0."
+   },
+   {
+    "kind": "propagation",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 624,
+    "scope": "Escrow::withdraw",
+    "description": "ft_transfer_call to intents.near with 60 Tgas, then on_withdraw."
+   },
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 660,
+    "scope": "Escrow::on_withdraw",
+    "description": "A Failed result restores the full amount."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 666,
+    "description": "An unreadable but successful result is treated as delivered, so only the Failed branch can restore after delivery."
+   }
+  ],
+  "blockers": [
+   "The source of the USDC contract deployed at 17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1 is not in the repository."
+  ],
+  "validation_plan": {
+   "local": "Fetch the USDC wasm or source the owner trusts and run the sandbox test failed_withdraw_restores_credit with it as the token, adding a case that pauses or blocklists between ft_on_transfer and ft_resolve_transfer.",
+   "deployment": "The owner reads Circle's NEAR USDC source and confirms that ft_resolve_transfer cannot panic once ft_on_transfer has run (no pause or blocklist check there, fixed reserved gas)."
+  }
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "near-escrow/pallas/input-validation",
+  "title": "Non-canonical, identity, small-order or off-curve points, or zero/aliased scalars pass",
+  "description": "Checked curve.rs.",
+  "claimed_root_cause": "Weak decoding.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/curve.rs",
+    "line": 42,
+    "scope": "parse_point",
+    "description": "Point decoding."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/curve.rs",
+    "line": 52,
+    "description": "Scalar::from_repr rejects values >= q; zero refused."
+   }
+  ],
+  "reason": "pasta_curves from_bytes rejects x >= p and decodes one encoding per point; Pallas has prime order (no small-order points, no y = 0 point), the identity is refused, scalars must be canonical and non-zero, and the comparison is on canonical encodings. Tests invalid_points_rejected, scalar_aliases_rejected and edge_scalars_rejected cover these. Not a bug."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "near-escrow/storage/staking-grief",
+  "title": "Storage staking lets someone drain the escrow's NEAR or block transitions",
+  "description": "Checked storage accounting.",
+  "claimed_root_cause": "Unpaid storage growth.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 446,
+    "scope": "Escrow::ft_on_transfer",
+    "description": "Storage charged to maker funds."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 93,
+    "description": "Swap has fixed size; transitions never grow storage."
+   }
+  ],
+  "reason": "Every new byte is paid from the opener's (owner, token) funds, withdrawal returns only the caller's own balance, and later transitions overwrite fixed-size values. Storage paid for someone else is the payer's own loss; its only abuse is F-01. Not a separate bug."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "near-escrow/withdraw/reentrancy-double-pay",
+  "title": "withdraw pays a credit twice through reentrancy between receipts",
+  "description": "Checked withdraw and on_withdraw.",
+  "claimed_root_cause": "Async callbacks.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 614,
+    "scope": "Escrow::withdraw",
+    "description": "Credit set to 0 before the transfer."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 649,
+    "description": "on_withdraw is #[private] and restores only the undelivered part."
+   }
+  ],
+  "reason": "The credit is zeroed before the promise; a second withdraw sees 0; the callback has 10 Tgas reserved for one read/write; the Intents branch caps 'used' at amount and treats an unreadable success as delivered. The only open case is NV near-escrow/on_withdraw/failed-result-after-delivery. Not a bug otherwise."
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "zecret-intents/check_quote/unsigned-request-deadline-freshness",
+  "title": "The quote freshness check reads quoteRequest.deadline, which 1Click does not sign on firm quotes",
+  "description": "check_quote refuses a quote whose request deadline has passed (INTENTS.md section 3, quote rule 7). It reads quoteRequest.deadline. On a firm quote, 1Click's signed message replaces that field with quote.deadline (request deadline + 72 h), as the SDK does, so a network attacker or a compromised API can move quoteRequest.deadline into the future without breaking the signature. The crate then signs an exit for a quote that 1Click has already stopped executing, including a replayed old genuine quote for the same approved values.",
+  "root_cause": "The freshness rule uses an unsigned field (check.rs:295) instead of a signed one; quote_sig::quote_message overwrites 'deadline' with the quote's deadline on firm quotes (quote_sig.rs:119-121).",
+  "intended_behavior": "The crate signs only for a quote that 1Click still executes: the request deadline, proven by signed data, is in the future.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "crates/zecret-intents/src/client.rs",
+    "line": 103,
+    "scope": "ExitClient::execute_exit",
+    "description": "The quote answer comes from the 1Click API over the network."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-intents/src/quote_sig.rs",
+    "line": 119,
+    "scope": "quote_message",
+    "description": "For firm quotes the signed map takes 'deadline' from quote.deadline; quoteRequest.deadline is not covered."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-intents/src/check.rs",
+    "line": 237,
+    "scope": "check_quote",
+    "description": "The signature verifies after the edit."
+   },
+   {
+    "kind": "sink",
+    "file": "crates/zecret-intents/src/check.rs",
+    "line": 295,
+    "scope": "check_quote",
+    "description": "The 'request deadline in the future' rule reads the edited, unsigned r.deadline and passes."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-intents/src/quote_sig.rs",
+    "line": 123,
+    "description": "'timestamp' (quote creation time) is signed and could carry freshness instead."
+   },
+   {
+    "file": "crates/zecret-intents/src/check.rs",
+    "line": 361,
+    "description": "The intent deadline limit uses the signed quote.deadline (request + 72 h), which stays in the future long after the request deadline."
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "network_routing",
+    "description": "The attacker controls or intercepts the 1Click API answers (the threat model in docs/INTENTS.md section 3)."
+   },
+   {
+    "kind": "timing_dependency",
+    "description": "The exit is signed after the real request deadline (the attacker delays the flow or replays an old signed quote whose approved values match)."
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "A network attacker or compromised 1Click API without 1Click's quote key.",
+   "payloads": [
+    "quoteRequest.deadline changed from 2026-11-13T03:47:00.000Z to 2026-12-31T00:00:00.000Z in the recorded firm quote, checked 31 minutes after recording"
+   ],
+   "instructions": [
+    "Append docs/security/poc/f02_request_deadline_unsigned.rs to crates/zecret-intents/tests/recorded.rs.",
+    "cd crates/zecret-intents && cargo test --test recorded poc_f02"
+   ],
+   "observed_result": "Unedited, the check refuses with QuoteExpired. After the edit the signature is still valid and check_generated_intent returns Ok for both raw_ed25519 and nep413 (probe run in a scratch copy: 'test probe_request_deadline_is_not_signed ... ok')."
+  },
+  "remediation": {
+   "strategy": "Derive freshness from signed data: require the signed 'timestamp' to be recent (for example at most 5 minutes old and not more than 1 minute in the future) in check_quote, via a new Policy::max_quote_age. Keep the r.deadline test only as an extra. This also refuses replayed old genuine quotes.",
+   "code_changes": [
+    {
+     "file_name": "crates/zecret-intents/src/check.rs",
+     "fixed_code": "    // after the signature check in check_quote:\n    let issued = time::parse(&quote.timestamp).map_err(|e| Refusal::Malformed(e.to_string()))?;\n    if issued + policy.max_quote_age <= now || issued > now + Duration::minutes(1) {\n        return Err(Refusal::QuoteExpired { deadline: quote.timestamp.clone() });\n    }\n// and in Policy: pub max_quote_age: Duration, default Duration::minutes(5)"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "Needs control of the API channel and a flow that runs past the 30-minute request deadline, or a matching old quote to replay."
+   },
+   "impact": {
+    "score": "low",
+    "reason": "The transfer still goes to a genuine 1Click deposit address whose signed refundTo is the taker's own Verifier account (refundType INTENTS). By 1Click's documentation the USDC is refunded there; the observable loss is delay, a retry, and any signed refundFee (0 in the recordings). The documented check rule is defeated, but funds are not redirected."
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "Reproduced on the recorded live answers for both standards; the signed-field logic is in quote_sig.rs."
+  }
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-intents/hostile-input/panic",
+  "title": "Hostile API answers panic the crate",
+  "description": "Searched non-test code for unwrap, expect, indexing and overflow.",
+  "claimed_root_cause": "Panics on malformed input.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-intents/src/direct.rs",
+    "line": 196,
+    "scope": "parse_view_result",
+    "description": "Body slice bounded by min(len, 300)."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-intents/src/nonce.rs",
+    "line": 94,
+    "description": "Fixed slices of a 32-byte array."
+   }
+  ],
+  "reason": "No unwrap/expect in non-test code; slices are on fixed-size arrays or bounded; all parse paths return errors. chrono Duration addition on `now` is caller-controlled, not input-controlled. Not a bug."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-intents/nonce/unchecked-generated-nonce",
+  "title": "The crate does not check the nonce 1Click puts in the payload",
+  "description": "A hostile API chooses the nonce.",
+  "claimed_root_cause": "Nonce misuse leading to replay.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-intents/src/check.rs",
+    "line": 340,
+    "scope": "check_generated_intent",
+    "description": "Nonce decoded but not compared."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-intents/src/nonce.rs",
+    "line": 89,
+    "description": "Versioned or legacy, both single-use per signer in the Verifier."
+   }
+  ],
+  "reason": "The Verifier allows each nonce once per signer, and validity is bounded by the checked intent deadline, so a chosen nonce can only make the intent fail (denial of service, which the attacker has anyway). Hardening note only."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-intents/payload/parser-differential",
+  "title": "JSON parsing differences let the Verifier execute something other than what was checked",
+  "description": "Checked strict decoding against the Verifier's serde_json decoding.",
+  "claimed_root_cause": "Duplicate keys, unknown fields, number formats or escapes.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-intents/src/payload.rs",
+    "line": 366,
+    "scope": "UnsignedPayload::decode",
+    "description": "Strict decode of the exact bytes that are signed."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-intents/src/payload.rs",
+    "line": 83,
+    "description": "Duplicate token keys refused; deny_unknown_fields on every struct."
+   },
+   {
+    "file": "crates/zecret-intents/src/check.rs",
+    "line": 407,
+    "description": "Amount must equal the canonical decimal string."
+   }
+  ],
+  "reason": "The raw_ed25519 bytes are signed as received, not re-serialized; duplicates and unknown fields are refused, so the accepted set is a subset of what the Verifier parses the same way (both serde_json; escapes decode identically). Amount and token id are compared as exact canonical strings. Not a bug."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-intents/sign/domain-confusion",
+  "title": "A raw_ed25519, NEP-413, commit_claim or NEAR transaction signature is valid in another domain",
+  "description": "Checked the signed byte formats of the one taker key.",
+  "claimed_root_cause": "One key signs four kinds of message.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-intents/src/payload.rs",
+    "line": 336,
+    "scope": "bytes_to_sign",
+    "description": "Signed bytes."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-intents/src/payload.rs",
+    "line": 202,
+    "description": "NEP-413 tag 2^31 + 413."
+   }
+  ],
+  "reason": "raw_ed25519 signs JSON text starting with '{'; NEP-413 signs a 32-byte SHA-256 of a borsh message prefixed with 2^31+413, which no transaction or delegate action encodes to; commit_claim signs bytes starting with 'near-escrow/v1/commit-claim'; NEAR transactions sign a 32-byte hash of a borsh transaction. No message of one form parses as another. Not a bug."
+ }
+]

@@ -37,7 +37,7 @@ test('form, price and token picker', async ({ page }) => {
   await fillForm(page, { returnAddress: RETURN_ADDRESS });
   await page.getByText('How this price is made').click();
   await shot(page, '02-form-price');
-  await page.getByLabel('You receive').click();
+  await page.getByRole('button', { name: 'You receive' }).click();
   await page.getByRole('combobox').fill('sol');
   await shot(page, '03-token-picker', { full: false });
 });
@@ -105,6 +105,15 @@ test('exit price below the minimum', async ({ page }) => {
   await pay(page);
   await expect(page.getByTestId('now-title')).toHaveText('Delivery paused. Your USDC is safe.', { timeout: 30_000 });
   await shot(page, '11-exit-below-minimum');
+});
+
+test('delivery in progress', async ({ page }) => {
+  await open(page, 'speed=100&pause=exiting.delivering');
+  await fillForm(page);
+  await createAndSave(page);
+  await pay(page);
+  await expect(page.getByTestId('now-title')).toHaveText('Delivering USDC on Base', { timeout: 45_000 });
+  await shot(page, '11b-exit-delivering');
 });
 
 test('exit failed', async ({ page }) => {

@@ -453,7 +453,7 @@ h1:focus {
 
 .btn-secondary {
   background: var(--surface-raised);
-  border-color: var(--line-strong);
+  border-color: var(--field-border);
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -473,6 +473,13 @@ h1:focus {
 
 .btn-link:hover:not(:disabled) {
   text-decoration: underline;
+}
+
+.btn-start {
+  justify-content: flex-start;
+  text-align: left;
+  align-self: flex-start;
+  padding-left: 0;
 }
 
 .btn-inline {
@@ -523,7 +530,7 @@ h1:focus {
   min-height: 48px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--field-border);
   background: var(--surface-raised);
   color: var(--text);
   font: inherit;
@@ -542,7 +549,7 @@ select.input {
 }
 
 .input:hover {
-  border-color: var(--text-3);
+  border-color: var(--text-2);
 }
 
 .input-mono {
@@ -576,7 +583,7 @@ select.input {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
   padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
@@ -650,7 +657,7 @@ select.input {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--text);
@@ -1675,6 +1682,43 @@ a.hash {
 
 .return-form .btn {
   align-self: flex-start;
+}
+
+.exit-track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.exit-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.exit-step::before {
+  content: '';
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+}
+
+.exit-step.is-done::before {
+  background: var(--ok);
+}
+
+.exit-step.is-current::before {
+  background: var(--accent);
+}
+
+.exit-step.is-current {
+  color: var(--text);
+  font-weight: 650;
 }
 
 /* ------------------------------------------------------------ done */

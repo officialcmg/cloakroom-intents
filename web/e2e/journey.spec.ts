@@ -33,15 +33,13 @@ test('full swap: price, recovery file, payment, progress, delivery', async ({ pa
   await expect(page.getByTestId('safety')).toContainText('You can close this tab');
   await expect(page.getByTestId('done-title')).toHaveText(/You received [\d,.]+ USDC on Base/, { timeout: 40_000 });
 
-  // The exit quote: the full payout, the user's address, the taker's own Intents account.
-  const exitQuote = mock.quotes.at(-1)!;
-  expect(exitQuote.amount).toBe('937838000');
-  expect(exitQuote.recipient).toBe(EVM_ADDRESS);
+  // The engine runs the exit itself; the page made dry quotes only.
+  expect(mock.quotes.every((q) => q.dry)).toBe(true);
   await expect(page.getByText('What this swap revealed')).toBeVisible();
   await expect(page.getByText('Base transaction')).toBeVisible();
 
   await page.getByText('All steps and transactions').click();
-  for (const label of ['Request to the maker (encrypted memo)', 'Maker locked the USDC in the escrow', 'Claim with your key half', 'USDC delivered']) {
+  for (const label of ['Request to the maker (encrypted memo)', 'Maker locked the USDC in the escrow', 'Claim with your key half', 'Exit intent signed and submitted', 'USDC delivered']) {
     await expect(page.getByText(label)).toBeVisible();
   }
   await page.getByRole('button', { name: 'Start a new swap' }).click();
@@ -99,7 +97,7 @@ test('the delivery fails once: USDC is safe, retry delivers', async ({ page }) =
   await createAndSave(page);
   await pay(page);
   await expect(now(page)).toHaveText('Delivery paused. Your USDC is safe.', { timeout: 30_000 });
-  await expect(page.getByText(/came back to NEAR Intents under the key made in this browser/)).toBeVisible();
+  await expect(page.getByText(/could not complete the delivery to Base and returned the USDC/)).toBeVisible();
   await page.getByRole('button', { name: 'Try the delivery again' }).click();
   await expect(page.getByTestId('done-title')).toBeVisible({ timeout: 30_000 });
 });
@@ -111,8 +109,19 @@ test('the delivery price falls below the minimum: nothing moves until the user a
   await pay(page);
   await expect(now(page)).toHaveText('Delivery paused. Your USDC is safe.', { timeout: 30_000 });
   await expect(page.getByText(/The price for the delivery moved/)).toBeVisible();
+  await expect(page.getByText(/Nothing was signed/)).toBeVisible();
   await page.getByRole('button', { name: /Accept at least/ }).click();
-  // The page fetched a fresh price, which is back above the shown amount, so it delivers.
+  // The engine gets a new firm price, at or above the accepted minimum, and delivers.
+  await expect(page.getByTestId('done-title')).toBeVisible({ timeout: 30_000 });
+});
+
+test('NEAR Intents has no price for a moment: the engine asks again by itself', async ({ page }) => {
+  await open(page, 'speed=20&fail=exit-busy');
+  await fillForm(page);
+  await createAndSave(page);
+  await pay(page);
+  await expect(page.getByText(/has no price for this pair at this moment/)).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole('list', { name: 'Delivery steps' })).toBeVisible();
   await expect(page.getByTestId('done-title')).toBeVisible({ timeout: 30_000 });
 });
 
@@ -205,6 +214,18 @@ test('form checks: amounts, addresses, NEAR Intents refusals and the keyboard to
   await ret.fill('u1sc85xacmfvsy3l2ny320a4ppzmrssfamyevy67nmdv6dgd30jnjxn5mujeld6r4tuhkm0a4qqy6r58ede086kezc4q9n0xduhq0fym7x');
   await ret.blur();
   await expect(page.getByText(/This address is for Zcash mainnet/)).toBeVisible();
+});
+
+test('price errors from NEAR Intents: no price for a moment, and an amount too small', async ({ page }) => {
+  await open(page, '', { quoteErrors: ['Quoting for this pair is not available', 'Amount is too low for bridge, try at least 5909617'] });
+  await page.getByLabel('You pay').fill('1');
+  await expect(page.getByText(/has no price for USDC at this moment/)).toBeVisible();
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByText(/NEAR Intents needs at least 5.90 USDC for this route/)).toBeVisible();
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByTestId('price-line')).toContainText('You receive at least');
+  await page.getByText('How this price is made').click();
+  await expect(page.getByText(/NEAR Intents fee in this quote: 0.01%/)).toBeVisible();
 });
 
 test('token list down: a clear error and a working retry', async ({ page }) => {

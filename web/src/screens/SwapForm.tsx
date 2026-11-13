@@ -200,7 +200,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
 
         <div className="field">
           {!showReturn ? (
-            <button type="button" className="btn btn-link" onClick={() => setShowReturn(true)} aria-expanded="false">
+            <button type="button" className="btn btn-link btn-start" onClick={() => setShowReturn(true)} aria-expanded="false">
               <Icon name="return" size={16} /> Add a Zcash return address (recommended)
             </button>
           ) : (
@@ -370,8 +370,9 @@ function PriceCard({ price, token, payZats, zecUsd }: { price: ReturnType<typeof
                 <dt>
                   NEAR Intents: USDC to {token.symbol} on {chain}
                   <span className="row-note">
-                    {shown.exitCostBps !== undefined ? `Costs about ${formatBps(shown.exitCostBps)}, included. ` : ''}
-                    The price is fetched again at delivery. Below the minimum, nothing is sent until you choose.
+                    {quote?.feeBps !== undefined ? `NEAR Intents fee in this quote: ${formatBps(quote.feeBps)}. ` : ''}
+                    {shown.exitCostBps !== undefined ? `All costs of this step together: about ${formatBps(shown.exitCostBps)}, included. ` : ''}
+                    The minimum allows the 1% price margin of NEAR Intents. A fresh firm price is taken at delivery; below your minimum, nothing is signed until you choose.
                   </span>
                 </dt>
                 <dd>about {fmtDest(shown.destExpected)}</dd>
@@ -401,7 +402,10 @@ function PriceCard({ price, token, payZats, zecUsd }: { price: ReturnType<typeof
 }
 
 function exitErrorText(e: { kind: string; message: string; minAmountIn?: bigint }, token: Token): string {
-  if (e.kind === 'too_low' && e.minAmountIn) return `This amount is too small for ${token.symbol}. NEAR Intents needs at least ${formatUsdc(e.minAmountIn)} USDC for this route.`;
+  if (e.kind === 'too_low' && e.minAmountIn)
+    return `This amount is too small to send ${token.symbol} to ${chainName(token.blockchain)}. NEAR Intents needs at least ${formatUsdc(e.minAmountIn)} USDC for this route. Pay more ZEC, or choose another token.`;
+  if (e.kind === 'busy') return `NEAR Intents has no price for ${token.symbol} at this moment. This usually clears within 20 seconds; the page asks again by itself.`;
+  if (e.kind === 'network') return `${e.message} The page asks again in 20 seconds.`;
   if (e.kind === 'no_liquidity') return `NEAR Intents has no liquidity for ${token.symbol} right now. Choose another token or try later.`;
   if (e.kind === 'network') return e.message;
   return `NEAR Intents answered: ${e.message}`;

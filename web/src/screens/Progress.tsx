@@ -20,7 +20,8 @@ export function useEta(swap: SwapState): { leftMs?: number; doneBy?: number } {
   const real = remainingMs(swap.stage, (now - swap.stageAt) * scale, {
     confirmations: swap.funding?.confirmations,
   });
-  if (real === undefined) return {};
+  // While the user must act, a countdown would mislead.
+  if (real === undefined || swap.needs) return {};
   const leftMs = real / scale;
   return { leftMs, doneBy: now + leftMs };
 }
@@ -57,11 +58,7 @@ export function ProgressScreen({ swap, exit }: { swap: SwapState; exit: ExitCont
         {copy.body && <p className="lede">{copy.body}</p>}
         {swap.activity && <TimedProgress key={`${swap.activity.label}-${swap.activity.startedAt}`} startedAt={swap.activity.startedAt} estimatedMs={swap.activity.estimatedMs} label={swap.activity.label} />}
         {swap.stage === 'exit_retry' && <ExitDecision swap={swap} exit={exit} />}
-        {swap.stage === 'paid_out' && exit.error && (
-          <Notice tone="warn" title="No price yet" role="alert">
-            {exit.error} The page tries again every 15 seconds.
-          </Notice>
-        )}
+        {swap.stage === 'exiting' && <ExitTrack swap={swap} />}
         {swap.needs === 'return_address' && <ReturnAddressForm swap={swap} />}
         {copy.safetyText && (
           <div className={`safety safety-${copy.safety}`} data-testid="safety">
@@ -190,11 +187,11 @@ function ExitDecision({ swap, exit }: { swap: SwapState; exit: ExitControl }) {
       {code === 'EXIT_BELOW_MINIMUM' && offered ? (
         <>
           <p className="lede">
-            The price for the delivery moved. NEAR Intents now offers about {destAmount(swap, offered.amountOut)}, at least {destAmount(swap, offered.minAmountOut)}. Your minimum was{' '}
-            {destAmount(swap, swap.params.minDestinationAmount)}.
+            The price for the delivery moved. NEAR Intents now offers about {destAmount(swap, offered.amountOut)}, at least {destAmount(swap, offered.minAmountOut)}. Your minimum is{' '}
+            {destAmount(swap, swap.exit?.approvedMinimum ?? swap.params.minDestinationAmount)}. Nothing was signed.
           </p>
           <p>
-            {usdc} is in NEAR Intents under the key made in this browser. Nobody else can move it. You can wait and try again, or accept the lower amount.
+            {usdc} is in NEAR Intents under the key made in this browser. Nobody else can move it. Prices often come back within minutes: you can get a new price, or accept the lower amount.
           </p>
           <div className="row-actions">
             <button type="button" className="btn btn-primary" onClick={exit.retry} disabled={exit.busy}>
@@ -207,9 +204,9 @@ function ExitDecision({ swap, exit }: { swap: SwapState; exit: ExitControl }) {
         </>
       ) : (
         <>
-          <p className="lede">NEAR Intents could not complete the delivery to {chainName(swap.params.destination.chain)}.</p>
+          <p className="lede">{exitProblem(code, swap)}</p>
           <p>
-            {usdc} came back to NEAR Intents under the key made in this browser. Nobody else can move it. Try again; the page gets a new price first.
+            {usdc} is in NEAR Intents under the key made in this browser. Nobody else can move it. Trying again starts with a new firm price.
           </p>
           <div className="row-actions">
             <button type="button" className="btn btn-primary" onClick={exit.retry} disabled={exit.busy}>
@@ -224,6 +221,36 @@ function ExitDecision({ swap, exit }: { swap: SwapState; exit: ExitControl }) {
         </Notice>
       )}
     </div>
+  );
+}
+
+function exitProblem(code: string | undefined, swap: SwapState): string {
+  const chain = chainName(swap.params.destination.chain);
+  if (code === 'EXIT_AMOUNT_TOO_LOW') return `NEAR Intents says this amount is too small to send to ${chain}. ${swap.lastError?.message ?? ''}`;
+  if (code === 'EXIT_REFUSED') return 'The engine refused the delivery request from NEAR Intents, because it did not match what you approved. Nothing was signed.';
+  return `NEAR Intents could not complete the delivery to ${chain} and returned the USDC.`;
+}
+
+const EXIT_STEPS: { phase: string; label: string }[] = [
+  { phase: 'quoting', label: 'Firm price' },
+  { phase: 'signing', label: 'Check and sign' },
+  { phase: 'submitted', label: 'Submitted' },
+  { phase: 'delivering', label: 'Delivering' },
+];
+
+function ExitTrack({ swap }: { swap: SwapState }) {
+  const current = EXIT_STEPS.findIndex((x) => x.phase === swap.exit?.phase);
+  return (
+    <ol className="exit-track" aria-label="Delivery steps">
+      {EXIT_STEPS.map((x, i) => {
+        const st = i < current ? 'done' : i === current ? 'current' : 'upcoming';
+        return (
+          <li key={x.phase} className={`exit-step is-${st}`} aria-current={st === 'current' ? 'step' : undefined}>
+            {x.label}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

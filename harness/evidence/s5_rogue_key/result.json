@@ -1,0 +1,157 @@
+{
+  "scenario": "s5_rogue_key",
+  "title": "Malicious maker sends a rogue key B = [b']G - A: taker rejects the quote and never funds",
+  "chain_branch": "77190ad9",
+  "checks": [
+    {
+      "check": "taker rejected the quote (proof of knowledge)",
+      "pass": true,
+      "detail": "{'Aborted': 'QUOTE REJECTED: maker proof of knowledge INVALID (possible rogue-key attack); nothing was funded'}"
+    },
+    {
+      "check": "taker never funded and paid no premium (only the request fee)",
+      "pass": true,
+      "detail": "10000"
+    },
+    {
+      "check": "privacy audit: all 2 Zcash txs by maker/taker are fully shielded Ironwood v6 (no transparent in/out)",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "check": "R4: per-swap secrets erased by every party in a terminal stage (b, s_M, e_M / a, s_T, e_T; joint FVK)",
+      "pass": true,
+      "detail": "checked=['taker:Aborted'] not_terminal=['maker:Quoted'] bad=[]"
+    }
+  ],
+  "facts": {
+    "before": {
+      "maker_zec": 208333333,
+      "taker_zec": 208333333,
+      "maker_wnear": 9969998750000000000000000000
+    },
+    "after": {
+      "maker_zec": 208323333,
+      "taker_zec": 208323333,
+      "maker_wnear": 9969998750000000000000000000
+    },
+    "zcash_txs": [
+      {
+        "txid": "1429a40e33a0b6d055be948c16f5b9514308e7cd6e29710e42caa8805a9c7b03",
+        "height": 86,
+        "version": 6,
+        "ironwood_actions": 2,
+        "ironwood_value_balance": 10000,
+        "transparent_in": 0,
+        "transparent_out": 0
+      },
+      {
+        "txid": "4c5b24bc2531beaebd2c10ddd315955575fce7eaf3818ce81182c22b8f46903d",
+        "height": 88,
+        "version": 6,
+        "ironwood_actions": 2,
+        "ironwood_value_balance": 10000,
+        "transparent_in": 0,
+        "transparent_out": 0
+      }
+    ],
+    "r4_checked": [
+      "taker:Aborted"
+    ],
+    "r4_not_terminal": [
+      "maker:Quoted"
+    ]
+  },
+  "maker_swap": {
+    "rfq_id": "568232d644db384d0251a589733377df",
+    "stage": "Quoted",
+    "zats": 100000000,
+    "price": "30000000000000000000000000",
+    "premium": 50000,
+    "stipend": "30000000000000000000000",
+    "taker_pk": "ba6391972d3abb8f2841c0f11373959b42e6a7ad123c7f6fe021f6f508876099",
+    "taker_account": "ba6391972d3abb8f2841c0f11373959b42e6a7ad123c7f6fe021f6f508876099",
+    "a_pub": "f07c139685875080b0b9764faadbcb7fbce36dd1b9f09c804f492e083676dc24",
+    "commit_s_t": "3fd261facb9222dd5adf1a9b35a872f00a3a98775ea219f19b194556f6ea9706",
+    "b": "<redacted>",
+    "s_m": "<redacted>",
+    "e_m": "<redacted>",
+    "e_t_pub": "1c52eef1ffcba928cfb7243c59dd3b33607e3cb85275cdc0d0820160ac64512a",
+    "quote_memo": "<redacted>",
+    "quote_hash": "2285769b184fd171729510b3345859748a61c5fe73615defe3cbf1b2a4cd984a",
+    "windows": {
+      "t0_secs": 120,
+      "t1_secs": 60,
+      "t2_secs": 60,
+      "reveal_secs": 45
+    },
+    "rfq_height": 86,
+    "accept_height": null,
+    "negated": false,
+    "joint_fvk": null,
+    "salt": null,
+    "escrow_id": null,
+    "t0": null,
+    "t1": null,
+    "t2": null,
+    "pending_then": null,
+    "pending": {
+      "what": "quote",
+      "txid": "4c5b24bc2531beaebd2c10ddd315955575fce7eaf3818ce81182c22b8f46903d",
+      "raw_hex": "<omitted>",
+      "expiry_height": 127,
+      "broadcast": true
+    },
+    "quote_txid": "4c5b24bc2531beaebd2c10ddd315955575fce7eaf3818ce81182c22b8f46903d",
+    "open_tx": null,
+    "stipend_tx": null,
+    "ready_tx": null,
+    "refund_tx": null,
+    "refund_at": null,
+    "sweep_txid": null,
+    "sweep_height": null,
+    "taker_withdraw_at": null,
+    "log": [
+      "RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE RogueKey]",
+      "encrypted QUOTE sent in tx 4c5b24bc2531beaebd2c10ddd315955575fce7eaf3818ce81182c22b8f46903d"
+    ]
+  },
+  "taker_swap": {
+    "rfq_id": "568232d644db384d0251a589733377df",
+    "stage": {
+      "Aborted": "QUOTE REJECTED: maker proof of knowledge INVALID (possible rogue-key attack); nothing was funded"
+    },
+    "zats": 100000000,
+    "a": "",
+    "s_t": "",
+    "e_t": "",
+    "e_t_pub": "1c52eef1ffcba928cfb7243c59dd3b33607e3cb85275cdc0d0820160ac64512a",
+    "near_sk": "<redacted>",
+    "taker_account": "ba6391972d3abb8f2841c0f11373959b42e6a7ad123c7f6fe021f6f508876099",
+    "reply_index": 1446150742,
+    "created_at": 1794541099,
+    "stage_at": 1794541113,
+    "quote": null,
+    "negated": false,
+    "joint_fvk": null,
+    "joint_address": null,
+    "escrow_id": null,
+    "pending_then": null,
+    "pending": null,
+    "rfq_txid": "1429a40e33a0b6d055be948c16f5b9514308e7cd6e29710e42caa8805a9c7b03",
+    "accept_txid": null,
+    "fund_txid": null,
+    "fund_expiry": null,
+    "sweep_txid": null,
+    "sweep_height": null,
+    "commit_tx": null,
+    "claim_tx": null,
+    "claim_at": null,
+    "withdraw_tx": null,
+    "withdraw_at": null,
+    "log": [
+      "encrypted RFQ for 100000000 zats sent to the maker in shielded tx 1429a40e33a0b6d055be948c16f5b9514308e7cd6e29710e42caa8805a9c7b03",
+      "ABORT: QUOTE REJECTED: maker proof of knowledge INVALID (possible rogue-key attack); nothing was funded"
+    ]
+  }
+}

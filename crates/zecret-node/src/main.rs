@@ -79,7 +79,7 @@ fn print_events(role: &str, events: &[Event]) {
             Event::Done { swap, outcome } => format!("{} DONE {outcome}", engine::short(swap)),
             Event::Balance { zats } => format!("balance {zats} zats"),
             Event::Payout { swap, account, token, amount } => format!("{} payout {amount} {token} to {account} in intents", engine::short(swap)),
-            other => format!("{}", serde_json::to_string(other).unwrap_or_default()),
+            other => serde_json::to_string(other).unwrap_or_default().to_string(),
         };
         println!("[{role} {}] {line}", now());
     }
@@ -160,12 +160,11 @@ fn run_maker(dir: &Path, store: &mut FileStore, args: &[String]) -> Result<()> {
     loop {
         let t = m.tick(now(), store);
         print_events("maker", &t.events);
-        if let Some(v) = &vanish_at {
-            if m.swaps().any(|s| s.stage.name().eq_ignore_ascii_case(v)) {
+        if let Some(v) = &vanish_at
+            && m.swaps().any(|s| s.stage.name().eq_ignore_ascii_case(v)) {
                 println!("[maker {}] VANISH at stage {v} (process exits; state is stored)", now());
                 return Ok(());
             }
-        }
         if let Some(n) = exit_after {
             let done = m.swaps().filter(|s| s.stage.is_terminal()).count();
             if done >= n {
@@ -195,12 +194,11 @@ fn run_taker(dir: &Path, store: &mut FileStore, args: &[String]) -> Result<()> {
     loop {
         let t = tk.tick(now(), store);
         print_events("taker", &t.events);
-        if let (Some(v), Some(s)) = (&vanish_at, tk.swap()) {
-            if s.stage.name().eq_ignore_ascii_case(v) {
+        if let (Some(v), Some(s)) = (&vanish_at, tk.swap())
+            && s.stage.name().eq_ignore_ascii_case(v) {
                 println!("[taker {}] VANISH at stage {v} (process exits; state is stored)", now());
                 return Ok(());
             }
-        }
         if t.next == Next::Done {
             let s = tk.swap().ok_or_else(|| anyhow!("no swap"))?;
             println!("[taker {}] finished: {}", now(), s.stage.name());

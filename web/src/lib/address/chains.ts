@@ -232,7 +232,7 @@ const CHECKS: Record<Family, (a: string) => AddressCheck> = {
 // ---------------------------------------------------------------- the chain table
 
 const EVM_HINT = 'An address that starts with 0x, from any Ethereum-style wallet.';
-const EVM_EXAMPLE = '0x85F17Cf997934a597031b2E18a9aB6ebD4B9f6a4';
+const EVM_EXAMPLE = '0x…';
 const scan = (base: string) => (h: string) => `${base}/tx/${h}`;
 
 function evm(id: string, name: string, explorer?: string): ChainInfo {

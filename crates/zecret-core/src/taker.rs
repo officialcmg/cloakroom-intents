@@ -264,11 +264,10 @@ impl Taker {
     /// Starts a swap of `zats` zatoshis: checks the maker's directory entry, creates the
     /// per-swap secrets and stores them. Nothing is sent until the next `tick`.
     pub fn start(&mut self, zats: u64, now: u64, store: &mut dyn Store) -> Result<&TakerSwap> {
-        if let Some(s) = &self.swap {
-            if !s.stage.is_terminal() {
+        if let Some(s) = &self.swap
+            && !s.stage.is_terminal() {
                 bail!("swap {} is still in progress", short(&s.rfq_id));
             }
-        }
         if zats == 0 {
             bail!("amount is zero");
         }
@@ -1006,5 +1005,123 @@ impl Taker {
             bail!("nothing to return: {have} zats");
         }
         self.wallet.pay("wallet", &self.me.ask, self.me.change(), vec![(to, have - fee, wallet::empty_memo())])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::{Chains, Cover, MakerEntry, Timing},
+        net::{Response, Transport},
+        store::MemStore,
+    };
+    use std::rc::Rc;
+
+    struct NoNet;
+    impl Transport for NoNet {
+        fn post(&self, _: &str, _: &[(&str, &str)], _: &[u8]) -> Result<Response> {
+            Err(anyhow!("no network in this test"))
+        }
+    }
+
+    fn setup() -> (Taker, NearKey) {
+        let maker_key = NearKey::from_seed([3u8; 32]);
+        let rfq_pub = hex::encode(msg::dh_public(&keys::random_scalar()));
+        let ua = Me::generate().ua();
+        let digest = keys::directory_digest(&ua, 1, &keys::unhex32(&rfq_pub).unwrap(), "maker.near");
+        let cfg = TakerConfig {
+            chains: Chains {
+                zebra_rpc: Some("http://unused".into()),
+                lightwalletd: None,
+                birthday: None,
+                network: None,
+                nu7_height: Some(2),
+                near_rpc: "http://unused".into(),
+                escrow: "escrow.near".into(),
+                token: "usdc.near".into(),
+                intents: "intents.near".into(),
+            },
+            timing: Timing { inclusion_secs: 30, finality_secs: 10, reorg_budget: 2, margin_secs: 0, fund_secs: 120, k_z: 2 },
+            maker: MakerEntry { ua, epoch: 1, rfq_pub, near_account: "maker.near".into(), near_pk: maker_key.public_key_str(), sig: hex::encode(maker_key.sign(&digest)) },
+            min_price: 1000,
+            max_premium: 50_000,
+            min_stipend: 3 * crate::near::ONE_NEAR / 100,
+            max_horizon_secs: 48 * 3600,
+            quote_timeout_secs: 600,
+            cover: Cover::default(),
+            misbehave: None,
+        };
+        let mut store = MemStore::new();
+        (Taker::open(cfg, Rc::new(NoNet), &mut store).unwrap(), maker_key)
+    }
+
+    fn good_quote(rfq_id: &[u8; 16], key: &NearKey) -> Quote {
+        let b = keys::random_scalar();
+        let mut q = Quote {
+            price: 5000,
+            premium: 40_000,
+            stipend: 3 * crate::near::ONE_NEAR / 100,
+            b_pub: (keys::g() * b).to_bytes(),
+            pok_b: keys::pok_prove(&b, rfq_id, b"maker"),
+            s_m: [1; 32],
+            t0_secs: 600,
+            t1_secs: 600,
+            t2_secs: 600,
+            reveal_secs: 600,
+            escrow: "escrow.near".into(),
+            maker: "maker.near".into(),
+            sig: [0; 64],
+        };
+        q.sig = key.sign(&q.sig_digest(rfq_id));
+        q
+    }
+
+    #[test]
+    fn quote_rules_r1q_and_identity() {
+        let (tk, key) = setup();
+        let id = [9u8; 16];
+        assert_eq!(tk.reject_quote(&good_quote(&id, &key), &id), None);
+        let resign = |mut q: Quote| {
+            q.sig = key.sign(&q.sig_digest(&id));
+            q
+        };
+        let cases: Vec<(Quote, &str)> = vec![
+            // R1q: W must exceed F + B_R = 10 + 110
+            (resign(Quote { reveal_secs: 120, ..good_quote(&id, &key) }), "reveal window"),
+            // R1q: t2 - open must stay within the horizon
+            (resign(Quote { t2_secs: u32::MAX, ..good_quote(&id, &key) }), "deadline horizon"),
+            (resign(Quote { t0_secs: 130, ..good_quote(&id, &key) }), "funding window"),
+            (resign(Quote { t1_secs: 120, ..good_quote(&id, &key) }), "claim window"),
+            (resign(Quote { price: 999, ..good_quote(&id, &key) }), "below the taker's minimum"),
+            (resign(Quote { premium: 50_001, ..good_quote(&id, &key) }), "premium"),
+            (resign(Quote { stipend: 1, ..good_quote(&id, &key) }), "stipend"),
+            (resign(Quote { escrow: "evil.near".into(), ..good_quote(&id, &key) }), "unknown escrow"),
+            (resign(Quote { maker: "evil.near".into(), ..good_quote(&id, &key) }), "unexpected maker"),
+            // a quote signed by another key
+            (Quote { sig: NearKey::generate().sign(&good_quote(&id, &key).sig_digest(&id)), ..good_quote(&id, &key) }, "not signed"),
+            // a proof of knowledge for another request id (replay)
+            (resign(Quote { pok_b: good_quote(&[8u8; 16], &key).pok_b, ..good_quote(&id, &key) }), "proof of knowledge"),
+        ];
+        for (q, want) in cases {
+            let got = tk.reject_quote(&q, &id).unwrap_or_default();
+            assert!(got.contains(want), "expected {want:?}, got {got:?}");
+        }
+    }
+
+    #[test]
+    fn start_refuses_a_forged_directory_entry_before_any_network_call() {
+        let (mut tk, _) = setup();
+        tk.cfg.maker.sig = hex::encode(NearKey::generate().sign(b"x"));
+        let mut store = MemStore::new();
+        let e = tk.start(1000, 0, &mut store).unwrap_err().to_string();
+        assert!(e.contains("not signed by"), "{e}");
+        assert!(store.keys(PREFIX_SWAP).unwrap().is_empty(), "nothing stored");
+        assert!(tk.swap().is_none());
+    }
+
+    #[test]
+    fn deposit_covers_note_fees_and_premium() {
+        assert_eq!(required_deposit(100_000_000, 50_000), 100_000_000 + 10_000 + 30_000 + 50_000);
     }
 }

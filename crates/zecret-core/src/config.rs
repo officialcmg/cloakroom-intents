@@ -5,6 +5,29 @@ use serde::{Deserialize, Serialize};
 
 use crate::wallet::CoverPolicy;
 
+/// u128 amounts (token base units, yoctoNEAR) as decimal strings in JSON, because
+/// JavaScript numbers cannot hold them. Numbers are accepted on input too.
+pub mod u128_str {
+    use serde::{de, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(v: &u128, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&v.to_string())
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<u128, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum V {
+            S(String),
+            N(u64),
+        }
+        match V::deserialize(d)? {
+            V::S(s) => s.trim().parse().map_err(de::Error::custom),
+            V::N(n) => Ok(n as u128),
+        }
+    }
+}
+
 /// Timing bounds of the paper (Section 4), measured on the NEAR network in use. All in
 /// seconds of NEAR block time.
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -172,11 +195,12 @@ pub struct TakerConfig {
     pub timing: Timing,
     pub maker: MakerEntry,
     /// Smallest price (token base units) the taker accepts for the requested amount.
-    #[serde(default)]
+    #[serde(default, with = "u128_str")]
     pub min_price: u128,
     /// Largest premium (zatoshis) the taker accepts.
     pub max_premium: u64,
     /// Smallest stipend (yoctoNEAR) the taker accepts. It must pay for commit_claim and claim.
+    #[serde(with = "u128_str")]
     pub min_stipend: u128,
     /// Largest t2 − open the taker accepts (seconds), rule R1q's horizon H.
     #[serde(default = "default_horizon")]
@@ -205,19 +229,21 @@ pub struct MakerConfig {
     /// The maker's NEAR account. Its key is in the store.
     pub near_account: String,
     /// Token base units paid for 1 ZEC (10^8 zatoshis).
+    #[serde(with = "u128_str")]
     pub price_per_zec: u128,
     pub min_zats: u64,
     pub max_zats: u64,
     /// Non-refundable premium (zatoshis) the taker pays with the acceptance.
     pub premium_zats: u64,
     /// yoctoNEAR sent to the taker's account right after `open`.
+    #[serde(with = "u128_str")]
     pub stipend: u128,
     pub windows: Windows,
     /// When the maker's storage funds in the escrow fall below this (yoctoNEAR), the
     /// maker adds `storage_topup` before it opens a swap.
-    #[serde(default = "default_storage_min")]
+    #[serde(default = "default_storage_min", with = "u128_str")]
     pub storage_min: u128,
-    #[serde(default = "default_storage_topup")]
+    #[serde(default = "default_storage_topup", with = "u128_str")]
     pub storage_topup: u128,
     #[serde(default)]
     pub cover: Cover,
@@ -246,6 +272,19 @@ mod tests {
 
     fn timing() -> Timing {
         Timing { inclusion_secs: 30, finality_secs: 10, reorg_budget: 2, margin_secs: 0, fund_secs: 120, k_z: 2 }
+    }
+
+    #[test]
+    fn u128_fields_read_strings_and_numbers() {
+        #[derive(serde::Serialize, serde::Deserialize)]
+        struct T {
+            #[serde(with = "u128_str")]
+            v: u128,
+        }
+        let t: T = serde_json::from_str(r#"{"v": "30000000000000000000000000"}"#).unwrap();
+        assert_eq!(t.v, 30 * 10u128.pow(24));
+        assert_eq!(serde_json::from_str::<T>(r#"{"v": 7}"#).unwrap().v, 7);
+        assert_eq!(serde_json::to_string(&t).unwrap(), r#"{"v":"30000000000000000000000000"}"#);
     }
 
     #[test]

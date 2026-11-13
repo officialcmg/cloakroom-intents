@@ -126,6 +126,9 @@ describe('1Click responses', () => {
     expect(q.minAmountOut).toBe(61_301_325n);
     expect(q.timeEstimateS).toBe(9);
     expect(q.depositAddress).toBeUndefined();
+    expect(q.feeBps).toBeUndefined();
+    const withFees = parseQuote({ ...body, quoteRequest: { appFees: [{ recipient: '5880ad2b', fee: 20 }] } }, 'x');
+    expect(withFees.feeBps).toBe(20);
     expect(() => parseQuote({}, 'x')).toThrow();
   });
   it('classifies error messages', () => {
@@ -134,6 +137,7 @@ describe('1Click responses', () => {
     expect(low.kind).toBe('too_low');
     expect(low.minAmountIn).toBe(82_594n);
     expect(classifyError(400, 'No liquidity available').kind).toBe('no_liquidity');
+    expect(classifyError(400, 'Quoting for this pair is not available').kind).toBe('busy');
   });
   it('keeps supported chains and drops deprecated, Zcash and USDC on NEAR', () => {
     const list = selectDestinations([

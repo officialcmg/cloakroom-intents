@@ -50,6 +50,8 @@
   --text-3: #5f636b;
   --line: #e1dacc;
   --line-strong: #c4bba9;
+  /* Borders of fields and buttons: at least 3:1 against their background (WCAG 1.4.11). */
+  --field-border: #8f8674;
   --accent: #e8b23a;
   --accent-hover: #f1c159;
   --on-accent: #1a1406;
@@ -85,6 +87,7 @@
     --text-3: #9ea2ab;
     --line: #272c37;
     --line-strong: #3b4250;
+    --field-border: #646c7d;
     --accent: #e8b23a;
     --accent-hover: #f1c159;
     --on-accent: #1a1406;
@@ -118,6 +121,7 @@
   --text-3: #9ea2ab;
   --line: #272c37;
   --line-strong: #3b4250;
+  --field-border: #646c7d;
   --accent: #e8b23a;
   --accent-hover: #f1c159;
   --on-accent: #1a1406;

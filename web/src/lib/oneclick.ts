@@ -67,7 +67,7 @@ export function selectDestinations(raw: unknown): TokenList {
   return { destinations, zecUsd };
 }
 
-export type OneClickErrorKind = 'recipient' | 'too_low' | 'no_liquidity' | 'network' | 'other';
+export type OneClickErrorKind = 'recipient' | 'too_low' | 'no_liquidity' | 'busy' | 'network' | 'other';
 
 export class OneClickError extends Error {
   constructor(
@@ -85,6 +85,8 @@ export function classifyError(status: number, message: string): OneClickError {
   const low = /too low.*?(\d+)/i.exec(message);
   if (low) return new OneClickError(message, status, 'too_low', BigInt(low[1]));
   if (/recipient/i.test(message)) return new OneClickError(message, status, 'recipient');
+  // Seen for about 20 s at a time on 2026-11-13 (docs/INTENTS.md §5); it clears by itself.
+  if (/quoting for this pair is not available/i.test(message)) return new OneClickError(message, status, 'busy');
   if (/liquidity/i.test(message)) return new OneClickError(message, status, 'no_liquidity');
   return new OneClickError(message || `1Click answered ${status}`, status, 'other');
 }
@@ -128,6 +130,8 @@ export interface ExitQuote {
   amountInUsd?: number;
   amountOutUsd?: number;
   timeEstimateS?: number;
+  /** Fees 1Click added to this quote (quoteRequest.appFees), in basis points. Already inside amountOut. */
+  feeBps?: number;
   /** Present on a real (not dry) quote: where the signed transfer goes. */
   depositAddress?: string;
   deadline: string;
@@ -145,6 +149,8 @@ function big(v: unknown, field: string): bigint {
 export function parseQuote(body: unknown, deadline: string): ExitQuote {
   const q = (body as { quote?: Record<string, unknown> })?.quote;
   if (!q) throw new OneClickError('The quote has an unexpected shape.', 0, 'other');
+  const fees = (body as { quoteRequest?: { appFees?: { fee?: unknown }[] } }).quoteRequest?.appFees;
+  const feeBps = Array.isArray(fees) ? fees.reduce((sum, f) => sum + (typeof f?.fee === 'number' ? f.fee : 0), 0) : undefined;
   const usd = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? Number(v) : undefined);
   return {
     amountIn: big(q.amountIn, 'amountIn'),
@@ -153,6 +159,7 @@ export function parseQuote(body: unknown, deadline: string): ExitQuote {
     amountInUsd: usd(q.amountInUsd),
     amountOutUsd: usd(q.amountOutUsd),
     timeEstimateS: typeof q.timeEstimate === 'number' ? q.timeEstimate : undefined,
+    feeBps,
     depositAddress: typeof q.depositAddress === 'string' ? q.depositAddress : undefined,
     deadline,
     fetchedAt: Date.now(),

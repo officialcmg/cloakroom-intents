@@ -97,11 +97,10 @@ fn advance_to(rpc: &NearRpc, target: u64) {
 /// Waits until a final block shows the swap in `state`.
 fn wait_final(e: &Escrow, id: &[u8; 32], state: SwapState) -> zecret_core::near::SwapView {
     for _ in 0..60 {
-        if let Some(v) = e.get_swap(id, &At::Final).unwrap() {
-            if v.state == state {
+        if let Some(v) = e.get_swap(id, &At::Final).unwrap()
+            && v.state == state {
                 return v;
             }
-        }
         std::thread::sleep(Duration::from_millis(500));
     }
     panic!("swap never reached {state:?} at a final block");
