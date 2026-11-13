@@ -210,6 +210,54 @@ Tests: `crates/zecret-node/src/testnet_config.rs` (`testnet_maker_keeps_the_pape
 - The browser scenarios do not include a refusal or a two-note refund.
 - The new timeouts were not tried in a swap on testnet.
 
-## 11. Test runs
+## 11. Changes asked for by the review-3 fixes (relay, website)
 
-See the report of this change (section added after the runs).
+- `crates/zecret-wasm/tests/sandbox.rs` `relay()`: the `Relay` literal gets `token:
+  w.wrap.clone()`, and each maker swap record now has `rfq_id`, `stage: "Swept"` and a
+  `price` (1000 NEAR, above every amount the tests withdraw), because the relay now serves
+  only swaps whose record shows a payout.
+- `harness/browser/run.mjs`: the `npx vite build` step runs with
+  `VITE_ZECRET_ALLOW_CONFIG_URL=1` (production builds refuse `?config=<URL>`, which the
+  runner uses). With `SKIP_BUILD=1`, build `web/dist` the same way.
+
+## 12. Test runs
+
+Run on 2026-11-13 from `crates/` after `source .tools/env.sh`, on the final tree (including
+the review-3 relay and website changes).
+
+Before the change (taker code of commit `1f5779c`, in a separate worktree):
+
+| Test | Result before |
+|---|---|
+| `poc2_taker`: `poc_f2_01_…`, `poc_f2_02_…`, `poc_f2_03_r1_…`, `poc_f2_03_huge_…` | all 4 FAIL with the review's messages (F2-01: "stage Recovered, a erased, but 100010000 zats … still unspent"; F2-02: "broadcast claim(a) 50s after lockedAt + W"; F2-03: "verified an escrow whose reveal window is u64::MAX"; "attempt to add with overflow" at taker.rs:962) |
+| `taker_fixes` tests that the old API can express | `f2_01_second_note_is_swept_funding_first`, `f2_02_zcash_outage_does_not_stall_the_claim`, `f2_03_escrow_windows_must_equal_the_quote` FAIL; `f2_01_dust_note_does_not_hold_the_recovery`, `f2_01_refund_before_the_funding_is_mined_keeps_a`, `f2_02_zcash_outage_never_ends_a_recovery` pass (they guard that the new rules do not hold a swap too long or end a recovery on an old view; the old code had no such paths) |
+| `no_false_low_funds_warning_while_a_quote_is_in_flight` | FAIL with the testnet line "requests wait for a quote, but the wallet has 0 spendable zats, less than a quote fee (10000)" |
+| `testnet_config` (with the old configs) | `testnet_taker_accepts_what_the_maker_quotes` FAIL (quote_ttl 3600 ≤ 2 × 1800 + 211), `a_window_that_breaks_a_bound_is_refused` FAIL (min_zats > max_zats accepted) |
+
+The tests of new interfaces (refusal, limits, two-phase claim, `PayoutPending`, H1, H6)
+cannot compile against the old code.
+
+After the change: see the report of this change for the outputs; summary:
+
+| Command | Result |
+|---|---|
+| `cargo test -p zecret-core` | lib 29, maker_bounds 11, maker_refusal 8, poc2_maker 1, poc2_taker 4, taker_fixes 12: all pass |
+| `cargo test -p zecret-node --lib --bins` | 11 pass |
+| `cargo test -p zecret-wasm` (sandbox with `LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD`, `--test-threads=1`) | lib 3, oneclick_recorded 3, sandbox 3: all pass |
+| `cargo clippy -p zecret-core -p zecret-node -p zecret-wasm --all-targets -- -D warnings` | clean; also with `--features zecret-node/misbehave`, and for wasm32 (core, wasm) |
+| `cargo build -p zecret-wasm --target wasm32-unknown-unknown --release` | builds |
+| `python3 -I harness/run.py` | all 21 scenarios PASS, including the new `s22_maker_refuses` and `s23_refund_with_two_joint_notes` |
+| `node harness/browser/run.mjs` | all 5 PASS (`harness/BROWSER_RESULTS.md`) |
+| `cd web && npm run typecheck && npm run lint && npm test && npm run build && npm run e2e` | pass |
+
+Two traps met on the way, for whoever runs these next:
+
+- `crates/target` is shared. Another session's `cargo build -p zecret-node` (without
+  `--features misbehave`) replaced `target/debug/zecret` while `harness/run.py` was
+  running, and the `misbehave` scenarios s5, s6 and s8 failed with "misbehave is a
+  test-only setting". The runs above used a private copy of the binary built with the
+  feature (`ZECRET_BIN=<copy>`; both runners honour it).
+- A build of an older checkout of the same workspace into the same target directory
+  overwrites the workspace members' artifacts (their metadata hash does not depend on the
+  path), and cargo then takes them as fresh because the sources are older. `touch` the
+  sources before testing again.

@@ -1,0 +1,103 @@
+{
+  "scenario": "e_quote_below_minimum",
+  "title": "The maker’s firm quote is below the minimum the page set (directory rate 32, maker pays 30): the engine stops before the acceptance, pays no premium, and returns the ZEC to the return address",
+  "checks": [
+    {
+      "check": "refund reason QUOTE_BELOW_MINIMUM",
+      "pass": true,
+      "detail": "QUOTE_BELOW_MINIMUM"
+    },
+    {
+      "check": "stopped before the acceptance: no premium, no funding",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "the maker opened no escrow and paid nothing",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "the refund was the payment less the request fee and its own fee",
+      "pass": true,
+      "detail": "100030000"
+    },
+    {
+      "check": "the user wallet lost exactly three fees (payment, request, refund)",
+      "pass": true,
+      "detail": "30000"
+    },
+    {
+      "check": "privacy audit: all 4 Zcash transactions (user payment, browser taker, maker) are fully shielded Ironwood, no transparent or Sapling parts",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "facts": {
+    "timings": {
+      "stages": [
+        {
+          "stage": "awaiting_deposit",
+          "at": "2026-11-13T09:35:29.262Z",
+          "secs": 11.8
+        },
+        {
+          "stage": "deposit_seen",
+          "at": "2026-11-13T09:35:41.062Z",
+          "secs": 0
+        },
+        {
+          "stage": "deposit_confirmed",
+          "at": "2026-11-13T09:35:41.064Z",
+          "secs": 34.9
+        },
+        {
+          "stage": "request_sent",
+          "at": "2026-11-13T09:36:15.933Z",
+          "secs": 9.1
+        },
+        {
+          "stage": "refunding",
+          "at": "2026-11-13T09:36:25.049Z",
+          "secs": 35.8
+        },
+        {
+          "stage": "refunded",
+          "at": "2026-11-13T09:37:00.897Z",
+          "secs": null
+        }
+      ],
+      "engine": [
+        {
+          "what": "wasm_load",
+          "secs": 0.1
+        },
+        {
+          "what": "verify_maker",
+          "secs": 0.1
+        },
+        {
+          "what": "proving_key_build",
+          "secs": 21.6
+        },
+        {
+          "what": "proof_request",
+          "secs": 34.6
+        },
+        {
+          "what": "proof_refund",
+          "secs": 32.7
+        }
+      ],
+      "total_secs": 92
+    },
+    "zcash_txs": [
+      "d95515512275456c9bf0b8950eb4738ceddf8afd6fcc58c6a7ad4f291b9edbd1",
+      "636d57490da525989925e1ae39cfb7755c0d6594c828f8e0e797c6fabb6e0a12",
+      "3d3125531a13c42c3c16ca134e52293941910615e56dc67c6510da3b4041344b",
+      "739ebc66435311ecde434961bb26b94cf70fa4aa33dcb9cc5324735094cbc267"
+    ]
+  },
+  "secs": 129,
+  "ran_at": "2026-11-13T09:37:05.496Z"
+}
