@@ -172,8 +172,8 @@ export function Landing() {
           <ul className="plain-list landing-status">
             <li>Runs on Zcash testnet and NEAR testnet with a test USDC token that has no value. Mainnet is not deployed.</li>
             <li>
-              One swap ran end to end on the public test networks with the command-line programs: 0.1 testnet ZEC for 3 test USDC. A full swap through this website on the public
-              test networks is not verified yet.
+              Two swaps ran end to end on the public test networks. One used the command-line programs: 0.1 testnet ZEC for 3 test USDC. One went through this website with
+              the hosted maker: 0.05 testnet ZEC for 1.4877 test USDC, 493 s from the payment to the end (2026-11-13).
             </li>
             <li>In the browser, five scenarios pass on local test networks: a full swap, a refund, reloads during a swap, a restore from the recovery file and a price below the minimum.</li>
             <li>Tested in Chromium only. Firefox and Safari are not tested.</li>

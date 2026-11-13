@@ -99,7 +99,7 @@ page.on('dialog', (d) => d.accept());
 
 let ok = false;
 try {
-  await page.goto(site);
+  await page.goto(new URL('/swap', site).href);
   await page.getByLabel('You pay').fill(amount, { timeout: 180_000 });
   const banner = await page.getByTestId('network-banner').innerText().catch(() => '');
   check('the site opened with the real engine on testnet by default (network banner)', /testnet/i.test(banner), banner.replace(/\s+/g, ' ').slice(0, 120));

@@ -395,13 +395,13 @@ Open `http://localhost:5173/?speed=20` and do this:
 
 | Do | See |
 |---|---|
-| Open the page. | A banner: "Demo with a simulated engine: no real funds move. Running 20× faster than real time." |
+| Open the page. | The swap form, and a one-line banner: "Demo. No real money moves." Its "Details" button says "Runs 20× faster than real time." (`http://localhost:5173/` without settings shows the landing page; its "Start a swap" opens the app at `/swap`.) |
 | Enter `1` in "You pay". Keep USDC on Base. Paste `0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed` as the address. | One price line, for example "You pay 1.00 ZEC. You receive at least 918.9879 USDC on Base." (the amount follows the live price). |
 | Press "Continue". | "Save your recovery file". |
 | Press "Save recovery file", then "Continue to payment". | A file `zecret-recovery-<id>.json` downloads. "Send exactly 1.00 ZEC", a QR code and a `utest1…` address. |
 | Press "Simulate the payment". | The progress screen with six step groups. After about 30 s: "You received 937.6471 USDC on Base" (the amount varies), and "What this swap revealed". |
 
-"Demo controls" in the banner run each failure case (maker does not answer, maker
+"Demo controls", under "Details" in the banner, run each failure case (maker does not answer, maker
 refunds, delivery below the minimum, cleared browser and restore, and more).
 
 Re-run for this README: yes, through headless Chromium against `npm run dev`; the lines

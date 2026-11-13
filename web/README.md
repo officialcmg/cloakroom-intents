@@ -7,6 +7,32 @@ to WebAssembly, `crates/zecret-wasm`) when the page has a network configuration,
 simulated engine (the demo, no money, no network) when it has none. Screens, states and
 design decisions: [`../docs/WEB.md`](../docs/WEB.md).
 
+## Pages and routes
+
+| URL | Page |
+|---|---|
+| `/` | The landing page: what Zecret does, who holds the money, what is private, failures, status, questions. It loads no engine, no maker directory and no network settings. |
+| `/swap` | The swap app. The engine (worker and WebAssembly) starts only here. Vercel serves it with a rewrite to `index.html` (`vercel.json`; the headers of `/(.*)` apply to it as to every path). |
+| `/?demo=1`, `/?config=testnet`, `/?speed=20`, … | The swap app as well: a link to `/` that names an app setting (`demo`, `config`, `speed`, `fail`, `pause`, `cpu`, `directory`) keeps working and keeps its URL (`src/app/route.ts`). |
+
+The two pages move with the History API, so going back to the landing page in the middle
+of a swap does not stop the engine. The app's code is a separate chunk that the landing
+page loads only when the user opens the app. While the engine reports a swap, the app sets
+`zecret.hasSwap` in `localStorage`; the landing page then shows "This browser holds a swap"
+with a link to it.
+
+**Banners.** The test-network banner and the demo banner are one line ("Testnet. Test
+money only.", "Demo. No real money moves.") with a "Details" button (`aria-expanded`). The
+details hold the network label, every `honesty` line of the network configuration, the
+demo's speed and failure, and "Demo controls".
+
+**Start failures.** `src/app/failureCopy.ts` picks the title and the next step from the
+cause: refused or missing network settings, maker directory not loaded, maker not verified
+(its signed entry failed the check), maker not checked (NEAR did not answer), engine
+download, repeated engine crashes, and only then the generic "could not start" with the
+hint that the browser may block workers, WebAssembly or storage. The engine's message is
+shown below as "Technical detail", wrapped, with a copy button.
+
 ## Commands
 
 Node 22. From this folder:
@@ -108,11 +134,11 @@ address. It refuses to start on mainnet (`crates/zecret-node/src/relay.rs`).
 
 ## Trying it by hand
 
-Open `http://localhost:5173/?speed=20`. Enter an amount, keep USDC on Base or pick a
-token, paste an address (for example `0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed`),
-continue, save the recovery file, and press "Simulate the payment". "Demo controls" in
-the banner switch the speed and the failure cases, skip a wait, and simulate a cleared
-browser. All URL parameters are in `ENGINE_API.md`, "The simulated engine".
+Open `http://localhost:5173/?speed=20` (or `/swap?speed=20`). Enter an amount, keep USDC
+on Base or pick a token, paste an address (for example
+`0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed`), continue, save the recovery file, and press
+"Simulate the payment". "Details", then "Demo controls" in the banner switch the speed and
+the failure cases, skip a wait, and simulate a cleared browser. All URL parameters are in `ENGINE_API.md`, "The simulated engine".
 
 Prices on the form are live: the page calls `https://1click.chaindefuser.com` from the
 browser (no key; CORS is open).
@@ -155,7 +181,7 @@ only the demo.
 | `src/styles/` | Design tokens (light and dark) and styles |
 | `tests/unit/` | Unit tests |
 | `e2e/` | Playwright tests, the 1Click mock and its fixture |
-| `screenshots/` | Key screens, light and dark, desktop and phone |
+| `screenshots/` | Key screens, light and dark, desktop and phone (`npm run screenshots`); `*@2x.png`: landing page and swap form, dark, 390 and 1440 px wide |
 
 ## Test vectors
 
