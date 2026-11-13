@@ -1,0 +1,6 @@
+# Build context of deploy/maker/railway/Dockerfile: the crates and the start script only.
+*
+!crates/
+crates/target/
+crates/**/target/
+!deploy/maker/railway/start.sh
