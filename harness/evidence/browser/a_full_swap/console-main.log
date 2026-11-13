@@ -1,0 +1,5 @@
+2026-11-13T05:54:38.287Z [zecret-timing] wasm_load 97
+2026-11-13T05:54:38.340Z [zecret-timing] verify_maker 52
+2026-11-13T05:54:57.714Z [zecret-timing] proving_key_build 18354
+2026-11-13T05:54:57.741Z [zecret-engine] swap e3eee2bae0b199b38ab0ebf3ab9675a3 created: sells 99960000 zats, deposit 100050000 to uregtest1g7k7kl4glne5r5r6pz0tyd2aarvk2r6909lmq9q745w8hntxah9fqdpx2xjas2pf9pm6r94p9jlq640tjc2uau58fm45468pwca9g326
+2026-11-13T05:54:57.918Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest1g7k7kl4glne5r5r6pz0tyd2aarvk2r6909lmq9q745w8hntxah9fqdpx2xjas2pf9pm6r94p9jlq640tjc2uau58fm45468pwca9g326

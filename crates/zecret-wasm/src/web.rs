@@ -34,7 +34,10 @@ pub fn start() {
 
 /// One synchronous `XMLHttpRequest` (allowed in workers only). `Err` only when no HTTP
 /// answer arrived; header names are lower case (only CORS-exposed ones are visible).
-fn xhr(method: &str, url: &str, headers: &[(&str, &str)], body: Option<&[u8]>) -> Result<(u16, Vec<u8>, Vec<(String, String)>), String> {
+/// Status, body and lower-case headers of an answer.
+type XhrAnswer = (u16, Vec<u8>, Vec<(String, String)>);
+
+fn xhr(method: &str, url: &str, headers: &[(&str, &str)], body: Option<&[u8]>) -> Result<XhrAnswer, String> {
     let e = |e: JsValue| format!("{method} {url}: {}", e.as_string().unwrap_or_else(|| format!("{e:?}")));
     let x = web_sys::XmlHttpRequest::new().map_err(e)?;
     x.open_with_async(method, url, false).map_err(e)?;
@@ -44,8 +47,7 @@ fn xhr(method: &str, url: &str, headers: &[(&str, &str)], body: Option<&[u8]>) -
     }
     match body {
         Some(b) => {
-            let mut copy = b.to_vec();
-            x.send_with_opt_u8_array(Some(&mut copy[..])).map_err(e)?
+            x.send_with_opt_u8_array(Some(b)).map_err(e)?
         }
         None => x.send().map_err(e)?,
     }
