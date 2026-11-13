@@ -2,7 +2,7 @@
 
 Date: 2026-11-13. Reviewed code: the working tree of `/home/user/zecret` on that date
 (the directory has no git metadata, so there is no commit id). Machine-readable
-records: `findings-1.json` (validated with the skill's `validate-findings.cjs`: 16
+records: `findings-1.json` (validated with the method's `validate-findings.cjs`: 16
 records, PASS). Proof-of-concept tests: `poc/`.
 
 ## 1. Result
@@ -29,8 +29,9 @@ Code outside the targets was read only where a finding depends on it:
 `crates/zecret-core/src/{taker.rs,maker.rs,keys.rs,near/escrow.rs}` and
 `crates/zecret-node/src/devnet.rs`.
 
-**Method.** The Cloudflare `security-audit` skill in guidance mode, done by one agent:
-recon, hunt, validate, record. The companion files used were
+**Method.** Cloudflare's published security-audit method
+(github.com/cloudflare/security-audit-skill), in guidance mode, by one reviewer: recon,
+hunt, validate, record. The companion files used were
 PROTOCOLS-RPC-AND-MESSAGING, RESOURCE-EXHAUSTION-AND-AVAILABILITY,
 DATA-ISOLATION-AND-LIFECYCLE and SUPPLY-CHAIN-AND-RELEASE. A finding is confirmed only
 with a full source trace and a local test. Each candidate was argued against before it

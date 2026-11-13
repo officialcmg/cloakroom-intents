@@ -157,8 +157,12 @@ Run on 2026-11-13 from `crates/` after `source .tools/env.sh`:
 | `python3 -I harness/run.py s1 s3 s4 s11` (escrow wasm rebuilt by the runner, code hash `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1`) | s1 PASS (72 s), s3 PASS (62 s), s4 PASS (75 s), s11 PASS (57 s) |
 
 `harness/run.py` now gives its NEAR sandbox the network address `127.0.0.1:24667`
-(`start_near`). The browser runner (`harness/browser`) runs its own sandbox on the default
-24567, and two earlier runs of `run.py` failed with "Address already in use".
+(`start_near`), not the default 24567: two earlier runs of `run.py` failed with "Address
+already in use" while another sandbox held 24567. The browser runner
+(`harness/browser/run.mjs`) starts its chains with `harness/browser_chains.py`, which
+imports `harness/run.py` and calls the same `start_near`. It changes the RPC port (3130
+instead of 3030) and the Zebra port (18332 instead of 18232), but not the network port,
+so both sandboxes use 24667 and the two runners cannot run at the same time.
 
 ## 6. Still open for the next person (taker side, `crates/zecret-core/src/taker.rs`)
 

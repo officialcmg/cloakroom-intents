@@ -24,8 +24,13 @@ Not tested: `SendTransaction`, and how long ChainSafe will keep these endpoints 
 For a local regtest node there is no lightwalletd; the page talks to Zebra's JSON-RPC
 through a small proxy that adds CORS headers.
 
-## Run
+## Code
 
-```sh
-node test.js    # needs Playwright; uses HTTPS_PROXY if set
-```
+The experiment's code (`test.js`) ran in a separate scratch repository and is not in
+this repository. `spike/browser-wallet/testnet.mjs` supersedes it: a read-only check of
+the gRPC-web client from the wallet worker in headless Chromium against
+`https://zcash-testnet.chainsafe.dev` (see `spike/browser-wallet/README.md`).
+
+Later, `SendTransaction` through the same endpoint was used by the native client of
+`crates/zecret-core` (`src/zcash.rs`) in the swap on public test networks
+(`docs/TESTNET.md`).

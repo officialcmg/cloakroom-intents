@@ -1,10 +1,14 @@
 {
   "s1": {
     "pass": true,
-    "seconds": 70
+    "seconds": 79
   },
   "s3": {
     "pass": true,
-    "seconds": 65
+    "seconds": 67
+  },
+  "s4": {
+    "pass": true,
+    "seconds": 75
   }
 }

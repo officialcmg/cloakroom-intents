@@ -346,7 +346,7 @@ Also needed (not implemented in the scratch copy):
 - README "Withdraw": the two steps, the new table, and that the taker's account still
   needs no NEAR (`mt_transfer` names it; it does not have to exist).
 - DESIGN.md step "withdraw" (table at line 146) and its decisions log, in the same
-  commit, per CLAUDE.md.
+  commit, per the repository rules.
 - `parse_u128_json` is no longer used by the contract.
 
 Residual risk with the patch: the "related case" in section 5. The Verifier's deposit

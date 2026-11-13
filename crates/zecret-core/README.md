@@ -20,7 +20,7 @@ The interface for a host (a Web Worker or the native programs) is in
 ## Origin
 
 `keys`, `msg`, `wallet` and the two state machines come from the Cloakroom client
-(`node/` at the `pre-hackathon` tag). `wallet` and `zcash` include the browser changes
+(`node/` at the baseline commit `2f8e2f7`, branch `pre-hackathon-baseline`). `wallet` and `zcash` include the browser changes
 from `spike/browser-wallet` (gRPC-web client, `CoverWait`, the verifying key taken from the
 proving key). Changes for NEAR: the taker's ed25519 key replaces the EVM payout address;
 the maker signs quotes and its directory entry with its NEAR key; there is no relayer and

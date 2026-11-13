@@ -132,7 +132,7 @@ The same fields can be entered by hand at <https://nearhackathon.com/#apply>.
 ## 5. The sentence about AI coding assistance
 
 Rule Q-005 asks to list libraries, templates and boilerplate in the README, "including
-own pre-hackathon libs and AI code". This repository's own rule (`CLAUDE.md`) forbids
+own pre-hackathon libs and AI code". This repository's own working rules forbid
 naming AI tools in any file. `README.md`, section "Libraries, templates and tools", has
 one neutral sentence that names no product:
 

@@ -1,6 +1,7 @@
 # Design: trustless shielded ZEC to NEAR, then anywhere
 
-Status: in revision, 2026-11-13. The project has no name yet and no repository yet.
+Status: in revision, 2026-11-13. The project is Zecret. The repository is
+`officialcmg/zecret`.
 
 ## The design in plain words
 
@@ -80,12 +81,17 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | The maker sends a NEAR stipend to the taker's new key. The taker submits the commit and the claim. No relayer is necessary. Tested in `experiments/intents-sandbox`. |
 | 2026-11-13 | On local and testnet networks, NEAR Intents has no 1Click. There the app signs one transfer from NEAR Intents to a NEAR account that the user gives. The maker sends that transfer and pays its gas. The stipend cannot pay for it: the transfer needs 40 Tgas, and the rest of the stipend pays for about 25 Tgas. Measured in `crates/zecret-wasm/tests/sandbox.rs`. The maker sends only transfers that its own takers signed. |
 | 2026-11-13 | The recovery file holds the temporary wallet key, key half `a`, the swap seeds, the NEAR key and the swap settings. It is not encrypted. A file saved before the payment is enough: after a restore, the app reads from the chains which messages and payments already went out, and it sends nothing twice. |
+| 2026-11-13 | The project name is Zecret. The repository is `officialcmg/zecret`. |
+| 2026-11-13 | Correction to the withdraw entry above. The withdraw call needs 200 Tgas. NEAR accepts it only if the sender holds about 0.2 NEAR, not 0.1 NEAR. The stipend cannot pay that. |
 
 **Open**
 
 | Question | Status |
 |---|---|
-| Project name | Not chosen. |
+| The taker trusts one NEAR RPC endpoint. | Open. A false endpoint that works with the maker can take the taker's ZEC. See section 10. |
+| Who sends withdraw if the maker stops after the claim? | Open. The taker cannot pay for it. Any account can send it. The USDC can only go to the taker. |
+| The residual USDC case. | Open. The tokens can stay in NEAR Intents, credited to nobody. Nobody is paid twice. See section 10. |
+| The taker-side bugs of security review 2 (F2-01, F2-02, F2-03). | Open. See `docs/security/review-2.md`. |
 
 ## 1. What we are building
 
@@ -99,8 +105,9 @@ A website that swaps shielded ZEC for a token on another chain, with no custodia
 
 **Baseline** means work that existed before this hackathon: the protocol, its proofs, the
 TLA+ model, the Zcash wallet code and the maker and taker state machines in
-`officialcmg/cloakroom`. The new repository imports that code as a commit tagged
-`pre-hackathon`. Everything after the tag is hackathon work, and the README says so.
+`officialcmg/cloakroom`. The new repository imports that code as commit `2f8e2f7`.
+GitHub has it as the branch `pre-hackathon-baseline`; the tag `pre-hackathon` exists in
+the build clone. Everything after that commit is hackathon work, and the README says so.
 
 ## 2. System map
 
@@ -137,8 +144,11 @@ What is new:
 - **Steps 20 to 24, payout and exit.** The USDC goes into `intents.near` under the same
   key, and one signed message sends it on.
 
-**Expected duration:** about 10 minutes, most of it waiting for Zcash blocks. This is an
-estimate from block times, not a measurement.
+**Duration:** the first estimate was about 10 minutes, most of it waiting for Zcash
+blocks. One swap on Zcash testnet and NEAR testnet (2026-11-13, native maker and taker,
+cover delays off) took 222 s from the taker's start to `Completed`, and 322 s to the end
+of the exit (`docs/TESTNET.md`). Zcash testnet blocks came faster than the 75 s that the
+configs assume. A swap on mainnet was not measured.
 
 ## 4. Escrow contract
 
@@ -184,7 +194,8 @@ Limits that stay:
 - The light-wallet server, the NEAR RPC and the 1Click API each see the user's IP
   address unless the user uses Tor or a VPN.
 - The paper's timing analysis still applies: a swap that is not delayed hides among few
-  others. Cover delays are not in the first build.
+  others. Cover delays exist in the code and in one local scenario (`s12`), but are off
+  in the testnet configs and the website.
 - The exit destination is public unless the user selects Confidential Intents.
 
 ## 6. The browser taker
@@ -212,28 +223,24 @@ Rules for the engine:
 The paper's reorganization budget is `B_R = (R+1)·D + R·F`. On Base, with `F` near 20
 minutes, it came to 70 minutes and a 1.75-hour reveal window.
 
-Measured on NEAR testnet on 2026-11-12 (20 transfers, one RPC provider, one machine;
-the figures include client and RPC latency):
+NEAR testnet was measured twice, with two different clients. Both are small samples
+from one machine and one RPC provider (`rpc.testnet.fastnear.com`). In both, the clock
+starts before the client signs, so the figures include client and RPC latency.
 
-| Step | Min | Median | Max |
-|---|---|---|---|
-| Submitted to included | 7.2 s | 7.6 s | 7.9 s |
-| Submitted to included in a final block | 8.4 s | 8.7 s | 9.2 s |
-| Submitted to fully final | 9.6 s | 10.0 s | 10.4 s |
+| From submit to | 2026-11-12: 20 transfers (`experiments/near-timing`) | 2026-11-13: 14 swap transactions (`zecret-deploy e2e`, `docs/DEPLOY.md`) |
+|---|---|---|
+| Included in a block | median 7.6 s (7.2 to 7.9 s) | median 1.6 s (0.9 to 2.0 s) |
+| Its block final | median 8.7 s (8.4 to 9.2 s) | median 2.9 s (2.4 to 3.3 s) |
+| All receipts final | median 10.0 s (9.6 to 10.4 s) | median 4.5 s (3.9 to 6.9 s) |
 
-A second measurement on 2026-11-13, during two full swaps on testnet (14 transactions,
-status polled every 0.2 s), was faster:
+The second client polls the transaction status every 0.2 s with `wait_until: NONE`. The
+code of the first client is not in this repository, and its write-up does not say how it
+waited. The cause of the difference was not investigated. In the swap on public test
+networks, the taker's `commit_claim` was in a block at 05:42:07.5 UTC and its claim was
+final at 05:42:18.1 UTC, 10.6 s later (`docs/TESTNET.md`).
 
-| Step | Min | Median | Max |
-|---|---|---|---|
-| Submitted to included | 0.9 s | 1.6 s | 2.0 s |
-| Submitted to its block being final | 2.4 s | 2.9 s | 3.3 s |
-| Submitted to all receipts final | 3.9 s | 4.5 s | 6.9 s |
-
-The first measurement waited on the RPC server's own "wait until" answer, which is the
-likely cause of the difference; this was not investigated further.
-
-With generous bounds of `D = 30 s`, `F = 10 s` and `R = 2`, the budget is `B_R = 110 s`.
+With generous bounds of `D = 30 s`, `F = 10 s` and `R = 2`, which cover both measurements,
+the budget is `B_R = 110 s`.
 The token-side windows shrink from hours to a few minutes. Mainnet needs its own
 measurement before real parameters are fixed.
 
@@ -242,8 +249,8 @@ measurement before real parameters are fixed.
 | Mode | Zcash | NEAR | Exit through Intents | Use |
 |---|---|---|---|---|
 | Local | Zebra regtest in Docker, through a small CORS proxy | Sandbox 2.14.1 with the live `intents.near` code | Signed message executed in the sandbox | Development and automatic tests |
-| Testnet | Zcash testnet over ChainSafe's gRPC-web | NEAR testnet, with a test USDC token and a copy of the `intents.near` code as a stand-in verifier (`deploy/deployment.testnet.json`) | The payout into the stand-in verifier and a signed withdrawal run for real. The cross-chain delivery shows a live quote only, because Intents has no testnet | Public demo with no real money |
-| Mainnet | Zcash mainnet | NEAR mainnet | Real | Full demo with small amounts. Needs the owner's funds and approval. |
+| Testnet | Zcash testnet over ChainSafe's gRPC-web | NEAR testnet, with a test USDC token and a copy of the `intents.near` code as a stand-in verifier (`deploy/deployment.testnet.json`) | The payout into the stand-in verifier and a signed withdrawal run for real. The cross-chain delivery shows a live quote only, because Intents has no testnet | Tests on public networks with no real money. One full swap ran here with the native maker and taker on 2026-11-13 (`docs/TESTNET.md`). The website is not hosted. |
+| Mainnet | Zcash mainnet | NEAR mainnet | Real | Full demo with small amounts. Needs the owner's funds and approval. Not deployed. |
 
 ## 9. What has been tested
 
@@ -254,10 +261,15 @@ measurement before real parameters are fixed.
 | Can a key with no NEAR account own funds in Intents and move them with a signature? | Yes, against the code live on `intents.near`. | `experiments/intents-sandbox` |
 | Does a small stipend make a fresh key usable? | Yes. 0.01 NEAR creates the account, but 0.03 NEAR is needed to send the commit and the claim. | `contracts/near-escrow` sandbox tests |
 | Does an exit quote work without an API key? | Yes: 5 USDC to Base quoted at 4.997 USDC, 12 s. | 1Click dry run |
-| How fast is NEAR? | About 8 s to inclusion, 10 s to fully final on testnet. | `experiments/near-timing` |
+| How fast is NEAR? | Two small samples on testnet: about 8 s to inclusion and 10 s to fully final (first client); 1.6 s and 4.5 s (second client). See section 7. | `experiments/near-timing`, `docs/DEPLOY.md` |
 | Does the prover run in a browser? | Yes: about 25 s for one proof in Chromium. | `experiments/wasm-prover` |
 | Can a browser read Zcash blocks? | Yes, over gRPC-web. | `experiments/grpc-web` |
 | Does a local Zcash node run in the build environment? | Yes, Zebra regtest in Docker. | manual |
+| Does the Zcash wallet run in a browser worker, end to end? | Yes, on Zebra regtest: it receives a shielded payment, reads its memo, and builds, proves and sends a shielded transaction. | `experiments/browser-wallet`, `spike/browser-wallet/` |
+| Do the native maker and taker complete a swap as two programs? | Yes: 19 scenarios on Zebra regtest and a NEAR sandbox, with the happy path, refund, punish and malicious-party cases. | `harness/RESULTS.md` |
+| Does a full swap run on public test networks? | Yes, once: 0.1 testnet ZEC for 3 test USDC on Zcash testnet and NEAR testnet, native maker and taker, happy path only. | `docs/TESTNET.md` |
+| Can the real USDC contract make the escrow pay twice? | Yes, with the old one-step payout: a USDC pause or blocklist between delivery and USDC's resolve step made a second withdraw pay again. Fixed with the two-step payout; 8 sandbox tests with the USDC code from mainnet pass on the new escrow and fail on the old one. | `docs/security/nv02-usdc.md`, `docs/security/fixes-2.md` |
+| Does the taker run in the browser as the real engine, wired into the website? | In progress (package E). Not verified. | `STATUS.md` |
 
 Tests must use NEAR sandbox 2.14.1, the version on mainnet. Version 2.9.0 rejects the
 live Intents code.
@@ -266,11 +278,15 @@ live Intents code.
 
 | Risk | Why it matters | Plan |
 |---|---|---|
-| The full client has not run in a browser | Only the prover and block reading are tested. Scanning, memo decryption and transaction building in WebAssembly are not. | First work package of the build. If it fails, the taker ships as a program and the website shows it running in a hosted sandbox. |
-| Sending a transaction over gRPC-web | Not tested. | Test early in the build. |
+| The taker engine in the browser is not finished | The browser spike ran scanning, memo decryption, transaction building and sending in WebAssembly on Zebra regtest. The full taker engine in the browser, wired into the website, is still being built (package E) and is not verified. | Finish package E and its browser scenarios. The website runs against a simulated engine until then. |
+| Sending a transaction over gRPC-web | The native client sent all its Zcash transactions through ChainSafe's gRPC-web server in the testnet swap. From a browser, sending was tested only on regtest, through Zebra's JSON-RPC. | Test a send from the browser on testnet. |
 | ChainSafe's public endpoints | We depend on a third party's free server. | Run our own gRPC-web proxy in front of a light-wallet server if needed. |
 | Intents has no testnet | The exit only executes on mainnet. | Sandbox for tests, live quote on testnet, real exit on mainnet with the owner's approval. |
 | 1Click exit with real funds | Quote, generate and submit all answer without an API key (tested live with an unfunded key). Execution with funds is not verified. | First real run on mainnet with a tiny amount. See `docs/INTENTS.md`. |
 | Price movement before the exit | Measured over 15 minutes: USDC to USDC moved 0.004 %; USDC to SOL or ETH fell at most 0.32 % within 10 minutes. | Show a guaranteed minimum with 1 % slippage and fetch a fresh quote at exit time. |
 | Keys in browser storage | A cleared browser loses the swap's keys. | Recovery file, shown before any money moves. |
-| The build environment is temporary | Docker, the sandbox binary and helper tools are set up by hand. | A setup script in the repository. Commit and push often. |
+| The build environment is temporary | Docker, the sandbox binary and helper tools must be set up again on a new machine. | Done: `scripts/setup-env.sh`. Commit and push often. |
+| The taker trusts one NEAR RPC endpoint | The taker reads every NEAR fact it acts on from one endpoint, without proofs. An endpoint that works with the maker can show an escrow that does not exist, and the maker then takes the taker's ZEC. An endpoint alone can only delay a swap. | Not built. Options: let the user choose the endpoint; compare two or more endpoints; light-client proofs. See `docs/security/fixes-2-core.md` section 4. |
+| The taker cannot pay for `withdraw` | `withdraw` needs 200 Tgas, so the sender must hold about 0.2 NEAR. The stipend leaves about 0.028 NEAR. If the maker stops after the claim, the USDC stays in the escrow, credited to the taker, until some account sends `withdraw`. Any account can send it, and the tokens can only go to the taker. | Open: a larger stipend, or say it plainly in the app and the documents. |
+| The residual USDC case | If the deposit into NEAR Intents fails and USDC's resolve step panics in the same window, the tokens stay in the Intents contract, credited to nobody. The escrow pays nobody twice, but its last USDC withdraw fails until the Intents operators return the tokens. Not tested. | Open. See `docs/security/fixes-2.md` section 5. |
+| Taker-side bugs of security review 2 | F2-01 and F2-02 (medium) and F2-03 (low) are not fixed. The maker side is fixed. | Next fix round. See `docs/security/review-2.md` and `docs/security/fixes-2-core.md` section 6. |

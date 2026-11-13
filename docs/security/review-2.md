@@ -6,7 +6,7 @@ changed during the review (another session added `reconcile` and a "never fund t
 check in `on_open`, file time 04:50 UTC). All findings were checked again on that
 version (sha256 prefix `9ef1d2cd1c95`). Line numbers refer to it.
 
-Machine-readable records: `findings-2.json` (15 records; the skill's
+Machine-readable records: `findings-2.json` (15 records; the method's
 `validate-findings.cjs` says PASS). Proofs of concept: `poc2/`.
 
 ## 1. Result
@@ -32,7 +32,8 @@ maker. A taker with one swap of its own can then take the escrowed tokens.
 read with `pdftotext`), `docs/DESIGN.md` and `docs/ENGINE.md`. Review 1 covered the escrow
 contract and `zecret-intents`. This review does not repeat that scope.
 
-**Method.** The Cloudflare `security-audit` skill in guidance mode, by one agent: recon,
+**Method.** Cloudflare's published security-audit method
+(github.com/cloudflare/security-audit-skill), in guidance mode, by one reviewer: recon,
 hunt, validate, record. The companion files used were PROTOCOLS-RPC-AND-MESSAGING,
 RESOURCE-EXHAUSTION-AND-AVAILABILITY, DATA-ISOLATION-AND-LIFECYCLE and
 SUPPLY-CHAIN-AND-RELEASE. Each candidate was argued against before it was kept. A

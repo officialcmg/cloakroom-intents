@@ -14,32 +14,22 @@ per-transaction limit:
 | Pallas share | `check_share_pallas` | 16.2 Tgas | 16.5 Tgas |
 | ed25519 signature (native host function) | `check_signature` | 1.8 Tgas | 2.0 Tgas |
 
-- `escrow/` — the contract with the three check methods.
-- `gastest/` — sandbox tests that call them and print the gas burnt.
+The experiment used a throwaway contract with the three check methods and sandbox tests
+that called them.
 
-## Run
+## Code
 
-```sh
-cd escrow && cargo build --target wasm32-unknown-unknown --release
-```
-
-Mainnet and testnet ran nearcore 2.14.1 on 2026-11-12. A sandbox of that version
-accepts the wasm as built, so skip the next step and point `ESCROW_WASM` at the
-build output. An older sandbox (2.9.0) rejects WebAssembly features that recent
-Rust emits; for that case only, lower them with binaryen's `wasm-opt`:
+The experiment's code ran in a separate scratch repository and is not in this
+repository. The escrow's sandbox tests supersede it for the two checks the escrow uses
+(the Pallas key-half check in `claim` and `refund`, and the ed25519 signature check in
+`commit_claim`). They print the gas of each call as `GAS ...` lines:
 
 ```sh
-F="--enable-mutable-globals --enable-nontrapping-float-to-int --enable-bulk-memory --enable-sign-ext --enable-reference-types --enable-multivalue --enable-bulk-memory-opt --enable-call-indirect-overlong"
-wasm-opt $F --signext-lowering --llvm-memory-copy-fill-lowering --llvm-nontrapping-fptoint-lowering -Oz \
-  target/wasm32-unknown-unknown/release/escrow.wasm -o /tmp/escrow.lowered.wasm
-wasm-opt --mvp-features --enable-mutable-globals /tmp/escrow.lowered.wasm -o /tmp/escrow.mvp.wasm
+source .tools/env.sh
+cd contracts/near-escrow
+LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test sandbox -- --test-threads 1 --nocapture
 ```
 
-```sh
-cd ../gastest && ESCROW_WASM=/tmp/escrow.mvp.wasm cargo test --test gas -- --nocapture
-```
-
-The sandbox binary is downloaded by `near-workspaces`. Where that download is
-blocked, fetch it by hand and set `NEAR_SANDBOX_BIN_PATH`. In a container that caps
-open files below 65535 the sandbox refuses to start; a small `LD_PRELOAD` shim that
-reports success for the `RLIMIT_NOFILE` request gets past that for local tests.
+The ed25519 key-share check (for Monero keys) has no equivalent in this repository.
+Tests must use nearcore 2.14.1 or newer, so the `wasm-opt` lowering for 2.9.0 is not
+needed.

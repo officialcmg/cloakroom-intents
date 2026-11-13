@@ -307,12 +307,13 @@ The bundled `web/public/maker-directory.json` names `maker.zecret.testnet` and
 name `maker.zecret-3f109eea1e.testnet` and `escrow2.zecret-3f109eea1e.testnet`.
 
 What the real browser engine (package E) needs. These are the fields of
-`TakerConfig` in `crates/zecret-core/src/config.rs`. The website does not read them yet.
+`TakerConfig` in `crates/zecret-core/src/config.rs`. Package E is still being built and
+wires these values into the website; see `web/README.md` for its current state.
 
 | Value | Testnet | Mainnet |
 |---|---|---|
 | Zcash network (`chains.network`) | `test` | `main` |
-| Light-wallet server, gRPC-web (`chains.lightwalletd`) | `https://zcash-testnet.chainsafe.dev` (tested read-only in `docs/experiments/browser-wallet.md`) | not chosen |
+| Light-wallet server, gRPC-web (`chains.lightwalletd`) | `https://zcash-testnet.chainsafe.dev` (read from the browser in `docs/experiments/browser-wallet.md`; used by the native maker and taker in `docs/TESTNET.md`) | not chosen |
 | NEAR RPC (`chains.near_rpc`) | `https://rpc.testnet.fastnear.com` | `https://rpc.mainnet.fastnear.com` |
 | Escrow (`chains.escrow`) | `escrow2.zecret-3f109eea1e.testnet` | `escrow.<owner>.near` |
 | Escrow code hash (`escrow_code_hash`) | `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` | the hash of the reviewed build |
@@ -325,16 +326,13 @@ server. A Content-Security-Policy header (not yet in `vercel.json`) must allow t
 
 ## Not verified
 
-- The clients with the escrow that has the NV-02 fix. `crates/zecret-core` attaches 100
-  Tgas to `withdraw` (`GAS_WITHDRAW`); the new escrow needs at least 110 Tgas, so their
-  taker withdraw fails (credit kept) until that constant is 200 Tgas.
-  `crates/zecret-node/config/testnet-taker.json` still names the retired escrow and its
-  hash. Both are outside the deployment work and were not changed.
-
 - The tool has not run on mainnet. The mainnet guard is tested (unit tests and a run
   without the flag that stops before any network access).
-- The maker as a service on testnet. The Docker image builds and its `init` and
-  `directory` commands run, but the `zecret` binary has no TLS support today
-  (`crates/zecret-node` enables reqwest without a TLS feature), so it cannot reach the
-  HTTPS endpoints of testnet. Details in `deploy/maker/README.md`.
-- The website with the deployed testnet contracts: the real engine does not exist yet.
+- The maker as a service (in the Docker image) on testnet. The image builds and its
+  `init` and `directory` commands ran before the TLS fix. Since then the `zecret` binary
+  uses reqwest with `rustls-tls` (`crates/zecret-node/Cargo.toml`), and the native maker
+  and taker ran a full swap on Zcash testnet and NEAR testnet with the escrow `escrow2`
+  (`docs/TESTNET.md`). The image was not rebuilt with the TLS fix, and the daemon was not
+  run in the container. Details in `deploy/maker/README.md`.
+- The website with the deployed testnet contracts: the browser engine that connects them
+  (package E) is still being built.

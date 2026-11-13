@@ -12,8 +12,10 @@ section "Not verified" lists what needs real funds on mainnet.
 
 - The escrow pays the USDC into `intents.near` with `msg` set to the taker's account
   id. The taker's account id is the lowercase hex of the taker's ed25519 public key.
-  (`docs/security/nv02-usdc.md` proposes a change to this step: the escrow deposits
-  into its own Verifier account and then transfers to the taker's account.)
+  This was the first design. The escrow now pays in two steps (the NV-02 fix,
+  implemented and tested; `contracts/near-escrow/README.md`, `docs/security/fixes-2.md`):
+  it deposits into its own Verifier account, then moves the tokens to the taker's
+  account with `mt_transfer`. The taker's account id is the same in both designs.
 - That account does not have to exist on NEAR. The Verifier accepts the key for that
   account without `add_public_key` (implicit account).
 - USDC on NEAR is the 1Click asset

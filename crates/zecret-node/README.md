@@ -3,7 +3,7 @@
 The native programs on top of `zecret-core`: the maker daemon (it runs in our backend),
 a reference taker (for tests, and the reference for the browser taker), and a tool that
 sets up a local NEAR sandbox. One binary: `zecret`. It replaces the Cloakroom client in
-`node/` (kept at the `pre-hackathon` tag).
+`node/` (still in the repository, unchanged since the baseline commit `2f8e2f7`).
 
 `src/io.rs` holds the native implementations of the core's interfaces: `Http` (blocking
 `reqwest` with rustls; it trusts the bundled web PKI roots and the system store, which
@@ -56,7 +56,8 @@ the gRPC-web light-wallet server `https://zcash-testnet.chainsafe.dev`. Timing: 
 F = 10 s, R = 2 (B_R = 110 s; measured on testnet: included in at most 2.0 s, final in at
 most 6.9 s), k_Z = 3 and ∆fund = 900 s for 75 s Zcash blocks.
 
-Steps (not yet run end to end on testnet):
+Steps. These ran end to end on testnet on 2026-11-13: one swap of 0.1 TAZ for 3 tUSDC.
+The exact commands, logs and transaction ids are in `docs/TESTNET.md`.
 
 1. `cargo build -p zecret-node --release`.
 2. Maker: a folder `M` with `config.json` from `testnet-maker.json`, `chains.birthday` set

@@ -45,13 +45,12 @@ speak plain gRPC to a lightwalletd server, so the page needs a gRPC-web endpoint
 proxy. Cloakroom's client also shells out to `cast`, uses blocking HTTP and sleeps in
 loops, which must change.
 
-## Run
+## Code
 
-```sh
-cargo build --release && ./target/release/provebench
-rustup target add wasm32-wasip1
-RUSTFLAGS='-C link-arg=-zstack-size=8388608' cargo build --release --target wasm32-wasip1
-cp target/wasm32-wasip1/release/provebench.wasm browser/
-cd browser && node run.js          # headless Chromium, needs Playwright
-node --no-warnings node-shim.mjs   # same module in Node, without node:wasi
-```
+The experiment's code (`provebench`, its browser page and the Node shim) ran in a
+separate scratch repository and is not in this repository. `spike/browser-wallet/`
+supersedes it: it runs the wallet in a Web Worker in headless Chromium and builds,
+proves and sends a shielded transaction on Zebra regtest (`node run.mjs`), and
+`keybench.mjs` measures the proving key build across page loads. See
+`spike/browser-wallet/README.md` and `docs/experiments/browser-wallet.md`. The native
+figures in the table have no equivalent test in this repository.

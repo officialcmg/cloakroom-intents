@@ -20,7 +20,8 @@ issues are listed under [Security](#security).
 
 Zecret builds on Cloakroom, the author's earlier protocol for shielded ZEC and ERC-20
 tokens on Base (built for ZECATHON). Cloakroom is the disclosed baseline: commit `2f8e2f7`,
-pushed as the branch `pre-hackathon-baseline`. See [Baseline and what is new](#baseline-and-what-is-new).
+on the branch `pre-hackathon-baseline`. See
+[Baseline and what is new](#baseline-and-what-is-new).
 
 Built at NEAR HACKATHON (2026-11-01 to 2026-11-14).
 
@@ -554,8 +555,10 @@ TLA+ model against the code.
   quote timeout. The maker's directory entry does not publish its limits.
 - Only Chromium was tested. Firefox and Safari were not.
 - One swap per browser at a time.
-- The measurement code behind `docs/experiments/` is not in this repository; only the
-  write-ups are.
+- The code of five measurements in `docs/experiments/` (gas, Intents sandbox, NEAR
+  timing, WebAssembly prover, gRPC-web) is not in this repository; each write-up names
+  the test here that supersedes it, where one exists. The browser wallet measurement's
+  code is in `spike/browser-wallet/`.
 
 ## Baseline and what is new
 
@@ -567,10 +570,10 @@ disclosure.
   The first commit of this repository imports selected folders of
   [`officialcmg/cloakroom`](https://github.com/officialcmg/cloakroom) at commit
   `bad9fa37f6fb82475ed222bd300f1a3ffc7e08a9` (2026-10-28), under the MIT licence. That
-  baseline commit is `2f8e2f7`, pushed as the branch **`pre-hackathon-baseline`**. The
-  build clone also tags it `pre-hackathon`; the remote has no tags yet, because the git
-  proxy of the build environment refuses to push tags, and the owner can push the tag.
-  Nothing in the baseline commit was written for NEAR HACKATHON.
+  first commit, `2f8e2f7`, is the baseline. It is on GitHub as the branch
+  **`pre-hackathon-baseline`**. It is also tagged `pre-hackathon` in the build clone; that
+  tag is not on GitHub yet, because the build environment cannot push tags. Nothing in
+  the baseline commit was written for NEAR HACKATHON.
   Details: [`BASELINE.md`](BASELINE.md).
 - **The diff:**
   [`https://github.com/officialcmg/zecret/compare/pre-hackathon-baseline...main`](https://github.com/officialcmg/zecret/compare/pre-hackathon-baseline...main).

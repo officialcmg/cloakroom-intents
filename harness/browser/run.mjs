@@ -744,6 +744,11 @@ async function main() {
       fs.mkdirSync(path.join(EVID, 'local'), { recursive: true });
       const maker = new Maker('local');
       maker.start();
+      process.on('SIGINT', () => {
+        maker.proc?.kill();
+        chainsProc.stdin.end();
+        chainsProc.on('exit', () => process.exit(0));
+      });
       const url = writeRun('local', maker, '30');
       const user = new Wallet(path.join(WORK, 'local', 'user'));
       await coinbase(user.ua);

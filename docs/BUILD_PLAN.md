@@ -19,7 +19,7 @@ its check.
 
 | Wave | Package | Output | Check that must pass |
 |---|---|---|---|
-| 0 | Repository setup | Cloakroom imported and tagged `pre-hackathon`; setup script for Docker, sandbox 2.14.1 and tools; `STATUS.md` | Setup script runs on a clean machine; Cloakroom client builds |
+| 0 | Repository setup | Cloakroom imported as commit `2f8e2f7` (tag `pre-hackathon` in the build clone, branch `pre-hackathon-baseline` on the remote); setup script for Docker, sandbox 2.14.1 and tools; `STATUS.md` | Setup script runs on a clean machine; Cloakroom client builds |
 | 1 | A. Escrow contract | Rust contract with every transition of the state diagram, the stipend and the Intents payout | Unit tests for every transition and every wrong-time or wrong-caller case; sandbox test with the live `intents.near` code |
 | 1 | B. Browser spike | The Zcash wallet code in a browser worker: scan blocks, decrypt a memo, build and send a shielded transaction | A page receives a payment and sends a memo on local regtest |
 | 1 | C. Shared-code cleanup | No `cast`, no blocking HTTP, no sleep loops in shared code; a small network interface with a browser and a server implementation | Cloakroom's existing local scenarios still pass on the maker side |
@@ -36,9 +36,9 @@ its check.
 If package B fails, the fallback is: the taker ships as a program, and the website shows
 it running in a hosted sandbox. Packages A, C, D, G, H and J do not change.
 
-## How agents are used
+## How the work is split
 
-- Opus 5.5 subagents do the packages. At most 3 run at the same time, to spread usage.
+- Parallel agents do the packages. At most 3 run at the same time, to spread usage.
 - Each agent gets one package, the design section it needs and the check it must pass.
   It works in its own git worktree and returns a branch.
 - The main session reviews each branch, runs the check itself and merges. An agent's
@@ -84,9 +84,9 @@ build output it no longer needs first.
 The last step. It covers the README, the website text and the demo post. It does not
 touch code.
 
-1. An agent collects advice on plain, human-sounding writing from well-used public
-   writing skills and style guides, and writes a short checklist with its sources.
-2. A second agent edits every external text against that checklist.
+1. A reviewer collects advice on plain, human-sounding writing from well-used public
+   style guides, and writes a short checklist with its sources.
+2. A second reviewer edits every external text against that checklist.
 3. The main session checks that no fact changed in the edit.
 
 ## What needs the owner

@@ -199,7 +199,7 @@ escrow `on_deposit` 2.49, Intents `mt_transfer` 3.91, escrow `on_withdraw` 2.07.
 - No other change: the methods, arguments, views and the `withdrawn` event are the same.
   A client may ignore the new `swept` event and the `get_in_flight` view.
 - `docs/DESIGN.md` (the withdraw step and the decisions log) must describe the two-step
-  withdraw and `sweep` in the commit that carries this change, as `CLAUDE.md` asks. Not
+  withdraw and `sweep` in the commit that carries this change, as the repository rules ask. Not
   done here: that file is outside this work package.
 
 ## 9. Testnet
