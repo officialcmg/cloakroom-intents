@@ -1,0 +1,1 @@
+2026-11-13: wallet sync follows chain reorganisations and repairs its tree; quotes not sent in 300 s are dropped

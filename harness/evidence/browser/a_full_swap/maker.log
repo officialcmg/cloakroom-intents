@@ -5,3 +5,23 @@
 [maker 1794585797] {"type":"zcash_tx","swap":"cc3c812d22c0a65b81b628e01bccf346","what":"quote","txid":"77853d600c4741a8534121c48b27446c6cdba7e64a8486e68e1623b83e30df7a"}
 [maker 1794585797] cc3c812d encrypted QUOTE sent in tx 77853d600c4741a8534121c48b27446c6cdba7e64a8486e68e1623b83e30df7a
 [maker 1794585797] cc3c812d stage Quoted
+[maker 1794585832] cc3c812d ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id a8036e1f
+[maker 1794585832] cc3c812d stage Opening
+[maker 1794585834] cc3c812d added 100000000000000000000000 yoctoNEAR of storage funds to the escrow, tx 37YX79XYRY22He1v16bLY8KZEV4tABrUhsftDfa1b9qh
+[maker 1794585839] {"type":"near_tx","swap":"cc3c812d22c0a65b81b628e01bccf346","what":"open","hash":"FrSTVEZXZzHUkGWeq9biympyNVUhhpmcRs5yCcw5jaQ9"}
+[maker 1794585839] cc3c812d escrow OPEN id a8036e1f997fd22bb51c503008c9bcb88dde958319e16f96051fb7a746c4e9c5 amount 29988000000000000000000000 t0=1794586132 t1=1794586282 t2=1794586432 W=60, tx FrSTVEZXZzHUkGWeq9biympyNVUhhpmcRs5yCcw5jaQ9
+[maker 1794585839] {"type":"near_tx","swap":"cc3c812d22c0a65b81b628e01bccf346","what":"stipend","hash":"8ckUkW2n6YgUqkvv6k8BXTw1BVgi8XsWfPaBQBF5Ej6A"}
+[maker 1794585839] cc3c812d STIPEND of 30000000000000000000000 yoctoNEAR sent to 487b67cf8d52237d4a54c90b478b2dddf839963828f8a38808351d9137467718, tx 8ckUkW2n6YgUqkvv6k8BXTw1BVgi8XsWfPaBQBF5Ej6A
+[maker 1794585839] cc3c812d stage Opened
+[maker 1794585877] {"type":"near_tx","swap":"cc3c812d22c0a65b81b628e01bccf346","what":"set_ready","hash":"3GaBYaBnsXpru7vsMBMkVKUKWf9xwZNpU3RZfuNxcVq2"}
+[maker 1794585877] cc3c812d joint note 99970000 zats with 2 confirmations (k_Z = 2); READY, tx 3GaBYaBnsXpru7vsMBMkVKUKWf9xwZNpU3RZfuNxcVq2
+[maker 1794585877] cc3c812d stage Ready
+[maker 1794585894] {"type":"near_tx","swap":"cc3c812d22c0a65b81b628e01bccf346","what":"withdraw","hash":"mR7xdAMUuzC5wuU4MBHzBfWuYxR8AQVQQrSVUZF5XTD"}
+[maker 1794585894] cc3c812d withdraw for the taker into intents.near, tx mR7xdAMUuzC5wuU4MBHzBfWuYxR8AQVQQrSVUZF5XTD (executed)
+[maker 1794585894] cc3c812d CLAIMED: read a from the escrow
+[maker 1794585894] {"type":"zcash_tx","swap":"cc3c812d22c0a65b81b628e01bccf346","what":"sweep","txid":"1013c1d7c9fd0e864e3565a0bd772299c528414e7f6b0c1bbcec2f8c96d44e43"}
+[maker 1794585894] cc3c812d swept the joint note with (a+b) to the maker's wallet, tx 1013c1d7c9fd0e864e3565a0bd772299c528414e7f6b0c1bbcec2f8c96d44e43; waiting for 2 confirmations
+[maker 1794585894] cc3c812d stage Sweeping
+[maker 1794585898] cc3c812d sweep 1013c1d7c9fd0e864e3565a0bd772299c528414e7f6b0c1bbcec2f8c96d44e43 has 2 confirmations (k_Z = 2); done
+[maker 1794585898] cc3c812d stage Swept
+[maker 1794585898] cc3c812d DONE Swept

@@ -1,0 +1,204 @@
+{
+  "scenario": "a_full_swap",
+  "title": "Full swap through the page: amount, token and chain, NEAR account, recovery file, payment by QR address from a native wallet, progress to done; the taker key holds the price in the Verifier, then the direct exit delivers it to the NEAR account",
+  "checks": [
+    {
+      "check": "the page showed the live mainnet 1Click price as a labelled preview",
+      "pass": true,
+      "detail": "Mainnet preview. The line below is the live mainnet price of NEAR Intents for USDC on Base. On this network you receive wNEAR in your NEAR account, not USDC. | You pay 1.0005 ZEC. You receive at least 29.3854 USDC on Base."
+    },
+    {
+      "check": "the deposit QR address is the browser wallet and asks for the amount",
+      "pass": true,
+      "detail": "zcash:uregtest18eh9wkxr7elq3rka3x0k32g3v"
+    },
+    {
+      "check": "the page reached done",
+      "pass": true,
+      "detail": "done {\"code\":\"NETWORK\",\"message\":\"the relay's execute_intents is not final yet: the maker has not seen the claim of 487b67cf8d52237d4a54c90b478b2dddf839963828f8a38808351d9137467718's swap yet (stage Ready); try again in a minute\",\"transient\":true}"
+    },
+    {
+      "check": "the done screen names the delivery",
+      "pass": true,
+      "detail": "You received 29.988 wNEAR on NEAR"
+    },
+    {
+      "check": "the taker key held exactly the price in the Verifier (mt_balance_of)",
+      "pass": true,
+      "detail": "29988000000000000000000000 vs 29988000000000000000000000"
+    },
+    {
+      "check": "the engine recorded the payout of the price (micro-units)",
+      "pass": true,
+      "detail": "29988000"
+    },
+    {
+      "check": "the exit delivered the whole price to the NEAR account",
+      "pass": true,
+      "detail": "29988000000000000000000000"
+    },
+    {
+      "check": "nothing is left under the taker key in the Verifier",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "the maker paid exactly the price",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "escrow Claimed at a final block",
+      "pass": true,
+      "detail": "Claimed"
+    },
+    {
+      "check": "the browser sent commit_claim and claim itself",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "stage history has the synthesized stages (deposit_seen, funding_confirming, ready)",
+      "pass": true,
+      "detail": "awaiting_deposit,deposit_seen,deposit_confirmed,request_sent,quote_received,accepted,escrow_open,funding_sent,funding_confirming,ready,committing,claiming,claimed,paid_out,exiting,done"
+    },
+    {
+      "check": "privacy audit: all 6 Zcash transactions (user payment, browser taker, maker) are fully shielded Ironwood, no transparent or Sapling parts",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "facts": {
+    "preview": "Mainnet preview. The line below is the live mainnet price of NEAR Intents for USDC on Base. On this network you receive wNEAR in your NEAR account, not USDC. | You pay 1.0005 ZEC. You receive at least 29.3854 USDC on Base.",
+    "timings": {
+      "stages": [
+        {
+          "stage": "awaiting_deposit",
+          "at": "2026-11-13T16:02:30.831Z",
+          "secs": 9.2
+        },
+        {
+          "stage": "deposit_seen",
+          "at": "2026-11-13T16:02:40.046Z",
+          "secs": 0
+        },
+        {
+          "stage": "deposit_confirmed",
+          "at": "2026-11-13T16:02:40.048Z",
+          "secs": 31.4
+        },
+        {
+          "stage": "request_sent",
+          "at": "2026-11-13T16:03:11.446Z",
+          "secs": 7.6
+        },
+        {
+          "stage": "quote_received",
+          "at": "2026-11-13T16:03:19.051Z",
+          "secs": 31
+        },
+        {
+          "stage": "accepted",
+          "at": "2026-11-13T16:03:50.082Z",
+          "secs": 11
+        },
+        {
+          "stage": "escrow_open",
+          "at": "2026-11-13T16:04:01.046Z",
+          "secs": 30.7
+        },
+        {
+          "stage": "funding_sent",
+          "at": "2026-11-13T16:04:31.696Z",
+          "secs": 1.4
+        },
+        {
+          "stage": "funding_confirming",
+          "at": "2026-11-13T16:04:33.061Z",
+          "secs": 8.1
+        },
+        {
+          "stage": "ready",
+          "at": "2026-11-13T16:04:41.137Z",
+          "secs": 0
+        },
+        {
+          "stage": "committing",
+          "at": "2026-11-13T16:04:41.139Z",
+          "secs": 1.9
+        },
+        {
+          "stage": "claiming",
+          "at": "2026-11-13T16:04:43.026Z",
+          "secs": 4
+        },
+        {
+          "stage": "claimed",
+          "at": "2026-11-13T16:04:47.023Z",
+          "secs": 6
+        },
+        {
+          "stage": "paid_out",
+          "at": "2026-11-13T16:04:53.044Z",
+          "secs": 0
+        },
+        {
+          "stage": "exiting",
+          "at": "2026-11-13T16:04:53.045Z",
+          "secs": 11.1
+        },
+        {
+          "stage": "done",
+          "at": "2026-11-13T16:05:04.144Z",
+          "secs": null
+        }
+      ],
+      "engine": [
+        {
+          "what": "wasm_load",
+          "secs": 0.1
+        },
+        {
+          "what": "verify_maker",
+          "secs": 0.1
+        },
+        {
+          "what": "proving_key_build",
+          "secs": 22.3
+        },
+        {
+          "what": "proof_request",
+          "secs": 31.1
+        },
+        {
+          "what": "proof_accept",
+          "secs": 30.3
+        },
+        {
+          "what": "proof_fund",
+          "secs": 30.3
+        },
+        {
+          "what": "direct_exit_relay",
+          "secs": 0
+        },
+        {
+          "what": "direct_exit_relay",
+          "secs": 3
+        }
+      ],
+      "total_secs": 153
+    },
+    "taker_account": "487b67cf8d52237d4a54c90b478b2dddf839963828f8a38808351d9137467718",
+    "zcash_txs": [
+      "df58fc8bdd6f0f4f9b75ac3c9a2e4169ca2179a4b915b94ac706a7dcd469ceae",
+      "163c82beea1d042011325ec995313877bb7aeebc7c8b41be61eac8baada34c97",
+      "acb4495e4e0ef98a5ae686a7d4b0a71a5848673ddda24abc6f866ee30841f1b5",
+      "4fe96d0e30c4eb12931d35635e9959ef9f0cafaa491856c2b4a4fb3bee91ccfb",
+      "77853d600c4741a8534121c48b27446c6cdba7e64a8486e68e1623b83e30df7a",
+      "1013c1d7c9fd0e864e3565a0bd772299c528414e7f6b0c1bbcec2f8c96d44e43"
+    ]
+  },
+  "secs": 191,
+  "ran_at": "2026-11-13T16:05:04.615Z"
+}

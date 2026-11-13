@@ -10,3 +10,21 @@
 2026-11-13T16:03:19.052Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
 2026-11-13T16:03:49.765Z [zecret-timing] proof_accept 30315
 2026-11-13T16:03:49.765Z [zecret-engine] tick took 30296 ms
+2026-11-13T16:03:50.084Z [zecret-engine] encrypted ACCEPT with 50000 zats premium sent in tx acb4495e4e0ef98a5ae686a7d4b0a71a5848673ddda24abc6f866ee30841f1b5; joint address uregtest19rprqwyzxersmxg8023fg68yp3hzaqqqu8h8q5wtxdsx4753ze5zgewf3f9xsesca99u2xxnr3w3h7g3kzmc299rva3g4guagvh5zyv6
+2026-11-13T16:03:59.048Z [zecret-engine] escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+2026-11-13T16:04:01.048Z [zecret-engine] escrow a8036e1f verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-13T16:04:31.384Z [zecret-timing] proof_fund 30334
+2026-11-13T16:04:31.384Z [zecret-engine] tick took 30331 ms
+2026-11-13T16:04:31.384Z [zecret-engine] escrow a8036e1f verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-13T16:04:31.697Z [zecret-engine] FUNDED the joint address in fully shielded tx 4fe96d0e30c4eb12931d35635e9959ef9f0cafaa491856c2b4a4fb3bee91ccfb
+2026-11-13T16:04:41.138Z [zecret-engine] escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx BUngFSPJL9Bc15BoYEntLkaNdZut8A7rQ3YZiijfTrK7
+2026-11-13T16:04:43.027Z [zecret-engine] lock final (block 318); revealing a before the deadline 1794585939
+2026-11-13T16:04:43.053Z [zecret-engine] claim(a) signed and stored, tx 4ZpYi1X2EWd4iHXhJqLmpmKdEwQgSKPW4RAqvKDd74Vg; it goes out on the next step
+2026-11-13T16:04:45.370Z [zecret-engine] REVEALED a with claim, tx 4ZpYi1X2EWd4iHXhJqLmpmKdEwQgSKPW4RAqvKDd74Vg; waiting for the claim to be final
+2026-11-13T16:04:47.024Z [zecret-engine] claim is final (block 324)
+2026-11-13T16:04:47.085Z [zecret-engine] the taker's account holds 28054633001004200000000 yoctoNEAR, less than the 200000000000000000000000 that a withdraw needs; the maker sends withdraw
+2026-11-13T16:04:47.086Z [zecret-engine] claim final; waiting for the payout (credit 29988000000000000000000000, in intents 0)
+2026-11-13T16:04:49.038Z [zecret-engine] claim final; waiting for the payout (credit 0, in intents 0)
+2026-11-13T16:04:53.047Z [zecret-engine] PAYOUT: 29988000000000000000000000 of wrap.test.near in intents.near, owned by 487b67cf8d52237d4a54c90b478b2dddf839963828f8a38808351d9137467718
+2026-11-13T16:04:53.151Z [zecret-timing] direct_exit_relay 31
+2026-11-13T16:05:01.125Z [zecret-timing] direct_exit_relay 2967
