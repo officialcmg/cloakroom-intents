@@ -67,6 +67,8 @@ fn record(stage: TakerStage, a: &pasta_curves::pallas::Scalar, near: &NearKey) -
         commit_tx: None,
         claim_tx: None,
         claim_at: None,
+        // Field added by the F2-02 fix (the signed first claim, stored before its broadcast).
+        claim_raw: None,
         withdraw_tx: None,
         withdraw_at: None,
         log: vec![],

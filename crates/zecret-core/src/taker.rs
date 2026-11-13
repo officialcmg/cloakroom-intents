@@ -1411,7 +1411,7 @@ mod tests {
                 intents: "intents.near".into(),
             },
             timing: Timing { inclusion_secs: 30, finality_secs: 10, reorg_budget: 2, margin_secs: 0, fund_secs: 120, k_z: 2 },
-            maker: MakerEntry { ua, epoch: 1, rfq_pub, near_account: "maker.near".into(), near_pk: maker_key.public_key_str(), sig: hex::encode(maker_key.sign(&digest)) },
+            maker: MakerEntry { ua, epoch: 1, rfq_pub, near_account: "maker.near".into(), near_pk: maker_key.public_key_str(), sig: hex::encode(maker_key.sign(&digest)), limits: None },
             escrow_code_hash: "unused".into(),
             min_price: 1000,
             max_premium: 50_000,
@@ -1420,6 +1420,7 @@ mod tests {
             quote_timeout_secs: 600,
             cover: Cover::default(),
             misbehave: None,
+            payout_wait_secs: 300,
         };
         let mut store = MemStore::new();
         (Taker::open(cfg, Rc::new(NoNet), &mut store).unwrap(), maker_key)

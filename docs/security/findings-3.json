@@ -1,0 +1,566 @@
+[
+  {
+    "verdict": "rejected",
+    "fingerprint": "core/reconcile/hostile-lwd-double-send",
+    "title": "A hostile light-wallet server makes a restored browser send a message or the funding twice",
+    "description": "Candidate: Taker::reconcile decides from server data what was already sent.",
+    "claimed_root_cause": "reconcile reads sends and joint notes from the server.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/zecret-core/src/taker.rs",
+        "line": 637,
+        "scope": "Taker::reconcile",
+        "description": "Uses Wallet::sends and joint-address notes."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/zecret-core/src/wallet.rs",
+        "line": 526,
+        "scope": "Wallet::sends",
+        "description": "Sends are spends of the wallet's own notes."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/zecret-core/src/taker.rs",
+        "line": 825,
+        "description": "Never fund twice: a joint note stops the funding."
+      }
+    ],
+    "reason": "Every send spends the temporary wallet's notes, and the wallet holds one deposit. A second request, acceptance or funding would spend notes the first already spent and the network refuses it. A server that hides data can only stall the swap, which it can do anyway (review 2, H8)."
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "core/taker/never-fund-twice-guard-blocks-taker",
+    "title": "The maker uses the 'never fund twice' guard to block the taker forever",
+    "description": "Candidate: the maker sends a note to the joint address before the taker funds; the taker then never funds and loses its ZEC and premium.",
+    "claimed_root_cause": "on_open treats any joint note as the funding (review 2, H10).",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/zecret-core/src/taker.rs",
+        "line": 825,
+        "scope": "on_open",
+        "description": "A joint note sets Funded without a payment."
+      },
+      {
+        "kind": "sink",
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 965,
+        "scope": "leftoverStep / refundStep",
+        "description": "The unspent deposit later goes to the return address."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/zecret-core/src/taker.rs",
+        "line": 1083,
+        "description": "Recovery keeps a until the joint note can be swept."
+      }
+    ],
+    "reason": "The taker's ZEC never leaves the temporary wallet; after the maker's refund (or the punish path) the swap ends and refundStep or leftoverStep returns it. The taker loses the premium and fees, which a maker can always cause by refunding instead of setting Ready. No new power."
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "intents/exit/forged-below-minimum-offer",
+    "title": "A forged firm quote lowers the minimum the user is asked to accept",
+    "description": "Candidate: EXIT_BELOW_MINIMUM's offered values come from an unchecked quote.",
+    "claimed_root_cause": "oneclick_quote returns offered from the quote on MinimumTooLow.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/zecret-wasm/src/exit.rs",
+        "line": 141,
+        "scope": "oneclick_quote",
+        "description": "Firm quote parsed."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/zecret-intents/src/check.rs",
+        "line": 275,
+        "scope": "check_quote",
+        "description": "The signature is checked before every field and before the minimum."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 582,
+        "description": "acceptMinimum can only lower the minimum and only when an offer exists; the next quote is checked again."
+      }
+    ],
+    "reason": "check_quote verifies 1Click's signature first, so an offer reaches the page only from a signed quote."
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "web/directory/hostile-directory-steals-funds",
+    "title": "A hostile maker directory makes the user pay an attacker",
+    "description": "Candidate: unsigned directory fields (rate, limits, premium) or a directory naming another maker make the user lose funds.",
+    "claimed_root_cause": "The directory signature covers only (zcashAddress, epoch, requestKey, nearAccount).",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "web/src/lib/directory.ts",
+        "line": 87,
+        "scope": "parseDirectory",
+        "description": "Unsigned fields are parsed and shown."
+      },
+      {
+        "kind": "sink",
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 319,
+        "scope": "RealEngine.init",
+        "description": "The escrow must equal the configuration's; the signature and the full-access key are checked before any swap."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 334,
+        "description": "verifyMaker runs at init, before createSwap."
+      }
+    ],
+    "reason": "The maker is an untrusted counterparty by design: the escrow and its code hash come from the configuration, the firm price and premium are bounded by minUsdc and maxPremium that the page showed, and the unsigned fields only change numbers the user sees before agreeing. The directory is a same-origin file of the site. A cross-origin directory falls under NV3-01."
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "web/netconfig/url-selects-every-trust-anchor",
+    "title": "A link can choose the escrow, code hash, RPC, light-wallet server, Verifier, relay and maker directory",
+    "description": "configUrl() returns any ?config=<URL> ahead of the build-time configuration, and parseNetworkConfig() accepts any escrow, escrowCodeHash, near.rpc, lightwalletd, verifier, minStipend and relayUrl (also http:// on mainnet). ?directory=<URL> also replaces the configuration's directory. The page then shows the attacker's label and honesty lines in its banner. With an attacker's escrow and code hash, or an attacker's NEAR RPC (NV2-01), a victim who follows the link and pays can lose the ZEC. In the browser the only control is the Content-Security-Policy connect-src of web/vercel.json, which blocks the cross-origin fetch of such a file on Vercel.",
+    "claimed_root_cause": "Trust anchors are read from an unauthenticated URL parameter with no allowlist and no warning (netconfig.ts:108-114, useZecret.ts:61-72, directory.ts:141-142); the code relies on a deployment header it does not control.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "web/src/lib/netconfig.ts",
+        "line": 108,
+        "scope": "configUrl",
+        "description": "?config= value used as a URL when it is not a bare name."
+      },
+      {
+        "kind": "propagation",
+        "file": "web/src/app/useZecret.ts",
+        "line": 64,
+        "scope": "Store.run",
+        "description": "fetchNetworkConfig(cfgUrl) then parseNetworkConfig."
+      },
+      {
+        "kind": "propagation",
+        "file": "web/src/app/useZecret.ts",
+        "line": 72,
+        "scope": "Store.run",
+        "description": "?directory= overrides network.directoryUrl."
+      },
+      {
+        "kind": "sink",
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 246,
+        "scope": "RealEngine.coreConfig",
+        "description": "near_rpc, escrow, token, intents, lightwalletd and escrow_code_hash from the configuration become the engine's trust anchors."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "web/vercel.json",
+        "line": 12,
+        "description": "connect-src 'self' plus three fixed hosts: on Vercel a cross-origin configuration or directory cannot be fetched."
+      },
+      {
+        "file": "docs/security/poc3/config_override.test.ts",
+        "line": 46,
+        "description": "The parsing accepts a configuration whose every endpoint and contract is the attacker's (4 tests pass)."
+      },
+      {
+        "file": "web/README.md",
+        "line": 78,
+        "description": "The documented testnet run serves the site with `vite preview`, which sends no CSP."
+      }
+    ],
+    "blockers": [
+      "Whether every place the site is served (production host, mirrors, previews, IPFS or a static host other than Vercel) applies the CSP of web/vercel.json. With it, the attack is blocked; without it, it works. The repository cannot show the deployment."
+    ],
+    "validation_plan": {
+      "local": "Serve web/dist with `vite preview` (no CSP) and with the vercel.json headers; open /?config=http://127.0.0.1:<port>/hostile.json with a hostile file on another loopback port; observe that the first loads the hostile escrow into the banner and the second fails with a CSP violation.",
+      "deployment": "The owner fetches the production page and the worker script and checks that both carry the Content-Security-Policy header with the connect-src of vercel.json."
+    }
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "web/real-engine/no-single-writer-lock-across-tabs",
+    "title": "Two tabs (or a restored copy) run the same swap at once and overwrite each other's records",
+    "description": "Each tab starts its own worker, loads the same IndexedDB records and calls tick() on its own in-memory copy. There is no Web Lock, BroadcastChannel or version check, and each worker writes its dirty records and its web/state and web/meta over the other's. Source review found no path to a double payment, because both copies spend the same Zcash notes (the network refuses the second), both exits move the whole Verifier balance (only one can execute) and a NEAR access-key nonce allows one of two equal transactions. It found state regression and divergence (an older swap record or web/meta written over a newer one, an exit that polls the wrong deposit address, and a finished tab writing its old web/state over a new swap created in the other tab).",
+    "claimed_root_cause": "No mutual exclusion between workers that share the zecret-engine database (idb.ts:50-56, realEngine.ts:169-186, :374-398).",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 374,
+        "scope": "RealEngine.resume",
+        "description": "Every tab loads the stored swap and schedules its own loop."
+      },
+      {
+        "kind": "propagation",
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 651,
+        "scope": "RealEngine.stepInner",
+        "description": "tick() on this tab's copy of the records."
+      },
+      {
+        "kind": "sink",
+        "file": "web/src/engine/real/idb.ts",
+        "line": 54,
+        "scope": "putAll",
+        "description": "Blind put of every dirty record and of web/state and web/meta, overwriting the other tab's newer values."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 169,
+        "description": "persist() writes STATE and META on every event, from whichever tab emits."
+      }
+    ],
+    "blockers": [
+      "A run of the real engine in two tabs against regtest is needed to see which interleavings occur in practice; the browser scenario runner is in use by another agent in this session."
+    ],
+    "validation_plan": {
+      "local": "With harness/browser/run.mjs --serve, open the page in two tabs, pay, and record the IndexedDB records and the chain after each stage; repeat with 'Start a new swap' in one tab while the other polls a leftover."
+    }
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "web/recovery/hostile-file-takeover",
+    "title": "Importing a hostile recovery file takes over the flow or sends funds to an attacker",
+    "description": "Candidate: importRecovery takes web.state and web.meta (destination, direct plan, deposit URI) from the file.",
+    "claimed_root_cause": "The file's web part is trusted.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "web/src/screens/Restore.tsx",
+        "line": 25,
+        "scope": "RestoreScreen.load",
+        "description": "The user picks a file; nothing is uploaded."
+      },
+      {
+        "kind": "sink",
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 552,
+        "scope": "importRecovery",
+        "description": "state and meta from the file."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 549,
+        "description": "A file cannot replace an unfinished swap (SWAP_EXISTS); the deployment must match."
+      }
+    ],
+    "reason": "Whoever wrote the file also holds its keys, so its swap is theirs; a file cannot reach the victim's own swap or keys. The remaining risk is social engineering (a planted file shows an attacker's payment address in the site's UI); see hardening H2."
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "web/xss/untrusted-strings-and-links",
+    "title": "XSS through token names, error strings or 1Click explorer URLs",
+    "description": "Candidate: strings and URLs from 1Click, NEAR RPC or the light-wallet server reach the DOM.",
+    "claimed_root_cause": "destinationTxs[].url from 1Click /v0/status becomes an <a href>.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/zecret-wasm/src/exit.rs",
+        "line": 233,
+        "scope": "oneclick_status",
+        "description": "explorer_url from 1Click is passed through."
+      },
+      {
+        "kind": "sink",
+        "file": "web/src/ui/bits.tsx",
+        "line": 81,
+        "scope": "Hash",
+        "description": "Rendered as href with rel=noreferrer noopener."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "web/vercel.json",
+        "line": 12,
+        "description": "script-src without 'unsafe-inline' blocks javascript: URLs; React 19.3.1 also replaces javascript: hrefs."
+      }
+    ],
+    "reason": "No dangerouslySetInnerHTML, innerHTML, eval or window.open in web/src; all text is React-escaped. A javascript: href is blocked twice (React 19 and the CSP); data: top-level navigation is blocked by browsers. A plain https phishing link labelled as the delivery transaction needs a hostile 1Click, which is already trusted for the exit. Listed as a hardening note (allow only https: URLs)."
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "zecret-node/relay/authz-any-requester-unlimited-gas",
+    "title": "The relay pays execute_intents without limit for any account that ever sent the maker a request",
+    "description": "The relay accepts a payload when its signer_id equals the taker_account of any record under swap/ in the maker's store. The maker writes that record for every request memo that passes the format checks, before a premium is paid, and never deletes it (an expired request becomes Aborted). The relay then submits execute_intents with 50 Tgas paid by the maker for every payload that simulate_intents accepts, with no per-swap count, no stage check and no check of what the payload does. One request memo (one shielded Zcash fee) therefore buys an unlimited stream of maker-paid transactions: each fresh nonce is a new valid payload (for example a transfer of 1 base unit of any token the attacker deposited into its own Verifier account).",
+    "root_cause": "Authorization is 'signer appears in any swap record' (relay.rs:64-75, :85). Records are created on request receipt (maker.rs:488-497) and kept after expiry (maker.rs:596-601). handle() has no binding to a swap that is owed a direct exit and no limit on how many payloads one signer can relay (relay.rs:88-99).",
+    "intended_behavior": "The relay pays gas only for the direct exit of a taker whose swap paid out: at most a few submissions per swap that reached the taker's claim, for a payload that is exactly one ft_withdraw of the swap token from the taker's Verifier account.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 125,
+        "scope": "Relay::serve",
+        "description": "POST /execute-intents from any TCP client reaches handle() with the raw body."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 84,
+        "scope": "Relay::handle",
+        "description": "signer_id is read from the attacker-chosen payload."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 85,
+        "scope": "Relay::handle",
+        "description": "The only authorization: the signer is in takers(), which lists taker_account of every swap/ record whatever its stage."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/zecret-core/src/maker.rs",
+        "line": 488,
+        "scope": "Maker on a request memo",
+        "description": "taker_account = hex(rfq.taker_pk) is stored in a new Quoting record for any well-formed request; nothing is paid yet."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 89,
+        "scope": "Relay::handle",
+        "description": "simulate_intents accepts any correctly signed, unused-nonce payload of that account."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 92,
+        "scope": "Relay::handle",
+        "description": "The maker signs and pays execute_intents with 50 Tgas, once per request, without limit."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 64,
+        "description": "takers() reads every swap/ record and keeps taker_account, no stage filter."
+      },
+      {
+        "file": "crates/zecret-core/src/maker.rs",
+        "line": 600,
+        "description": "An expired request becomes Aborted; the record stays in the store (no delete anywhere in maker.rs)."
+      },
+      {
+        "file": "docs/security/poc3/relay_pocs.rs",
+        "line": 94,
+        "description": "poc_f3_01: 25 payloads of a never-paid requester are each relayed; the scripted RPC counts 25 send_tx signed by the maker."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "The maker runs with --relay (local network and testnet; mainnet exits through 1Click, but main.rs does not refuse --relay on mainnet)."
+      },
+      {
+        "kind": "data_state",
+        "description": "The attacker sent one well-formed request memo to the maker's Zcash address (cost: one shielded fee, about 0.0001 ZEC; free on testnet)."
+      },
+      {
+        "kind": "third_party_dependency",
+        "description": "simulate_intents accepts a cheap payload signed by the attacker's implicit account; a transfer of 1 base unit from its own Verifier balance is one, and each nonce is a new payload."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "A stranger with a NEAR key pair who sent one request memo to the maker and never paid a premium.",
+      "payloads": [
+        "{\"signed\":[{\"standard\":\"raw_ed25519\",\"payload\":\"{\\\"signer_id\\\":\\\"<hex pk>\\\",\\\"verifying_contract\\\":\\\"intents...\\\",\\\"nonce\\\":\\\"<fresh>\\\",\\\"intents\\\":[...]}\",\"public_key\":\"ed25519:...\",\"signature\":\"ed25519:...\"}]}"
+      ],
+      "instructions": [
+        "Run docs/security/poc3/relay_pocs.rs, test poc_f3_01_any_request_sender_drains_relay_gas, from a scratch workspace (see the file header). No network is used; a scripted NEAR RPC accepts simulate_intents and executes every transaction.",
+        "The store holds one Aborted record whose taker_account is the attacker's implicit account, as the maker writes it for an expired, unpaid request.",
+        "The test sends 25 payloads with fresh nonces through Relay::handle and counts send_tx."
+      ],
+      "observed_result": "All 25 payloads were relayed and the maker signed 25 execute_intents transactions (50 Tgas each). A signer with no record is refused, so the only gate is the record that any request creates."
+    },
+    "remediation": {
+      "strategy": "Bind the relay to swaps that are owed a direct exit and cap it per swap. In takers(), keep only records whose stage shows that the taker claimed (Sweeping or Swept) and that are younger than the exit deadline; record a relay count per swap id in the store and refuse after a small number (for example 3). In handle(), require that the payload has exactly one intent, an ft_withdraw of the swap token, and refuse otherwise. Refuse --relay when the maker's chain is mainnet.",
+      "code_changes": [
+        {
+          "file_name": "crates/zecret-node/src/relay.rs",
+          "fixed_code": "fn takers(&self) -> Result<Vec<(String, String)>> { /* (swap key, taker_account) only for stage Sweeping | Swept */ }\n// handle(): find the record for `who`; if record[\"relayed\"] >= 3 bail!; check inner[\"intents\"] is [{\"intent\":\"ft_withdraw\",\"token\":<swap token>,..}]; after send, put_json(record with relayed += 1)."
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Needs one request memo and a script; the relay URL is in the public configuration of any deployment that uses it."
+      },
+      "impact": {
+        "score": "low",
+        "reason": "Drains the maker's NEAR at roughly one 50 Tgas transaction every few seconds; on testnet this halts the maker's stipends, refunds and withdraws (liveness, test money). No taker funds move. The relay is not used on mainnet by the shipped configurations."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Full source trace and a local run of the relay's own handle(); the Verifier's acceptance of a 1-unit transfer intent is standard Verifier behaviour, not observed here."
+    }
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "zecret-node/relay/cors-wildcard",
+    "title": "Access-Control-Allow-Origin * lets any website use the relay",
+    "description": "Candidate: a hostile page drives the relay from a victim's browser.",
+    "claimed_root_cause": "The relay answers every origin.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 175,
+        "scope": "write_response",
+        "description": "access-control-allow-origin: *."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 85,
+        "scope": "Relay::handle",
+        "description": "Authorization is by payload signer, not by caller."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 113,
+        "description": "No cookies or other ambient credentials."
+      }
+    ],
+    "reason": "The relay uses no ambient credentials; a browser page can do nothing that a direct client cannot (F3-01, F3-02 already cover direct clients)."
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "zecret-node/relay/lie-or-withhold-takes-funds",
+    "title": "A lying or withholding relay takes the taker's tokens",
+    "description": "Candidate: the relay changes, replays or misreports the direct exit.",
+    "claimed_root_cause": "direct_relay trusts the relay's ok and hash.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/zecret-wasm/src/exit.rs",
+        "line": 402,
+        "scope": "direct_relay",
+        "description": "Signed payload handed to the relay."
+      },
+      {
+        "kind": "sink",
+        "file": "web/src/engine/real/realEngine.ts",
+        "line": 1076,
+        "scope": "directExitStep",
+        "description": "Done only when the receiver's token balance rose by the amount at a final block."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/zecret-wasm/src/exit.rs",
+        "line": 412,
+        "description": "A used nonce means the same signed transfer to the same receiver executed."
+      }
+    ],
+    "reason": "The payload is signed by the taker key and names the receiver and amount; a nonce works once. A held-back payload, executed later, pays the same receiver. A lie leads to EXIT_FAILED and a new plan to the same receiver. Only delay; the tokens stay under the taker key."
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "zecret-node/relay/single-connection-unbounded-read",
+    "title": "One unauthenticated TCP client can stop the relay, and grow the maker process without bound",
+    "description": "Relay::serve handles one connection at a time on one thread. read_request bounds only each read() to 10 s (set_read_timeout), not the whole request, so a client that sends one byte every few seconds holds the relay indefinitely and every other taker's direct exit waits. read_line has no length limit and the 64 KiB check applies only to Content-Length after all headers, so a header line with no newline grows a String inside the maker process for as long as the client streams. The relay is a thread of `zecret maker`, so memory exhaustion stops the maker's refunds, Ready, stipends and withdraws too.",
+    "root_cause": "No per-request deadline, no header size limit, no concurrency (relay.rs:117-120, :141, :146-156).",
+    "intended_behavior": "A request is read within a fixed total time and size, and one client cannot delay others or affect the maker loop.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 117,
+        "scope": "Relay::serve",
+        "description": "Sequential accept loop; one connection at a time."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 119,
+        "scope": "Relay::serve",
+        "description": "Only a per-read timeout of 10 s; a trickling client never trips it."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 148,
+        "scope": "read_request",
+        "description": "read_line into a String with no length limit, for every header line."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/zecret-node/src/relay.rs",
+        "line": 157,
+        "scope": "read_request",
+        "description": "The 64 KiB limit is checked only after all header lines were read, and only against Content-Length."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/zecret-node/src/main.rs",
+        "line": 173,
+        "description": "The relay runs as a thread inside the maker process."
+      },
+      {
+        "file": "docs/security/poc3/relay_pocs.rs",
+        "line": 133,
+        "description": "poc_f3_02 (slow client) and poc_f3_02b (one 256 MiB header line): see the observed results."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "The maker runs with --relay on an address the attacker can reach (a deployment whose takers' browsers use the relay must expose it)."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Any network client, no account, no swap.",
+      "payloads": [
+        "POST /execute-intents HTTP/1.1\\r\\nx-slow: a...a (one byte every 2 s)",
+        "POST /execute-intents HTTP/1.1\\r\\nx-big: <256 MiB of 'a', no newline>"
+      ],
+      "instructions": [
+        "Run docs/security/poc3/relay_pocs.rs tests poc_f3_02_one_slow_client_blocks_the_relay and poc_f3_02b_one_header_line_grows_the_maker_process from a scratch workspace (file header). They start Relay::serve on a free loopback port; no other network is used.",
+        "poc_f3_02: one client trickles a header; a second client sends an OPTIONS preflight and waits up to 12 s.",
+        "poc_f3_02b: one client streams 256 MiB without a newline; the test reads the process RSS before and after."
+      ],
+      "observed_result": "poc_f3_02: the honest OPTIONS preflight got no answer within 12.2 s while one client sent a byte every 2 s (an idle relay answers at once). poc_f3_02b: the process RSS grew from 270 MiB to 527 MiB after one header line of 256 MiB; it grows as long as the client streams."
+    },
+    "remediation": {
+      "strategy": "Read each request under a total deadline and size cap, and serve connections off the accept loop with a small bound. In read_request, wrap the stream in `Read::take(70 * 1024)` before the BufReader (headers and body together), reject a request line or header line over 8 KiB, and abort when Instant::now() passes a 5 s deadline (re-set the read timeout to the time left before each read). Hand each accepted connection to one of at most 4 worker threads and drop new connections while all are busy. Optionally run the relay as its own process so that it cannot take the maker's memory.",
+      "code_changes": [
+        {
+          "file_name": "crates/zecret-node/src/relay.rs",
+          "fixed_code": "let deadline = Instant::now() + Duration::from_secs(5);\nlet mut r = BufReader::new(s.take(70 * 1024));\n// before each read: s.set_read_timeout(Some(deadline.saturating_duration_since(Instant::now()).max(Duration::from_millis(1))))\n// bail!(\"header too long\") if line.len() > 8192; bail!(\"too slow\") if Instant::now() > deadline"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "high",
+        "reason": "Unauthenticated; one TCP connection; trivial client."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "Stops every direct exit for as long as the attacker wants (takers' tokens wait in the Verifier under their own keys), and the memory variant can end the whole maker process, which also stops refunds and Ready on the networks where the relay runs (local and testnet). No funds are taken."
+      },
+      "overall_severity": "medium"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source trace and local runs against the relay's own serve()."
+    }
+  }
+]

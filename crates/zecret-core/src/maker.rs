@@ -1282,6 +1282,7 @@ mod tests {
             quote_ttl_secs: 3600,
             max_quotes_per_tick: 1,
             premium_check: None,
+            max_refusals_per_hour: 6,
         };
         let mut store = MemStore::new();
         store.put(KEY_NEAR, NearKey::generate().secret_str().as_bytes()).unwrap();
