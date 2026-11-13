@@ -31,6 +31,13 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 
+## Running now (07:10 UTC)
+
+- Taker-side fixes: F2-01, F2-02, F2-03, H1, H6, the refusal reply, published limits, the payout-pending state, testnet timing configs. In `crates/` and `harness/`. It must rerun all native scenarios and all five browser scenarios.
+- Security review 3: the website, `zecret-wasm` and the maker's relay. Read-only, writes `docs/security/review-3.md`.
+
+After these: fixes for review 3, a browser swap on public test networks with a local maker and relay, update the README status table and demo script, the final wording pass with `docs/WRITING_CHECKLIST.md`.
+
 ## Next
 
 After E: a security review of the browser engine and the website, the taker-side fixes of review 2, and the final wording review (L). The swap on public test networks (T) and the README and documentation (K) are done.
