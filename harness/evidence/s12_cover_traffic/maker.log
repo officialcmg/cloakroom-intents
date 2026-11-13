@@ -7,3 +7,26 @@
 [maker 1794563358] {"type":"zcash_tx","swap":"19616b0a6fe10050eb594b3bcbcaa476","what":"quote","txid":"bcd90e7a0e45b1b815a7d493776407b54a95dafcbaaef064de9b2be524289d0b"}
 [maker 1794563358] 19616b0a encrypted QUOTE sent in tx bcd90e7a0e45b1b815a7d493776407b54a95dafcbaaef064de9b2be524289d0b
 [maker 1794563358] 19616b0a stage Quoted
+[maker 1794563396] 19616b0a ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id 17fca200
+[maker 1794563396] 19616b0a stage Opening
+[maker 1794563425] 19616b0a OPEN: cover: waited 29s over 2 random draw(s), 4 look-alike txs mined since height 272
+[maker 1794563430] {"type":"near_tx","swap":"19616b0a6fe10050eb594b3bcbcaa476","what":"open","hash":"9jsHASwvt3P4oWrA27ci8KL7zYM6V3wCFF8tzSfY5Xe"}
+[maker 1794563430] 19616b0a escrow OPEN id 17fca200ead581035ffda444bcd4d99380fe54b9472a559eee34dbb369ac1b0f amount 30000000000000000000000000 t0=1794564679 t1=1794564739 t2=1794564799 W=45, tx 9jsHASwvt3P4oWrA27ci8KL7zYM6V3wCFF8tzSfY5Xe
+[maker 1794563430] {"type":"near_tx","swap":"19616b0a6fe10050eb594b3bcbcaa476","what":"stipend","hash":"A9waoPa36punmo9HDLk1EShTEyDD2d1nT5yhZhZaoNCb"}
+[maker 1794563430] 19616b0a STIPEND of 30000000000000000000000 yoctoNEAR sent to 025d366ab7dbce8b3bac6a0172cfc8466fd5a8c936bebca6e073a92f78574bbf, tx A9waoPa36punmo9HDLk1EShTEyDD2d1nT5yhZhZaoNCb
+[maker 1794563430] 19616b0a stage Opened
+[maker 1794563502] 19616b0a READY: cover: waited 28s over 4 random draw(s), 4 look-alike txs mined since height 299
+[maker 1794563502] {"type":"near_tx","swap":"19616b0a6fe10050eb594b3bcbcaa476","what":"set_ready","hash":"ABgzyAU1qc6QjZLBgHENwme3STnLZ2Wtdg3wvdFDpPp6"}
+[maker 1794563502] 19616b0a joint note 100010000 zats with 12 confirmations (k_Z = 2); READY, tx ABgzyAU1qc6QjZLBgHENwme3STnLZ2Wtdg3wvdFDpPp6
+[maker 1794563502] 19616b0a stage Ready
+[maker 1794563517] {"type":"near_tx","swap":"19616b0a6fe10050eb594b3bcbcaa476","what":"withdraw","hash":"F9eYunukJyARYKHgT7azfrbsqhcSARfMC7Y37Z7Lbzsj"}
+[maker 1794563517] 19616b0a withdraw for the taker into intents.near, tx F9eYunukJyARYKHgT7azfrbsqhcSARfMC7Y37Z7Lbzsj (executed)
+[maker 1794563548] 19616b0a SWEEP: cover: waited 33s over 4 random draw(s), 4 look-alike txs mined since height 315
+[maker 1794563548] 19616b0a CLAIMED: read a from the escrow
+[maker 1794563549] {"type":"zcash_tx","swap":"19616b0a6fe10050eb594b3bcbcaa476","what":"sweep","txid":"357a98e8e13b7d694e59d4856636a206fbec7ce45d8710a421c3840269ab09ff"}
+[maker 1794563549] 19616b0a swept the joint note with (a+b) to the maker's wallet, tx 357a98e8e13b7d694e59d4856636a206fbec7ce45d8710a421c3840269ab09ff; waiting for 2 confirmations
+[maker 1794563549] 19616b0a stage Sweeping
+[maker 1794563553] 19616b0a sweep 357a98e8e13b7d694e59d4856636a206fbec7ce45d8710a421c3840269ab09ff has 2 confirmations (k_Z = 2); done
+[maker 1794563553] 19616b0a stage Swept
+[maker 1794563553] 19616b0a DONE Swept
+[maker 1794563553] 1 swap(s) terminal; exiting

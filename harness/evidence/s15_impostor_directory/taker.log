@@ -1,6 +1,6 @@
 
 ===== start taker --zats 100000000 =====
-Error: maker directory entry is not signed by ed25519:3jvBFbxDGs7bHfQk4zVwAKDZP3oJGozuhcioE1MD6icp
+Error: maker directory entry is not signed by ed25519:BTATzwFEvYPPfbMyBTV8uBNFhZ4xHyiSUvsDGVC6FxrF
 
 Stack backtrace:
    0: <anyhow::Error>::msg::<alloc::string::String>
@@ -46,7 +46,7 @@ Stack backtrace:
   21: _start
 
 ===== start taker --zats 100000000 =====
-Error: maker key ed25519:BgQbj8rdzQtJNtag7SnwrsWFqzz3Y7pyAgsHVAXim7se is not a key of maker.test.near
+Error: maker key ed25519:EZ739ptnWBW6bebRyQNwJ29f4ijtAg6YDCcw3A1he3ot is not a key of maker.test.near
 
 Stack backtrace:
    0: <anyhow::Error>::msg::<alloc::string::String>
