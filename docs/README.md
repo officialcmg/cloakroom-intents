@@ -36,6 +36,9 @@ What each document in `docs/` is for and who should read it. Start with the repo
 | [`security/fixes-2-taker.md`](security/fixes-2-taker.md) | Fixes for the taker side of review 2 (F2-01, F2-02, F2-03) and for the problems met on testnet. |
 | [`security/review-3.md`](security/review-3.md) | Review 3: the website, the browser engine (`zecret-wasm`) and the maker's relay. Findings F3-01, F3-02. |
 | [`security/fixes-3.md`](security/fixes-3.md) | Fixes for review 3, with tests. |
+| [`security/review-4.md`](security/review-4.md) | Review 4: a read-only second look at the escrow, the taker, the maker and the relay. No new finding; no tests run. |
+| [`reviews/screening-dry-run.md`](reviews/screening-dry-run.md) | An outside reproducibility and claims screening of the repository (72/100) and the README sentences it asked to tighten. |
+| [`reviews/cross-browser.md`](reviews/cross-browser.md) | A Firefox and WebKit attempt that stopped at configuration, and the follow-up that added those projects (not run). |
 | `security/findings-1.json`, `security/findings-2.json`, `security/findings-3.json` | Machine-readable records of the reviews. |
 | `security/poc/`, `security/poc2/`, `security/poc3/` | Proof-of-concept tests of the findings. |
 

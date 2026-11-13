@@ -75,3 +75,21 @@ The earlier Chromium run is recorded separately in [screening-dry-run.md](screen
 - No chains, funded swaps or hosted-site security probes were needed or run for this task.
 
 To enable a future run, add explicit Firefox/WebKit projects with suitable device options, then run those projects and classify their actual failures. That is a proposed follow-up; this review made no such change.
+
+## Follow-up, 2026-11-13 (after this report)
+
+- `web/playwright.config.ts` now has `firefox` and `webkit` projects (Desktop Firefox and
+  Desktop Safari device settings, 1280 × 900, the same tests as `desktop` without the
+  screenshot spec). They are added only when `ZECRET_BROWSERS=all` is set, so the default
+  run stays Chromium only. Command, from `web/`:
+  `npx playwright install firefox webkit`, then
+  `ZECRET_BROWSERS=all npx playwright test --project=firefox --project=webkit --trace off`.
+- The build machine has only Chromium for this Playwright version (`/opt/pw-browsers`
+  holds `chromium-1243` and `chromium_headless_shell-1243`; no Firefox or WebKit build).
+  Its browser set is fixed, so nothing was installed. A Firefox attempt stopped at launch:
+  `Executable doesn't exist at /opt/pw-browsers/firefox-1543/firefox/firefox`.
+- Result: **no Firefox or WebKit test has run.** This is left for the owner on a machine
+  where those browsers can be installed. No cross-browser result is claimed.
+- The missing-engine failures of the Chromium run now fail at once with a message that
+  names `crates/zecret-wasm/build.sh`; the root README gives the build step before
+  `npm run e2e`.

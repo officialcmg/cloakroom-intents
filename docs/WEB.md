@@ -183,7 +183,17 @@ steps and USDC amount on NEAR, the amount and address on the destination chain, 
 the maker knows, and the IP address seen by the services unless Tor or a VPN is used).
 Refunded: the amount on its way back, the address, the reason, the transaction.
 
-"Start a new swap" deletes the finished swap and its keys from the browser.
+"Start a new swap" deletes the finished swap and its keys from the browser. While leftover
+ZEC has no return address, or its transaction to the return address is not mined, the
+button is disabled and a line says why ("Your leftover ZEC is still being sent back. Wait
+until it is sent."). "Start over without the leftover" asks first, with the amount at
+stake ("Leave 0.9499 ZEC behind?"); only the recovery file can then get it back. The
+engine enforces the same rule: `forget` and `createSwap` refuse with `LEFTOVER_PENDING`
+unless `forget({ discardLeftover: true })`.
+
+A swap restored after its delivery already happened (`exit.doneElsewhere`) shows "This
+swap was already delivered": the delivery was completed before this browser restored the
+swap, so the page shows no received amount and no delivery transaction.
 
 ### Start failures
 
@@ -271,9 +281,27 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
   swap; each failure case; reload mid-swap; restore after a cleared browser and in a
   fresh browser; form checks with keyboard-only token selection; 1Click errors; the
   token list down; the tab-close guard; page responsiveness while the worker busy-loops;
-  the theme toggle.
-- Counts on 2026-11-13: 101 unit tests (`npm test`) and 90 Playwright tests (`npm run
+  the theme toggle; leftover ZEC that keeps "Start a new swap" disabled until it is back
+  or the user confirms leaving it behind.
+- Unit, the leftover guard: `engine.test.ts` (simulated engine) and `payoutCheck.test.ts`
+  (real engine with a scripted core): `forget` and `createSwap` refuse with
+  `LEFTOVER_PENDING` while leftover ZEC has no return address or its transaction is not
+  mined; `forget({ discardLeftover: true })` deletes the swap.
+- Seven end-to-end tests load the real engine (the failed maker check). Without
+  `web/public/engine/` they fail with a message that names `crates/zecret-wasm/build.sh`.
+- Counts on 2026-11-13: 110 unit tests (`npm test`) and 92 Playwright tests (`npm run
   e2e`: desktop and phone, the 320, 390, 768 and 1024 px runs, and 18 screenshot tests).
+  `ZECRET_BROWSERS=all` adds Firefox and WebKit projects; they have not been run.
+
+## Wallets
+
+The payment address has one receiver of the Orchard protocol. Since NU6.3 a wallet can pay
+it only into the Ironwood pool, and the engine reads only that pool. The Pay screen names
+Zodl, Zingo, Zkool, Edge and Cake: wallet apps whose release notes say they pay into
+Ironwood. On testnet it names Zkool and Zingo (Android), the ones that offer a testnet
+wallet; Zodl, Cake and Edge ship no testnet app. None of these apps was tested against
+the site. The tested payers are the Fauzec faucet, which pays the deposit address
+directly, and the project's command-line wallet (`docs/TESTNET.md`).
 
 ## Headers
 
@@ -299,5 +327,5 @@ versions.
 
 - Firefox and Safari were not tested; only Chromium.
 - No wallet app was tested as the payer. The testnet payments came from the project's
-  command-line wallet (`zecret pay`).
+  command-line wallet (`zecret pay`) and from the Fauzec faucet.
 - Destination tags (XRP) and memos are not supported; the page says so for XRP.

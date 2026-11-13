@@ -60,12 +60,12 @@ must emit an `activity` with `estimatedMs` **before** it starts blocking work.
 | `subscribe(listener)` | any time | All events. Returns an unsubscribe function. (Page side only; not a wire call.) |
 | `resume()` | after `init` | Loads the stored swap, if any, emits `swap`, and continues it (the real engine rescans from the wallet's birthday first). Returns the state or `null`. |
 | `getState()` | any time | The current `SwapState` or `null`. |
-| `createSwap(params)` | no unfinished swap | Makes the temporary wallet, key half `a` and the NEAR key; **stores them before it returns**; returns the state in `awaiting_deposit` with `deposit.address` and the ZIP 321 `deposit.uri`. Throws `SWAP_EXISTS`, `INVALID_PARAMS`, `INVALID_ADDRESS`. |
+| `createSwap(params)` | no unfinished swap | Makes the temporary wallet, key half `a` and the NEAR key; **stores them before it returns**; returns the state in `awaiting_deposit` with `deposit.address` and the ZIP 321 `deposit.uri`. Throws `SWAP_EXISTS`, `LEFTOVER_PENDING` (a finished swap still owes leftover ZEC), `INVALID_PARAMS`, `INVALID_ADDRESS`. |
 | `setReturnAddress(addr)` | until the refund or leftover is sent | Unified address with an Orchard receiver on the swap's network. Clears `needs: 'return_address'`. |
 | `exportRecovery()` | a swap exists | Returns `{ fileName, mimeType, text }`. Sets `recoveryExportedAt`. The page saves the text as is. |
-| `importRecovery(text)` | no other unfinished swap | Restores and continues the swap. The real engine checks the file's addresses as `createSwap` does and computes `deposit.address` and `deposit.uri` from the file's wallet key; it sets `restoredAt`. Throws `RECOVERY_INVALID`, `RECOVERY_MISMATCH`, `SWAP_EXISTS`, `INVALID_ADDRESS`. |
+| `importRecovery(text)` | no other unfinished swap | Restores and continues the swap. The real engine checks the file's addresses as `createSwap` does and computes `deposit.address` and `deposit.uri` from the file's wallet key; it sets `restoredAt`. Throws `RECOVERY_INVALID`, `RECOVERY_MISMATCH`, `SWAP_EXISTS`, `LEFTOVER_PENDING`, `INVALID_ADDRESS`. |
 | `exit(request?)` | `exit_retry` | Runs the exit again from a fresh firm quote. `request.acceptMinimum` lowers the approved minimum to the `minAmountOut` of `exit.offered`, which the user saw and accepted; it can never raise it. In `paid_out` or `exiting` it is a no-op (the engine runs the exit by itself). |
-| `forget()` | before any payment arrives, or after `done` / `refunded` | Deletes the swap and its keys from this browser. Otherwise `WRONG_STAGE`. |
+| `forget(options?)` | before any payment arrives, or after `done` / `refunded` | Deletes the swap and its keys from this browser. Otherwise `WRONG_STAGE`. While `leftoverPending(swap)` (leftover ZEC with no return address, or its transaction not yet mined; `leftover.returned` marks it mined) it throws `LEFTOVER_PENDING` unless `options.discardLeftover` is true. The real engine also throws it (transient) at `done` until its leftover step has looked at the wallet once. |
 
 `CreateSwapParams`:
 
@@ -196,6 +196,7 @@ reports `SUCCESS` finishes the swap, also before a new firm quote. Explorer link
 | `INVALID_PARAMS` | Bad arguments. |
 | `INVALID_ADDRESS` | An address failed the engine's own check. |
 | `SWAP_EXISTS` | This browser has an unfinished swap. |
+| `LEFTOVER_PENDING` | The finished swap's leftover ZEC has not reached the return address; deleting the swap would leave it only in the recovery file. |
 | `NO_SWAP` | The call needs a swap. |
 | `WRONG_STAGE` | Not allowed in this stage. |
 | `RECOVERY_INVALID` | The file cannot be read, or belongs to another engine. |

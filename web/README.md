@@ -35,24 +35,38 @@ shown below as "Technical detail", wrapped, with a copy button.
 
 ## Commands
 
-Node 22. From this folder:
+Node 22 (`.nvmrc`). From a clean clone, in this order:
 
 ```sh
-npm install                 # dependencies (Playwright uses the preinstalled Chromium)
+npm ci                                  # the locked dependencies
+npx playwright install chromium         # skip if Chromium for Playwright 1.63.0 is installed
+../crates/zecret-wasm/build.sh          # the real engine, into public/engine/ (see "The real engine")
+npm test                                # unit tests (vitest)
+npm run e2e                             # end-to-end tests, desktop and phone (Playwright, --trace off)
+```
+
+Seven end-to-end tests (the failed maker check on testnet, on the landing, responsive and
+screenshot specs) load the real engine. Without `public/engine/` they fail at once with a
+message that names `crates/zecret-wasm/build.sh`. All other tests use the simulated engine.
+
+Other commands:
+
+```sh
 npm run dev                 # http://localhost:5173
 npm run typecheck           # tsc -b
 npm run lint                # eslint
-npm test                    # unit tests (vitest)
 npm run build               # static site in dist/
-npm run e2e                 # end-to-end tests, desktop and phone (Playwright, --trace off)
 npm run screenshots         # screenshots of the key screens into screenshots/
-npm run check               # all of the above except screenshots
+npm run check               # type-check, lint, unit tests, build and end-to-end tests
 ```
 
 `npm run e2e` builds the site and serves it with `vite preview` on port 4173. If
-Playwright cannot find Chromium, set `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`. The
-tests mock the 1Click API (`e2e/oneclick-mock.ts`, built from the real token list of
-2026-11-13), so they need no network.
+Playwright cannot find Chromium, set `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`.
+The tests mock the 1Click API (`e2e/oneclick-mock.ts`, built from the real token list of
+2026-11-13), so they need no network. `ZECRET_BROWSERS=all npm run e2e` adds the desktop
+tests in Firefox and WebKit (projects `firefox` and `webkit`; install them with
+`npx playwright install firefox webkit`). They have not been run: the build machine has
+only Chromium.
 
 ## The real engine
 
@@ -61,9 +75,14 @@ Build its WebAssembly into `public/engine/` (not in git) once, and after every c
 
 ```sh
 cd ..                                   # repository root
-./scripts/setup-env.sh && source .tools/env.sh
-crates/zecret-wasm/build.sh             # needs wasm-bindgen-cli 0.2.129
+crates/zecret-wasm/build.sh             # needs wasm-bindgen-cli 0.2.129 and clang
 ```
+
+`rust-toolchain.toml` selects Rust 1.97.0 with the wasm32 target. Install wasm-bindgen
+with `cargo install wasm-bindgen-cli --version =0.2.129 --locked`. The C parts of the
+build need `clang` and `llvm-ar`; where `cc` is not clang, set
+`CC_wasm32_unknown_unknown=clang AR_wasm32_unknown_unknown=llvm-ar`
+(`deploy/web/vercel-build.sh` does this).
 
 Then the page runs it with `?config=local` or `?config=testnet`
 (`public/config/<name>.json`; `src/lib/netconfig.ts` describes the format), or with
