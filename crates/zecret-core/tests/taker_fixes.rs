@@ -95,8 +95,9 @@ fn record(f: &Fixture, stage: TakerStage, a: &pasta_curves::pallas::Scalar, near
     s
 }
 
-/// The escrow's view of the swap in `rec`, with these deadlines and state.
-fn view(rec: &TakerSwap, near: &NearKey, state: &str, t0: u64, t1: u64, t2: u64, w: u64, locked_at: Option<u64>, b: Option<String>) -> Value {
+/// The escrow's view of the swap in `rec`, with these deadlines (t0, t1, t2), reveal
+/// window and state.
+fn view(rec: &TakerSwap, near: &NearKey, state: &str, (t0, t1, t2): (u64, u64, u64), w: u64, locked_at: Option<u64>, b: Option<String>) -> Value {
     let a = keys::scalar_from_hex(&rec.a).unwrap();
     json!({
         "id": rec.escrow_id, "maker": "maker.near", "token": "usdc.near", "amount": "5000000",
@@ -212,7 +213,7 @@ fn f2_01_refund_before_the_funding_is_mined_keeps_a() {
     let a = keys::random_scalar();
     let rec = record(&f, TakerStage::Funded, &a, &near);
     let b = Some(hex::encode(keys::scalar_to_bytes(&f.b)));
-    let v = view(&rec, &near, "Refunded", NOW - 100, NOW + 600, NOW + 1500, 600, None, b.clone());
+    let v = view(&rec, &near, "Refunded", (NOW - 100, NOW + 600, NOW + 1500), 600, None, b.clone());
     let n = net(100, v);
     let mut store = MemStore::new();
     let mut tk = open(&f, &rec, &n, 100, &mut store);
@@ -222,7 +223,7 @@ fn f2_01_refund_before_the_funding_is_mined_keeps_a() {
     assert!(!s.a.is_empty(), "a must be kept while the funding may still be mined");
 
     // Past expiry (10 000) + k_Z (2): nothing more can arrive.
-    let v = view(&rec, &near, "Refunded", NOW - 100, NOW + 600, NOW + 1500, 600, None, b);
+    let v = view(&rec, &near, "Refunded", (NOW - 100, NOW + 600, NOW + 1500), 600, None, b);
     let n2 = net(10_003, v);
     let mut store2 = MemStore::new();
     let mut tk2 = open(&f, &s, &n2, 10_003, &mut store2);
@@ -243,7 +244,7 @@ fn f2_01_second_note_is_swept_funding_first() {
     rec.sweep_txid = Some("d".repeat(64));
     rec.sweep_height = Some(90);
     let b = Some(hex::encode(keys::scalar_to_bytes(&f.b)));
-    let v = view(&rec, &near, "Refunded", NOW - 100, NOW + 600, NOW + 1500, 600, None, b);
+    let v = view(&rec, &near, "Refunded", (NOW - 100, NOW + 600, NOW + 1500), 600, None, b);
     let n = net(100, v);
     let mut store = MemStore::new();
     let mut tk = open(&f, &rec, &n, 100, &mut store);
@@ -279,7 +280,7 @@ fn f2_02_first_claim_is_stored_then_sent() {
     let near = NearKey::from_seed([8u8; 32]);
     let a = keys::random_scalar();
     let rec = record(&f, TakerStage::Revealed, &a, &near);
-    let v = view(&rec, &near, "Locked", NOW - 900, NOW - 300, NOW + 600, 600, Some(NOW - 20), None);
+    let v = view(&rec, &near, "Locked", (NOW - 900, NOW - 300, NOW + 600), 600, Some(NOW - 20), None);
     let n = net(100, v);
     let mut store = MemStore::new();
     let mut tk = open(&f, &rec, &n, 100, &mut store);
@@ -308,7 +309,7 @@ fn f2_02_r2r_is_checked_again_before_the_broadcast() {
     let a = keys::random_scalar();
     let rec = record(&f, TakerStage::Revealed, &a, &near);
     let (locked_at, w) = (NOW - 20, 600u64);
-    let v = view(&rec, &near, "Locked", NOW - 900, NOW - 300, NOW + 600, w, Some(locked_at), None);
+    let v = view(&rec, &near, "Locked", (NOW - 900, NOW - 300, NOW + 600), w, Some(locked_at), None);
     let n = net(100, v);
     let mut store = MemStore::new();
     let mut tk = open(&f, &rec, &n, 100, &mut store);
@@ -332,7 +333,7 @@ fn f2_02_zcash_outage_does_not_stall_the_claim() {
     let near = NearKey::from_seed([10u8; 32]);
     let a = keys::random_scalar();
     let rec = record(&f, TakerStage::Revealed, &a, &near);
-    let v = view(&rec, &near, "Locked", NOW - 900, NOW - 300, NOW + 600, 600, Some(NOW - 20), None);
+    let v = view(&rec, &near, "Locked", (NOW - 900, NOW - 300, NOW + 600), 600, Some(NOW - 20), None);
     let n = net(100, v);
     n.zcash_down.set(true);
     let mut store = MemStore::new();
@@ -355,7 +356,7 @@ fn f2_02_zcash_outage_never_ends_a_recovery() {
     rec.fund_txid = None;
     rec.fund_expiry = None;
     let b = Some(hex::encode(keys::scalar_to_bytes(&f.b)));
-    let v = view(&rec, &near, "Refunded", NOW - 100, NOW + 600, NOW + 1500, 600, None, b);
+    let v = view(&rec, &near, "Refunded", (NOW - 100, NOW + 600, NOW + 1500), 600, None, b);
     let n = net(100, v);
     n.zcash_down.set(true);
     let mut store = MemStore::new();
@@ -382,7 +383,7 @@ fn f2_03_escrow_windows_must_equal_the_quote() {
         let t0 = NOW + 1800;
         let t1 = t0 + 600 + t1_extra;
         let t2 = if what == "punish window" { t1 + 901 } else { t1 + 900 };
-        let n = net(100, view(&rec, &near, "Open", t0, t1, t2, w, None, None));
+        let n = net(100, view(&rec, &near, "Open", (t0, t1, t2), w, None, None));
         let mut store = MemStore::new();
         let mut tk = open(&f, &rec, &n, 100, &mut store);
         tk.tick(NOW, &mut store);
@@ -398,7 +399,7 @@ fn f2_03_escrow_windows_must_equal_the_quote() {
     let a = keys::random_scalar();
     let mut rec = record(&f, TakerStage::Accepted, &a, &near);
     rec.fund_txid = None;
-    let n = net(100, view(&rec, &near, "Open", NOW + 1800, NOW + 2400, NOW + 3300, 600, None, None));
+    let n = net(100, view(&rec, &near, "Open", (NOW + 1800, NOW + 2400, NOW + 3300), 600, None, None));
     let mut store = MemStore::new();
     let mut tk = open(&f, &rec, &n, 100, &mut store);
     let t = tk.tick(NOW, &mut store);

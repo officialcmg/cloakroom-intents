@@ -8,12 +8,12 @@
     "token": "usdc.zecret-3f109eea1e.testnet",
     "intents": "intents.zecret-3f109eea1e.testnet"
   },
-  "timing": {"inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 900, "k_z": 3},
+  "timing": {"inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 600, "k_z": 3},
   "near_account": "maker.zecret-3f109eea1e.testnet",
   "price_per_zec": "30000000",
   "min_zats": 100000,
   "max_zats": 10000000,
   "premium_zats": 1000,
   "stipend": "30000000000000000000000",
-  "windows": {"t0_secs": 1800, "t1_secs": 600, "t2_secs": 900, "reveal_secs": 600}
+  "windows": {"t0_secs": 900, "t1_secs": 600, "t2_secs": 900, "reveal_secs": 600}
 }

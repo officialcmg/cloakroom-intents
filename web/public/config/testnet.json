@@ -18,9 +18,9 @@
     "verifier": "intents.zecret-3f109eea1e.testnet",
     "explorer": "https://testnet.nearblocks.io/txns/{hash}"
   },
-  "timing": { "inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 900, "k_z": 3 },
+  "timing": { "inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 600, "k_z": 3 },
   "minStipend": "30000000000000000000000",
-  "quoteTimeoutSecs": 1800,
+  "quoteTimeoutSecs": 600,
   "exit": { "mode": "direct", "relayUrl": "http://127.0.0.1:3410/execute-intents" },
   "honesty": [
     "A test USDC token with no value stands in for USDC.",

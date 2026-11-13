@@ -8,11 +8,11 @@
     "token": "usdc.zecret-3f109eea1e.testnet",
     "intents": "intents.zecret-3f109eea1e.testnet"
   },
-  "timing": {"inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 900, "k_z": 3},
+  "timing": {"inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 600, "k_z": 3},
   "maker": "REPLACE with the output of `zecret directory --dir <maker dir>`",
   "escrow_code_hash": "DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1",
   "min_price": "0",
   "max_premium": 2000,
   "min_stipend": "30000000000000000000000",
-  "quote_timeout_secs": 1800
+  "quote_timeout_secs": 600
 }
