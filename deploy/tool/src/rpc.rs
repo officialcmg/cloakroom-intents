@@ -45,7 +45,8 @@ impl Rpc {
 
     /// One JSON-RPC call. Retries transport errors and HTTP 429/5xx a few times.
     pub async fn call(&self, method: &str, params: Value) -> Res<Result<Value, RpcError>> {
-        let body = json!({ "jsonrpc": "2.0", "id": "zecret-deploy", "method": method, "params": params });
+        let body =
+            json!({ "jsonrpc": "2.0", "id": "zecret-deploy", "method": method, "params": params });
         let mut last = String::new();
         for attempt in 0..6u64 {
             if attempt > 0 {
@@ -150,7 +151,12 @@ impl Rpc {
 
     /// A view call at final finality. `Ok(Err(..))` if the contract panicked or the method
     /// is missing.
-    pub async fn view(&self, contract: &str, method: &str, args: &Value) -> Res<Result<Value, RpcError>> {
+    pub async fn view(
+        &self,
+        contract: &str,
+        method: &str,
+        args: &Value,
+    ) -> Res<Result<Value, RpcError>> {
         let r = self
             .query(json!({
                 "request_type": "call_function",
@@ -243,7 +249,12 @@ impl Rpc {
 
     /// Creates a top-level `.testnet` account through the testnet faucet (the NEAR helper
     /// service). The helper funds it with its standard amount.
-    pub async fn faucet_create(&self, helper_url: &str, account_id: &str, public_key: &str) -> Res<()> {
+    pub async fn faucet_create(
+        &self,
+        helper_url: &str,
+        account_id: &str,
+        public_key: &str,
+    ) -> Res<()> {
         let url = format!("{}/account", helper_url.trim_end_matches('/'));
         let resp = self
             .http

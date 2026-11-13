@@ -151,13 +151,21 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
         .await?
         .require_ok()?;
     if o.events("near_escrow", "opened").len() != 1 || o.json()? != json!(AMOUNT.to_string()) {
-        return Err(format!("open: no opened event or wrong amount used; logs {:?}", o.logs).into());
+        return Err(format!(
+            "open: no opened event or wrong amount used; logs {:?}",
+            o.logs
+        )
+        .into());
     }
     txs.push(o.rec);
     let id = ctx
         .chain
         .rpc
-        .view_ok(&ids.escrow, "swap_id", &json!({ "maker": ids.maker, "salt": salt }))
+        .view_ok(
+            &ids.escrow,
+            "swap_id",
+            &json!({ "maker": ids.maker, "salt": salt }),
+        )
         .await?;
     let id = id.as_str().ok_or("swap_id")?.to_string();
     println!("swap id {id}");
@@ -270,7 +278,10 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
     if held != json!(AMOUNT.to_string()) {
         return Err(format!("taker holds {held} in the Verifier, expected {AMOUNT}").into());
     }
-    println!("taker holds {AMOUNT} {token_mt} inside the Verifier {}", ids.intents);
+    println!(
+        "taker holds {AMOUNT} {token_mt} inside the Verifier {}",
+        ids.intents
+    );
 
     // The exit: one ft_withdraw signed by the taker key, built by zecret-intents.
     let destination = ctx.owner.id().to_string();
@@ -328,15 +339,34 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
 
     let timing = Timing {
         samples: txs.len(),
-        included_s: min_med_max(txs.iter().filter_map(|t| t.included_ms).map(|m| m as f64 / 1000.0).collect()),
-        included_final_s: min_med_max(
-            txs.iter().filter_map(|t| t.included_final_ms).map(|m| m as f64 / 1000.0).collect(),
+        included_s: min_med_max(
+            txs.iter()
+                .filter_map(|t| t.included_ms)
+                .map(|m| m as f64 / 1000.0)
+                .collect(),
         ),
-        final_s: min_med_max(txs.iter().filter_map(|t| t.final_ms).map(|m| m as f64 / 1000.0).collect()),
+        included_final_s: min_med_max(
+            txs.iter()
+                .filter_map(|t| t.included_final_ms)
+                .map(|m| m as f64 / 1000.0)
+                .collect(),
+        ),
+        final_s: min_med_max(
+            txs.iter()
+                .filter_map(|t| t.final_ms)
+                .map(|m| m as f64 / 1000.0)
+                .collect(),
+        ),
     };
-    println!("== timings over {} transactions (seconds: min / median / max)", timing.samples);
+    println!(
+        "== timings over {} transactions (seconds: min / median / max)",
+        timing.samples
+    );
     println!("  submitted -> included:          {:?}", timing.included_s);
-    println!("  submitted -> included, final:   {:?}", timing.included_final_s);
+    println!(
+        "  submitted -> included, final:   {:?}",
+        timing.included_final_s
+    );
     println!("  submitted -> all receipts final: {:?}", timing.final_s);
 
     Ok(E2eReport {

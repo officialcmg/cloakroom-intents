@@ -1,10 +1,10 @@
 //! The deployment steps. Each step reads the chain first and does nothing if its result
 //! is already there, so the whole deployment can be run again after a failure.
 
-use near_workspaces::operations::Function;
-use near_workspaces::types::{AccessKey, Gas, KeyType, NearToken, SecretKey};
 use near_workspaces::Account;
-use serde_json::{Value, json};
+use near_workspaces::operations::Function;
+use near_workspaces::types::{AccessKey, Gas, NearToken};
+use serde_json::json;
 use std::path::{Path, PathBuf};
 
 use crate::Res;
@@ -99,7 +99,11 @@ pub async fn top_up_from_faucet(ctx: &mut Ctx, need: u128) -> Res<()> {
     loop {
         let have = ctx.chain.rpc.balance(&owner_id).await?;
         if have >= need {
-            println!("owner {owner_id} holds {} (needs {})", fmt_near(have), fmt_near(need));
+            println!(
+                "owner {owner_id} holds {} (needs {})",
+                fmt_near(have),
+                fmt_near(need)
+            );
             return Ok(());
         }
         if ctx.chain.network != Network::Testnet {
@@ -118,30 +122,90 @@ pub async fn top_up_from_faucet(ctx: &mut Ctx, need: u128) -> Res<()> {
             )
             .into());
         }
-        let mut r = [0u8; 6];
-        rand::Rng::fill(&mut rand::thread_rng(), &mut r);
-        let fid = format!("zecret-fund-{}.testnet", hex::encode(r));
-        let sk = ctx.keys.get_or_create(&fid)?;
-        ctx.chain
-            .rpc
-            .faucet_create(&ctx.cfg.faucet_url, &fid, &sk.public_key().to_string())
-            .await?;
+        // A faucet account left by an earlier run (its key is still stored) is used
+        // first; otherwise a new one is made.
+        let fid = match leftover_faucet_account(ctx).await? {
+            Some(fid) => {
+                println!("using faucet account {fid} left by an earlier run");
+                fid
+            }
+            None => {
+                let mut r = [0u8; 6];
+                rand::Rng::fill(&mut rand::thread_rng(), &mut r);
+                let fid = format!("zecret-fund-{}.testnet", hex::encode(r));
+                let sk = ctx.keys.get_or_create(&fid)?;
+                ctx.chain
+                    .rpc
+                    .faucet_create(&ctx.cfg.faucet_url, &fid, &sk.public_key().to_string())
+                    .await?;
+                used += 1;
+                fid
+            }
+        };
         let got = ctx.chain.rpc.balance(&fid).await?;
-        println!("faucet account {fid} received {}", fmt_near(got));
+        println!("faucet account {fid} holds {}", fmt_near(got));
+        let sk = ctx.keys.get(&fid)?.ok_or("faucet key vanished")?;
         let fund = ctx.chain.w.account(&fid, sk)?;
-        let o = ctx
-            .chain
-            .track(
-                &format!("faucet {fid} -> owner (delete account)"),
-                true,
-                fund.batch(fund.id()).delete_account(ctx.owner.id()).transact_async(),
+        let mut attempt = 0;
+        let o = loop {
+            attempt += 1;
+            let r = ctx
+                .chain
+                .track(
+                    &format!("faucet {fid} -> owner (delete account)"),
+                    true,
+                    fund.batch(fund.id())
+                        .delete_account(ctx.owner.id())
+                        .transact_async(),
+                )
+                .await;
+            match r {
+                Ok(o) => break o,
+                Err(e) if e.is::<crate::chain::Dropped>() && attempt < 4 => {
+                    println!("  {e}; sending again");
+                    if ctx.chain.rpc.account(&fid).await?.is_none() {
+                        return Err(format!("{fid} is gone although its delete was not seen").into());
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        };
+        // The gas refund goes to the signer, which no longer exists, so NEAR reports that
+        // one refund receipt as failed (AccountDoesNotExist on the deleted account). The
+        // transaction itself must have succeeded and that must be the only failure.
+        let only_refund = o.receipt_failures.iter().all(|f| {
+            f.starts_with(&format!("{fid}:")) && f.contains("AccountDoesNotExist")
+        });
+        if !o.ok || !only_refund {
+            return Err(format!(
+                "faucet top-up {} failed: {:?} {:?}",
+                o.rec.hash, o.failure, o.receipt_failures
             )
-            .await?
-            .require_ok()?;
-        let _ = o;
+            .into());
+        }
+        if !o.receipt_failures.is_empty() {
+            println!("  (the failed receipt is the gas refund to the deleted account; expected)");
+        }
         let _ = std::fs::remove_file(ctx.keys.dir().join(format!("{fid}.json")));
-        used += 1;
+
     }
+}
+
+/// A `zecret-fund-*` account whose key is in the key store and that still exists.
+async fn leftover_faucet_account(ctx: &Ctx) -> Res<Option<String>> {
+    for e in std::fs::read_dir(ctx.keys.dir())? {
+        let name = e?.file_name().to_string_lossy().into_owned();
+        if let Some(id) = name.strip_suffix(".json")
+            && id.starts_with("zecret-fund-")
+        {
+            if ctx.chain.rpc.account(id).await?.is_some() {
+                return Ok(Some(id.to_string()));
+            }
+            // Deleted already: its key opens nothing.
+            let _ = std::fs::remove_file(ctx.keys.dir().join(&name));
+        }
+    }
+    Ok(None)
 }
 
 /// Creates `id` as a sub-account of the owner with a full-access key kept in the key
@@ -151,7 +215,11 @@ async fn ensure_subaccount(ctx: &mut Ctx, id: &str, balance: u128, step: &str) -
         Some(sk) => sk,
         None => {
             if ctx.chain.rpc.account(id).await?.is_some() {
-                return Err(format!("{id} exists but its key is not in {}", ctx.keys.dir().display()).into());
+                return Err(format!(
+                    "{id} exists but its key is not in {}",
+                    ctx.keys.dir().display()
+                )
+                .into());
             }
             ctx.keys.get_or_create(id)?
         }
@@ -230,19 +298,31 @@ async fn ensure_token(ctx: &mut Ctx, id: &str) -> Res<()> {
                 true,
                 acc.batch(acc.id())
                     .deploy(&wasm)
-                    .call(Function::new("new").args_json(json!({})).gas(Gas::from_tgas(50)))
+                    .call(
+                        Function::new("new")
+                            .args_json(json!({}))
+                            .gas(Gas::from_tgas(50)),
+                    )
                     .transact_async(),
             )
             .await?
             .require_ok()?;
     } else if have != want {
         return Err(format!("token {id} has code {have}, the local wasm is {want}").into());
-    } else if ctx.chain.rpc.view(id, "ft_metadata", &json!({})).await?.is_err() {
+    } else if ctx
+        .chain
+        .rpc
+        .view(id, "ft_metadata", &json!({}))
+        .await?
+        .is_err()
+    {
         ctx.chain
             .track(
                 "token: new",
                 true,
-                acc.call(acc.id(), "new").args_json(json!({})).transact_async(),
+                acc.call(acc.id(), "new")
+                    .args_json(json!({}))
+                    .transact_async(),
             )
             .await?
             .require_ok()?;
@@ -264,7 +344,11 @@ async fn check_token_metadata(ctx: &Ctx, id: &str) -> Res<()> {
     let m = ctx.chain.rpc.view_ok(id, "ft_metadata", &json!({})).await?;
     let d = m["decimals"].as_u64().unwrap_or(0);
     if d != ctx.cfg.token.decimals as u64 {
-        return Err(format!("token {id} has {d} decimals, config says {}", ctx.cfg.token.decimals).into());
+        return Err(format!(
+            "token {id} has {d} decimals, config says {}",
+            ctx.cfg.token.decimals
+        )
+        .into());
     }
     Ok(())
 }
@@ -305,15 +389,28 @@ async fn ensure_intents(ctx: &mut Ctx, id: &str) -> Res<()> {
             .track(
                 "Verifier: deploy intents.near code + new (one transaction)",
                 true,
-                acc.batch(acc.id()).deploy(&wasm).call(init).transact_async(),
+                acc.batch(acc.id())
+                    .deploy(&wasm)
+                    .call(init)
+                    .transact_async(),
             )
             .await?
             .require_ok()?;
     } else if have != want {
         return Err(format!("Verifier {id} has code {have}, the local wasm is {want}").into());
-    } else if ctx.chain.rpc.view(id, "current_salt", &json!({})).await?.is_err() {
+    } else if ctx
+        .chain
+        .rpc
+        .view(id, "current_salt", &json!({}))
+        .await?
+        .is_err()
+    {
         ctx.chain
-            .track("Verifier: new", true, acc.batch(acc.id()).call(init).transact_async())
+            .track(
+                "Verifier: new",
+                true,
+                acc.batch(acc.id()).call(init).transact_async(),
+            )
             .await?
             .require_ok()?;
     } else {
@@ -353,11 +450,15 @@ async fn ensure_escrow(ctx: &mut Ctx, id: &str, intents: &str) -> Res<()> {
         println!("escrow {id}: code {want} already deployed");
     } else {
         let bal = wasm.len() as u128 * BYTE_COST + parse_near(&ctx.cfg.escrow.margin_near)?;
-        let acc = ensure_subaccount(ctx, id, bal, "create escrow account (one temporary key)").await?;
+        let acc =
+            ensure_subaccount(ctx, id, bal, "create escrow account (one temporary key)").await?;
         let keys = ctx.chain.rpc.access_keys(id).await?;
         let pk = acc.secret_key().public_key();
         if keys != vec![pk.to_string()] {
-            return Err(format!("escrow {id} must have exactly the stored key before deploy; has {keys:?}").into());
+            return Err(format!(
+                "escrow {id} must have exactly the stored key before deploy; has {keys:?}"
+            )
+            .into());
         }
         ctx.chain
             .track(
@@ -379,7 +480,11 @@ async fn ensure_escrow(ctx: &mut Ctx, id: &str, intents: &str) -> Res<()> {
         let _ = std::fs::remove_file(ctx.keys.dir().join(format!("{id}.json")));
     }
     let keys = ctx.chain.rpc.access_keys(id).await?;
-    let ia = ctx.chain.rpc.view_ok(id, "get_intents_account", &json!({})).await?;
+    let ia = ctx
+        .chain
+        .rpc
+        .view_ok(id, "get_intents_account", &json!({}))
+        .await?;
     ctx.chain.record.escrow = Some(EscrowRec {
         account_id: id.into(),
         code_hash: want,
@@ -401,8 +506,15 @@ pub async fn ensure_registered(ctx: &mut Ctx, token: &str, who: &str) -> Res<()>
     if !sb.is_null() {
         return Ok(());
     }
-    let bounds = ctx.chain.rpc.view_ok(token, "storage_balance_bounds", &json!({})).await?;
-    let min: u128 = bounds["min"].as_str().ok_or("storage_balance_bounds without min")?.parse()?;
+    let bounds = ctx
+        .chain
+        .rpc
+        .view_ok(token, "storage_balance_bounds", &json!({}))
+        .await?;
+    let min: u128 = bounds["min"]
+        .as_str()
+        .ok_or("storage_balance_bounds without min")?
+        .parse()?;
     ctx.chain
         .track(
             &format!("token.storage_deposit for {who}"),
@@ -419,7 +531,11 @@ pub async fn ensure_registered(ctx: &mut Ctx, token: &str, who: &str) -> Res<()>
 }
 
 pub async fn ft_balance(ctx: &Ctx, token: &str, who: &str) -> Res<u128> {
-    let v = ctx.chain.rpc.view_ok(token, "ft_balance_of", &json!({ "account_id": who })).await?;
+    let v = ctx
+        .chain
+        .rpc
+        .view_ok(token, "ft_balance_of", &json!({ "account_id": who }))
+        .await?;
     Ok(v.as_str().ok_or("ft_balance_of: not a string")?.parse()?)
 }
 
@@ -427,9 +543,15 @@ pub async fn storage_funds(ctx: &Ctx, escrow: &str, who: &str, token: &str) -> R
     let v = ctx
         .chain
         .rpc
-        .view_ok(escrow, "get_storage_funds", &json!({ "account_id": who, "token": token }))
+        .view_ok(
+            escrow,
+            "get_storage_funds",
+            &json!({ "account_id": who, "token": token }),
+        )
         .await?;
-    Ok(v.as_str().ok_or("get_storage_funds: not a string")?.parse()?)
+    Ok(v.as_str()
+        .ok_or("get_storage_funds: not a string")?
+        .parse()?)
 }
 
 /// The maker: account, token registration, tokens (minted with the stand-in token) and
@@ -466,7 +588,10 @@ async fn ensure_maker(ctx: &mut Ctx, ids: &Ids) -> Res<()> {
 
     let want = parse_near(&ctx.cfg.maker.storage_funds_near)?;
     let funds = storage_funds(ctx, &ids.escrow, &ids.maker, &ids.token).await?;
-    if funds < want {
+    // The escrow takes the storage of the funds entry itself (about 0.001 NEAR) from
+    // the first deposit, so the balance ends a little under the target. Top up only when
+    // it is more than 0.01 NEAR under, so a second run changes nothing.
+    if funds + ONE_NEAR / 100 < want {
         let add = want - funds;
         let maker_bal = ctx.chain.rpc.balance(&ids.maker).await?;
         if maker_bal < add + ONE_NEAR / 10 {
@@ -494,7 +619,9 @@ async fn ensure_maker(ctx: &mut Ctx, ids: &Ids) -> Res<()> {
         account_id: ids.maker.clone(),
         public_key: maker.secret_key().public_key().to_string(),
         token_balance: ft_balance(ctx, &ids.token, &ids.maker).await?.to_string(),
-        storage_funds_yocto: storage_funds(ctx, &ids.escrow, &ids.maker, &ids.token).await?.to_string(),
+        storage_funds_yocto: storage_funds(ctx, &ids.escrow, &ids.maker, &ids.token)
+            .await?
+            .to_string(),
     });
     ctx.chain.save()?;
     Ok(())
@@ -522,13 +649,4 @@ pub async fn deploy(ctx: &mut Ctx) -> Res<()> {
     }
     ensure_maker(ctx, &ids).await?;
     Ok(())
-}
-
-/// A random throwaway key (for faucet accounts and the test taker).
-pub fn random_key() -> SecretKey {
-    SecretKey::from_random(KeyType::ED25519)
-}
-
-pub fn value_str(v: &Value) -> String {
-    v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())
 }

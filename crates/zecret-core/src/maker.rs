@@ -154,6 +154,9 @@ pub struct Maker {
     seen: BTreeSet<String>,
     swaps: BTreeMap<String, MakerSwap>,
     covers: HashMap<String, CoverWait>,
+    /// Cover delays that have passed (swap and broadcast), so a step that takes two ticks
+    /// does not wait twice.
+    covers_passed: BTreeSet<String>,
     ev: Vec<Event>,
 }
 
@@ -190,7 +193,7 @@ impl Maker {
             swaps.insert(s.rfq_id.clone(), s);
         }
         let signer = Signer::new(&cfg.near_account, key);
-        let mut m = Maker { epoch: rk.epoch, rfq_sk: keys::scalar_from_hex(&rk.sk)?, cfg, me, wallet, near, signer, seen, swaps, covers: HashMap::new(), ev: vec![] };
+        let mut m = Maker { epoch: rk.epoch, rfq_sk: keys::scalar_from_hex(&rk.sk)?, cfg, me, wallet, near, signer, seen, swaps, covers: HashMap::new(), covers_passed: BTreeSet::new(), ev: vec![] };
         for s in m.swaps.values().cloned().collect::<Vec<_>>() {
             if !s.stage.is_terminal() {
                 if let Some(f) = &s.joint_fvk {
@@ -329,11 +332,15 @@ impl Maker {
 
     fn cover_ready(&mut self, s: &mut MakerSwap, what: &str, trigger: u64, deadline: Option<u64>, now: u64) -> bool {
         let key = format!("{}:{what}", s.rfq_id);
+        if self.covers_passed.contains(&key) {
+            return true;
+        }
         let policy = self.cfg.cover.into();
         let c = self.covers.entry(key.clone()).or_insert_with(|| CoverWait::new(policy, trigger, deadline, now));
         match c.poll(&self.wallet, now) {
             Some(outcome) => {
                 self.covers.remove(&key);
+                self.covers_passed.insert(key);
                 if self.cfg.cover.k > 0 || self.cfg.cover.max_secs > 0 {
                     self.log(s, format!("{what}: {outcome}"));
                 }
@@ -594,6 +601,12 @@ impl Maker {
         let id = s.id_bytes()?;
         let salt = keys::unhex32(s.salt.as_deref().ok_or_else(|| anyhow!("no salt"))?)?;
         if let Some(v) = self.esc().get_swap(&id, &At::Optimistic)? {
+            if s.t0.is_none() {
+                // Deadlines never decided, so we never sent an open: not ours.
+                self.log(s, format!("ABORT: a swap exists at id {} before this maker opened one; no stipend sent", short(&hex::encode(id))));
+                self.set_stage(s, MakerStage::Aborted("swap id taken by a foreign swap".into()));
+                return Ok(Next::Done);
+            }
             // A swap at our id: ours from an earlier try (a restart), or a look-alike that
             // someone else put there. Only our own gets a stipend (security review 1, H1).
             if let Some(what) = self.not_ours(s, &v)? {
@@ -601,9 +614,6 @@ impl Maker {
                 self.set_stage(s, MakerStage::Aborted(format!("swap id taken by a foreign swap ({what})")));
                 return Ok(Next::Done);
             }
-            s.t0 = Some(v.t0);
-            s.t1 = Some(v.t1);
-            s.t2 = Some(v.t2);
             return self.send_stipend(s, now);
         }
         // `open` is public; a cover delay keeps it from pinning the Accept from behind.
@@ -624,11 +634,20 @@ impl Maker {
             ap = -ap;
             bp = -bp;
         }
-        let tnow = self.near.block(&At::Final)?.secs();
+        // The deadlines are decided and stored first, so that after a restart the maker can
+        // compare every field of a swap found at its id with what it meant to open (H1).
         let w = s.windows;
-        let t0 = tnow + w.t0_secs as u64;
-        let t1 = t0 + w.t1_secs as u64;
-        let t2 = t1.saturating_add(w.t2_secs as u64);
+        let tnow = self.near.block(&At::Final)?.secs();
+        let fresh = s.t0.map(|t0| t0 > tnow + w.t0_secs as u64 / 2).unwrap_or(false);
+        if !fresh {
+            let t0 = tnow + w.t0_secs as u64;
+            let t1 = t0 + w.t1_secs as u64;
+            s.t0 = Some(t0);
+            s.t1 = Some(t1);
+            s.t2 = Some(t1.saturating_add(w.t2_secs as u64));
+            return Ok(Next::At(0));
+        }
+        let (t0, t1, t2) = (s.t0.unwrap(), s.t1.unwrap(), s.t2.unwrap());
         let mut amount: u128 = s.price.parse()?;
         if self.cfg.misbehave == Some(Misbehave::ShortOpen) {
             amount -= 1;
@@ -637,6 +656,7 @@ impl Maker {
         let (to, actions) = self.esc().open(amount, &salt, &taker_pk, &ap.to_bytes(), &bp.to_bytes(), t0, t1, t2, w.reveal_secs as u64);
         let out = self.near.transact(&self.signer, &to, actions)?;
         if let Some(f) = out.failure() {
+            s.t0 = None; // decide new deadlines on the next try
             bail!("open failed: {f}");
         }
         let v = self.esc().get_swap(&id, &At::Optimistic)?.ok_or_else(|| anyhow!("open executed but the escrow has no swap {}", hex::encode(id)))?;
@@ -646,9 +666,6 @@ impl Maker {
             return Ok(Next::Done);
         }
         s.open_tx = Some(out.hash.clone());
-        s.t0 = Some(v.t0);
-        s.t1 = Some(v.t1);
-        s.t2 = Some(v.t2);
         self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "open".into(), hash: out.hash.clone() });
         self.log(s, format!("escrow OPEN id {} amount {amount} t0={t0} t1={t1} t2={t2} W={}, tx {}", hex::encode(id), w.reveal_secs, out.hash));
         self.send_stipend(s, now)
@@ -672,6 +689,9 @@ impl Maker {
             ("A", v.a_pub == hex::encode(ap.to_bytes())),
             ("B", v.b_pub == hex::encode(bp.to_bytes())),
             ("reveal window", v.reveal_window == s.windows.reveal_secs as u64),
+            ("t0", s.t0 == Some(v.t0)),
+            ("t1", s.t1 == Some(v.t1)),
+            ("t2", s.t2 == Some(v.t2)),
         ];
         Ok(checks.iter().find(|(_, ok)| !ok).map(|(what, _)| *what))
     }
@@ -730,6 +750,29 @@ impl Maker {
         let at = At::Block(fin.hash.clone());
         let v = self.esc().get_swap(&id, &at)?.ok_or_else(|| anyhow!("escrow swap {} not found at a final block", short(&hex::encode(id))))?;
         let t = self.cfg.timing.clone();
+        // H6: say so loudly when a swap of ours is near t1 or t2 and not settled. In
+        // [t1, t2) the maker must refund an Open or Ready swap, or from t2 the taker can
+        // claim through the punish path.
+        if matches!(v.state, SwapState::Open | SwapState::Ready) {
+            let near_t2 = tnow + 2 * t.budget() >= v.t2;
+            let near_t1 = tnow + 2 * t.budget() >= v.t1;
+            let msg = if tnow >= v.t2 {
+                Some(format!("past t2 {} with the escrow {:?}: only the taker can settle it now", v.t2, v.state))
+            } else if near_t2 {
+                Some(format!("t2 {} is near (NEAR time {tnow}) and the escrow is {:?}: refund now", v.t2, v.state))
+            } else if near_t1 && s.stage != MakerStage::Ready {
+                Some(format!("t1 {} is near (NEAR time {tnow}) and the escrow is {:?}", v.t1, v.state))
+            } else {
+                None
+            };
+            if let Some(m) = msg {
+                let line = format!("ALERT: {m}");
+                if s.log.last() != Some(&line) {
+                    self.ev.push(Event::Alert { swap: s.rfq_id.clone(), message: m });
+                    self.log(s, line);
+                }
+            }
+        }
         match v.state {
             SwapState::Claimed => return self.on_claimed(s, &v, now),
             SwapState::Refunded => return self.on_refunded(s, &fin, now),
@@ -783,6 +826,9 @@ impl Maker {
             if tnow + t.inclusion_secs >= v.t0 {
                 self.log(s, "cover delay reached t0 before Ready; not setting Ready (the swap will refund after t1)".into());
                 return Ok(Next::At(now + POLL_SECS));
+            }
+            if let Some(what) = self.not_ours(s, &v)? {
+                bail!("not setting Ready: the swap at our id differs in {what}");
             }
             let (to, actions) = self.esc().set_ready(&id);
             let out = self.near.transact(&self.signer, &to, actions)?;
@@ -954,7 +1000,7 @@ mod tests {
             "commit_s_t": "", "b": hex::encode(keys::scalar_to_bytes(&b)), "s_m": "", "e_m": "", "e_t_pub": "",
             "quote_memo": "", "quote_hash": "", "windows": {"t0_secs": 120, "t1_secs": 60, "t2_secs": 60, "reveal_secs": 45},
             "rfq_height": 0, "accept_height": null, "negated": false, "joint_fvk": null, "salt": null, "escrow_id": null,
-            "t0": null, "t1": null, "t2": null, "pending_then": null, "pending": null, "quote_txid": null, "open_tx": null,
+            "t0": 1, "t1": 2, "t2": 3, "pending_then": null, "pending": null, "quote_txid": null, "open_tx": null,
             "stipend_tx": null, "ready_tx": null, "refund_tx": null, "refund_at": null, "sweep_txid": null,
             "sweep_height": null, "taker_withdraw_at": null, "log": []
         }))
@@ -979,6 +1025,9 @@ mod tests {
         let mut v = ours(&s);
         v.taker_pk = hex::encode([6u8; 32]);
         assert_eq!(m.not_ours(&s, &v).unwrap(), Some("taker key"));
+        let mut v = ours(&s);
+        v.t2 = 4;
+        assert_eq!(m.not_ours(&s, &v).unwrap(), Some("t2"));
         let mut v = ours(&s);
         v.b_pub = s.a_pub.clone();
         assert_eq!(m.not_ours(&s, &v).unwrap(), Some("B"));

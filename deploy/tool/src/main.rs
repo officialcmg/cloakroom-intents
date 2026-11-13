@@ -32,6 +32,10 @@ commands:
   e2e       --config FILE   one swap end to end on the deployment (testnet, sandbox)
   rehearse  --config FILE   sandbox config only: deploy, verify and e2e in a new local sandbox
   hash      WASM_FILE       print the NEAR code hash (sha256, base58) of a wasm file
+  maker-key --config FILE --out DIR
+                            write the maker's NEAR key to DIR/near_key.json (mode 600),
+                            the file the maker daemon (zecret maker --dir DIR) reads,
+                            and print the deployment's chain settings for its config
 
 options:
   --escrow-wasm FILE   use this escrow wasm instead of escrow.wasm from the config
@@ -61,7 +65,10 @@ fn parse_args(argv: &[String]) -> Res<Args> {
     while let Some(x) = it.next() {
         match x.as_str() {
             "--config" => a.config = Some(it.next().ok_or("--config needs a file")?.into()),
-            "--escrow-wasm" => a.escrow_wasm = Some(it.next().ok_or("--escrow-wasm needs a file")?.clone()),
+            "--out" => a.file = Some(it.next().ok_or("--out needs a directory")?.into()),
+            "--escrow-wasm" => {
+                a.escrow_wasm = Some(it.next().ok_or("--escrow-wasm needs a file")?.clone())
+            }
             MAINNET_FLAG => a.mainnet_ok = true,
             "-h" | "--help" => return Err(USAGE.into()),
             s if !s.starts_with('-') && a.file.is_none() => a.file = Some(s.into()),
@@ -113,10 +120,11 @@ async fn open(cfg: Config, base: PathBuf, sandbox_fresh: bool) -> Res<Ctx> {
             let url = worker.rpc_addr();
             (W::Sandbox(worker), url, Some(root))
         }
-        _ => {
-            let worker = near_workspaces::custom(&cfg.rpc_url).await?;
-            (W::Remote(worker), cfg.rpc_url.clone(), None)
-        }
+        _ => (
+            W::remote(cfg.network, &cfg.rpc_url).await?,
+            cfg.rpc_url.clone(),
+            None,
+        ),
     };
     let mut chain = Chain {
         network: cfg.network,
@@ -133,7 +141,12 @@ async fn open(cfg: Config, base: PathBuf, sandbox_fresh: bool) -> Res<Ctx> {
         }
         None => owner_account(&mut chain, &cfg, &keys).await?,
     };
-    println!("network {}  rpc {}  owner {}", cfg.network.as_str(), rpc_url, owner.id());
+    println!(
+        "network {}  rpc {}  owner {}",
+        cfg.network.as_str(),
+        rpc_url,
+        owner.id()
+    );
     Ok(Ctx {
         chain,
         cfg,
@@ -148,10 +161,24 @@ async fn run(argv: Vec<String>) -> Res<bool> {
     if a.command == "hash" {
         let f = a.file.ok_or("hash needs a wasm file")?;
         let wasm = std::fs::read(&f)?;
-        println!("{}  {} bytes  {}", code_hash(&wasm), wasm.len(), f.display());
+        println!(
+            "{}  {} bytes  {}",
+            code_hash(&wasm),
+            wasm.len(),
+            f.display()
+        );
         return Ok(true);
     }
-    let cfg_path = a.config.clone().ok_or_else(|| format!("--config is required\n\n{USAGE}"))?;
+    if a.command == "maker-key" {
+        let cfg_path = a.config.clone().ok_or("--config is required")?;
+        let (cfg, base) = Config::load(&cfg_path)?;
+        let out = a.file.clone().ok_or("maker-key needs --out DIR")?;
+        return maker_key(&cfg, &base, &out).map(|_| true);
+    }
+    let cfg_path = a
+        .config
+        .clone()
+        .ok_or_else(|| format!("--config is required\n\n{USAGE}"))?;
     let (mut cfg, base) = Config::load(&cfg_path)?;
     guard(cfg.network, &a.command, a.mainnet_ok)?;
     if let Some(w) = &a.escrow_wasm {
@@ -189,14 +216,21 @@ async fn run(argv: Vec<String>) -> Res<bool> {
             let chain = Chain {
                 network: cfg.network,
                 rpc: Rpc::new(&cfg.rpc_url)?,
-                w: W::Remote(near_workspaces::custom(&cfg.rpc_url).await?),
+                w: W::remote(cfg.network, &cfg.rpc_url).await?,
                 record,
                 record_path,
                 verbose: true,
             };
             let ids = ids(&cfg, &ctx_owner);
             let r = verify::verify(&chain, &cfg, &base, &ids).await?;
-            println!("{}", if r.passed() { "ALL CHECKS PASSED" } else { "SOME CHECKS FAILED" });
+            println!(
+                "{}",
+                if r.passed() {
+                    "ALL CHECKS PASSED"
+                } else {
+                    "SOME CHECKS FAILED"
+                }
+            );
             Ok(r.passed())
         }
         "e2e" => {
@@ -242,13 +276,65 @@ fn verify_owner(cfg: &Config, base: &Path) -> Res<String> {
     Ok(rec.owner)
 }
 
+/// Exports the maker's key for the maker daemon. The daemon's store keeps it as the raw
+/// `ed25519:...` string in `<dir>/near_key.json` (crates/zecret-core `maker::KEY_NEAR`).
+fn maker_key(cfg: &Config, base: &Path, out: &Path) -> Res<()> {
+    use std::io::Write as _;
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    let owner = verify_owner(cfg, base)?;
+    let ids = ids(cfg, &owner);
+    let keys = KeyStore::open(&config::resolve(base, &cfg.keys_dir)?)?;
+    let sk = keys
+        .get(&ids.maker)?
+        .ok_or_else(|| format!("no key for maker {}", ids.maker))?;
+    std::fs::create_dir_all(out)?;
+    std::fs::set_permissions(out, std::fs::Permissions::from_mode(0o700))?;
+    let p = out.join("near_key.json");
+    if p.exists() {
+        return Err(format!("{} exists; not overwriting", p.display()).into());
+    }
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&p)?;
+    f.write_all(sk.to_string().as_bytes())?;
+    println!(
+        "wrote the key of {} to {} (mode 600)",
+        ids.maker,
+        p.display()
+    );
+    let rpc = if cfg.network == Network::Sandbox {
+        String::new()
+    } else {
+        cfg.rpc_url.clone()
+    };
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "near_account": ids.maker,
+            "chains": { "near_rpc": rpc, "escrow": ids.escrow, "token": ids.token, "intents": ids.intents },
+        }))?
+    );
+    Ok(())
+}
+
 fn write_e2e(ctx: &Ctx, rep: &e2e::E2eReport) -> Res<()> {
     let p = ctx
         .chain
         .record_path
         .with_file_name(format!("e2e.{}.json", ctx.chain.network.as_str()));
-    std::fs::write(&p, serde_json::to_string_pretty(rep)? + "\n")?;
-    println!("end-to-end record: {}", p.display());
+    // The file keeps every run: {"runs": [...]}.
+    let mut all: serde_json::Value = std::fs::read(&p)
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_else(|| serde_json::json!({ "runs": [] }));
+    if !all["runs"].is_array() {
+        all = serde_json::json!({ "runs": [all] });
+    }
+    all["runs"].as_array_mut().unwrap().push(serde_json::to_value(rep)?);
+    std::fs::write(&p, serde_json::to_string_pretty(&all)? + "\n")?;
+    println!("end-to-end record: {} ({} runs)", p.display(), all["runs"].as_array().unwrap().len());
     Ok(())
 }
 
@@ -306,6 +392,9 @@ mod tests {
     #[test]
     fn code_hash_is_base58_sha256() {
         // sha256("") = e3b0c442...; base58 of it:
-        assert_eq!(code_hash(b""), "GKot5hBsd81kMupNCXHaqbhv3huEbxAFMLnpcX2hniwn");
+        assert_eq!(
+            code_hash(b""),
+            "GKot5hBsd81kMupNCXHaqbhv3huEbxAFMLnpcX2hniwn"
+        );
     }
 }

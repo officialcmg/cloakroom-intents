@@ -2,7 +2,7 @@
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
-use near_workspaces::network::{Custom, Sandbox};
+use near_workspaces::network::{Mainnet, Sandbox, Testnet};
 use near_workspaces::operations::TransactionStatus;
 use near_workspaces::types::SecretKey;
 use near_workspaces::{Account, AccountId, Worker};
@@ -20,18 +20,40 @@ use crate::rpc::{Rpc, truncate};
 /// The near-workspaces worker, used only to sign and send transactions.
 pub enum W {
     Sandbox(Worker<Sandbox>),
-    Remote(Worker<Custom>),
+    Testnet(Worker<Testnet>),
+    Mainnet(Worker<Mainnet>),
 }
 
 impl W {
+    /// A worker for a public network through `rpc_url`.
+    pub async fn remote(network: Network, rpc_url: &str) -> Res<Self> {
+        Ok(match network {
+            Network::Testnet => W::Testnet(near_workspaces::testnet().rpc_addr(rpc_url).await?),
+            Network::Mainnet => W::Mainnet(near_workspaces::mainnet().rpc_addr(rpc_url).await?),
+            Network::Sandbox => return Err("the sandbox is not a remote network".into()),
+        })
+    }
+
     pub fn account(&self, id: &str, sk: SecretKey) -> Res<Account> {
         let id: AccountId = id.parse()?;
         Ok(match self {
             W::Sandbox(w) => Account::from_secret_key(id, sk, w),
-            W::Remote(w) => Account::from_secret_key(id, sk, w),
+            W::Testnet(w) => Account::from_secret_key(id, sk, w),
+            W::Mainnet(w) => Account::from_secret_key(id, sk, w),
         })
     }
 }
+
+/// A transaction that the network never included (the RPC node dropped it). Nothing
+/// happened on chain, so the step can be sent again.
+#[derive(Debug)]
+pub struct Dropped(pub String);
+impl std::fmt::Display for Dropped {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+impl std::error::Error for Dropped {}
 
 /// sha256 of a file's bytes, base58: the form NEAR shows as an account's `code_hash`.
 pub fn code_hash(wasm: &[u8]) -> String {
@@ -169,7 +191,8 @@ impl Chain {
         } else {
             self.rpc.url.clone()
         };
-        self.record.updated_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+        self.record.updated_at =
+            chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
         let text = serde_json::to_string_pretty(&self.record)? + "\n";
         let tmp = self.record_path.with_extension("json.tmp");
         std::fs::write(&tmp, text)?;
@@ -184,22 +207,39 @@ impl Chain {
         F: Future<Output = near_workspaces::Result<TransactionStatus>>,
     {
         let start = Instant::now();
-        let status = send.await.map_err(|e| format!("{step}: send failed: {e}"))?;
+        let status = send
+            .await
+            .map_err(|e| format!("{step}: send failed: {e}"))?;
         let hash = status.hash().to_string();
         let sender = status.sender_id().to_string();
         let (mut included, mut included_final) = (None, None);
         let deadline = start + Duration::from_secs(180);
+        let unseen_limit = start + Duration::from_secs(40);
         let v = loop {
             if Instant::now() > deadline {
                 return Err(format!("{step}: transaction {hash} not final after 180 s").into());
             }
-            if let Some(v) = self.rpc.tx_status(&hash, &sender).await? {
-                let st = v["final_execution_status"].as_str().unwrap_or("NONE").to_string();
+            let st = self.rpc.tx_status(&hash, &sender).await?;
+            if st.is_none() && Instant::now() > unseen_limit {
+                return Err(Box::new(Dropped(format!(
+                    "{step}: transaction {hash} not seen by the network after 40 s; it was dropped. \
+                     Each step checks the chain first, so running the command again is safe."
+                ))));
+            }
+            if let Some(v) = st {
+                let st = v["final_execution_status"]
+                    .as_str()
+                    .unwrap_or("NONE")
+                    .to_string();
                 let ms = start.elapsed().as_millis() as u64;
                 if included.is_none()
                     && matches!(
                         st.as_str(),
-                        "INCLUDED" | "EXECUTED_OPTIMISTIC" | "INCLUDED_FINAL" | "EXECUTED" | "FINAL"
+                        "INCLUDED"
+                            | "EXECUTED_OPTIMISTIC"
+                            | "INCLUDED_FINAL"
+                            | "EXECUTED"
+                            | "FINAL"
                     )
                 {
                     included = Some(ms);
@@ -223,7 +263,11 @@ impl Chain {
         let mut gas: u64 = txo["outcome"]["gas_burnt"].as_u64().unwrap_or(0);
         let mut logs = Vec::new();
         let mut receipt_failures = Vec::new();
-        for r in v["receipts_outcome"].as_array().cloned().unwrap_or_default() {
+        for r in v["receipts_outcome"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+        {
             gas += r["outcome"]["gas_burnt"].as_u64().unwrap_or(0);
             for l in r["outcome"]["logs"].as_array().cloned().unwrap_or_default() {
                 logs.push(l.as_str().unwrap_or("").to_string());
@@ -241,14 +285,22 @@ impl Chain {
                 let b = B64.decode(s["SuccessValue"].as_str().unwrap_or(""))?;
                 (true, None, Some(b))
             }
-            s if s.get("Failure").is_some() => (false, Some(truncate(&s["Failure"].to_string(), 600)), None),
+            s if s.get("Failure").is_some() => {
+                (false, Some(truncate(&s["Failure"].to_string(), 600)), None)
+            }
             s => (false, Some(format!("unexpected status {s}")), None),
         };
         let rec = TxRec {
             step: step.to_string(),
             hash: hash.clone(),
-            signer: v["transaction"]["signer_id"].as_str().unwrap_or(&sender).to_string(),
-            receiver: v["transaction"]["receiver_id"].as_str().unwrap_or("").to_string(),
+            signer: v["transaction"]["signer_id"]
+                .as_str()
+                .unwrap_or(&sender)
+                .to_string(),
+            receiver: v["transaction"]["receiver_id"]
+                .as_str()
+                .unwrap_or("")
+                .to_string(),
             block_height,
             block_hash,
             gas_burnt_tgas: (gas as f64 / 1e12 * 100.0).round() / 100.0,
@@ -265,7 +317,11 @@ impl Chain {
                 rec.gas_burnt_tgas,
                 included.unwrap_or(0) as f64 / 1000.0,
                 final_ms as f64 / 1000.0,
-                if ok && receipt_failures.is_empty() { "ok" } else { "FAILED" }
+                if ok && receipt_failures.is_empty() {
+                    "ok"
+                } else {
+                    "FAILED"
+                }
             );
             for f in &receipt_failures {
                 println!("     receipt failure: {f}");

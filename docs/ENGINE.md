@@ -101,6 +101,7 @@ taker.ua()                       // the temporary wallet's unified address (show
 taker.balance()                  // spendable zatoshis as of the last tick
 taker::required_deposit(zats, cfg.max_premium)  // what the user must pay into the wallet
 taker.start(zats, now, store)?   // checks the maker's directory entry; creates the swap
+taker.start_with_min_price(zats, min_price, now, store)?  // the same, with this swap's minimum price
 taker.take_events()              // events from `start`
 taker.tick(now, store)           // run the state machine
 taker.swap()                     // Option<&TakerSwap>: the current record
@@ -207,7 +208,9 @@ characters). Amounts in token base units and yoctoNEAR are strings.
 | `escrow_verified` | `swap`, `escrow_id`, `t0`, `t1`, `t2` | The escrow is open at a final block, matches the quote, and the stipend arrived. |
 | `near_tx` | `swap`, `what` (`commit_claim`, `claim`), `hash` | A NEAR transaction was executed. |
 | `payout` | `swap`, `account`, `token`, `amount` | The token is in `intents.near` under `account`. |
+| `activity` | `swap`, `kind` (`proving`), `label`, `estimated_secs` | Emitted in its own tick, right before a shielded send's proof (request, acceptance, funding, recovery sweep). The next tick blocks for about 25 s in a browser. |
 | `warning` | `swap`, `message` | A transient error; the engine retries. |
+| `alert` | `swap`, `message` | Maker only: a swap near t1 or t2 that is not settled. |
 | `done` | `swap`, `outcome` (`Completed`, `Recovered`, `Aborted`) | Terminal stage reached. |
 
 Example:
@@ -223,6 +226,52 @@ premium, stipend, windows), `joint_address`, `escrow_id`, the transaction ids
 (`rfq_txid`, `accept_txid`, `fund_txid`, `sweep_txid`, `commit_tx`, `claim_tx`) and `log`.
 Fields that are secret: `a`, `s_t`, `e_t` (erased in a terminal stage), `near_sk` (kept),
 and the `wallet` record. Do not send them anywhere.
+
+### 2.5 Mapping to the website's interface (`web/ENGINE_API.md`)
+
+The website talks to an `Engine` in a worker (`web/src/engine/api.ts`). That worker is a
+layer above this core (package E): it adds the recovery file, the return address, the
+exit through 1Click, and converts units. This table is the mapping; the rows marked
+"not in the core" are work for that layer.
+
+| Web stage | Core |
+|---|---|
+| `awaiting_deposit` | `WaitingDeposit` while `balance` < `required_deposit` |
+| `deposit_seen` | Not in the core: the wallet sees mined notes only, not the mempool. The layer can skip it or show it when the first `balance` event arrives. |
+| `deposit_confirmed` | `WaitingDeposit` with enough balance; the `activity` event for the request follows |
+| `request_sent` | `RfqSent` |
+| `quote_received` | `quote` event (the stage stays `RfqSent` until the acceptance is broadcast) |
+| `accepted` | `Accepted` |
+| `escrow_open` | `escrow_verified` event |
+| `funding_sent` | `Funded` (the `zcash_tx` event with `what: fund`) |
+| `funding_confirming` | Not in the core: no confirmation count is emitted. The layer can read the funding's height from `TakerSwap.fund_txid` with its own wallet query, or skip it. |
+| `ready` | Not a core stage: the taker sends `commit_claim` in the same tick it sees Ready final, so `ready` and `committing` arrive together. |
+| `committing` | `Committed` |
+| `claiming` | `Revealed` |
+| `claimed` | `Claimed` |
+| `paid_out` | `Completed` (with the `payout` event) |
+| `exiting`, `done`, `exit_retry` | Not in the core: the exit (the `zecret-intents` crate) runs after `Completed`, with the NEAR key from `TakerSwap.near_sk`. |
+| `recovering` | `Recovering` |
+| `recovered` | `Recovered` |
+| `refunding`, `refunded` | Not in the core as stages: `Taker::return_leftover(ua)` sends the wallet's ZEC to the return address. Use it after `Recovered`, and after `Aborted` (quote rejected, no quote, no escrow). |
+
+Other differences:
+
+- Names: the core's stages are `CamelCase` and its events `snake_case` with a `type` field;
+  the web uses `snake_case` stages and its own event shapes (`stage` with `patch`,
+  `activity`, `error`). The layer translates.
+- Units: the core uses seconds (Unix time) and zatoshis/base units as strings for u128; the
+  web uses milliseconds and decimal strings for every amount.
+- `createSwap.amountZats` is what the user pays into the wallet. The core's `zats` is what
+  the swap sells (the joint note). The layer computes
+  `zats = amountZats − required_deposit(0, max_premium)`.
+- `createSwap.minUsdc` maps to `start_with_min_price`. It is stored in the swap record.
+- `Aborted(reason)`: the web distinguishes `QUOTE_BELOW_MINIMUM` and `MAKER_TIMEOUT`. The
+  core's reasons are text: a reason that starts with `QUOTE REJECTED: price` is below the
+  minimum; `no quote before the timeout` and `the maker never opened the escrow` are
+  timeouts; other `QUOTE REJECTED` and escrow-check reasons are safety refusals.
+- The web's `activity` kinds `syncing`, `broadcasting`, `signing` and `waiting` are not
+  emitted; only `proving`.
 
 ## 3. The NEAR side
 

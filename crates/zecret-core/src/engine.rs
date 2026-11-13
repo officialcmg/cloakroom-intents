@@ -49,6 +49,12 @@ pub enum Event {
     EscrowVerified { swap: String, escrow_id: String, t0: u64, t1: u64, t2: u64 },
     /// The payout is in `intents.near`, owned by `account` (the taker's NEAR key).
     Payout { swap: String, account: String, token: String, amount: String },
+    /// What the engine starts now, emitted in its own tick before blocking work (a proof
+    /// takes about 25 s in a browser), so a page can show progress while the worker is busy.
+    /// `kind` is `proving`; `estimated_secs` is a typical browser duration.
+    Activity { swap: String, kind: String, label: String, estimated_secs: u64 },
+    /// Maker only: a swap needs attention (near t1 or t2 and not finished).
+    Alert { swap: String, message: String },
     /// A transient problem (network, node); the engine retries on the next tick.
     Warning { swap: String, message: String },
     /// The swap reached a terminal stage.

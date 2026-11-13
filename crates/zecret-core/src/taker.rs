@@ -123,6 +123,9 @@ pub struct TakerSwap {
     pub taker_account: String,
     pub reply_index: u32,
     pub created_at: u64,
+    /// Smallest price the taker accepts for this swap (token base units), from `start`.
+    #[serde(default, with = "crate::config::u128_str")]
+    pub min_price: u128,
     /// Wall-clock time of the last stage change (for timeouts).
     pub stage_at: u64,
     pub quote: Option<QuoteRec>,
@@ -185,6 +188,9 @@ pub struct Taker {
     cover: Option<(String, CoverWait)>,
     ev: Vec<Event>,
     last_balance: Option<u64>,
+    announced: Option<String>,
+    /// The cover delay that has passed (swap and broadcast), until that broadcast is built.
+    cover_passed: Option<String>,
 }
 
 impl Taker {
@@ -210,7 +216,7 @@ impl Taker {
                 swap = Some(s);
             }
         }
-        let mut tk = Taker { cfg, me, wallet, near, swap, cover: None, ev: vec![], last_balance: None };
+        let mut tk = Taker { cfg, me, wallet, near, swap, cover: None, ev: vec![], last_balance: None, announced: None, cover_passed: None };
         if let Some(s) = tk.swap.clone() {
             tk.watch_joint(&s)?;
             if let Some(p) = &s.pending {
@@ -264,6 +270,13 @@ impl Taker {
     /// Starts a swap of `zats` zatoshis: checks the maker's directory entry, creates the
     /// per-swap secrets and stores them. Nothing is sent until the next `tick`.
     pub fn start(&mut self, zats: u64, now: u64, store: &mut dyn Store) -> Result<&TakerSwap> {
+        let min = self.cfg.min_price;
+        self.start_with_min_price(zats, min, now, store)
+    }
+
+    /// `start`, with the smallest acceptable price (token base units) for this swap; a page
+    /// sets it from the price it showed. It is stored in the swap record.
+    pub fn start_with_min_price(&mut self, zats: u64, min_price: u128, now: u64, store: &mut dyn Store) -> Result<&TakerSwap> {
         if let Some(s) = &self.swap
             && !s.stage.is_terminal() {
                 bail!("swap {} is still in progress", short(&s.rfq_id));
@@ -288,6 +301,7 @@ impl Taker {
             taker_account: near.implicit_account(),
             reply_index: u32::from_le_bytes(rfq_id[..4].try_into().unwrap()) & 0x7fff_ffff,
             created_at: now,
+            min_price,
             stage_at: now,
             quote: None,
             negated: false,
@@ -400,13 +414,17 @@ impl Taker {
     /// Cover delay before a broadcast that follows a public trigger. True once it may go.
     fn cover_ready(&mut self, s: &mut TakerSwap, what: &str, trigger_height: u64, deadline: Option<u64>, now: u64) -> bool {
         let key = format!("{}:{what}", s.rfq_id);
+        if self.cover_passed.as_deref() == Some(key.as_str()) {
+            return true;
+        }
         if self.cover.as_ref().map(|(k, _)| k != &key).unwrap_or(true) {
-            self.cover = Some((key, CoverWait::new(self.cfg.cover.into(), trigger_height, deadline, now)));
+            self.cover = Some((key.clone(), CoverWait::new(self.cfg.cover.into(), trigger_height, deadline, now)));
         }
         let (_, c) = self.cover.as_mut().unwrap();
         match c.poll(&self.wallet, now) {
             Some(outcome) => {
                 self.cover = None;
+                self.cover_passed = Some(key);
                 if self.cfg.cover.k > 0 || self.cfg.cover.max_secs > 0 {
                     self.log(s, format!("{what}: {outcome}"));
                 }
@@ -414,6 +432,20 @@ impl Taker {
             }
             None => false,
         }
+    }
+
+    /// Returns true once the proof for `what` has been announced in an earlier tick. The
+    /// first call emits an `Activity` event and returns false: the caller returns at once,
+    /// so the event reaches the page before the worker blocks on the proof.
+    fn announced(&mut self, s: &TakerSwap, what: &str, label: &str) -> bool {
+        let key = format!("{}:{what}", s.rfq_id);
+        if self.announced.as_deref() == Some(key.as_str()) {
+            self.announced = None;
+            return true;
+        }
+        self.announced = Some(key);
+        self.ev.push(Event::Activity { swap: s.rfq_id.clone(), kind: "proving".into(), label: label.into(), estimated_secs: 25 });
+        false
     }
 
     fn signer(&self, s: &TakerSwap) -> Result<Signer> {
@@ -496,6 +528,7 @@ impl Taker {
     }
 
     fn pend(&mut self, s: &mut TakerSwap, what: &str, tx: &wallet::BuiltTx, then: TakerStage) -> Next {
+        self.cover_passed = None;
         s.pending = Some(PendingZ::new(what, tx));
         s.pending_then = Some(then);
         // Stored before the first broadcast (the record is saved at the end of this tick);
@@ -531,6 +564,9 @@ impl Taker {
         let ct = msg::seal(b"rfq", &e_t, &maker_pub, &e_t_pub, &maker_pub, &rfq.to_bytes())?;
         let env = Envelope::Rfq { epoch: m.epoch, eph: e_t_pub, ct };
         let to = wallet::decode_ua(&m.ua)?;
+        if !self.announced(s, "rfq", "Building the proof for the request to the maker") {
+            return Ok(Next::At(0));
+        }
         let tx = self.wallet.build_pay("wallet", &self.me.ask, self.me.change(), vec![(to, 0, env.encode())])?;
         Ok(self.pend(s, "rfq", &tx, TakerStage::RfqSent))
     }
@@ -551,7 +587,7 @@ impl Taker {
             }
             return Ok(Next::At(now + POLL_SECS));
         };
-        if let Some(why) = self.reject_quote(&q, &rfq_id) {
+        if let Some(why) = self.reject_quote(&q, &rfq_id, s.min_price) {
             return self.abort(s, format!("QUOTE REJECTED: {why}; nothing was funded"), now);
         }
         let need = s.zats + wallet::zip317_fee(1, 1) + 2 * wallet::zip317_fee(1, 2) + q.premium;
@@ -597,12 +633,15 @@ impl Taker {
         let ct = msg::seal(b"accept", &e_t, &e_m_pub, &e_t_pub, &e_m_pub, &Accept { s_t, quote_hash }.to_bytes())?;
         let env = Envelope::Accept { rfq_id, ct };
         let to = wallet::decode_ua(&self.cfg.maker.ua)?;
+        if !self.announced(s, "accept", "Building the proof for the acceptance and the premium") {
+            return Ok(Next::At(0));
+        }
         let tx = self.wallet.build_pay("wallet", &self.me.ask, self.me.change(), vec![(to, q.premium, env.encode())])?;
         Ok(self.pend(s, "accept", &tx, TakerStage::Accepted))
     }
 
     /// Rule R1q and the identity checks. `Some(reason)` rejects the quote.
-    fn reject_quote(&self, q: &Quote, rfq_id: &[u8; 16]) -> Option<String> {
+    fn reject_quote(&self, q: &Quote, rfq_id: &[u8; 16], min_price: u128) -> Option<String> {
         let c = &self.cfg;
         let t = &c.timing;
         let maker_pk = crate::near::tx::parse_public_key(&c.maker.near_pk).ok()?;
@@ -619,8 +658,8 @@ impl Taker {
             Some(format!("quote names an unexpected maker {}", q.maker))
         } else if !crate::near::tx::verify(&maker_pk, &q.sig_digest(rfq_id), &q.sig) {
             Some("quote is not signed by the maker's NEAR key".into())
-        } else if q.price < c.min_price {
-            Some(format!("price {} below the taker's minimum {}", q.price, c.min_price))
+        } else if q.price < min_price {
+            Some(format!("price {} below the taker's minimum {min_price}", q.price))
         } else if q.price == 0 {
             Some("price is zero".into())
         } else if q.premium > c.max_premium {
@@ -715,6 +754,9 @@ impl Taker {
             amount /= 2;
         }
         let memo = Envelope::Fund { rfq_id: s.rfq_bytes()? }.encode();
+        if !self.announced(s, "fund", "Building the proof for the payment to the shared address") {
+            return Ok(Next::At(0));
+        }
         let tx = self.wallet.build_pay("wallet", &self.me.ask, self.me.change(), vec![(joint, amount, memo)])?;
         s.fund_txid = Some(tx.txid.clone());
         s.fund_expiry = Some(tx.expiry_height);
@@ -970,6 +1012,9 @@ impl Taker {
             return Ok(Next::At(now + POLL_SECS));
         }
         let _ = q;
+        if !self.announced(s, "sweep", "Building the proof that takes the ZEC back from the shared address") {
+            return Ok(Next::At(0));
+        }
         self.log(s, "maker REFUNDED: read b from the escrow".into());
         let tx = self.wallet.build_sweep(n, a + b, self.me.address())?;
         s.sweep_txid = Some(tx.txid.clone());
@@ -1087,7 +1132,7 @@ mod tests {
     fn quote_rules_r1q_and_identity() {
         let (tk, key) = setup();
         let id = [9u8; 16];
-        assert_eq!(tk.reject_quote(&good_quote(&id, &key), &id), None);
+        assert_eq!(tk.reject_quote(&good_quote(&id, &key), &id, 1000), None);
         let resign = |mut q: Quote| {
             q.sig = key.sign(&q.sig_digest(&id));
             q
@@ -1110,7 +1155,7 @@ mod tests {
             (resign(Quote { pok_b: good_quote(&[8u8; 16], &key).pok_b, ..good_quote(&id, &key) }), "proof of knowledge"),
         ];
         for (q, want) in cases {
-            let got = tk.reject_quote(&q, &id).unwrap_or_default();
+            let got = tk.reject_quote(&q, &id, 1000).unwrap_or_default();
             assert!(got.contains(want), "expected {want:?}, got {got:?}");
         }
     }

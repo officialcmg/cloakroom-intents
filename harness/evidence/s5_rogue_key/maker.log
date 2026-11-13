@@ -1,8 +1,0 @@
-
-===== start maker  =====
-[maker 1794542257] up: UA uregtest1lp9cvhqqq6h33h6y0jlyhea3nmgsa8n8yszkr2mxv69g7wy8s6ml3uf0hgn4x0ch68q02c9flmvunrlv6ptu6fkshzeyx5q2qymtdl6l NEAR maker.test.near key ed25519:9WAAQk5ax9SzDGB41LjYyV6x64YDHdX1qfsdtagHhfY1
-[maker 1794542270] d006ba0f RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE RogueKey]
-[maker 1794542270] d006ba0f stage Quoting
-[maker 1794542270] {"type":"zcash_tx","swap":"d006ba0f49139fe3b17f38ac38e5a49c","what":"quote","txid":"f1b8aa0650e85b31ea44d4ce8b571f6410cd76924e87a783555ee6e2bdc6c055"}
-[maker 1794542270] d006ba0f encrypted QUOTE sent in tx f1b8aa0650e85b31ea44d4ce8b571f6410cd76924e87a783555ee6e2bdc6c055
-[maker 1794542270] d006ba0f stage Quoted

@@ -176,7 +176,8 @@ impl Config {
 pub fn resolve(base: &Path, p: &str) -> Res<PathBuf> {
     if let Some(rest) = p.strip_prefix('$') {
         let (var, tail) = rest.split_once('/').unwrap_or((rest, ""));
-        let val = std::env::var(var).map_err(|_| format!("environment variable {var} is not set"))?;
+        let val =
+            std::env::var(var).map_err(|_| format!("environment variable {var} is not set"))?;
         return Ok(PathBuf::from(val).join(tail));
     }
     let pb = PathBuf::from(p);
@@ -190,7 +191,10 @@ pub fn parse_near(s: &str) -> Res<u128> {
     if int.is_empty() && frac.is_empty() {
         return Err(format!("bad NEAR amount {s:?}").into());
     }
-    if frac.len() > 24 || !int.chars().all(|c| c.is_ascii_digit()) || !frac.chars().all(|c| c.is_ascii_digit()) {
+    if frac.len() > 24
+        || !int.chars().all(|c| c.is_ascii_digit())
+        || !frac.chars().all(|c| c.is_ascii_digit())
+    {
         return Err(format!("bad NEAR amount {s:?}").into());
     }
     let int: u128 = if int.is_empty() { 0 } else { int.parse()? };
