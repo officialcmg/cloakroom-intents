@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SwapState } from './engine';
-import { appStore, useApp } from './app/useZecret';
+import { appStore, useApp, type AppState } from './app/useZecret';
 import { useExit } from './app/useExit';
 import { groupsFor, nowCopy } from './app/stageCopy';
 import { Icon } from './ui/Icon';
-import { Notice, Spinner } from './ui/bits';
+import { CopyButton, Notice, Spinner } from './ui/bits';
 import { SwapForm } from './screens/SwapForm';
 import { PayScreen, RecoveryStep } from './screens/Pay';
 import { ProgressScreen } from './screens/Progress';
 import { DoneScreen, RefundedScreen } from './screens/Finished';
 import { RestoreScreen } from './screens/Restore';
 import { ConfigOverrideBanner, DemoBanner, EngineWarnings, Footer, Header, NetworkBanner } from './screens/Shell';
+import { failureCopy } from './app/failureCopy';
+import { hasMarkedSwap, markSwap } from './app/route';
 
 type View = 'auto' | 'restore' | 'recovery';
 
@@ -77,6 +79,10 @@ export default function App() {
 
   useDocumentTitle(swap);
   useLeaveGuard(swap);
+  // Tells the landing page that this browser holds a swap (it never starts the engine itself).
+  useEffect(() => {
+    if (app.phase === 'ready') markSwap(!!swap);
+  }, [app.phase, swap]);
   useWakeLock(!!swap && swap.stage !== 'awaiting_deposit' && swap.stage !== 'done' && swap.stage !== 'refunded');
 
   // Move focus to the new screen's heading when the screen changes, for keyboard and screen-reader users.
@@ -130,26 +136,7 @@ export default function App() {
       </div>
     );
   } else if (app.phase === 'failed') {
-    content = (
-      <div className="stack-lg narrow">
-        <section className="card card-main stack" aria-labelledby="fail-title">
-          <h1 id="fail-title" className="h1">
-            {app.failure?.kind === 'directory' ? 'The maker’s details did not load' : app.failure?.kind === 'config' ? 'The network settings did not load' : 'The swap engine could not start'}
-          </h1>
-          <Notice tone="danger" role="alert">
-            {app.failure?.message}
-          </Notice>
-          <p>
-            {app.failure?.kind === 'directory'
-              ? 'The page reads the maker’s address and price from a small public file. Check your connection and try again.'
-              : 'This browser may block Web Workers, WebAssembly or storage, for example in some private modes. Try another browser or a normal window.'}
-          </p>
-          <button type="button" className="btn btn-primary" onClick={() => appStore.retry()}>
-            <Icon name="refresh" /> Try again
-          </button>
-        </section>
-      </div>
-    );
+    content = <StartFailure failure={app.failure} />;
   } else if (view === 'restore' && !swap) {
     content = <RestoreScreen onCancel={() => setView('auto')} onRestored={() => setView('auto')} />;
   } else if (!swap) {
@@ -169,7 +156,7 @@ export default function App() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <Header init={app.init} network={app.terms?.network} onHome={() => !swap && setView('auto')} />
+      <Header init={app.init} network={app.terms?.network} />
       <DemoBanner settings={app.settings} init={app.init} swap={swap} />
       <ConfigOverrideBanner choice={app.configOverride} />
       <NetworkBanner network={app.network} />
@@ -178,6 +165,47 @@ export default function App() {
         {content}
       </main>
       <Footer />
+    </div>
+  );
+}
+
+function StartFailure({ failure }: { failure: AppState['failure'] }) {
+  const copy = failureCopy(failure, { hasSwap: hasMarkedSwap() });
+  return (
+    <div className="stack-lg narrow">
+      <section className="card card-main stack" aria-labelledby="fail-title" data-testid="start-failure" data-cause={copy.cause}>
+        <span className="seal-icon seal-icon-danger" aria-hidden="true">
+          <Icon name="alert" size={22} />
+        </span>
+        <h1 id="fail-title" className="h1">
+          {copy.title}
+        </h1>
+        <p className="lede" role="alert">
+          {copy.body}
+        </p>
+        <p>{copy.next}</p>
+        {copy.retry && (
+          <button type="button" className="btn btn-primary btn-block" onClick={() => appStore.retry()}>
+            <Icon name="refresh" /> Try again
+          </button>
+        )}
+        {copy.detail && <TechDetail text={copy.detail} />}
+      </section>
+    </div>
+  );
+}
+
+/** The engine's own message, for a bug report: smaller, wrapped, with a copy button. */
+function TechDetail({ text }: { text: string }) {
+  return (
+    <div className="tech-detail">
+      <div className="tech-detail-head">
+        <span className="label">Technical detail</span>
+        <CopyButton text={text} label="detail" compact />
+      </div>
+      <p className="tech-detail-text mono" data-testid="failure-detail">
+        {text}
+      </p>
     </div>
   );
 }

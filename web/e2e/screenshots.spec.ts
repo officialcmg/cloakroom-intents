@@ -1,7 +1,7 @@
 // Takes screenshots of the key screens in both themes, on a desktop and a phone viewport.
 // Run: npm run screenshots. Output: web/screenshots/<name>-<theme>-<device>.png
 import { expect, test, type Page } from '@playwright/test';
-import { createAndSave, fillForm, open, pay, RETURN_ADDRESS } from './helpers';
+import { createAndSave, fillForm, open, openDemoControls, pay, RETURN_ADDRESS } from './helpers';
 
 const DIR = 'screenshots';
 const PHONE = { width: 412, height: 915 };
@@ -23,7 +23,7 @@ async function shot(page: Page, name: string, opts: { phone?: boolean; full?: bo
 }
 
 async function skip(page: Page) {
-  await page.getByRole('button', { name: 'Demo controls' }).click();
+  await openDemoControls(page);
   await page.getByRole('button', { name: 'Skip this wait' }).click();
   await page.keyboard.press('Escape');
 }

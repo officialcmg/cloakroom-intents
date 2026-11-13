@@ -3,12 +3,12 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { mockOneClick } from './oneclick-mock';
-import { createAndSave, EVM_ADDRESS, fillForm, open, pay, RETURN_ADDRESS, SOL_ADDRESS } from './helpers';
+import { createAndSave, EVM_ADDRESS, fillForm, open, openDemoControls, pay, RETURN_ADDRESS, SOL_ADDRESS } from './helpers';
 
 const now = (page: Page) => page.getByTestId('now-title');
 
 async function demoControls(page: Page, action: string) {
-  await page.getByRole('button', { name: 'Demo controls' }).click();
+  await openDemoControls(page);
   await page.getByRole('button', { name: action }).click();
 }
 
@@ -236,7 +236,7 @@ test('token list down: a clear error and a working retry', async ({ page }) => {
     if (down) return route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"down"}' });
     return route.fallback();
   });
-  await page.goto('/');
+  await page.goto('/swap');
   await expect(page.getByText('The token list did not load')).toBeVisible();
   down = false;
   await page.getByRole('button', { name: 'Try again' }).click();

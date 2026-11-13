@@ -33,6 +33,9 @@
   --radius-lg: 20px;
   --radius-pill: 999px;
 
+  /* Side padding of the page; never less than the screen's safe area (notches, rounded corners). */
+  --gutter: max(var(--space-4), env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dur: 180ms;
 }

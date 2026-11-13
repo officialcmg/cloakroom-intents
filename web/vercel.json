@@ -5,6 +5,7 @@
   "buildCommand": "bash ../deploy/web/vercel-build.sh",
   "ignoreCommand": "bash ../deploy/web/vercel-ignore.sh",
   "outputDirectory": "dist",
+  "rewrites": [{ "source": "/swap", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/(.*)",

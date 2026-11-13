@@ -1,65 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { EngineErrorData, InitStatus, SwapState } from '../engine';
-import { appStore, usePref } from '../app/useZecret';
+import { appStore } from '../app/useZecret';
 import { FAILURES, SPEEDS, settingsUrl, type PageSettings } from '../app/settings';
 import { Icon } from '../ui/Icon';
-import { Logo, Notice } from '../ui/bits';
+import { Notice } from '../ui/bits';
+import { Banner } from './Chrome';
 import type { ConfigChoice, NetworkConfig } from '../lib/netconfig';
 
-type Theme = 'system' | 'light' | 'dark';
-
-export function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = usePref<Theme>('theme', 'system');
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'system') root.removeAttribute('data-theme');
-    else root.setAttribute('data-theme', theme);
-  }, [theme]);
-  const systemDark = typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
-  const effective = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
-  return [theme, () => setTheme(effective === 'dark' ? 'light' : 'dark')];
-}
-
-export function Header({ init, network, onHome }: { init?: InitStatus; network?: string; onHome: () => void }) {
-  const [theme, toggle] = useTheme();
-  const systemDark = typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
-  const dark = theme === 'dark' || (theme === 'system' && systemDark);
-  return (
-    <header className="topbar">
-      <div className="topbar-inner">
-        <a
-          href="./"
-          className="home-link"
-          onClick={(e) => {
-            e.preventDefault();
-            onHome();
-          }}
-          aria-label="Zecret, home"
-        >
-          <Logo />
-        </a>
-        <div className="topbar-right">
-          {network && <span className={`pill pill-${network === 'mainnet' ? 'main' : 'test'}`}>{network === 'mainnet' ? 'Mainnet' : `Zcash ${network}`}</span>}
-          {init?.engine === 'simulated' && <span className="pill pill-demo">Demo</span>}
-          <button type="button" className="btn btn-ghost btn-icon" onClick={toggle} aria-label={dark ? 'Use light theme' : 'Use dark theme'} title={dark ? 'Light theme' : 'Dark theme'}>
-            <Icon name={dark ? 'sun' : 'moon'} />
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-export function Footer() {
-  return (
-    <footer className="footer">
-      <p>
-        Zecret runs in your browser. It holds the swap’s keys here, never on a server. The maker is the other side of the trade and never holds your ZEC alone.
-      </p>
-      <p className="muted">Prices for the delivery come from NEAR Intents. Amounts round down.</p>
-    </footer>
-  );
-}
+export { Footer, Header, useTheme } from './Chrome';
 
 /**
  * A development build loaded network settings that this site does not ship (review 3,
@@ -107,17 +55,18 @@ export function EngineWarnings({ warnings, restartedAt }: { warnings: EngineErro
   );
 }
 
-/** What is real on a test network, for the real engine. */
+/** What is real on a test network, for the real engine: one line, the rest under "Details". */
 export function NetworkBanner({ network }: { network?: NetworkConfig }) {
   if (!network || network.network === 'mainnet') return null;
   return (
-    <div className="demo-banner" role="note" data-testid="network-banner">
-      <Icon name="info" size={16} />
-      <span>
-        {network.label}. Real transactions, test money with no value.
-        {(network.honesty ?? []).map((l) => ` ${l}`).join('')}
-      </span>
-    </div>
+    <Banner testId="network-banner" lead={<><strong>{network.network === 'testnet' ? 'Testnet.' : 'Local test network.'}</strong> Test money with no value.</>}>
+      <ul className="plain-list">
+        <li>{network.label}. Real transactions, test money with no value.</li>
+        {(network.honesty ?? []).map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </ul>
+    </Banner>
   );
 }
 
@@ -126,20 +75,17 @@ export function DemoBanner({ settings, init, swap }: { settings: PageSettings; i
   const speed = settings.sim.speed;
   const fail = FAILURES.find((f) => f.id === settings.sim.fail);
   return (
-    <div className="demo-banner" role="note">
-      <Icon name="info" size={16} />
-      <span>
-        Demo with a simulated engine: no real funds move.
-        {speed === 1 ? ' Real-time: a swap takes about 10 minutes.' : ` Running ${speed}× faster than real time.`}
-        {fail ? ` Failure switched on: ${fail.label}.` : ''}
-      </span>
-      {speed === 1 && (
-        <a className="demo-banner-link" href={settingsUrl({ speed: 20 })}>
-          Run 20× faster
-        </a>
-      )}
+    <Banner testId="demo-banner" tone="demo" lead={<><strong>Demo.</strong> Simulated. No real money moves.</>}>
+      <ul className="plain-list">
+        <li>The swap engine is simulated: no chains, no funds. Prices on the form are live from NEAR Intents.</li>
+        <li>
+          {speed === 1 ? 'Real time: a swap takes about 10 minutes. ' : `Runs ${speed}× faster than real time. `}
+          {speed === 1 && <a href={settingsUrl({ speed: 20 })}>Run 20× faster</a>}
+        </li>
+        {fail && <li>Failure switched on: {fail.label}.</li>}
+      </ul>
       <DevPanel settings={settings} swap={swap} />
-    </div>
+    </Banner>
   );
 }
 

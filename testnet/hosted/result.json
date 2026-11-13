@@ -1,0 +1,126 @@
+{
+  "site": "https://zecret-chrismgs-projects.vercel.app",
+  "amountZec": "0.01",
+  "nearAccount": "zecret-3f109eea1e.testnet",
+  "startedAt": "2026-11-13T11:26:34.105Z",
+  "checks": [
+    {
+      "check": "the site opened with the real engine on testnet by default (network banner)",
+      "pass": true,
+      "detail": "Zcash testnet and NEAR testnet. Real transactions, test money with no value. A test USDC token with no value stands in f"
+    },
+    {
+      "check": "the recovery file was saved",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "the page shows a testnet deposit address and amount",
+      "pass": true,
+      "detail": "1000000 zats"
+    },
+    {
+      "check": "the page reached done",
+      "pass": false,
+      "detail": "refunded {\"code\":\"QUOTE_BELOW_MINIMUM\",\"message\":\"The maker’s firm price is below your minimum.\"}"
+    },
+    {
+      "check": "no Content-Security-Policy violation",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "facts": {
+    "payerBefore": {
+      "height": 4615763,
+      "ua": "utest1zdyw8dscgrelws7muvgznaa2xwld5aysr50w7xy46p4aqyrvlw7t2ejxllda8j6qp9dtc557f6cnnj7uypn8wkmqknzmcd225ca9ca04",
+      "zats": 89949000
+    },
+    "preview": "You pay 0.01 ZEC. You receive at least 0.2825 USDC on Base.",
+    "deposit": {
+      "expectedZats": 1000000
+    },
+    "payTx": "2e6d256e7e17be185df64a07f4458f767ac4163d1036073b5e91d20e02965f77",
+    "finalStage": "refunded",
+    "history": [
+      {
+        "stage": "awaiting_deposit",
+        "at": "2026-11-13T11:27:01.700Z",
+        "secs": 126.1
+      },
+      {
+        "stage": "deposit_seen",
+        "at": "2026-11-13T11:29:07.764Z",
+        "secs": 0
+      },
+      {
+        "stage": "deposit_confirmed",
+        "at": "2026-11-13T11:29:07.765Z",
+        "secs": 28.9
+      },
+      {
+        "stage": "request_sent",
+        "at": "2026-11-13T11:29:36.624Z",
+        "secs": 43
+      },
+      {
+        "stage": "refunding",
+        "at": "2026-11-13T11:30:19.625Z",
+        "secs": 83
+      },
+      {
+        "stage": "refunded",
+        "at": "2026-11-13T11:31:42.640Z",
+        "secs": null
+      }
+    ],
+    "txs": [
+      {
+        "id": "request",
+        "chain": "zcash",
+        "label": "Request to the maker (encrypted memo)",
+        "hash": "65061c82863d893a648b82ca785f828b91e83bacd2f359d17b771661899aa86d",
+        "url": "https://testnet.zcashexplorer.app/transactions/65061c82863d893a648b82ca785f828b91e83bacd2f359d17b771661899aa86d",
+        "at": 1794569376624
+      },
+      {
+        "id": "refund",
+        "chain": "zcash",
+        "label": "ZEC back to your return address",
+        "hash": "2aaebd8f9245a3ee60f21a0a9baba48ecfbd529c1161d73a15a6c7ae30c1b087",
+        "url": "https://testnet.zcashexplorer.app/transactions/2aaebd8f9245a3ee60f21a0a9baba48ecfbd529c1161d73a15a6c7ae30c1b087",
+        "at": 1794569448155
+      }
+    ],
+    "quote": {
+      "usdc": "287700",
+      "premiumZats": "0",
+      "expiresAt": 1794569419625
+    },
+    "engineTimings": [
+      {
+        "what": "wasm_load",
+        "secs": 0.4
+      },
+      {
+        "what": "verify_maker",
+        "secs": 0.6
+      },
+      {
+        "what": "proving_key_build",
+        "secs": 20.4
+      },
+      {
+        "what": "proof_request",
+        "secs": 27.8
+      },
+      {
+        "what": "proof_refund",
+        "secs": 28.4
+      }
+    ],
+    "doneTitle": ""
+  },
+  "finishedAt": "2026-11-13T11:32:42.980Z",
+  "totalSecs": 369
+}
