@@ -222,6 +222,8 @@ def start_near():
     state["net"] = json.loads(out)
     state["maker_key"] = os.path.join(maker_seed, "near_key.json")
     ver = post(NEAR, {"jsonrpc": "2.0", "id": 1, "method": "status", "params": []})["result"]["version"]
+    keys = nrpc("query", {"request_type": "view_access_key_list", "finality": "final", "account_id": state["net"]["escrow"]})["keys"]
+    log(f"escrow code hash {state['net']['escrow_code_hash']}, access keys on the escrow account: {len(keys)}")
     log(f"NEAR sandbox up: nearcore {ver['version']}; token {state['net']['token']}, intents {state['net']['intents']}, escrow {state['net']['escrow']}, maker {state['net']['maker']}")
 
 
@@ -344,7 +346,8 @@ def parties(scen, maker_extra=None, taker_extra=None):
     maker = Party(scen, "maker", mcfg)
     shutil.copy(state["maker_key"], os.path.join(maker.dir, "near_key.json"))
     entry = json.loads(sh(BIN, "directory", "--dir", maker.dir))
-    tcfg = {"chains": chains(), "timing": TIMING, "maker": entry, "min_price": str(PRICE), "max_premium": 2 * PREMIUM,
+    tcfg = {"chains": chains(), "timing": TIMING, "maker": entry, "escrow_code_hash": state["net"]["escrow_code_hash"],
+            "min_price": str(PRICE), "max_premium": 2 * PREMIUM,
             "min_stipend": str(STIPEND), "quote_timeout_secs": 400}
     tcfg.update(taker_extra or {})
     taker = Party(scen, "taker", tcfg)
@@ -859,10 +862,10 @@ def s18_late_funding():
     return c.save(maker, taker)
 
 
-def escrow_rejected(scen, evil, title, needle, warp=True):
+def escrow_rejected(scen, evil, title, needle, warp=True, taker_extra=None):
     """The maker opens an escrow the taker must not fund; the taker aborts and the maker
     refunds once the funding window is over."""
-    maker, taker = parties(scen, maker_extra={"misbehave": evil})
+    maker, taker = parties(scen, maker_extra={"misbehave": evil} if evil else None, taker_extra=taker_extra)
     c = Checks(scen, title)
     before = snapshot(maker, taker)
     maker.start("--exit-after", "1")
@@ -898,12 +901,18 @@ def s20_short_open():
         "amount does not match", warp=False)
 
 
+def s21_unexpected_escrow_code():
+    return escrow_rejected("s21_unexpected_escrow_code", None,
+        "The escrow account does not run the code the taker expects (taker configured with another code hash): the taker refuses to fund; the maker refunds. The same check refuses an escrow with access keys or another Intents account (crates/zecret-node/tests/sandbox.rs)",
+        "escrow contract check failed", warp=False, taker_extra={"escrow_code_hash": "11111111111111111111111111111111"})
+
+
 SCENARIOS = {"s1": s1_happy, "s2": s2_taker_vanishes_before_funding, "s3": s3_taker_vanishes_after_funding,
              "s4": s4_maker_vanishes_after_open, "s5": s5_rogue_key, "s6": s6_underfund,
              "s8": s8_free_claim_attempt, "s9": s9_late_commit, "s10": s10_lock_without_reveal,
              "s11": s11_maker_liveness_violated, "s12": s12_cover_traffic, "s15": s15_impostor_directory,
              "s16": s16_short_reveal_window, "s17": s17_far_horizon, "s18": s18_late_funding,
-             "s19": s19_no_stipend, "s20": s20_short_open}
+             "s19": s19_no_stipend, "s20": s20_short_open, "s21": s21_unexpected_escrow_code}
 
 
 def write_report():

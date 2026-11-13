@@ -894,3 +894,96 @@ impl Maker {
         Ok(Next::At(now + POLL_SECS))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::{Chains, Cover, Timing, Windows},
+        net::{Response, Transport},
+        store::MemStore,
+    };
+    use std::rc::Rc;
+
+    struct NoNet;
+    impl Transport for NoNet {
+        fn post(&self, _: &str, _: &[(&str, &str)], _: &[u8]) -> Result<Response> {
+            Err(anyhow!("no network in this test"))
+        }
+    }
+
+    fn maker() -> Maker {
+        let cfg = MakerConfig {
+            chains: Chains {
+                zebra_rpc: Some("http://unused".into()),
+                lightwalletd: None,
+                birthday: None,
+                network: None,
+                nu7_height: Some(2),
+                near_rpc: "http://unused".into(),
+                escrow: "escrow.near".into(),
+                token: "usdc.near".into(),
+                intents: "intents.near".into(),
+            },
+            timing: Timing { inclusion_secs: 3, finality_secs: 3, reorg_budget: 2, margin_secs: 0, fund_secs: 30, k_z: 2 },
+            near_account: "maker.near".into(),
+            price_per_zec: 5_000_000,
+            min_zats: 1,
+            max_zats: 10u64.pow(9),
+            premium_zats: 1,
+            stipend: 1,
+            windows: Windows { t0_secs: 120, t1_secs: 60, t2_secs: 60, reveal_secs: 45 },
+            storage_min: 0,
+            storage_topup: 0,
+            cover: Cover::default(),
+            misbehave: None,
+        };
+        let mut store = MemStore::new();
+        store.put(KEY_NEAR, NearKey::generate().secret_str().as_bytes()).unwrap();
+        Maker::open(cfg, Rc::new(NoNet), &mut store).unwrap()
+    }
+
+    #[test]
+    fn retry_path_refuses_a_look_alike_swap() {
+        let m = maker();
+        let (a, b) = (keys::random_scalar(), keys::random_scalar());
+        let taker_pk = hex::encode([5u8; 32]);
+        let mut s: MakerSwap = serde_json::from_value(serde_json::json!({
+            "rfq_id": "00", "stage": "Opening", "zats": 1, "price": "5000000", "premium": 1, "stipend": "1",
+            "taker_pk": taker_pk, "taker_account": taker_pk, "a_pub": hex::encode((keys::g() * a).to_bytes()),
+            "commit_s_t": "", "b": hex::encode(keys::scalar_to_bytes(&b)), "s_m": "", "e_m": "", "e_t_pub": "",
+            "quote_memo": "", "quote_hash": "", "windows": {"t0_secs": 120, "t1_secs": 60, "t2_secs": 60, "reveal_secs": 45},
+            "rfq_height": 0, "accept_height": null, "negated": false, "joint_fvk": null, "salt": null, "escrow_id": null,
+            "t0": null, "t1": null, "t2": null, "pending_then": null, "pending": null, "quote_txid": null, "open_tx": null,
+            "stipend_tx": null, "ready_tx": null, "refund_tx": null, "refund_at": null, "sweep_txid": null,
+            "sweep_height": null, "taker_withdraw_at": null, "log": []
+        }))
+        .unwrap();
+        let ours = |s: &MakerSwap| -> SwapView {
+            serde_json::from_value(serde_json::json!({
+                "id": "00", "maker": "maker.near", "token": "usdc.near", "amount": "5000000",
+                "taker_pk": s.taker_pk, "taker_account": s.taker_account, "a_pub": s.a_pub,
+                "b_pub": hex::encode((keys::g() * keys::scalar_from_hex(&s.b).unwrap()).to_bytes()),
+                "t0": 1, "t1": 2, "t2": 3, "reveal_window": 45, "state": "Open",
+                "locked_at": null, "commitment": null, "a": null, "b": null
+            }))
+            .unwrap()
+        };
+        assert_eq!(m.not_ours(&s, &ours(&s)).unwrap(), None);
+        let mut v = ours(&s);
+        v.token = "fake-token.near".into();
+        assert_eq!(m.not_ours(&s, &v).unwrap(), Some("token"));
+        let mut v = ours(&s);
+        v.amount = 1;
+        assert_eq!(m.not_ours(&s, &v).unwrap(), Some("amount"));
+        let mut v = ours(&s);
+        v.taker_pk = hex::encode([6u8; 32]);
+        assert_eq!(m.not_ours(&s, &v).unwrap(), Some("taker key"));
+        let mut v = ours(&s);
+        v.b_pub = s.a_pub.clone();
+        assert_eq!(m.not_ours(&s, &v).unwrap(), Some("B"));
+        // with negated shares the escrow holds -A and -B
+        s.negated = true;
+        assert_eq!(m.not_ours(&s, &ours(&s)).unwrap(), Some("A"));
+    }
+}
