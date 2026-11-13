@@ -15,7 +15,8 @@ wasm = "../../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_e
 margin_near = "0.2"
 
 [token]
-# Circle's USDC on NEAR. Read review-1 NV-02 before using it with the escrow.
+# Circle's USDC on NEAR. Use an escrow build with the NV-02 fix; read
+# docs/security/fixes-2.md (what is covered and the residual case) first.
 deploy = false
 account_id = "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"
 decimals = 6

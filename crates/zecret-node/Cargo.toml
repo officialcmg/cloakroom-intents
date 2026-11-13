@@ -26,6 +26,10 @@ zcash_primitives = { version = "=0.31.0-pre.1", features = ["multicore"] }
 [lib]
 path = "src/lib.rs"
 
+[features]
+# Test-only: accept `misbehave` in configurations (harness/run.py). Off in release builds.
+misbehave = ["zecret-core/misbehave"]
+
 [dev-dependencies]
 pasta_curves = "0.6.1"
 group = "0.14"

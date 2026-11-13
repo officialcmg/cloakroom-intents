@@ -146,6 +146,11 @@ pub struct MakerEntry {
 
 /// Test-only behaviours. The scenario runner uses them to play a dishonest party and check
 /// that the honest party's rules hold. An honest deployment leaves them unset.
+///
+/// A configuration can set `misbehave` only in a build with the cargo feature `misbehave`
+/// (the scenario runner builds `zecret-node` with it). Other builds, such as the release
+/// binary and the browser engine, refuse a configuration that sets it (security review 2,
+/// H5).
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum Misbehave {
@@ -171,6 +176,18 @@ pub enum Misbehave {
     NoStipend,
     /// Open the escrow with less than the quoted price.
     ShortOpen,
+}
+
+/// Reads the `misbehave` field. Without the cargo feature `misbehave`, any value other
+/// than null is an error, so a production configuration cannot turn a test behaviour on.
+fn de_misbehave<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Option<Misbehave>, D::Error> {
+    let v = Option::<Misbehave>::deserialize(d)?;
+    if v.is_some() && !cfg!(feature = "misbehave") {
+        return Err(serde::de::Error::custom(
+            "misbehave is a test-only setting; this build does not accept it (build with the cargo feature `misbehave`)",
+        ));
+    }
+    Ok(v)
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]
@@ -214,7 +231,7 @@ pub struct TakerConfig {
     pub quote_timeout_secs: u64,
     #[serde(default)]
     pub cover: Cover,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "de_misbehave")]
     pub misbehave: Option<Misbehave>,
 }
 
@@ -251,8 +268,57 @@ pub struct MakerConfig {
     pub storage_topup: u128,
     #[serde(default)]
     pub cover: Cover,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "de_misbehave")]
     pub misbehave: Option<Misbehave>,
+    /// Requests waiting for a quote or for the acceptance (`Quoting` + `Quoted`). A request
+    /// that arrives when this many wait is refused (security review 2, F2-04).
+    #[serde(default = "default_max_pending_quotes")]
+    pub max_pending_quotes: usize,
+    /// Seconds (wall clock) after which a request that is still `Quoting` or `Quoted` is
+    /// dropped (stage `Aborted`, secrets erased). It must be longer than the taker's
+    /// `quote_timeout_secs` twice (the wait for the quote and the wait for the escrow) plus
+    /// the time to mine the acceptance.
+    #[serde(default = "default_quote_ttl")]
+    pub quote_ttl_secs: u64,
+    /// Quotes the maker builds at most in one tick. Each one is a proof (seconds of CPU).
+    #[serde(default = "default_max_quotes_per_tick")]
+    pub max_quotes_per_tick: usize,
+    /// Prices for the check that the premium pays for an accepted request (security review
+    /// 2, NV2-02). Required on mainnet (`chains.network` = "main"). On other networks the
+    /// check runs when it is set.
+    #[serde(default)]
+    pub premium_check: Option<PremiumCheck>,
+}
+
+/// What an accepted request costs the maker, and the price of ZEC in NEAR. `Maker::open`
+/// refuses to start when `premium_zats` is worth less than `stipend` +
+/// `costs_per_request_yocto` at this price.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct PremiumCheck {
+    /// yoctoNEAR for 1 ZEC (10^8 zatoshis). Use a low estimate of the ZEC price.
+    #[serde(with = "u128_str")]
+    pub yocto_near_per_zec: u128,
+    /// yoctoNEAR the maker spends for each accepted request besides the stipend: the gas
+    /// of `open` (ft_transfer_call), of the refund and of the withdraw, and the escrow
+    /// storage of one swap. Default 0.015 NEAR; measure it on the network in use.
+    #[serde(default = "default_costs_per_request", with = "u128_str")]
+    pub costs_per_request_yocto: u128,
+}
+
+fn default_costs_per_request() -> u128 {
+    crate::near::ONE_NEAR * 15 / 1000
+}
+
+fn default_max_pending_quotes() -> usize {
+    32
+}
+
+fn default_quote_ttl() -> u64 {
+    3600
+}
+
+fn default_max_quotes_per_tick() -> usize {
+    1
 }
 
 fn default_storage_min() -> u128 {
@@ -267,6 +333,40 @@ impl MakerConfig {
     /// Token base units for `zats` zatoshis, rounded down.
     pub fn price_for(&self, zats: u64) -> u128 {
         zats as u128 * self.price_per_zec / 100_000_000
+    }
+
+    /// NV2-02: the premium must be worth at least the stipend plus the maker's own costs
+    /// for one accepted request, at the configured price. Required on mainnet.
+    pub fn check_premium(&self) -> Result<()> {
+        let mainnet = matches!(self.chains.network.as_deref(), Some("main") | Some("mainnet"));
+        let Some(p) = &self.premium_check else {
+            if mainnet {
+                bail!("premium_check is required on mainnet: give yocto_near_per_zec (and costs_per_request_yocto) so the maker can check that premium_zats pays for the stipend and its costs");
+            }
+            return Ok(());
+        };
+        let worth = (self.premium_zats as u128).checked_mul(p.yocto_near_per_zec).map(|v| v / 100_000_000);
+        let cost = self.stipend.checked_add(p.costs_per_request_yocto);
+        match (worth, cost) {
+            (Some(w), Some(c)) if w >= c => Ok(()),
+            (Some(w), Some(c)) => bail!(
+                "premium_zats {} is worth {w} yoctoNEAR at {} yoctoNEAR per ZEC, less than the stipend {} + costs {} = {c} yoctoNEAR that each accepted request costs the maker; raise premium_zats to at least {}",
+                self.premium_zats,
+                p.yocto_near_per_zec,
+                self.stipend,
+                p.costs_per_request_yocto,
+                c.saturating_mul(100_000_000).div_ceil(p.yocto_near_per_zec.max(1))
+            ),
+            _ => bail!("premium_check: amounts overflow"),
+        }
+    }
+
+    /// The limits on unpaid requests (F2-04) must allow some work.
+    pub fn check_limits(&self) -> Result<()> {
+        if self.max_pending_quotes == 0 || self.max_quotes_per_tick == 0 || self.quote_ttl_secs == 0 {
+            bail!("max_pending_quotes, max_quotes_per_tick and quote_ttl_secs must be at least 1");
+        }
+        Ok(())
     }
 }
 

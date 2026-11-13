@@ -38,6 +38,11 @@ zcash_note_encryption = "0.5.1"
 zcash_primitives = { version = "=0.31.0-pre.1", default-features = false, features = ["std", "circuits"] }
 zcash_protocol = { version = "=0.11.0-pre.0", features = ["local-consensus"] }
 
+[features]
+# Lets a configuration set the test-only `misbehave` field (the scenario runner in
+# harness/run.py builds zecret-node with it). Off in every other build.
+misbehave = []
+
 # The browser has no OS random source: one entry per getrandom major version in the
 # tree, each with its browser backend (0.3 also needs the cfg in crates/.cargo/config.toml).
 [target.'cfg(target_arch = "wasm32")'.dependencies]

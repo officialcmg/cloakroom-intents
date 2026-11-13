@@ -84,8 +84,9 @@ If one check fails, she does not fund.
 
 ### Storage funds
 
-Each new swap uses contract storage (742 bytes measured, 0.00742 NEAR, when both credit
-entries are new). The maker pays for it in advance, per token:
+Each new swap uses contract storage: 742 bytes (0.00742 NEAR) when both credit entries
+are new, plus 104 bytes for the token's in-flight entry on the first swap in a token
+(846 bytes measured in the sandbox). The maker pays for it in advance, per token:
 
 - `add_storage_funds(token, account_id?)`, payable. Adds the attached NEAR to the
   caller's funds for swaps in `token`. Returns the new balance. `account_id` is optional;
@@ -134,52 +135,95 @@ amount to the maker. It rejects:
 
 ### Withdraw
 
-A credit is zeroed before its transfer starts. Then:
+`withdraw(token, owner)`. Anyone may call it. Attach 200 Tgas (see [Gas](#gas)). A
+credit is zeroed before its transfer starts. Then:
 
-- A maker credit (route `direct`) goes out by `ft_transfer(owner, amount)`.
-- A taker credit (route `intents`) goes out by
-  `ft_transfer_call(intents_account, amount, msg = owner)`. Intents credits the account
-  named in `msg`, which is the taker's implicit account. That account needs no NEAR and
-  does not need to exist on chain.
+- A maker credit (route `direct`) goes out by `ft_transfer(owner, amount)` on the token,
+  then the callback `on_withdraw`.
+- A taker credit (route `intents`) goes out in two steps:
+  1. `ft_transfer_call(intents_account, amount, msg = <the escrow's own account id>)` on
+     the token. The Intents contract credits the escrow's own Intents account. The
+     escrow does not read the result of this call.
+  2. The callback `on_deposit` (private, 45 Tgas reserved) calls
+     `mt_transfer(receiver_id = owner, token_id = "nep141:<token>", amount)` on the
+     Intents contract with 1 yoctoNEAR, then `on_withdraw`. `mt_transfer` moves tokens
+     only from the escrow's own Intents balance, in one receipt: all of `amount` or
+     nothing.
 
-The callback `on_withdraw` (private, 10 Tgas reserved) puts back what was not delivered:
+  The owner is the taker's implicit account. It needs no NEAR and does not need to exist
+  on chain; `mt_transfer` only names it.
 
-| Result | Delivered | Put back |
+`on_withdraw` (private, 10 Tgas reserved) reads the result of the last step
+(`ft_transfer` or `mt_transfer`). Both are single receipts that make no further calls, so
+their result is exact:
+
+| Result of the last step | Delivered | Put back |
 |---|---|---|
-| `ft_transfer` succeeded | amount | 0 |
-| `ft_transfer` or `ft_transfer_call` failed | 0 | amount |
-| `ft_transfer_call` returned `used` | `min(used, amount)` | the rest |
-| `ft_transfer_call` succeeded with an unreadable result | amount | 0 |
+| succeeded | amount | 0 |
+| failed | 0 | amount |
 
 The restore adds to the credit, so credits that arrive while a withdraw is in flight are
-kept. Gas reserved: `ft_transfer` 15 Tgas, `ft_transfer_call` 60 Tgas (plus the unused gas
-of the call), callback 10 Tgas. Attach 100 Tgas to `withdraw`. With too little gas the
-whole call fails and the credit is unchanged.
+kept. With too little gas the whole `withdraw` call fails and the credit is unchanged.
+Each callback gets a fixed amount of gas that covers the calls it starts, so a started
+withdraw always reaches `on_withdraw`.
 
-One assumption: a failed `ft_transfer_call` result means nothing was delivered. That
-holds for tokens built on the standard NEP-141 code (`wrap.near`, tested in the
-sandbox), because the token reserves fixed gas for its own `ft_resolve_transfer` and no
-caller can make it fail. A token whose resolve step can fail after the receiver kept the
-tokens is paid twice: the credit is restored, and a second `withdraw` pays again from
-the tokens of other swaps in the same token. The taker checks the token of a swap before
-she sends ZEC.
+Why two steps (review-1 NV-02, [`docs/security/nv02-usdc.md`](../../docs/security/nv02-usdc.md)):
+USDC on NEAR (`17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`) checks
+pause and blocklist again in its `ft_resolve_transfer`. If Circle pauses USDC, or
+blocklists the escrow or the Intents contract, after the Intents contract has credited
+the deposit and before USDC's resolve step, `ft_transfer_call` reports failure although
+the tokens were delivered. The earlier escrow then restored the credit and paid the
+taker a second time from other swaps' tokens. Now a failed `ft_transfer_call` changes
+nothing: only `mt_transfer` pays, and only its own result decides the restore.
 
-**Warning: not checked for USDC (review-1 NV-02).** The product token is Circle's USDC
-on NEAR (`17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`). Its source
-is not in this repository, and the assumption above has not been checked for it. Before
-mainnet, read its source and check that:
+What is checked and what is not ([`docs/security/fixes-2.md`](../../docs/security/fixes-2.md)):
 
-- `ft_resolve_transfer` cannot panic once the receiver's `ft_on_transfer` has run: no
-  pause, blocklist, freeze or role check in it, and no other check that can fail;
-- it reserves fixed gas for `ft_resolve_transfer`, and 60 Tgas (`GAS_FT_TRANSFER_CALL`)
-  for `ft_transfer_call` is enough for its `ft_transfer_call` into `intents.near`;
-- the result of `ft_transfer_call` is the JSON string of the amount used;
-- a pause or blocklist of the escrow, of `intents.near` or of the taker between the
-  transfer and the resolve step cannot cause a failed result after a delivery.
+- Checked in the sandbox with the USDC code from mainnet (code hash
+  `DVJx7F3dHEHJYwpYPwXHu8K9Uo7h4kXFcALucY5oNX8q`) and the live `intents.near` code: a
+  pause, a blocklist of the Intents contract and a blocklist of the escrow, each placed
+  exactly between the deposit and USDC's resolve step, and each sent 0 to 5 blocks after
+  the withdraw. In every case the taker is paid exactly once and the other swaps' tokens
+  stay in the escrow. The same tests fail on the escrow before this change (the taker is
+  paid twice).
+- Checked: a restriction in place before the withdraw (credit restored, paid once after
+  it is lifted); the Intents contract refusing `mt_transfer` (paused feature, locked
+  escrow account); two takers' withdraws racing on the escrow's one Intents balance.
+- Not covered, the residual case: the Intents contract's `ft_on_transfer` fails (for
+  example the Intents contract is paused) **and** USDC's resolve step panics in the same
+  window. Then USDC does not return the tokens to the escrow, and the Intents contract
+  did not credit them: they stay in the Intents contract's USDC balance, credited to
+  nobody. Nobody is paid twice: the credit is restored and paid once later from the
+  escrow's tokens. But the escrow is then short by that amount, and the last withdraw
+  in USDC fails, until the Intents contract's operators return the tokens. This needs a
+  Circle restriction and an Intents failure at the same time.
+- The escrow trusts the Intents contract (`intents_account`) as before: its operators
+  can pause `mt_transfer` or lock the escrow's Intents account. Then withdraws restore
+  the credit and pay nothing until they stop.
 
-Then run `failed_withdraw_restores_credit` with the USDC wasm as the token, with a case
-that pauses or blocklists between `ft_on_transfer` and `ft_resolve_transfer`. Do not
-deploy to mainnet with USDC until this is done.
+### Sweep
+
+`sweep(token)`. Anyone may call it. Attach 150 Tgas (at least 90). It brings tokens that
+stay in the escrow's own Intents account back to the escrow's token balance:
+
+1. `mt_balance_of(<escrow>, "nep141:<token>")` on the Intents contract;
+2. `on_sweep_balance` (private) computes `amount = balance - in_flight(token)`, where
+   `in_flight` is the sum of the Intents withdraws in that token that have started and
+   not yet reached `on_withdraw`. If `amount > 0` it calls `ft_withdraw(token,
+   receiver_id = <escrow>, amount)` on the Intents contract with 1 yoctoNEAR;
+3. `on_swept` (private) logs the event `swept`.
+
+Tokens stay in the escrow's Intents account when a deposit arrived but its `mt_transfer`
+failed (the Intents contract paused `mt_transfer` or locked the escrow's account), or when
+one withdraw's `mt_transfer` was paid from tokens deposited for another withdraw (see
+[`fixes-2.md`](../../docs/security/fixes-2.md), section 4). Nobody is paid twice then,
+but until a sweep the escrow's token balance alone does not cover what it owes, and a
+maker's `ft_transfer` can fail (the credit is restored).
+
+`sweep` changes no credit and no swap. Its only transfer goes to the escrow itself, so it
+cannot pay anyone. It leaves the in-flight amount in the Intents account, so a sweep
+while withdraws are running does not take the tokens they are about to transfer. If it
+does take them in some order of receipts, that withdraw's `mt_transfer` fails and its
+credit is restored: no loss, one retry.
 
 ### Views
 
@@ -190,13 +234,17 @@ deploy to mainnet with USDC until this is done.
 - `get_credit(token, owner)`: `{ "direct": "<u128>", "intents": "<u128>" }`.
 - `swap_id(maker, salt)`, `commit_message(id, commitment)`, `commitment_of(id, a)`.
 - `get_intents_account()`, `get_storage_funds(account_id, token)`.
+- `get_in_flight(token)`: the sum of the Intents withdraws in `token` that have started
+  and not finished (`"0"` when none).
 
 ### Events
 
 NEP-297 logs: `EVENT_JSON:{"standard":"near_escrow","version":"1.0.0","event":...,"data":[...]}`
-with events `opened`, `ready`, `locked`, `claimed` (has `a`), `refunded` (has `b`) and
-`withdrawn` (`token, owner, route, amount` delivered, `restored`). `withdrawn` is
-logged by the callback, so it states what the token actually did.
+with events `opened`, `ready`, `locked`, `claimed` (has `a`), `refunded` (has `b`),
+`withdrawn` (`token, owner, route, amount` delivered, `restored`) and `swept` (`token,
+amount` returned to the escrow, `balance` read, `in_flight`). `withdrawn` is logged by
+`on_withdraw`, so it states what the last transfer (`ft_transfer` or `mt_transfer`)
+actually did. Its fields are the same as before the two-step withdraw.
 
 ### Errors
 
@@ -252,9 +300,10 @@ curve, and that the `A_SEC/AX/AY` and `B_SEC/BX/BY` vectors from
 | Unknown id: `setReady` → `NotMaker`, `refund` → `TooEarly` | Unknown id → `BadState` everywhere | Clearer. Behaviour on known swaps is unchanged, including `refund` on Claimed/Refunded → `TooEarly`. |
 | `payout != 0` | `taker_pk` not all zero | Same intent. |
 
-All later transitions write fixed-size fields only, and both credit entries exist from
-`open`. So `set_ready`, `commit_claim`, `claim`, `refund` and the callback never need new
-storage, and they cannot fail because the escrow lacks storage balance.
+All later transitions write fixed-size fields only, and both credit entries and the
+token's in-flight entry exist from `open`. So `set_ready`, `commit_claim`, `claim`,
+`refund`, `withdraw` and its callbacks never need new storage, and they cannot fail
+because the escrow lacks storage balance.
 
 ## Gas
 
@@ -263,16 +312,37 @@ burnt by the whole transaction including token and Intents receipts:
 
 | Call | Tgas | Attached in the tests |
 |---|---|---|
-| open (`ft_transfer_call` → `ft_on_transfer`, 2 point decompressions) | 11.6 | 100 |
+| open (`ft_transfer_call` → `ft_on_transfer`, 2 point decompressions) | 11.8 | 100 |
 | `set_ready` | 2.3 | default |
 | `commit_claim` (ed25519 check) | 2.6 | 10 |
 | `claim` (one Pallas scalar multiplication) | 16.8 | 25–100 |
 | `refund` (one Pallas scalar multiplication) | 16.8 | 100 |
-| `withdraw`, maker (`ft_transfer` + callback) | 7.0 | 100 |
-| `withdraw`, taker (`ft_transfer_call` into Intents + callback) | 42.4 | 100 |
-| `withdraw`, transfer failed, credit restored | 7.2 | 100 |
-| `withdraw`, Intents account without code, credit restored | 11.2 | 100 |
+| `withdraw`, maker (`ft_transfer` + callback) | 7.1 | 200 |
+| `withdraw`, taker, USDC, live Intents code (deposit, `on_deposit`, `mt_transfer`, `on_withdraw`) | 21.0 | 200 |
+| `withdraw`, taker, `wrap.near`, live Intents code | 64.3 | 200 |
+| `withdraw`, transfer failed, credit restored | 7.3 | 200 |
+| `withdraw`, Intents account not registered on the token, credit restored | 11.7 | 200 |
+| `withdraw`, Intents account without code, credit restored | 15.7 | 200 |
+| `sweep`, nothing to sweep | 7.7 | 150 |
+| `sweep`, stranded deposit returned (`ft_withdraw` to the escrow) | 20.3 | 90–150 |
 | `intents.execute_intents` (`ft_withdraw`, signed by the taker key) | 25.3 | 50 |
+
+Per receipt, taker `withdraw` with USDC (`normal_withdraw_into_live_intents`): escrow
+`withdraw` 2.92, USDC `ft_transfer_call` 2.88, Intents `ft_on_transfer` 3.49, USDC
+`ft_resolve_transfer` 1.63, escrow `on_deposit` 2.49, Intents `mt_transfer` 3.91, escrow
+`on_withdraw` 2.07 (plus gas refund receipts of 0.22 each).
+
+Gas reserved by the contract (constants in `src/lib.rs`): `ft_transfer` 15,
+`ft_transfer_call` 60, `on_deposit` 45 (of which `mt_transfer` 15 and `on_withdraw` 10),
+`on_withdraw` 10, `mt_balance_of` 5, `on_sweep_balance` 75 (of which `ft_withdraw` 50
+and `on_swept` 5).
+
+Prepaid gas needed, measured (`withdraw_gas_needed`, `verifier_refuses_mt_transfer_then_sweep`
+in `tests/usdc.rs`): a taker `withdraw` fails as a whole with 100 Tgas and works with
+110 Tgas; `sweep` fails with 80 Tgas and works with 90 Tgas. Clients attach 200 Tgas to
+`withdraw` (it also covers an owner with both a direct and an Intents credit) and 150
+Tgas to `sweep`. Before this change `withdraw` needed 100 Tgas; a client that still
+attaches 100 Tgas gets a failed transaction and an unchanged credit.
 
 ### The taker's stipend
 
@@ -297,7 +367,7 @@ source ../../.tools/env.sh
 
 # Contract
 cargo build --target wasm32-unknown-unknown --release
-# -> target/wasm32-unknown-unknown/release/near_escrow.wasm (about 470 KB)
+# -> target/wasm32-unknown-unknown/release/near_escrow.wasm (about 526 KB)
 
 # Unit tests (near-sdk mocked blockchain)
 cargo test --lib
@@ -305,17 +375,29 @@ cargo test --lib
 # Sandbox tests (live wrap.near and intents.near code from $ZECRET_WASM_DIR)
 LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test sandbox -- --nocapture --test-threads 1
 
+# Sandbox tests with the USDC code from mainnet. Download it once (not in git):
+./fetch-usdc-wasm.sh        # -> $ZECRET_WASM_DIR/usdc.near.wasm, checks the code hash
+LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test usdc -- --nocapture --test-threads 1
+
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo clippy --target wasm32-unknown-unknown --release -- -D warnings
 ```
+
+Without `usdc.near.wasm`, each test in `tests/usdc.rs` prints `SKIPPED` and the
+file name, and returns. `fetch-usdc-wasm.sh` reads the code with `view_code` from
+`https://free.rpc.fastnear.com` (set `NEAR_MAINNET_RPC` to use another) and writes the
+file only if its code hash is `DVJx7F3dHEHJYwpYPwXHu8K9Uo7h4kXFcALucY5oNX8q`.
+`tests/usdc.rs` also builds `test-receiver/` (a test-only stand-in for the Intents
+contract, see below) into the same `target/` folder.
 
 `.cargo/config.toml` adds `--cfg near` for the wasm target. cargo-near sets this flag.
 Without it near-sdk does not call the NEAR host functions for `panic_str` and the hash
 functions: a contract panic then traps with no message, and sha256 runs in wasm. The
 sandbox tests build the wasm themselves unless `ESCROW_WASM` names a file.
 
-The wasm is about 470 KB, so the escrow account locks about 4.7 NEAR for its code.
+The wasm is about 526 KB (525 881 bytes with rustc 1.97.0), so the escrow account locks
+about 5.3 NEAR for its code.
 
 ### What the tests cover
 
@@ -327,7 +409,12 @@ scalar, zero scalar, invalid and non-canonical points, identity, duplicate swap 
 proof of concept (a third party cannot take a maker's swap id); the punish path from Open and from Ready; each of the three refund
 windows and their edges; the late commit signature replayed at `t2`; a grid over times
 and paths that checks exactly one exit; storage funds; withdraw receipts, arguments and
-every callback outcome; G and the encodings against `reddsa` and the Solidity vectors.
+every callback outcome; the two-step Intents withdraw (deposit to the escrow's own
+account, `mt_transfer` for any result of step 1, restore only on a failed
+`mt_transfer`, at most one payment over retries); the in-flight sum; `sweep` (reads the
+escrow's own balance, withdraws only the surplus and only to the escrow); the gas that
+`on_deposit` and `on_sweep_balance` use in the mock, against what they reserve; G and
+the encodings against `reddsa` and the Solidity vectors.
 
 Sandbox tests (`tests/sandbox.rs`), with the live `wrap.near` and `intents.near` code:
 
@@ -343,3 +430,35 @@ Sandbox tests (`tests/sandbox.rs`), with the live `wrap.near` and `intents.near`
 - `new` is private; the documented deployment leaves the reviewed code, no access keys
   and the configured Intents account;
 - the stipend measurement above.
+
+USDC sandbox tests (`tests/usdc.rs`), with the USDC code from mainnet, initialised as in
+`circlefin/stablecoin-near` (2-of-n multisig roles; minting through `ConfigureController`
+and `ConfigureMinterAllowance` requests). A second swap of 1000 USDC stays open in each
+test as "other swaps' funds" and is refunded at the end to show it is intact:
+
+- normal withdraw into the live `intents.near` code, gas per receipt; the callbacks are
+  private; a sweep with nothing to sweep;
+- the prepaid gas `withdraw` needs (100 Tgas fails as a whole, credit unchanged; 110 works);
+- a pause, a blocklist of the Intents account and a blocklist of the escrow placed
+  exactly between the deposit and USDC's resolve step (`test-receiver/`): USDC's resolve
+  panics, and the taker is paid exactly once;
+- the same three restrictions before the withdraw: credit restored, paid once after
+  they are lifted;
+- the race of nv02-usdc.md section 4.3 with the live `intents.near` code: each restriction
+  sent 0 to 5 blocks after the withdraw; USDC reports failure after a delivery at 2 and 3
+  blocks; paid exactly once at every delay;
+- the Intents contract refuses `mt_transfer` (`pa_pause_feature("mt_transfer")`, and
+  `force_lock_account` of the escrow): credit restored, the deposit stays in the escrow's
+  Intents account, `sweep` by a stranger returns it to the escrow (and moves nothing
+  while the account is locked), then one withdraw pays once; the gas `sweep` needs;
+- two takers' withdraws racing on the escrow's one Intents balance while one taker's
+  deposit fails: one taker can be paid from the other's deposit, each is paid at most its
+  credit, the escrow's custody falls by exactly what was paid, and after a sweep and
+  retries each is paid exactly once.
+
+`test-receiver/` is a test-only contract that stands in for the Intents contract. It
+keeps balances for `ft_on_transfer`, `mt_transfer`, `mt_balance_of` and `ft_withdraw`
+like the Intents contract, and can apply one USDC restriction (it is the blocklister and a
+pauser) inside its own `ft_on_transfer`, before it returns. USDC's resolve step waits for
+that call, so the restriction lands before it every time. It can also refuse deposits of
+one amount.

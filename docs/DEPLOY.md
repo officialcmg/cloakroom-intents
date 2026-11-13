@@ -23,25 +23,32 @@ Foundation; `LICENSE` read on 2026-11-13).
 
 ## The current testnet deployment
 
-Made on 2026-11-13 with the escrow at commit `e257d75` (the review-1 fixes: `new` is
-private, `add_storage_funds` only for the caller). Full record:
-[`deploy/deployment.testnet.json`](../deploy/deployment.testnet.json).
+Made on 2026-11-13. The escrow was replaced the same day by a build with the NV-02 fix
+(two-step Intents withdraw and `sweep`, [`docs/security/fixes-2.md`](security/fixes-2.md)).
+Full record: [`deploy/deployment.testnet.json`](../deploy/deployment.testnet.json).
 
 | Part | Account | Code hash |
 |---|---|---|
 | Owner | `zecret-3f109eea1e.testnet` | none |
-| Escrow | `escrow.zecret-3f109eea1e.testnet` | `D9YwW6hJoKEzWkr9XW3fGT7ByCiEQZoWhfb45Q3jA7Lz` |
+| Escrow | `escrow2.zecret-3f109eea1e.testnet` | `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` |
 | Token (tUSDC) | `usdc.zecret-3f109eea1e.testnet` | `5znPiqS6ocnsGYgeByDsED99dmFS9kv2b7S8dEaL7bRE` |
 | Verifier | `intents.zecret-3f109eea1e.testnet` | `BtA1BEFNS619KkvXFsgcpQ21Tb5yMm32aaUkn7xNothk` |
 | Maker | `maker.zecret-3f109eea1e.testnet` | none |
+| Retired escrow (before the NV-02 fix; do not use) | `escrow.zecret-3f109eea1e.testnet` | `D9YwW6hJoKEzWkr9XW3fGT7ByCiEQZoWhfb45Q3jA7Lz` |
 
-The escrow was deployed by transaction `EATa9Bwc3AcxEguREmV6H55MzhjnyDg4bQXwHxzYqapH`
-(block 277459936): deploy, `new`, delete key, in one transaction signed by the escrow
-account. It has no access keys.
+The escrow was deployed by transaction `Bwt8ARb8UJA3YPmhHfFAhHaWwAtrmorTdD99mK5Srgmk`
+(block 277465825): deploy, `new`, delete key, in one transaction signed by the escrow
+account. It has no access keys. `verify` passed at final block 277465868.
 
-The escrow wasm is 472 515 bytes. It was built with rustc 1.97.0 and the escrow's
-`Cargo.lock`. A second build of commit HEAD from a clean copy in another folder gave the
+The escrow wasm is 525 881 bytes. It was built with rustc 1.97.0 and the escrow's
+`Cargo.lock`. A second build from a clean copy of the sources in another folder gave the
 same code hash.
+
+The retired escrow (deployed by `EATa9Bwc3AcxEguREmV6H55MzhjnyDg4bQXwHxzYqapH`, block
+277459936, escrow commit `e257d75`) has no keys and cannot be changed or removed. Its
+tUSDC balance was 0 at a final block after the replacement (both of its swaps were
+claimed and paid out). It is listed under `retired_escrows` in the
+deployment file. A taker checks the code hash, so she does not fund a swap on it.
 
 ## Testnet
 
@@ -60,7 +67,9 @@ cargo build -p zecret-deploy
 The first `deploy` makes an owner account through the testnet faucet and records it in
 `deployment.testnet.json`. Later runs use that owner. To start a separate deployment,
 move `deployment.testnet.json` away. To deploy a new escrow build next to an old one,
-change `escrow.sub_account` in the config: a deployed escrow cannot change.
+change `escrow.sub_account` in the config: a deployed escrow cannot change. The tool then
+moves the old escrow's record to `retired_escrows` (with `retired_at` and `replaced_by`).
+`configs/testnet.toml` uses `escrow2` for the build with the NV-02 fix.
 
 If the network drops a transaction (seen once, on a faucet account delete), the tool
 says so after 40 s. Run the same command again. Each step checks the chain first.
@@ -73,7 +82,8 @@ used the owner account plus 2 faucet accounts (30 NEAR).
 | Item | NEAR | Measured |
 |---|---|---|
 | Verifier account: 1 299 684 bytes of storage + 0.5 margin | 13.47 | yes |
-| Escrow account: 474 069 bytes of storage + 0.2 margin (locked: the account has no keys) | 4.94 | yes |
+| Escrow account: 474 069 bytes of storage + 0.2 margin (locked: the account has no keys), first escrow | 4.94 | yes |
+| Second escrow (NV-02 fix), 525 881-byte wasm + 0.2 margin (locked) | 5.46 | yes (tool estimate; owner paid it from 6.30 NEAR) |
 | Token account: 297 400 bytes + 0.3 margin | 3.27 | yes |
 | Maker account | 2.00 | yes |
 | Maker's escrow storage funds (`add_storage_funds`) | 0.50 | yes |
@@ -89,10 +99,13 @@ This tool has not been run on mainnet.
 
 ### Before
 
-1. Read review-1 NV-02 in `docs/security/review-1.md` and the warning in
-   `contracts/near-escrow/README.md`: the USDC contract's resolve step has not been
-   checked against the escrow's `on_withdraw`. Do not deploy with USDC until that check
-   is done.
+1. Read [`docs/security/fixes-2.md`](security/fixes-2.md). The escrow build with the
+   NV-02 fix pays a taker credit with `mt_transfer` from the escrow's own Intents
+   account, and the USDC-specific cases (pause and blocklists between deposit and
+   resolve) pass in the sandbox with the USDC code from mainnet. Its section 5 lists
+   what is not covered, including the residual case (an Intents deposit failure and a
+   USDC restriction in the same window). Deploy only a build whose code hash includes
+   this fix (`DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` at the time of writing).
 2. Pick an owner account that you control, for example `zecret.near`. The escrow will be
    `escrow.zecret.near`. Use a named account, not an implicit hex account (the commit
    message tells networks apart only by the escrow account id).
@@ -129,17 +142,19 @@ Storage is 1 NEAR per 100 kB.
 
 | Item | NEAR | Note |
 |---|---|---|
-| Escrow code storage (474 069 bytes, as measured on testnet) | 4.74 | Locked forever: the account has no keys. |
+| Escrow code storage (about 527 000 bytes: the 525 881-byte wasm plus state) | 5.27 | Locked forever: the account has no keys. Estimate from the wasm size; the first escrow used 474 069 bytes for a 472 515-byte wasm. |
 | Escrow margin (`escrow.margin_near`) | 0.20 | Locked forever. Covers the deploy transaction's prepaid gas. |
 | Maker account (`maker.initial_balance_near`) | 1.00 | Stays with the maker. Pays its gas and the 0.03 NEAR stipends. |
 | Maker storage funds (`maker.storage_funds_near`) | 0.10 | Pays the storage of about 15 swaps (about 0.006 NEAR each, measured on testnet). Can be withdrawn with `withdraw_storage_funds`. |
 | USDC registration of the escrow and of the maker | 0.0025 | 0.00125 each (USDC `storage_balance_bounds`, read 2026-11-13). |
 | Gas for the deployment (about 60 Tgas, from the testnet run) | 0.006 | |
-| **Total from the owner** | **about 6.05** | of which 4.94 is locked in the escrow |
+| **Total from the owner** | **about 6.58** | of which about 5.47 is locked in the escrow |
 
 Each swap then costs the maker: the 0.03 NEAR stipend to the taker key (most of it stays
 on that key; commit and claim cost about 0.002 NEAR), about 0.006 NEAR of escrow storage,
-and about 0.004 NEAR of gas for open, `set_ready` and `withdraw`.
+and about 0.005 NEAR of gas for open, `set_ready` and `withdraw`. The maker attaches 200
+Tgas to `withdraw` (the two-step Intents withdraw needs at least 110 Tgas); only the gas
+burnt is paid.
 
 ## How to check a deployment
 
@@ -162,7 +177,7 @@ The same checks by hand, with any NEAR RPC (example for testnet):
 
 ```sh
 RPC=https://rpc.testnet.fastnear.com
-ESCROW=escrow.zecret-3f109eea1e.testnet
+ESCROW=escrow2.zecret-3f109eea1e.testnet
 # 1. Code hash: compare with the hash of the reviewed wasm (zecret-deploy hash FILE).
 curl -s $RPC -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query",
  "params":{"request_type":"view_account","finality":"final","account_id":"'$ESCROW'"}}'
@@ -194,6 +209,9 @@ The browser taker must make them too; `TakerConfig.escrow_code_hash` in
 
 ## Measured on testnet
 
+Runs 1 and 2 used the retired escrow `escrow.zecret-3f109eea1e.testnet`. Run 3 uses
+`escrow2.zecret-3f109eea1e.testnet` (NV-02 fix) and is listed after them.
+
 `zecret-deploy e2e`, two runs on 2026-11-13 at 04:16 and 04:17 UTC, through
 `rpc.testnet.fastnear.com`, from this build machine. Each run: maker sends the 0.03 NEAR
 stipend to a new taker key; maker opens a swap of 1 tUSDC (`ft_transfer_call`);
@@ -223,7 +241,24 @@ Run 2 (swap `a62ea4a6...5ae8`): stipend `7EGbtSHYv4mbSLaDeUHMk4yTT2PaYacobNCRB85
 `6ftHVzRZkW8TwZPdmiYpJuM3cH8zazv8DEJDZmmggdeA`, `execute_intents`
 `AuSJ2j4jfKjB4jjzxEU5NxfzDC4NivwRAKePG693xmsE`.
 
-Timings over the 14 transactions. The clock starts before the tool reads the nonce and
+Run 3 (2026-11-13 05:14 UTC, escrow `escrow2.zecret-3f109eea1e.testnet`, swap
+`5d9f0899...0706`, taker `4c98a781...d770`), all receipts successful:
+
+| Step | Transaction | Block | Tgas | Included | Final |
+|---|---|---|---|---|---|
+| stipend 0.03 NEAR | `DCgWZNgQXvnH5KLfiKQ8jHeiQXkSwP1UHvEwuK72KdMa` | 277465882 | 8.57 | 1.6 s | 4.1 s |
+| open (`ft_transfer_call`) | `EUHDYSjCXfjWLteoM4FrCBRm1SDvwk1HdLQVi6YEi1Q7` | 277465889 | 12.45 | 1.2 s | 5.3 s |
+| `set_ready` | `ErgGucmjf7Sh5hkahBMZvaWQ8AyHowzWHJyx47YyNCb2` | 277465899 | 2.59 | 1.6 s | 4.5 s |
+| `commit_claim` (taker) | `GAjCc38PL8w93pRh6nZdMxpDRo87uLTEcpwgPU6UuZfX` | 277465907 | 10.20 | 1.6 s | 4.2 s |
+| `claim` (taker) | `3WEk6ARNuYFxQ9NK38ECWvoe4ghAtrcRPaakLuKqKET4` | 277465914 | 24.44 | 1.2 s | 3.8 s |
+| `withdraw` (two steps, 200 Tgas attached) | `E1FSqhzLbWbBpitqXaCnFNCnN8VQZYQ7FEaKsDs64vqb` | 277465921 | 21.65 | 1.6 s | 8.0 s |
+| `execute_intents` (`ft_withdraw`) | `5wiuNp2LzCheAL2ipNnBD1fvk3wRwk26sNhKZb2hNYEA` | 277465936 | 11.35 | 1.6 s | 5.3 s |
+
+After the withdraw, the escrow's own Verifier balance was 0 (the tool checks it). The
+two-step withdraw takes more receipts: 8.0 s to all receipts final, against 6.9 s in run
+1. One sample.
+
+Timings over the 14 transactions of runs 1 and 2. The clock starts before the tool reads the nonce and
 signs; the status is polled every 0.2 s with `tx` and `wait_until: NONE`.
 
 | From submit to | Min | Median | Max |
@@ -241,8 +276,10 @@ Other measurements from these runs:
 
 - The taker key held 0.02805 NEAR of its 0.03 NEAR stipend after `commit_claim` and
   `claim`.
-- `withdraw` into the Verifier burnt 14.0 Tgas with the stand-in token (42.4 Tgas in the
-  sandbox tests with `wrap.near`).
+- `withdraw` into the Verifier burnt 14.0 Tgas with the stand-in token on the retired
+  escrow (42.4 Tgas in the sandbox tests with `wrap.near`), and 21.65 Tgas on the escrow
+  with the NV-02 fix (64.3 Tgas with `wrap.near` and 21.0 Tgas with the USDC code in
+  the sandbox).
 - Two swaps reduced the maker's escrow storage funds from 0.49874 to 0.48643 NEAR,
   about 0.0062 NEAR per swap.
 
@@ -267,7 +304,7 @@ What it reads today (`web/src/vite-env.d.ts`):
 
 The bundled `web/public/maker-directory.json` names `maker.zecret.testnet` and
 `escrow.zecret.testnet`. Those are sample values. For the testnet demo the directory must
-name `maker.zecret-3f109eea1e.testnet` and `escrow.zecret-3f109eea1e.testnet`.
+name `maker.zecret-3f109eea1e.testnet` and `escrow2.zecret-3f109eea1e.testnet`.
 
 What the real browser engine (package E) needs. These are the fields of
 `TakerConfig` in `crates/zecret-core/src/config.rs`. The website does not read them yet.
@@ -277,8 +314,8 @@ What the real browser engine (package E) needs. These are the fields of
 | Zcash network (`chains.network`) | `test` | `main` |
 | Light-wallet server, gRPC-web (`chains.lightwalletd`) | `https://zcash-testnet.chainsafe.dev` (tested read-only in `docs/experiments/browser-wallet.md`) | not chosen |
 | NEAR RPC (`chains.near_rpc`) | `https://rpc.testnet.fastnear.com` | `https://rpc.mainnet.fastnear.com` |
-| Escrow (`chains.escrow`) | `escrow.zecret-3f109eea1e.testnet` | `escrow.<owner>.near` |
-| Escrow code hash (`escrow_code_hash`) | `D9YwW6hJoKEzWkr9XW3fGT7ByCiEQZoWhfb45Q3jA7Lz` | the hash of the reviewed build |
+| Escrow (`chains.escrow`) | `escrow2.zecret-3f109eea1e.testnet` | `escrow.<owner>.near` |
+| Escrow code hash (`escrow_code_hash`) | `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` | the hash of the reviewed build |
 | Token (`chains.token`) | `usdc.zecret-3f109eea1e.testnet` | `17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1` |
 | Intents Verifier (`chains.intents`) | `intents.zecret-3f109eea1e.testnet` | `intents.near` |
 
@@ -287,6 +324,12 @@ server. A Content-Security-Policy header (not yet in `vercel.json`) must allow t
 `connect-src`, and `wasm-unsafe-eval` in `script-src` for the WebAssembly engine.
 
 ## Not verified
+
+- The clients with the escrow that has the NV-02 fix. `crates/zecret-core` attaches 100
+  Tgas to `withdraw` (`GAS_WITHDRAW`); the new escrow needs at least 110 Tgas, so their
+  taker withdraw fails (credit kept) until that constant is 200 Tgas.
+  `crates/zecret-node/config/testnet-taker.json` still names the retired escrow and its
+  hash. Both are outside the deployment work and were not changed.
 
 - The tool has not run on mainnet. The mainnet guard is tested (unit tests and a run
   without the flag that stops before any network access).

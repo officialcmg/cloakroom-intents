@@ -1,0 +1,25 @@
+{
+  "format": "zecret-config",
+  "version": 1,
+  "network": "regtest",
+  "label": "Local test network: Zebra regtest and a NEAR sandbox",
+  "directoryUrl": "/run/local/directory.json",
+  "zcash": { "zebraRpc": "http://127.0.0.1:18330", "nu7Height": 2 },
+  "near": {
+    "rpc": "http://127.0.0.1:3130",
+    "escrow": "escrow.test.near",
+    "escrowCodeHash": "REPLACE: printed by harness/browser/run.mjs --serve, which writes the complete file to /run/local/config.json",
+    "token": "wrap.test.near",
+    "tokenSymbol": "wNEAR",
+    "tokenDecimals": 24,
+    "verifier": "intents.test.near"
+  },
+  "timing": { "inclusion_secs": 3, "finality_secs": 3, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 30, "k_z": 2 },
+  "minStipend": "30000000000000000000000",
+  "quoteTimeoutSecs": 400,
+  "exit": { "mode": "direct", "relayUrl": "http://127.0.0.1:3410/execute-intents" },
+  "honesty": [
+    "wNEAR stands in for USDC.",
+    "The Verifier is a copy of the live intents.near code in the sandbox; there is no 1Click here, so the tokens go to your NEAR account and the price for the chosen chain is a mainnet preview."
+  ]
+}

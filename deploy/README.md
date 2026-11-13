@@ -7,7 +7,7 @@ Tools to put Zecret's NEAR contracts on a network and check them.
 | `tool/` | `zecret-deploy`, the deployment and check tool (Rust, near-workspaces 0.24 for signing, plain JSON-RPC for reads). |
 | `test-usdc/` | The stand-in USDC for testnet: a standard NEP-141 token with 6 decimals and an open `mint`. It has no value. |
 | `configs/` | `testnet.toml`, `mainnet.toml`, `sandbox.toml`. |
-| `deployment.testnet.json` | The testnet deployment: account ids, code hashes, transaction hashes and block heights. No keys. |
+| `deployment.testnet.json` | The testnet deployment: account ids, code hashes, transaction hashes and block heights. No keys. Earlier escrows of the deployment are under `retired_escrows`. |
 | `e2e.testnet.json` | The end-to-end runs on testnet: every transaction hash and its timings. |
 | `maker/` | Dockerfile and notes for running the maker daemon as a service. |
 | `.keys/` | Private keys the tool makes or uses. Not in git (see `.gitignore`), mode 0700, files mode 0600. |
@@ -42,7 +42,8 @@ The sandbox needs `LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD`.
 
 On mainnet, `deploy` refuses to run without
 `--i-am-the-owner-and-accept-spending-real-funds`. `e2e` and `rehearse` never run on
-mainnet. `verify` runs on mainnet; it only reads.
+mainnet. `e2e` attaches 200 Tgas to `withdraw` (the escrow's two-step Intents withdraw
+needs at least 110 Tgas) and checks that the escrow's own Verifier balance is 0 after it. `verify` runs on mainnet; it only reads.
 
 ## What `deploy` does
 
@@ -61,9 +62,12 @@ second run sends no transactions (`rehearse` checks this).
 4. Verifier (testnet): create `intents.<owner>`, then one transaction: deploy the code
    of mainnet `intents.near`, call `new` with `wnear_id = wrap.testnet`, fee 0, fee
    collector itself (as the sandbox tests do).
-5. Escrow: create `escrow.<owner>` with one temporary full-access key, then one
-   transaction from the escrow account to itself: `DeployContract`, `new(intents_account)`,
-   `DeleteKey` of the signing key. The tool then deletes its copy of that key.
+5. Escrow: create `<escrow.sub_account>.<owner>` with one temporary full-access key, then
+   one transaction from the escrow account to itself: `DeployContract`,
+   `new(intents_account)`, `DeleteKey` of the signing key. The tool then deletes its copy
+   of that key. A deployed escrow cannot change: for a new escrow build, set a new
+   `escrow.sub_account` (testnet uses `escrow2` for the build with the NV-02 fix). The
+   record of the old escrow moves to `retired_escrows`; the old account stays as it is.
 6. Token storage for the escrow and the Verifier (`storage_deposit`, paid by the owner).
 7. Maker: create `maker.<owner>`, register it on the token, mint up to `token_target`
    (stand-in token only), and add escrow storage funds (`add_storage_funds`) up to
@@ -98,6 +102,8 @@ Symbol `tUSDC`, name "Test USDC (testnet, no value)", 6 decimals.
 
 Why not Circle's testnet USDC (`3e2210e1...b8af` on NEAR testnet, it exists and reports 6
 decimals): its faucet is a web page with a per-address limit (reported as 20 USDC every
-2 hours; not checked here), so a script cannot fund a maker with it, and its source is not
-available, which is the open item NV-02 of security review 1. The stand-in token uses
-the standard resolve code that the escrow's tests already cover.
+2 hours; not checked here), so a script cannot fund a maker with it. The stand-in token
+uses the standard resolve code, so testnet shows the normal path. The USDC-specific cases
+(pause and blocklist between deposit and resolve, review-1 NV-02) are tested in the
+sandbox with the mainnet USDC code: `contracts/near-escrow/tests/usdc.rs` and
+`docs/security/fixes-2.md`.
