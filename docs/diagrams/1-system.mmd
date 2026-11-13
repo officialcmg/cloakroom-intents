@@ -1,0 +1,41 @@
+flowchart LR
+  USER["User's own Zcash wallet<br/>(Zodl and others)"]
+
+  subgraph BROWSER["User's browser: the website"]
+    UI["Page<br/>amount, token, chain,<br/>one price, progress"]
+    W["Taker engine<br/>Rust as WebAssembly, in a worker.<br/>Holds a temporary Zcash wallet,<br/>key half a, the NEAR key"]
+    UI --- W
+  end
+
+  subgraph BACKEND["Our backend"]
+    MC["Maker daemon<br/>Rust. Holds USDC,<br/>key half b, a NEAR account"]
+  end
+
+  subgraph ZEC["Zcash (shielded pool)"]
+    LW["Light-wallet server<br/>(gRPC-web)"]
+    J["Shared address<br/>key = a + b"]
+    MEMO["Encrypted memos<br/>request, quote, acceptance"]
+  end
+
+  subgraph NEAR["NEAR"]
+    ESC["Escrow contract<br/>(new, Rust)"]
+    TOK["USDC token contract"]
+    INT["intents.near"]
+  end
+
+  OC["1Click API<br/>and solvers"]
+  DEST["30+ destination chains"]
+
+  USER -- "one shielded payment<br/>(QR code)" --> W
+  W <-- "blocks and transactions" --> LW
+  W -- "request, acceptance + premium" --> MEMO
+  MC -- "quote" --> MEMO
+  W -- "fund, or take back" --> J
+  MC -- "take after the claim" --> J
+  MC -- "open + NEAR stipend,<br/>set_ready, refund" --> ESC
+  W -- "commit, claim, withdraw<br/>(paid by the stipend)" --> ESC
+  ESC <--> TOK
+  ESC -- "payout, owned by<br/>the taker's NEAR key" --> INT
+  W -- "price quote,<br/>then one signed message" --> OC
+  OC --> INT
+  OC --> DEST

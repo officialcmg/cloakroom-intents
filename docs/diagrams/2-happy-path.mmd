@@ -1,0 +1,43 @@
+sequenceDiagram
+  autonumber
+  actor U as User and own wallet
+  participant T as Website (taker engine)
+  participant Z as Zcash shielded pool
+  participant M as Maker (our backend)
+  participant E as Escrow (NEAR)
+  participant I as intents.near
+  participant O as 1Click and solvers
+
+  Note over U,O: Price
+  U->>T: amount, token, chain
+  T->>O: how much for the USDC? (quote)
+  T-->>U: one price, with a guaranteed minimum
+  U->>T: pay ZEC into the website's temporary wallet (QR)
+
+  Note over T,M: Quote, over encrypted Zcash memos
+  T->>Z: request memo (amount, key-half point A, NEAR key)
+  Z-->>M: 
+  M->>Z: quote memo (USDC amount, key-half point B, deadlines)
+  Z-->>T: 
+  T->>Z: acceptance memo + premium
+  Z-->>M: 
+
+  Note over T,E: Lock both sides
+  M->>E: open: USDC in, A, B, NEAR key, deadlines, plus a NEAR stipend to that key
+  T->>E: read: open is final and matches the quote
+  T->>Z: fund the shared address (key a + b)
+  M->>Z: see the ZEC, wait for confirmations
+  M->>E: set_ready
+
+  Note over T,E: Claim, sent by the taker
+  T->>E: commit_claim (publishes only a hash)
+  T->>E: claim(a) after the lock is final
+  M->>E: read a
+  M->>Z: take the ZEC with a + b
+
+  Note over T,O: Payout and exit
+  T->>E: withdraw
+  E->>I: USDC, owned by the taker's NEAR key
+  T->>O: fresh quote, then one signed message
+  O->>I: execute
+  O-->>U: tokens arrive on the selected chain

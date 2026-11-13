@@ -1,0 +1,13 @@
+stateDiagram-v2
+  [*] --> Open: open (maker deposits tokens)
+  Open --> Ready: set_ready (maker, before t0)
+  Ready --> Locked: commit_claim (payout-key signature, before t1)
+  Open --> Locked: commit_claim from t2 (punish path)
+  Ready --> Locked: commit_claim from t2 (punish path)
+  Locked --> Claimed: claim(a) within W of the lock
+  Open --> Refunded: refund(b) before t0
+  Open --> Refunded: refund(b) in t1..t2
+  Ready --> Refunded: refund(b) in t1..t2
+  Locked --> Refunded: refund(b) after W
+  Claimed --> [*]: a is public, maker takes the ZEC
+  Refunded --> [*]: b is public, taker recovers the ZEC
