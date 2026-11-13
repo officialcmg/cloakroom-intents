@@ -1,0 +1,10 @@
+[maker 1794550641] relay for direct exits on http://127.0.0.1:3410/execute-intents
+[maker 1794550641] up: UA uregtest1wp48ppcqdautj2jr8wjy3gwtl0k38fegpdx8773dqus8dj3tsewnkeyq3ntf95zk5p03qxclul9a5zrmcaqq95tppcr724z8mspguflw NEAR maker.test.near key ed25519:G33vhMaTSHN4bJQHPmYZ3Y7U18teYkWMXEf4ySq3NrRm
+[maker 1794550723] 0d6ba49b RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794550723] 0d6ba49b stage Quoting
+[maker 1794550723]  transient: requests wait for a quote, but the wallet has 0 spendable zats, less than a quote fee (10000)
+[maker 1794550723] {"type":"zcash_tx","swap":"0d6ba49be682fdb61aa24e977a2c743a","what":"quote","txid":"eda0e08817c8eb373d81afb0a7ea42f7af986339a7d3b9395d7508af89738b11"}
+[maker 1794550723] 0d6ba49b encrypted QUOTE sent in tx eda0e08817c8eb373d81afb0a7ea42f7af986339a7d3b9395d7508af89738b11
+[maker 1794550723] 0d6ba49b stage Quoted
+[maker 1794550775] 0d6ba49b ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 282c0684
+[maker 1794550775] 0d6ba49b stage Opening

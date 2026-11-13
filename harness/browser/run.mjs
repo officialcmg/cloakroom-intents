@@ -468,7 +468,7 @@ async function scenarioA() {
   const scen = 'a_full_swap';
   const c = new Checks(scen, 'Full swap through the page: amount, token and chain, NEAR account, recovery file, payment by QR address from a native wallet, progress to done; the taker key holds the price in the Verifier, then the direct exit delivers it to the NEAR account');
   const maker = new Maker(scen);
-  maker.start('--exit-after', '1');
+  maker.start();
   const url = writeRun(scen, maker, '30');
   const user = new Wallet(path.join(WORK, scen, 'user'));
   await coinbase(user.ua);
@@ -527,7 +527,7 @@ async function scenarioB() {
   const scen = 'b_maker_quiet_refund';
   const c = new Checks(scen, 'The maker goes quiet after the funding (never sets Ready) and refunds after t1: the browser reads b, takes the ZEC back from the shared address and returns it to the return address');
   const maker = new Maker(scen, { misbehave: 'never-ready' });
-  maker.start('--exit-after', '1');
+  maker.start();
   const url = writeRun(scen, maker, '30');
   const user = new Wallet(path.join(WORK, scen, 'user'));
   await coinbase(user.ua);
@@ -569,7 +569,7 @@ async function scenarioC() {
   const scen = 'c_reload_twice';
   const c = new Checks(scen, 'The page is reloaded twice mid-swap: before the funding (at the acceptance) and between commit and claim; each time the swap resumes from IndexedDB and completes');
   const maker = new Maker(scen);
-  maker.start('--exit-after', '1');
+  maker.start();
   const url = writeRun(scen, maker, '30');
   const user = new Wallet(path.join(WORK, scen, 'user'));
   await coinbase(user.ua);
@@ -606,7 +606,7 @@ async function scenarioD() {
   const scen = 'd_restore_fresh_profile';
   const c = new Checks(scen, 'The browser is lost after the funding; the recovery file saved before the payment is opened in a fresh browser profile; the engine reads the swap back from the chains (request, acceptance and funding already sent) and completes it without sending anything twice');
   const maker = new Maker(scen);
-  maker.start('--exit-after', '1');
+  maker.start();
   const url = writeRun(scen, maker, '30');
   const user = new Wallet(path.join(WORK, scen, 'user'));
   await coinbase(user.ua);

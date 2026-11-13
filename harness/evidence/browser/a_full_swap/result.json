@@ -10,7 +10,7 @@
     {
       "check": "the deposit QR address is the browser wallet and asks for the amount",
       "pass": true,
-      "detail": "zcash:uregtest1g7k7kl4glne5r5r6pz0tyd2aa"
+      "detail": "zcash:uregtest14f84p3wpq7ue9wwy606lwkcjq"
     },
     {
       "check": "the page reached done",
@@ -34,8 +34,8 @@
     },
     {
       "check": "the exit delivered the whole price to the NEAR account",
-      "pass": false,
-      "detail": "0"
+      "pass": true,
+      "detail": "29988000000000000000000000"
     },
     {
       "check": "nothing is left under the taker key in the Verifier",
@@ -74,82 +74,82 @@
       "stages": [
         {
           "stage": "awaiting_deposit",
-          "at": "2026-11-13T05:54:57.738Z",
-          "secs": 7.3
+          "at": "2026-11-13T05:59:55.416Z",
+          "secs": 7.6
         },
         {
           "stage": "deposit_seen",
-          "at": "2026-11-13T05:55:05.050Z",
+          "at": "2026-11-13T06:00:03.047Z",
           "secs": 0
         },
         {
           "stage": "deposit_confirmed",
-          "at": "2026-11-13T05:55:05.051Z",
-          "secs": 26.5
+          "at": "2026-11-13T06:00:03.048Z",
+          "secs": 30.1
         },
         {
           "stage": "request_sent",
-          "at": "2026-11-13T05:55:31.581Z",
-          "secs": 7.5
+          "at": "2026-11-13T06:00:33.106Z",
+          "secs": 8.9
         },
         {
           "stage": "quote_received",
-          "at": "2026-11-13T05:55:39.044Z",
-          "secs": 28.1
+          "at": "2026-11-13T06:00:42.046Z",
+          "secs": 29.7
         },
         {
           "stage": "accepted",
-          "at": "2026-11-13T05:56:07.145Z",
-          "secs": 10.9
+          "at": "2026-11-13T06:01:11.780Z",
+          "secs": 11.3
         },
         {
           "stage": "escrow_open",
-          "at": "2026-11-13T05:56:18.048Z",
-          "secs": 30.6
+          "at": "2026-11-13T06:01:23.034Z",
+          "secs": 29.8
         },
         {
           "stage": "funding_sent",
-          "at": "2026-11-13T05:56:48.644Z",
-          "secs": 1.4
+          "at": "2026-11-13T06:01:52.854Z",
+          "secs": 1.2
         },
         {
           "stage": "funding_confirming",
-          "at": "2026-11-13T05:56:50.047Z",
-          "secs": 8
+          "at": "2026-11-13T06:01:54.049Z",
+          "secs": 7.9
         },
         {
           "stage": "ready",
-          "at": "2026-11-13T05:56:58.054Z",
+          "at": "2026-11-13T06:02:01.941Z",
           "secs": 0
         },
         {
           "stage": "committing",
-          "at": "2026-11-13T05:56:58.055Z",
-          "secs": 2
+          "at": "2026-11-13T06:02:01.942Z",
+          "secs": 2.1
         },
         {
           "stage": "claiming",
-          "at": "2026-11-13T05:57:00.022Z",
+          "at": "2026-11-13T06:02:04.035Z",
           "secs": 4
         },
         {
           "stage": "claimed",
-          "at": "2026-11-13T05:57:04.014Z",
+          "at": "2026-11-13T06:02:08.019Z",
           "secs": 6
         },
         {
           "stage": "paid_out",
-          "at": "2026-11-13T05:57:10.020Z",
+          "at": "2026-11-13T06:02:14.043Z",
           "secs": 0
         },
         {
           "stage": "exiting",
-          "at": "2026-11-13T05:57:10.025Z",
-          "secs": 2.6
+          "at": "2026-11-13T06:02:14.048Z",
+          "secs": 6.1
         },
         {
           "stage": "done",
-          "at": "2026-11-13T05:57:12.642Z",
+          "at": "2026-11-13T06:02:20.103Z",
           "secs": null
         }
       ],
@@ -164,35 +164,35 @@
         },
         {
           "what": "proving_key_build",
-          "secs": 18.4
+          "secs": 20.9
         },
         {
           "what": "proof_request",
-          "secs": 26.3
+          "secs": 29.8
         },
         {
           "what": "proof_accept",
-          "secs": 27.5
+          "secs": 29.1
         },
         {
           "what": "proof_fund",
-          "secs": 30.3
+          "secs": 29.6
         },
         {
           "what": "direct_exit_relay",
-          "secs": 2.6
+          "secs": 3
         }
       ],
-      "total_secs": 135
+      "total_secs": 145
     },
-    "taker_account": "96f5be3dc00cf8dbdf96e29f80a1b5d923b19254f33f4212ede9dea0466a4907",
+    "taker_account": "75cd3f794a6bc27308909f75a013eb52cddb7694493a6efb0ba901129b763e89",
     "zcash_txs": [
-      "7e388cb727f15d0a0029a6f62064328d7b1765534e9f047227e90f65c5da8dff",
-      "076a87cf0bd4c4277e7506c5216da509b3bdceb60d0d949a2882c4e9d5026952",
-      "2cd70b0dceade5877536a3fda68cf38d153c24d5027b40cc731915e9ac084069",
-      "f8ac310791bed45ab5446c05ef5c2ab824a17cc6cc9ed2f3cf1d2d2b18d6aa00",
-      "ac37ba5daeb30f3dcbcaf06773b312b1842024f8a012fd44855cfd1af44b536d",
-      "4caeb0497287bc70752b6aefec9ebed6059f1b3d3a84d3c4851fc816b4fcee43"
+      "7464c716997cac5511648ea9e4b6501f64a6f127623906eba0bd19c2aa80a5ae",
+      "1238dac2c1bc98f2b0d230928a6225e3e0477c8ff6d9ff586411d6d4cdcda18c",
+      "04e8b665b9d2df61df3b6d31e8b6055d94356fd7c1055ee1eadd122237565c9e",
+      "4f996803246774f8a686131a89539d721321a297796529a304271c51757fd496",
+      "7b182f9f7a715bcb7d4ae4beba2184f2826660f2056d1a70a193263cdeea676a",
+      "fff3c2da87cee0171e4b340bd95b6549f3ca2e768f43bcf0de0dec3423b4d575"
     ]
   }
 }

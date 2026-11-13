@@ -3,8 +3,8 @@
   "version": 1,
   "engine": "wasm",
   "network": "regtest",
-  "swapId": "e3eee2bae0b199b38ab0ebf3ab9675a3",
-  "createdAt": "2026-11-13T05:54:57.738Z",
+  "swapId": "c267738f1cd6064a25b931460fac8f66",
+  "createdAt": "2026-11-13T05:59:55.416Z",
   "warning": "Anyone with this file can move the funds of this swap. Keep it private. You can delete it after the swap is done.",
   "contents": "records.wallet: the temporary Zcash wallet key. records[\"swap/<id>\"]: key half a, the swap seeds, the NEAR key (near_sk) that owns the payout in NEAR Intents, and the swap terms. web: the page settings of the swap (amounts, destination, return address). The engine reads the rest back from the Zcash and NEAR chains.",
   "config": {
@@ -15,22 +15,22 @@
     "maker": "maker.test.near"
   },
   "records": {
-    "swap/e3eee2bae0b199b38ab0ebf3ab9675a3": "{\n  \"rfq_id\": \"e3eee2bae0b199b38ab0ebf3ab9675a3\",\n  \"stage\": \"WaitingDeposit\",\n  \"zats\": 99960000,\n  \"a\": \"4c4e7bf8c44a67783a14c27596a54747525bd2f973340e6a12fc9d8d001a6b12\",\n  \"s_t\": \"b7ea29536e75d50df96391cedb1114938daff536304759277e8097308b6f31c9\",\n  \"e_t\": \"608dffbfd37fc527a410e664ca7bf7cb4952e09f012983ab47b09aa4c233723a\",\n  \"e_t_pub\": \"9a3fa2c7aad061212c51f77879079656359e3640db361b5efd834db47f3cc00c\",\n  \"near_sk\": \"3e585f878663ca12f140a6874b647235c4e532af400934a1d96636bebe2c4e58\",\n  \"taker_account\": \"96f5be3dc00cf8dbdf96e29f80a1b5d923b19254f33f4212ede9dea0466a4907\",\n  \"reply_index\": 987950819,\n  \"created_at\": 1794549297,\n  \"min_price\": \"29691090000000000000000000\",\n  \"stage_at\": 1794549297,\n  \"quote\": null,\n  \"negated\": false,\n  \"joint_fvk\": null,\n  \"joint_address\": null,\n  \"escrow_id\": null,\n  \"pending_then\": null,\n  \"pending\": null,\n  \"rfq_txid\": null,\n  \"accept_txid\": null,\n  \"fund_txid\": null,\n  \"fund_expiry\": null,\n  \"sweep_txid\": null,\n  \"sweep_height\": null,\n  \"commit_tx\": null,\n  \"claim_tx\": null,\n  \"claim_at\": null,\n  \"withdraw_tx\": null,\n  \"withdraw_at\": null,\n  \"log\": [\n    \"waiting for a deposit: 0 of 100050000 zats in uregtest1g7k7kl4glne5r5r6pz0tyd2aarvk2r6909lmq9q745w8hntxah9fqdpx2xjas2pf9pm6r94p9jlq640tjc2uau58fm45468pwca9g326\"\n  ]\n}",
-    "wallet": "c825602ff837d376a145b58a81349c46fd60550249adc85064b26a5ab9ed0e52"
+    "swap/c267738f1cd6064a25b931460fac8f66": "{\n  \"rfq_id\": \"c267738f1cd6064a25b931460fac8f66\",\n  \"stage\": \"WaitingDeposit\",\n  \"zats\": 99960000,\n  \"a\": \"7cf4f453bb1b9df9c3e28dfe0b781a0bdd292605d7acfba4702085aa9cd66622\",\n  \"s_t\": \"6369f3266099bc68f456e365d6f2080be20b078ea5a2c9fd8ea3c8c9ccc568dc\",\n  \"e_t\": \"9c131db65192f3695925b4a5c7350310db14ae990b3490fea745be9d77ab7c20\",\n  \"e_t_pub\": \"8d82264c9094d2a04f9c048b57d432573c775e45880aba19285d28a8d8ba4d0f\",\n  \"near_sk\": \"9d01395188865b57a942dcc6c9ad7aa3deea4d477c5fa687fa6b244cf6625169\",\n  \"taker_account\": \"75cd3f794a6bc27308909f75a013eb52cddb7694493a6efb0ba901129b763e89\",\n  \"reply_index\": 259221442,\n  \"created_at\": 1794549595,\n  \"min_price\": \"29691090000000000000000000\",\n  \"stage_at\": 1794549595,\n  \"quote\": null,\n  \"negated\": false,\n  \"joint_fvk\": null,\n  \"joint_address\": null,\n  \"escrow_id\": null,\n  \"pending_then\": null,\n  \"pending\": null,\n  \"rfq_txid\": null,\n  \"accept_txid\": null,\n  \"fund_txid\": null,\n  \"fund_expiry\": null,\n  \"sweep_txid\": null,\n  \"sweep_height\": null,\n  \"commit_tx\": null,\n  \"claim_tx\": null,\n  \"claim_at\": null,\n  \"withdraw_tx\": null,\n  \"withdraw_at\": null,\n  \"log\": [\n    \"waiting for a deposit: 0 of 100050000 zats in uregtest14f84p3wpq7ue9wwy606lwkcjqu645dulufhmpuc6632mjqsnc0v6p3vyx02swad80vn7svhf3srcjymzvagkvrgv9ug0u50gxuqgf8na\"\n  ]\n}",
+    "wallet": "7ad67ba03ad2c4522ef8db975c2e07ba772ef7ec7792e96b7e61e9667bfa7802"
   },
   "web": {
     "state": {
       "version": 1,
-      "id": "e3eee2bae0b199b38ab0ebf3ab9675a3",
+      "id": "c267738f1cd6064a25b931460fac8f66",
       "engine": "wasm",
       "network": "regtest",
-      "createdAt": 1794549297738,
+      "createdAt": 1794549595416,
       "stage": "awaiting_deposit",
-      "stageAt": 1794549297738,
+      "stageAt": 1794549595416,
       "history": [
         {
           "stage": "awaiting_deposit",
-          "at": 1794549297738
+          "at": 1794549595416
         }
       ],
       "params": {
@@ -42,7 +42,7 @@
           "decimals": 6,
           "address": ""
         },
-        "returnAddress": "uregtest1xnym7hwlsr9r0ffxjcqjezjm2x2s6tjg7v4x3x0llj3us9u7usffartjfhrzwdxce27x2nla6ge6egjes0fgm9kx927l7ltk5uqjyyts",
+        "returnAddress": "uregtest17nl2896wp4p6vnd8q7xjhyltfnavvefqpngzdflv44ns44gh7r9r0s9qgqpr7f5k69sp9ayfdm9ks9p3g7e3kmr3lvyl3ar4gc29map2",
         "directExit": {
           "nearAccount": "alicea.test.near"
         },
@@ -56,8 +56,8 @@
         }
       },
       "deposit": {
-        "address": "uregtest1g7k7kl4glne5r5r6pz0tyd2aarvk2r6909lmq9q745w8hntxah9fqdpx2xjas2pf9pm6r94p9jlq640tjc2uau58fm45468pwca9g326",
-        "uri": "zcash:uregtest1g7k7kl4glne5r5r6pz0tyd2aarvk2r6909lmq9q745w8hntxah9fqdpx2xjas2pf9pm6r94p9jlq640tjc2uau58fm45468pwca9g326?amount=1.0005",
+        "address": "uregtest14f84p3wpq7ue9wwy606lwkcjqu645dulufhmpuc6632mjqsnc0v6p3vyx02swad80vn7svhf3srcjymzvagkvrgv9ug0u50gxuqgf8na",
+        "uri": "zcash:uregtest14f84p3wpq7ue9wwy606lwkcjqu645dulufhmpuc6632mjqsnc0v6p3vyx02swad80vn7svhf3srcjymzvagkvrgv9ug0u50gxuqgf8na?amount=1.0005",
         "expectedZats": "100050000",
         "receivedZats": "0",
         "confirmations": 0,
@@ -66,11 +66,11 @@
       "txs": [],
       "needs": null,
       "activity": null,
-      "recoveryExportedAt": 1794549297918
+      "recoveryExportedAt": 1794549595608
     },
     "meta": {
       "version": 1,
-      "swapId": "e3eee2bae0b199b38ab0ebf3ab9675a3",
+      "swapId": "c267738f1cd6064a25b931460fac8f66",
       "maxPremium": 50000
     }
   }

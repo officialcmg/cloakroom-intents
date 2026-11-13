@@ -78,6 +78,8 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | The stipend is 0.03 NEAR, not 0.01. NEAR accepts a transaction only if the sender holds about 10 times the gas cost. With 0.01 NEAR the taker's commit is rejected. The real cost of commit and claim is about 0.002 NEAR. Measured in `contracts/near-escrow` sandbox tests. |
 | 2026-11-13 | The maker pays in advance for the storage of its swaps in the escrow. The escrow has `add_storage_funds`. Without this, any account could fill the escrow's storage. |
 | 2026-11-13 | The maker sends a NEAR stipend to the taker's new key. The taker submits the commit and the claim. No relayer is necessary. Tested in `experiments/intents-sandbox`. |
+| 2026-11-13 | On local and testnet networks, NEAR Intents has no 1Click. There the app signs one transfer from NEAR Intents to a NEAR account that the user gives. The maker sends that transfer and pays its gas. The stipend cannot pay for it: the transfer needs 40 Tgas, and the rest of the stipend pays for about 25 Tgas. Measured in `crates/zecret-wasm/tests/sandbox.rs`. The maker sends only transfers that its own takers signed. |
+| 2026-11-13 | The recovery file holds the temporary wallet key, key half `a`, the swap seeds, the NEAR key and the swap settings. It is not encrypted. A file saved before the payment is enough: after a restore, the app reads from the chains which messages and payments already went out, and it sends nothing twice. |
 
 **Open**
 

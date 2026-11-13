@@ -56,7 +56,7 @@ window values are examples; choose them from `docs/DESIGN.md` §7 and the measur
     "lightwalletd": "https://zcash-testnet.chainsafe.dev",
     "birthday": 0,
     "near_rpc": "https://rpc.testnet.fastnear.com",
-    "escrow": "escrow.zecret-3f109eea1e.testnet",
+    "escrow": "escrow2.zecret-3f109eea1e.testnet",
     "token": "usdc.zecret-3f109eea1e.testnet",
     "intents": "intents.zecret-3f109eea1e.testnet"
   },
@@ -66,11 +66,48 @@ window values are examples; choose them from `docs/DESIGN.md` §7 and the measur
   "price_per_zec": "940000000",
   "min_zats": 1000000,
   "max_zats": 200000000,
-  "premium_zats": 20000,
+  "premium_zats": 450000,
+  "premium_check": {
+    "yocto_near_per_zec": "10000000000000000000000000",
+    "costs_per_request_yocto": "15000000000000000000000"
+  },
   "stipend": "30000000000000000000000",
   "windows": { "t0_secs": 3600, "t1_secs": 1800, "t2_secs": 1800, "reveal_secs": 600 }
 }
 ```
+
+The escrow is `escrow2.zecret-3f109eea1e.testnet`, the build with the NV-02 fix.
+`escrow.zecret-3f109eea1e.testnet` is retired (`docs/DEPLOY.md`); a taker refuses it,
+because its code hash is not the expected one.
+
+### The premium check
+
+Each accepted request costs the maker the stipend (0.03 NEAR) and some gas and storage.
+The premium is the taker's payment for that. `premium_check` makes the maker refuse to
+start when the premium is worth less than these costs (security review 2, NV2-02;
+`MakerConfig::check_premium` in `crates/zecret-core/src/config.rs`). The rule:
+
+```text
+premium_zats × yocto_near_per_zec / 10^8  ≥  stipend + costs_per_request_yocto
+```
+
+- `yocto_near_per_zec` is the price of 1 ZEC in yoctoNEAR. You set it. Use a low
+  estimate of the real price. The value in the example, 10 NEAR per ZEC, is only an
+  example, not a market price.
+- `costs_per_request_yocto` is the gas and escrow storage of one accepted request,
+  besides the stipend. The default is 0.015 NEAR. Measure it on your network.
+- With the example values: 450,000 zats × 10 NEAR / 10^8 = 0.045 NEAR, and the costs are
+  0.03 + 0.015 = 0.045 NEAR. So 450,000 zats is the smallest premium that passes;
+  449,999 zats is refused (test `premium_below_cost_is_refused`).
+- An earlier version of this example had `premium_zats` 20,000. That passes only if
+  1 ZEC is worth at least 225 NEAR (20,000 × 225 NEAR / 10^8 = 0.045 NEAR).
+- On mainnet (`chains.network` is `main`) the check is required: without
+  `premium_check` the maker does not start. On testnet it runs only when it is set.
+- When the check fails, the error message names the smallest premium that passes.
+
+Takers refuse a quote whose premium is above their own `max_premium`
+(`crates/zecret-node/config/testnet-taker.json` has 2,000 zats). A maker with a higher
+premium needs takers configured for it.
 
 Set `birthday` to a recent Zcash testnet height before the maker's wallet is created.
 Then create the wallet and read its address:
@@ -117,7 +154,9 @@ WantedBy=multi-user.target
 
 ## What to watch
 
-- The maker's NEAR balance: each swap costs about 0.04 NEAR (0.03 stipend, gas).
+- The maker's NEAR balance: each swap costs about 0.04 NEAR (0.03 stipend, gas). Keep
+  about 0.2 NEAR free besides that: NEAR checks that the signer holds the prepaid gas of
+  a 200 Tgas `withdraw` at a pessimistic price (`docs/ENGINE.md`, section 4).
 - Its escrow storage funds (`get_storage_funds`): the daemon tops them up from its NEAR
   (`storage_min`, `storage_topup` in `config.json`).
 - Its token balance and its shielded ZEC balance (`zecret balance --dir D`).
@@ -134,13 +173,12 @@ Checked on 2026-11-13 on the build machine, with the `crates/` code of that time
   reads.
 - `maker` with an empty folder stops with an error (no `config.json`), as expected.
 
-Not working yet, and not fixable from this folder: **the `zecret` binary cannot reach
-`https://` endpoints.** `crates/zecret-node/Cargo.toml` turns reqwest's default features
-off and enables only `blocking`, so reqwest has no TLS backend. Every public endpoint
-the maker needs is HTTPS (the NEAR RPC, the light-wallet server). In the container,
-`zecret balance` against `https://zcash-testnet.chainsafe.dev` failed: reqwest sent the
-`https://` URL as a plain-HTTP proxy request instead of opening a TLS tunnel. The fix
-belongs in `crates/zecret-node`: add a TLS feature to reqwest (for example
-`rustls-tls`) and rebuild the image. The daemon has therefore not run against testnet.
+At that time **the `zecret` binary could not reach `https://` endpoints**: reqwest had
+no TLS backend, and in the container `zecret balance` against
+`https://zcash-testnet.chainsafe.dev` failed. This was fixed later in `crates/zecret-node`:
+its `Cargo.toml` now enables reqwest's `rustls-tls` and `rustls-tls-native-roots`
+features. The native binary (not the container) then ran a full swap on Zcash testnet
+and NEAR testnet over HTTPS (`docs/TESTNET.md`).
 
-Not checked: the systemd unit; a maker run with real swaps on testnet.
+Not checked: the image rebuilt with the TLS fix, and the daemon run in the container
+against testnet; the systemd unit.

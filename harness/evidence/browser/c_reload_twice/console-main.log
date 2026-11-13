@@ -1,0 +1,16 @@
+2026-11-13T06:17:35.037Z [zecret-timing] wasm_load 129
+2026-11-13T06:17:35.079Z [zecret-timing] verify_maker 45
+2026-11-13T06:17:57.925Z [zecret-timing] proving_key_build 21825
+2026-11-13T06:17:57.951Z [zecret-engine] swap 0d6ba49be682fdb61aa24e977a2c743a created: sells 99960000 zats, deposit 100050000 to uregtest1zu5r6qeur58n2terxk2aray3n0g44hw2a8pwt0mw77g0j2xc8gf67ulj4qau3csf2lsyue729vgzcxphruetlw965uj92uupsqgll66z
+2026-11-13T06:17:58.142Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest1zu5r6qeur58n2terxk2aray3n0g44hw2a8pwt0mw77g0j2xc8gf67ulj4qau3csf2lsyue729vgzcxphruetlw965uj92uupsqgll66z
+2026-11-13T06:18:03.821Z [zecret-engine] tick took 4820 ms
+2026-11-13T06:18:35.554Z [zecret-timing] proof_request 30495
+2026-11-13T06:18:35.555Z [zecret-engine] tick took 30487 ms
+2026-11-13T06:18:35.881Z [zecret-engine] encrypted RFQ for 99960000 zats sent to the maker in shielded tx 5178765a91f9d5ecc3f483b868f554b19e53fc932e5329b1db196dbb8823b011
+2026-11-13T06:18:45.052Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+2026-11-13T06:18:45.247Z [zecret-timing] wasm_load 70
+2026-11-13T06:18:45.288Z [zecret-timing] verify_maker 41
+2026-11-13T06:19:06.230Z [zecret-timing] proving_key_build 20472
+2026-11-13T06:19:33.307Z [zecret-timing] proof_accept 47575
+2026-11-13T06:19:33.308Z [zecret-engine] tick took 27071 ms
+2026-11-13T06:19:33.569Z [zecret-engine] encrypted ACCEPT with 50000 zats premium sent in tx 03a05361bd8b8fc01e257c1dd8a5298e63d5af39475a6950d7d02392044634b7; joint address uregtest16qa8akg9vumalj39ssmu4hllw5z3kggavzjxd2whlxw7uef5knt2v7ggd7vdkp4cw2yqgvnuq8e6uxznhyr39e0m605tw76fasmynygu

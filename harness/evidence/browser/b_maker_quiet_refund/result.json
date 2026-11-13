@@ -1,0 +1,156 @@
+{
+  "scenario": "b_maker_quiet_refund",
+  "title": "The maker goes quiet after the funding (never sets Ready) and refunds after t1: the browser reads b, takes the ZEC back from the shared address and returns it to the return address",
+  "checks": [
+    {
+      "check": "the page went recovering -> recovered -> refunding -> refunded",
+      "pass": true,
+      "detail": "awaiting_deposit,deposit_seen,deposit_confirmed,request_sent,quote_received,accepted,escrow_open,funding_sent,funding_confirming,recovering,recovered,refunding,refunded"
+    },
+    {
+      "check": "refund reason MAKER_REFUNDED",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "escrow Refunded, a never published",
+      "pass": true,
+      "detail": "Refunded"
+    },
+    {
+      "check": "the maker got its tokens back",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "the refund sent everything left (pay - premium - 5 fees) to the return address",
+      "pass": true,
+      "detail": "99950000 vs 99950000"
+    },
+    {
+      "check": "the user wallet lost exactly its payment fee + premium + 5 swap fees",
+      "pass": true,
+      "detail": "110000"
+    },
+    {
+      "check": "privacy audit: all 7 Zcash transactions (user payment, browser taker, maker) are fully shielded Ironwood, no transparent or Sapling parts",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "facts": {
+    "timings": {
+      "stages": [
+        {
+          "stage": "awaiting_deposit",
+          "at": "2026-11-13T06:02:50.629Z",
+          "secs": 7.4
+        },
+        {
+          "stage": "deposit_seen",
+          "at": "2026-11-13T06:02:58.049Z",
+          "secs": 0
+        },
+        {
+          "stage": "deposit_confirmed",
+          "at": "2026-11-13T06:02:58.050Z",
+          "secs": 29.4
+        },
+        {
+          "stage": "request_sent",
+          "at": "2026-11-13T06:03:27.411Z",
+          "secs": 7.6
+        },
+        {
+          "stage": "quote_received",
+          "at": "2026-11-13T06:03:35.058Z",
+          "secs": 29.8
+        },
+        {
+          "stage": "accepted",
+          "at": "2026-11-13T06:04:04.861Z",
+          "secs": 9.2
+        },
+        {
+          "stage": "escrow_open",
+          "at": "2026-11-13T06:04:14.026Z",
+          "secs": 28.4
+        },
+        {
+          "stage": "funding_sent",
+          "at": "2026-11-13T06:04:42.409Z",
+          "secs": 1.6
+        },
+        {
+          "stage": "funding_confirming",
+          "at": "2026-11-13T06:04:44.051Z",
+          "secs": 47.7
+        },
+        {
+          "stage": "recovering",
+          "at": "2026-11-13T06:05:31.757Z",
+          "secs": 5.3
+        },
+        {
+          "stage": "recovered",
+          "at": "2026-11-13T06:05:37.020Z",
+          "secs": 0
+        },
+        {
+          "stage": "refunding",
+          "at": "2026-11-13T06:05:37.021Z",
+          "secs": 34.9
+        },
+        {
+          "stage": "refunded",
+          "at": "2026-11-13T06:06:11.937Z",
+          "secs": null
+        }
+      ],
+      "engine": [
+        {
+          "what": "wasm_load",
+          "secs": 0.1
+        },
+        {
+          "what": "verify_maker",
+          "secs": 0
+        },
+        {
+          "what": "proving_key_build",
+          "secs": 20.4
+        },
+        {
+          "what": "proof_request",
+          "secs": 29.1
+        },
+        {
+          "what": "proof_accept",
+          "secs": 28.7
+        },
+        {
+          "what": "proof_fund",
+          "secs": 28.1
+        },
+        {
+          "what": "proof_fund",
+          "secs": 27.5
+        },
+        {
+          "what": "proof_refund",
+          "secs": 31.7
+        }
+      ],
+      "total_secs": 201
+    },
+    "zcash_txs": [
+      "228ccb1364d6b98c7f50c94d0454b6d6910939b2c332308a3b10b7aefaa92a8f",
+      "5bbcf64d564b7c640cdff83301fd17d05be12bb977e4e41f425ab5a864b90a60",
+      "821782d46d970bb81b7d756a9a52b9dc3c6014e447648583b1c85d25148bdfd4",
+      "8acd8ed0b7dd0c5c518c8246c60125d791c4ebcaefe1b4efaef8d8bd8c4fc34d",
+      "bc8b9fdef79443095e11c81d1f0ce3780c8a20c544fb1acecc4de527869323e7",
+      "338015bd677b455de408ef8470269147b5fcf5872488e9383a0e472d3c4b89a5",
+      "f4bcd259ede3d9f61cbf1ed4106b14df7d51ab4131581018f61bf29d9313882a"
+    ]
+  }
+}
