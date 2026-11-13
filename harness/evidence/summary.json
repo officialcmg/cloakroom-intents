@@ -1,86 +1,14 @@
 {
   "s1": {
     "pass": true,
-    "seconds": 82
-  },
-  "s2": {
-    "pass": true,
-    "seconds": 50
-  },
-  "s3": {
-    "pass": true,
-    "seconds": 68
-  },
-  "s4": {
-    "pass": true,
-    "seconds": 71
-  },
-  "s5": {
-    "pass": true,
-    "seconds": 26
-  },
-  "s6": {
-    "pass": true,
-    "seconds": 67
-  },
-  "s8": {
-    "pass": true,
-    "seconds": 67
-  },
-  "s9": {
-    "pass": true,
-    "seconds": 71
-  },
-  "s10": {
-    "pass": true,
-    "seconds": 74
-  },
-  "s11": {
-    "pass": true,
-    "seconds": 57
-  },
-  "s12": {
-    "pass": true,
-    "seconds": 258
-  },
-  "s15": {
-    "pass": true,
-    "seconds": 16
-  },
-  "s16": {
-    "pass": true,
-    "seconds": 28
-  },
-  "s17": {
-    "pass": true,
-    "seconds": 31
-  },
-  "s18": {
-    "pass": true,
-    "seconds": 65
-  },
-  "s19": {
-    "pass": true,
-    "seconds": 50
-  },
-  "s20": {
-    "pass": true,
-    "seconds": 52
-  },
-  "s21": {
-    "pass": true,
-    "seconds": 50
+    "seconds": 69
   },
   "s22": {
     "pass": true,
-    "seconds": 41
+    "seconds": 36
   },
   "s23": {
     "pass": true,
-    "seconds": 94
-  },
-  "s7": {
-    "pass": true,
-    "seconds": 69
+    "seconds": 89
   }
 }
