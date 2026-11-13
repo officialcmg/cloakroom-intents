@@ -30,6 +30,12 @@ zecret devnet    --rpc URL --root-key validator_key.json --wasm-dir DIR \
 ```
 
 - `maker` runs until stopped (or until `N` swaps are terminal with `--exit-after`).
+- `--relay HOST:PORT` (local network and testnet; refused on mainnet) serves
+  `POST /execute-intents` for the direct exit (`src/relay.rs`). It pays `execute_intents`
+  only for one `ft_withdraw` of the maker's token, for at most the swap's price, signed by
+  the taker of a swap that paid out; at most 3 transactions per swap (counted in
+  `D/relay/<swap id>.json`) and 6 requests a minute per address. Each request must arrive
+  within 5 s and 70 KiB; 4 threads serve, and a busy relay answers 503 (security review 3).
 - `taker` starts a swap of `N` zatoshis, or resumes the one in its directory, and exits when
   it is terminal.
 - `--vanish-at STAGE` exits when a swap reaches `STAGE`, with its state stored; running the

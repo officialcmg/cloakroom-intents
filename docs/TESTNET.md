@@ -258,6 +258,13 @@ NEAR) came from the maker's storage funds.
    stage at `Quoting` until the next tick broadcasts; in that tick the note is reserved,
    `spendable` is 0, and the check at `maker.rs:333-339` fires. The maker had 1 TAZ. The
    quote went out normally.
+   Status of items 1 to 3 after this run: the maker now answers a request it does not
+   quote with a signed refusal memo, publishes its limits in its signed directory entry,
+   and the taker checks them before it sends anything; the taker no longer tries a
+   `withdraw` it cannot pay for and reports `PayoutPending` with the call if the maker
+   does not send it; the false warning is gone; the testnet configs now use the measured
+   block times. See `docs/security/fixes-2-taker.md` sections 6 to 8. None of this was
+   run on testnet again.
 4. The deploy tool was not built (disk space), so `zecret-deploy maker-key` was not run;
    the same file was written by a short script (step 2).
 

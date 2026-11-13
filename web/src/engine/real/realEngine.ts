@@ -16,6 +16,7 @@
 // so nothing leaves this browser that storage does not already hold.
 import {
   EngineError,
+  STAGES,
   TERMINAL_STAGES,
   type Activity,
   type CreateSwapParams,
@@ -37,8 +38,8 @@ import { parseDirectory, type MakerDirectory, type MakerTerms } from '../../lib/
 import { validateZcashReturnAddress } from '../../lib/address/zcash';
 import { validateDestinationAddress } from '../../lib/address/chains';
 import { paymentUri } from '../../lib/zip321';
-import { coreNetwork, explorerUrl, type NetworkConfig } from '../../lib/netconfig';
-import type { RecordStore } from './idb';
+import { coreNetwork, explorerUrl, safeLink, type NetworkConfig } from '../../lib/netconfig';
+import { StaleWriteError, type RecordStore } from './idb';
 import { abortReason, coreStageName, loadWasm, type CoreEvent, type CoreSwap, type WasmModule, type WasmTaker } from './wasm';
 
 const STATE = 'web/state';
@@ -92,6 +93,7 @@ const DEADLINE_STAGES: Stage[] = ['funding_sent', 'funding_confirming', 'ready',
 const ORDER: Stage[] = [...PRE_FUNDING, 'funding_sent', 'funding_confirming', 'ready', 'committing', 'claiming', 'claimed', 'paid_out', 'exiting', 'done'];
 
 const isUint = (s: unknown) => typeof s === 'string' && /^\d+$/.test(s);
+const NEAR_ACCOUNT = /^(?=.{2,64}$)[a-z0-9]+([-_][a-z0-9]+)*(\.[a-z0-9]+([-_][a-z0-9]+)*)*$/;
 const now = () => Date.now();
 const secs = () => Math.floor(Date.now() / 1000);
 const log = (...a: unknown[]) => console.log('[zecret-engine]', ...a);
@@ -118,12 +120,23 @@ export class RealEngine implements EngineBackend {
   private lastPayout?: Extract<CoreEvent, { type: 'payout' }>;
   private provingSince?: { what: string; at: number };
   private directCheckSince?: number;
+  /** Since when the taker's Verifier balance reads 0 in the direct exit's `delivering`. */
+  private directEmptySince?: number;
+  /**
+   * Records a failed write did not store (review 3, H1). Until they are written, the engine
+   * calls nothing in the core: every call first retries this write.
+   */
+  private unsaved: Map<string, string> | null = null;
+  /** The engine stopped for good in this worker: another tab writes, or the WebAssembly trapped. */
+  private halted?: { code: 'OTHER_TAB' | 'ENGINE_CRASHED'; message: string };
   private readonly store: RecordStore;
   private readonly base: string;
+  private readonly load: (base: string) => Promise<WasmModule>;
 
-  constructor(store: RecordStore, base = '/') {
+  constructor(store: RecordStore, base = '/', load: (base: string) => Promise<WasmModule> = loadWasm) {
     this.store = store;
     this.base = base;
+    this.load = load;
   }
 
   attach(emit: (event: EngineEvent) => void): void {
@@ -132,9 +145,17 @@ export class RealEngine implements EngineBackend {
 
   // ------------------------------------------------------------ plumbing
 
-  /** Runs engine work one piece at a time. Calls from the page and loop steps share it. */
+  /**
+   * Runs engine work one piece at a time. Calls from the page and loop steps share it.
+   * Before any work: a stopped engine refuses, and records a failed write left behind are
+   * written first; if that write fails again, nothing else runs (review 3, H1).
+   */
   private run<T>(fn: () => Promise<T>): Promise<T> {
-    const p = this.queue.then(fn);
+    const p = this.queue.then(async () => {
+      if (this.halted) throw new EngineError(this.halted.code, this.halted.message);
+      if (this.unsaved) await this.persist();
+      return fn();
+    });
     this.queue = p.catch(() => undefined);
     return p;
   }
@@ -143,8 +164,44 @@ export class RealEngine implements EngineBackend {
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = undefined;
-      void this.run(() => this.step());
+      // A refused step (storage still failing) tries again; a halted engine stays stopped.
+      this.run(() => this.step()).catch(() => !this.halted && this.schedule(5_000));
     }, Math.max(0, ms));
+  }
+
+  /** Stops this worker's engine for good and tells the page (which may start a new worker). */
+  private halt(code: 'OTHER_TAB' | 'ENGINE_CRASHED', message: string): EngineError {
+    if (!this.halted) {
+      this.halted = { code, message };
+      if (this.timer !== undefined) clearTimeout(this.timer);
+      this.timer = undefined;
+      this.emitWire({ type: 'error', error: { code, message } });
+    }
+    return new EngineError(code, message);
+  }
+
+  /**
+   * Wraps a WebAssembly object so that a trap (a Rust panic: `RuntimeError: unreachable`)
+   * stops this engine at once, and no later call reaches the trapped instance, also on
+   * paths that catch errors and retry (review 3, H6).
+   */
+  private guardWasm<T extends object>(target: T): T {
+    return new Proxy(target, {
+      get: (t, key) => {
+        const v = Reflect.get(t, key, t);
+        // Classes (WasmTaker) are constructed, not called; their instances are wrapped in openTaker.
+        if (typeof v !== 'function' || (typeof key === 'string' && /^[A-Z]/.test(key))) return v;
+        return (...args: unknown[]) => {
+          if (this.halted?.code === 'ENGINE_CRASHED') throw new EngineError('ENGINE_CRASHED', this.halted.message);
+          try {
+            return (v as (...a: unknown[]) => unknown).apply(t, args);
+          } catch (e) {
+            if (e instanceof WebAssembly.RuntimeError) throw this.halt('ENGINE_CRASHED', `The WebAssembly engine stopped (${e.message}). The page restarts it from the stored swap.`);
+            throw e;
+          }
+        };
+      },
+    });
   }
 
   private need(): { wasm: WasmModule; cfg: NetworkConfig; terms: MakerTerms } {
@@ -167,15 +224,27 @@ export class RealEngine implements EngineBackend {
   }
 
   private async persist(extra: [string, string][] = []): Promise<void> {
-    const entries: [string, string][] = [...extra];
+    // Records of an earlier failed write go first, so none is lost (review 3, H1).
+    const pending = new Map(this.unsaved ?? []);
+    for (const [k, v] of extra) pending.set(k, v);
+    const entries: [string, string][] = [...pending];
     if (this.state) entries.push([STATE, JSON.stringify(this.state)]);
     if (this.meta) entries.push([META, JSON.stringify(this.meta)]);
     try {
       await this.store.putAll(entries);
     } catch (e) {
-      this.emitWire({ type: 'error', error: { code: 'STORAGE', message: `This browser refused to store the swap: ${(e as Error).message}. Keep this tab open and save the recovery file.` } });
-      throw e;
+      if (e instanceof StaleWriteError) throw this.halt('OTHER_TAB', 'Another tab of this browser changed this swap after this tab loaded it. This tab stopped; use the other tab, or reload this one.');
+      const first = this.unsaved === null;
+      this.unsaved = pending;
+      if (first) {
+        this.emitWire({
+          type: 'error',
+          error: { code: 'STORAGE', transient: true, message: `This browser refused to store the swap: ${(e as Error).message}. The engine waits and tries the write again.` },
+        });
+      }
+      throw new EngineError('STORAGE', `The swap could not be stored: ${(e as Error).message}`, true);
     }
+    this.unsaved = null;
   }
 
   /** Writes the core's changed records; resolves when they are durable. */
@@ -211,7 +280,8 @@ export class RealEngine implements EngineBackend {
   }
 
   private blockMs(): number {
-    return this.cfg!.network === 'regtest' ? 5_000 : 75_000;
+    // Zcash testnet blocks come about every 20 s since NU7 (measured; docs/security/fixes-2-taker.md).
+    return this.cfg!.network === 'regtest' ? 5_000 : this.cfg!.network === 'testnet' ? 25_000 : 75_000;
   }
 
   /** A "waiting" activity for stages where the swap waits on a chain or the maker. */
@@ -270,6 +340,8 @@ export class RealEngine implements EngineBackend {
         near_account: d.maker.nearAccount,
         near_pk: d.maker.nearPublicKey,
         sig: d.signature,
+        // The maker's limits, covered by the signature when present (`zecret directory`).
+        ...(d.maker.signedLimits ? { limits: d.maker.signedLimits } : {}),
       },
       escrow_code_hash: cfg.near.escrowCodeHash,
       min_price: '0',
@@ -285,8 +357,9 @@ export class RealEngine implements EngineBackend {
     const { wasm } = this.need();
     this.taker?.free();
     try {
-      this.taker = new wasm.WasmTaker(this.coreConfig(this.meta!), JSON.stringify(records));
+      this.taker = this.guardWasm(new wasm.WasmTaker(this.coreConfig(this.meta!), JSON.stringify(records)));
     } catch (e) {
+      if (e instanceof EngineError) throw e;
       throw new EngineError('INTERNAL', `The engine could not open the swap: ${(e as Error).message}`);
     }
     this.taker.setMaxPremium(this.meta!.maxPremium);
@@ -324,7 +397,7 @@ export class RealEngine implements EngineBackend {
       this.terms = parsed.terms;
       try {
         const t = now();
-        this.wasm = await loadWasm(this.base);
+        this.wasm = this.guardWasm(await this.load(this.base));
         timing('wasm_load', now() - t);
       } catch (e) {
         throw new EngineError('INIT_FAILED', `The WebAssembly engine did not load: ${(e as Error).message}`);
@@ -422,7 +495,7 @@ export class RealEngine implements EngineBackend {
         destination = { ...d, address: dest.address };
       } else {
         const acct = params.directExit?.nearAccount?.trim() ?? '';
-        if (!/^(?=.{2,64}$)[a-z0-9]+([-_][a-z0-9]+)*(\.[a-z0-9]+([-_][a-z0-9]+)*)*$/.test(acct))
+        if (!NEAR_ACCOUNT.test(acct))
           throw new EngineError('INVALID_ADDRESS', 'Enter the NEAR account that receives the tokens on this network, for example alice.testnet.');
       }
       let returnAddress = params.returnAddress;
@@ -547,11 +620,19 @@ export class RealEngine implements EngineBackend {
         throw new EngineError('RECOVERY_INVALID', 'The keys in this file are incomplete.');
       if (this.state && this.state.id === file.swapId) return this.state;
       if (this.state && !TERMINAL_STAGES.includes(this.state.stage)) throw new EngineError('SWAP_EXISTS', 'This browser has another swap in progress. Finish it first.');
+      // The page state in the file is not trusted (review 3, H2): its addresses are checked
+      // again as createSwap checks them, and the payment address and link are computed from
+      // the file's wallet key below.
+      const restored = this.checkRestoredState(web.state, web.meta, file.swapId);
       if (this.state) await this.wipe();
       this.meta = { ...web.meta, restoreHeight: undefined, restoreDone: false };
-      this.state = { ...web.state, activity: null, recoveryExportedAt: now() };
+      this.state = { ...restored, activity: null, recoveryExportedAt: now(), restoredAt: now() };
       const core = Object.entries(records);
       const taker = this.openTaker(core);
+      const ua = taker.ua();
+      const d = this.state.deposit;
+      const rest = BigInt(d.expectedZats) - BigInt(d.receivedZats);
+      this.state = { ...this.state, deposit: { ...d, address: ua, uri: paymentUri(ua, rest > 0n ? rest : BigInt(d.expectedZats)) } };
       await this.persist(core);
       try {
         this.meta.restoreHeight = taker.sync();
@@ -565,6 +646,39 @@ export class RealEngine implements EngineBackend {
       this.schedule(0);
       return this.state;
     });
+  }
+
+  /** The page state of a recovery file, checked as createSwap checks its parameters. */
+  private checkRestoredState(st: SwapState, meta: Meta, swapId: string): SwapState {
+    const { wasm, cfg } = this.need();
+    const bad = (why: string) => new EngineError('RECOVERY_INVALID', `The swap settings in this file are not valid: ${why}.`);
+    if (meta.swapId !== swapId || typeof meta.maxPremium !== 'number' || !Number.isSafeInteger(meta.maxPremium) || meta.maxPremium < 0) throw bad('the engine record does not match');
+    if (!STAGES.includes(st.stage)) throw bad('unknown stage');
+    const p = st.params;
+    if (!p || !isUint(p.amountZats) || !isUint(p.minUsdc) || !isUint(p.minDestinationAmount)) throw bad('amounts');
+    if (!st.deposit || !isUint(st.deposit.expectedZats) || !isUint(st.deposit.receivedZats) || st.deposit.expectedZats !== p.amountZats) throw bad('the deposit');
+    const d = p.destination;
+    if (!d || !d.assetId || !d.chain || !Number.isInteger(d.decimals)) throw bad('the destination');
+    let destination = d;
+    let directExit = p.directExit;
+    if (cfg.exit.mode === 'oneclick') {
+      const r = validateDestinationAddress(d.chain, d.address);
+      if (!r.ok) throw new EngineError('INVALID_ADDRESS', `The destination address in this file is not valid: ${r.reason}`);
+      destination = { ...d, address: r.address };
+    } else {
+      const acct = p.directExit?.nearAccount?.trim() ?? '';
+      if (!NEAR_ACCOUNT.test(acct)) throw new EngineError('INVALID_ADDRESS', 'The NEAR account in this file is not valid.');
+      directExit = { nearAccount: acct };
+    }
+    let returnAddress = p.returnAddress;
+    if (returnAddress) {
+      const r = validateZcashReturnAddress(returnAddress, cfg.network);
+      if (!r.ok || !wasm.checkAddress(r.address, coreNetwork(cfg.network))) throw new EngineError('INVALID_ADDRESS', 'The return address in this file is not valid.');
+      returnAddress = r.address;
+    }
+    // Links from the file are kept only when they are https.
+    const txs = (st.txs ?? []).map((t) => ({ ...t, url: safeLink(t.url) }));
+    return { ...st, id: swapId, engine: 'wasm', network: cfg.network, params: { ...p, destination, directExit, returnAddress }, txs };
   }
 
   // ------------------------------------------------------------ exit and forget
@@ -635,7 +749,10 @@ export class RealEngine implements EngineBackend {
       delay = await this.stepInner();
     } catch (e) {
       log('step failed', e);
-      if (this.state) await this.emit({ type: 'error', swapId: this.state.id, error: { code: 'INTERNAL', message: (e as Error).message } }).catch(() => undefined);
+      if (this.halted) return;
+      // A failed write already told the page (STORAGE); the next step retries it first.
+      if (this.state && !(e instanceof EngineError && e.code === 'STORAGE'))
+        await this.emit({ type: 'error', swapId: this.state.id, error: { code: 'INTERNAL', message: (e as Error).message } }).catch(() => undefined);
       delay = 5_000;
     }
     if (delay !== null && this.state) this.schedule(delay);
@@ -806,6 +923,17 @@ export class RealEngine implements EngineBackend {
         return this.stage('claiming', { addTxs });
       case 'Claimed':
         return this.stage('claimed', { addTxs });
+      case 'PayoutPending':
+        // The claim is final, but the maker has not sent `withdraw` (the stipend cannot pay
+        // its gas). The core's `payout_pending` event and log name the call; any NEAR
+        // account can send it. The page stays on `claimed` and says so.
+        if (!this.reached('claimed')) await this.stage('claimed', { addTxs });
+        return this.activity({
+          kind: 'waiting',
+          label: `Claimed. The payout is pending: the maker has not sent withdraw. Any NEAR account can send it: call ${this.cfg!.near.escrow} withdraw for the owner ${core?.taker_account ?? ''} with 200 Tgas.`,
+          startedAt: now(),
+          estimatedMs: 60_000,
+        });
       case 'Completed': {
         const p = this.lastPayout;
         return this.stage('paid_out', {
@@ -825,6 +953,17 @@ export class RealEngine implements EngineBackend {
         return this.stage('refunding', { needs: s.params.returnAddress ? null : 'return_address' });
       case 'Aborted': {
         const why = core ? abortReason(core.stage) : '';
+        // `MAKER REFUSED (<code>): <reason>`: the maker answered with a signed refusal (over
+        // its limit, under its minimum, busy, unsupported). Shown on the existing
+        // MAKER_CHECK_FAILED screen with the maker's reason.
+        if (why.startsWith('MAKER REFUSED')) {
+          return this.stage('refunding', {
+            refund: { reason: 'MAKER_CHECK_FAILED' },
+            lastError: { code: 'MAKER_CHECK_FAILED', message: `The maker refused the request: ${why.replace(/^MAKER REFUSED \([a-z_]+\): /, '').replace(/; nothing was funded$/, '')}. Nothing was funded and no premium was paid` },
+            needs: this.state!.params.returnAddress ? null : 'return_address',
+            addTxs,
+          });
+        }
         const code: ErrorCode = why.startsWith('QUOTE REJECTED: price')
           ? 'QUOTE_BELOW_MINIMUM'
           : why.includes('no quote before the timeout') || why.includes('never opened the escrow')
@@ -889,7 +1028,7 @@ export class RealEngine implements EngineBackend {
   private async catchUp(core: CoreSwap): Promise<void> {
     const s = this.state!;
     const name = coreStageName(core.stage);
-    const target: Partial<Record<string, Stage>> = { RfqSent: 'request_sent', Accepted: 'accepted', Funded: 'funding_sent', Committed: 'committing', Revealed: 'claiming', Claimed: 'claimed' };
+    const target: Partial<Record<string, Stage>> = { RfqSent: 'request_sent', Accepted: 'accepted', Funded: 'funding_sent', Committed: 'committing', Revealed: 'claiming', Claimed: 'claimed', PayoutPending: 'claimed' };
     const want = target[name];
     const patch: SwapPatch = { addTxs: [] };
     if (core.quote && !s.quote) patch.quote = { usdc: this.toMicro(core.quote.price), premiumZats: String(core.quote.premium), expiresAt: now() };
@@ -1076,6 +1215,18 @@ export class RealEngine implements EngineBackend {
     const got = BigInt(this.taker!.tokenBalance(receiver)) - BigInt(m.directBefore ?? '0');
     if (got < BigInt(plan.amount)) {
       const left = this.taker!.intentsBalance(s.payout?.intentsAccount ?? plan.signerId);
+      // A receiver that moves the tokens on at once (an exchange) never shows the rise
+      // (review 3, H5). The relay reported the intent executed (or its nonce used), and a
+      // failed ft_transfer is refunded into the Verifier within a few blocks: a zero
+      // balance that stays zero for 15 s at final blocks means the tokens left.
+      if (left === '0') {
+        this.directEmptySince ??= now();
+        if (now() - this.directEmptySince < 15_000) return 3_000;
+        this.directEmptySince = undefined;
+        log(`direct exit: the receiver's balance did not rise by ${plan.amount}, and the taker's Verifier balance is 0: delivered`);
+        return this.directDone(plan, receiver);
+      }
+      this.directEmptySince = undefined;
       // Views read final blocks, which trail the executed transaction by a few seconds.
       this.directCheckSince ??= now();
       if (left === plan.amount && now() - this.directCheckSince > 30_000) {
@@ -1086,9 +1237,14 @@ export class RealEngine implements EngineBackend {
       }
       return 3_000;
     }
+    return this.directDone(plan, receiver);
+  }
+
+  private async directDone(plan: DirectPlan, receiver: string): Promise<number> {
+    const s = this.state!;
     await this.stage('done', {
       exit: { phase: 'done', deliveredAmount: plan.amount },
-      addTxs: [{ ...this.nearTx('delivery', `${cfg.near.tokenSymbol} sent to ${receiver}`, s.txs.find((t) => t.id === `exit-${s.exit?.attempts}`)?.hash ?? plan.intentHash) }],
+      addTxs: [{ ...this.nearTx('delivery', `${this.cfg!.near.tokenSymbol} sent to ${receiver}`, s.txs.find((t) => t.id === `exit-${s.exit?.attempts}`)?.hash ?? plan.intentHash) }],
     });
     return 0;
   }
@@ -1113,6 +1269,9 @@ export class RealEngine implements EngineBackend {
     const base = cfg.exit.oneClickUrl;
     const exit = s.exit!;
     if (exit.phase === 'quoting') {
+      // An earlier signed exit may have delivered although its submit answer was lost
+      // (review 3, H4): look at every deposit address signed for before a new quote.
+      if (await this.earlierExitDelivered(wasm, base)) return 0;
       const r = parse<WasmResult<NonNullable<Meta['exitQuote']>>>(wasm.exitQuote(base, JSON.stringify(this.approval(cfg)), now()));
       if (!r.ok) {
         if (r.error.code === 'EXIT_NO_QUOTE') {
@@ -1138,6 +1297,11 @@ export class RealEngine implements EngineBackend {
         return 0;
       }
       await this.activity({ kind: 'signing', label: 'Checking the delivery request and signing it with your key', startedAt: now(), estimatedMs: 3_000 });
+      // Recorded before the submit, so that a lost answer still leaves the address to poll (review 3, H4).
+      if (!(m.signedDeposits ?? []).includes(m.exitQuote.depositAddress)) {
+        m.signedDeposits = [...(m.signedDeposits ?? []), m.exitQuote.depositAddress];
+        await this.persist();
+      }
       const r = parse<WasmResult<{ intentHash: string; depositAddress: string }>>(wasm.exitSubmit(base, this.nearSeed(), JSON.stringify(this.approval(cfg)), JSON.stringify(m.exitQuote.raw), now()));
       if (!r.ok) {
         if (r.error.transient) return 10_000;
@@ -1149,7 +1313,7 @@ export class RealEngine implements EngineBackend {
         return this.exitFailed(r.error);
       }
       m.exitSubmitted = r.value;
-      m.signedDeposits = [...(m.signedDeposits ?? []), r.value.depositAddress];
+      if (!(m.signedDeposits ?? []).includes(r.value.depositAddress)) m.signedDeposits = [...(m.signedDeposits ?? []), r.value.depositAddress];
       await this.persist();
       await this.stage('exiting', { exit: { phase: 'submitted', intentHash: r.value.intentHash }, addTxs: [this.nearTx(`exit-${exit.attempts}`, 'Exit intent signed and submitted', r.value.intentHash)] });
       return 3_000;
@@ -1159,19 +1323,39 @@ export class RealEngine implements EngineBackend {
     const r = parse<WasmResult<{ status: string; isFinal: boolean; amountOut?: string; destinationTxs: { hash: string; url?: string }[] }>>(wasm.exitStatus(base, deposit));
     if (!r.ok) return 10_000;
     const st = r.value;
+    if (st.status === 'SUCCESS') return this.exitDelivered(st, exit.amountOut);
+    // Another address this swap signed for may be the one that delivered (review 3, H4).
+    if (await this.earlierExitDelivered(wasm, base, deposit)) return 0;
     if (!st.isFinal) {
       if (exit.phase !== 'delivering') await this.stage('exiting', { exit: { phase: 'delivering' } });
       return 5_000;
     }
-    if (st.status === 'SUCCESS') {
-      await this.stage('done', {
-        exit: { phase: 'done', deliveredAmount: st.amountOut ?? exit.amountOut },
-        addTxs: st.destinationTxs.map((t, i) => ({ id: i === 0 ? 'delivery' : `delivery-${i}`, chain: 'destination' as const, label: `${s.params.destination.symbol} delivered`, hash: t.hash, url: t.url, at: now() })),
-      });
-      return 0;
-    }
     m.exitQuote = undefined;
     m.exitSubmitted = undefined;
     return this.exitFailed({ code: 'EXIT_FAILED', message: `NEAR Intents reported ${st.status}. The USDC is back under your key.` }, st.status === 'REFUNDED' ? 'refunded' : 'failed');
+  }
+
+  private async exitDelivered(st: { amountOut?: string; destinationTxs: { hash: string; url?: string }[] }, amountOut?: string): Promise<number> {
+    const s = this.state!;
+    await this.stage('done', {
+      exit: { phase: 'done', deliveredAmount: st.amountOut ?? amountOut },
+      // 1Click's explorer links become links on the page: https only (review 3, H3).
+      addTxs: st.destinationTxs.map((t, i) => ({ id: i === 0 ? 'delivery' : `delivery-${i}`, chain: 'destination' as const, label: `${s.params.destination.symbol} delivered`, hash: t.hash, url: safeLink(t.url), at: now() })),
+    });
+    return 0;
+  }
+
+  /** True (and the swap is done) when a deposit address signed for earlier, other than `skip`, reports SUCCESS. */
+  private async earlierExitDelivered(wasm: WasmModule, base: string, skip?: string): Promise<boolean> {
+    for (const addr of this.meta!.signedDeposits ?? []) {
+      if (addr === skip) continue;
+      const r = parse<WasmResult<{ status: string; isFinal: boolean; amountOut?: string; destinationTxs: { hash: string; url?: string }[] }>>(wasm.exitStatus(base, addr));
+      if (r.ok && r.value.status === 'SUCCESS') {
+        log(`exit: the earlier deposit address ${addr} delivered`);
+        await this.exitDelivered(r.value);
+        return true;
+      }
+    }
+    return false;
   }
 }

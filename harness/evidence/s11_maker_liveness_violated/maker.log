@@ -1,26 +1,16 @@
 
 ===== start maker --vanish-at Opened =====
-[maker 1794548914] up: UA uregtest1rqd9nca8xrj0pe2hxzzu4ccy7zww8dmdn5u6yhwuktqw9kdqx5mxslsyg6ycj5ksmpnslnemzjlyan2w7m3nyqvn9flpxrl3nqz5zrvq NEAR maker.test.near key ed25519:5LjziZsctzBGb8C4ZD3itW76Kr17HECZSkBm27CjBcME
-[maker 1794548925] 4fe108d9 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
-[maker 1794548925] 4fe108d9 stage Quoting
-[maker 1794548925]  transient: requests wait for a quote, but the wallet has 0 spendable zats, less than a quote fee (10000)
-[maker 1794548925] {"type":"zcash_tx","swap":"4fe108d901f6656b925489904df32950","what":"quote","txid":"c6ad081d2b76c899e00d494cdf394af51187915ea00eebb6758b3ddbdd4576de"}
-[maker 1794548925] 4fe108d9 encrypted QUOTE sent in tx c6ad081d2b76c899e00d494cdf394af51187915ea00eebb6758b3ddbdd4576de
-[maker 1794548925] 4fe108d9 stage Quoted
-[maker 1794548929] 4fe108d9 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id c3413ba7
-[maker 1794548929] 4fe108d9 stage Opening
-[maker 1794548935] {"type":"near_tx","swap":"4fe108d901f6656b925489904df32950","what":"open","hash":"D95WcDJr62KFKhxTDtDP3SUmWeH8v545PZEvdMShNsod"}
-[maker 1794548935] 4fe108d9 escrow OPEN id c3413ba7bf1145259400567a6457fd07b30b4d3a55ef1e0ee11b7461735ddb16 amount 30000000000000000000000000 t0=1794549430 t1=1794549490 t2=1794549550 W=45, tx D95WcDJr62KFKhxTDtDP3SUmWeH8v545PZEvdMShNsod
-[maker 1794548935] {"type":"near_tx","swap":"4fe108d901f6656b925489904df32950","what":"stipend","hash":"GUbDVkXtde5qFcyfZkxS23ZU4gb7oSaFkDKJSDP9NZzj"}
-[maker 1794548935] 4fe108d9 STIPEND of 30000000000000000000000 yoctoNEAR sent to b84a318bc7da5f93a0b86550b080f988620db2ee8c21416699bab5c2a6459cf5, tx GUbDVkXtde5qFcyfZkxS23ZU4gb7oSaFkDKJSDP9NZzj
-[maker 1794548935] 4fe108d9 stage Opened
-[maker 1794548935] VANISH at stage Opened (process exits; state is stored)
-
-===== start maker --exit-after 1 =====
-[maker 1794548953] up: UA uregtest1rqd9nca8xrj0pe2hxzzu4ccy7zww8dmdn5u6yhwuktqw9kdqx5mxslsyg6ycj5ksmpnslnemzjlyan2w7m3nyqvn9flpxrl3nqz5zrvq NEAR maker.test.near key ed25519:5LjziZsctzBGb8C4ZD3itW76Kr17HECZSkBm27CjBcME
-[maker 1794548958] {"type":"near_tx","swap":"4fe108d901f6656b925489904df32950","what":"withdraw","hash":"6B8nVPA8KdypiYkc4fH417Y15jxyg16QSaVohGVKXfhT"}
-[maker 1794548958] 4fe108d9 withdraw for the taker into intents.near, tx 6B8nVPA8KdypiYkc4fH417Y15jxyg16QSaVohGVKXfhT (executed)
-[maker 1794548958] 4fe108d9 stage Aborted
-[maker 1794548958] 4fe108d9 CLAIMED via the punish path, but no joint note exists: the maker was offline for all of [t1, t2) (assumption L_M violated) and lost the escrowed tokens
-[maker 1794548958] 4fe108d9 DONE Aborted
-[maker 1794548958] 1 swap(s) terminal; exiting
+[maker 1794560627] up: UA uregtest19u0cyjcjxw22md48e6sheszq5jg3cu7yx7cgnlxcjc3u5gtu734g5a4xcd38dmg6e6fpxf6y4yl894xg6mv8964lv2rjnlzcpc8qwuxz NEAR maker.test.near key ed25519:3jvBFbxDGs7bHfQk4zVwAKDZP3oJGozuhcioE1MD6icp
+[maker 1794560646] bc9e71dc RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794560646] bc9e71dc stage Quoting
+[maker 1794560646] {"type":"zcash_tx","swap":"bc9e71dc10d64c1add7aacb842951a07","what":"quote","txid":"ca4269b58ec1286e09319d048249b399de4b3d3ac5daa11f8abb00bb3ec3bf03"}
+[maker 1794560646] bc9e71dc encrypted QUOTE sent in tx ca4269b58ec1286e09319d048249b399de4b3d3ac5daa11f8abb00bb3ec3bf03
+[maker 1794560646] bc9e71dc stage Quoted
+[maker 1794560652] bc9e71dc ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id 41309207
+[maker 1794560652] bc9e71dc stage Opening
+[maker 1794560658] {"type":"near_tx","swap":"bc9e71dc10d64c1add7aacb842951a07","what":"open","hash":"HyUxJk8Dfo9SEkKwZa36xw1t7K5DQ37x3A5iF3ypXfx6"}
+[maker 1794560658] bc9e71dc escrow OPEN id 413092071d929c6e37fd81ba5b9c21d0d33ae0e7fb4d515c7ca995cb39e32b74 amount 30000000000000000000000000 t0=1794561671 t1=1794561731 t2=1794561791 W=45, tx HyUxJk8Dfo9SEkKwZa36xw1t7K5DQ37x3A5iF3ypXfx6
+[maker 1794560658] {"type":"near_tx","swap":"bc9e71dc10d64c1add7aacb842951a07","what":"stipend","hash":"4UqYkJ7AxgGBmq9a3Ua8FaNxa3CSTQY8pidkf4uXPZFs"}
+[maker 1794560658] bc9e71dc STIPEND of 30000000000000000000000 yoctoNEAR sent to c584e0e06b19ddcf51288b5259975e7354f0fbfd8d6b6521d6b48270ddb56da7, tx 4UqYkJ7AxgGBmq9a3Ua8FaNxa3CSTQY8pidkf4uXPZFs
+[maker 1794560658] bc9e71dc stage Opened
+[maker 1794560658] VANISH at stage Opened (process exits; state is stored)

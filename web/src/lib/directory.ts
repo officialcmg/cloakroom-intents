@@ -23,6 +23,12 @@ export interface MakerDirectory {
     nearPublicKey?: string;
     /** Version of the request key. The real engine needs it. */
     epoch?: number;
+    /**
+     * The maker's limits as `zecret directory` prints them (zatoshis). When present, the
+     * signature covers them, and the real engine checks a swap against them before it
+     * sends anything. Not read by the page.
+     */
+    signedLimits?: { min_zats: number; max_zats: number; premium_zats: number };
   };
   rate: {
     /** Indicative price: USDC the maker pays for 1 ZEC, as a decimal string. */

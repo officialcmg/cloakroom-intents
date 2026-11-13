@@ -74,6 +74,8 @@ export const ERROR_CODES = [
   'EXIT_REFUSED', // the engine's safety check refused the quote or the generated payload; nothing was signed
   'NETWORK', // a server could not be reached; the engine retries by itself
   'STORAGE', // the browser refused to store the swap
+  'OTHER_TAB', // another tab of this browser runs the swap (its write is newer); this tab stops
+  'ENGINE_CRASHED', // the WebAssembly engine trapped; the page restarts it from the stored swap
   'INTERNAL', // a bug; the message has details
 ] as const;
 
@@ -254,6 +256,8 @@ export interface SwapState {
   /** Deadlines from the quote (Unix ms): until when the maker may set ready, and when the punish path opens. */
   deadlines?: { readyBy: number; punishFrom: number };
   recoveryExportedAt?: number;
+  /** Set when the swap was restored from a recovery file (Unix ms). */
+  restoredAt?: number;
   lastError?: EngineErrorData | null;
 }
 

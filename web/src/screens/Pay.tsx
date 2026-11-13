@@ -195,6 +195,12 @@ export function PayScreen({ swap }: { swap: SwapState }) {
           </div>
         </div>
 
+        {swap.restoredAt !== undefined && (
+          <Notice tone="info" title="Restored from a recovery file">
+            The address and the code above were computed again in this browser from the wallet key in the file.
+          </Notice>
+        )}
+
         {partial && (
           <Notice tone="warn" title={`Received ${formatZec(received)} ZEC of ${formatZec(expected)} ZEC`}>
             The swap starts when the full amount has arrived. The code above asks for the rest.

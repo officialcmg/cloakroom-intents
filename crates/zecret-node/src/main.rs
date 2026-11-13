@@ -159,11 +159,16 @@ fn run_maker(dir: &Path, store: &mut FileStore, args: &[String]) -> Result<()> {
     let exit_after: Option<usize> = arg(args, "--exit-after").map(|s| s.parse()).transpose()?;
     let vanish_at = arg(args, "--vanish-at");
     if let Some(addr) = arg(args, "--relay") {
-        // The direct exit's relay (local network and testnet): see src/relay.rs.
+        // The direct exit's relay (local network and testnet): see src/relay.rs. Mainnet
+        // exits through 1Click; a relay there would only spend the maker's NEAR.
+        if matches!(cfg.chains.network.as_deref(), Some("main") | Some("mainnet")) {
+            bail!("--relay is for the local network and testnet only; on mainnet the exit runs through 1Click");
+        }
         let key = NearKey::from_secret_str(std::str::from_utf8(&store.get(maker::KEY_NEAR)?.ok_or_else(|| anyhow!("no NEAR key in the store"))?)?)?;
         let relay = zecret_node::relay::Relay {
             near_rpc: cfg.chains.near_rpc.clone(),
             verifier: cfg.chains.intents.clone(),
+            token: cfg.chains.token.clone(),
             maker_account: cfg.near_account.clone(),
             key,
             store_dir: dir.to_path_buf(),

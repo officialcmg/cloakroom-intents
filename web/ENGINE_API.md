@@ -19,7 +19,7 @@ from `rpc.ts` with an `EngineBackend` (the `Engine` methods plus `attach(emit)`)
 
 | Engine | When | Worker |
 |---|---|---|
-| Real (`InitStatus.engine: 'wasm'`) | The page has a network configuration: `?config=<name or URL>`, or `VITE_ZECRET_CONFIG` at build time. `?demo=1` overrides both. | `src/engine/real/real.worker.ts` |
+| Real (`InitStatus.engine: 'wasm'`) | The page has a network configuration: `?config=local` or `?config=testnet` (any other name or URL only in a development build or one made with `VITE_ZECRET_ALLOW_CONFIG_URL=1`, with a warning on the page), or `VITE_ZECRET_CONFIG` at build time. `?demo=1` overrides both. | `src/engine/real/real.worker.ts` |
 | Simulated (`'simulated'`) | No configuration: the demo. | `src/engine/sim/sim.worker.ts` |
 
 The network configuration (`src/lib/netconfig.ts`, shipped as `public/config/local.json`
@@ -63,7 +63,7 @@ must emit an `activity` with `estimatedMs` **before** it starts blocking work.
 | `createSwap(params)` | no unfinished swap | Makes the temporary wallet, key half `a` and the NEAR key; **stores them before it returns**; returns the state in `awaiting_deposit` with `deposit.address` and the ZIP 321 `deposit.uri`. Throws `SWAP_EXISTS`, `INVALID_PARAMS`, `INVALID_ADDRESS`. |
 | `setReturnAddress(addr)` | until the refund or leftover is sent | Unified address with an Orchard receiver on the swap's network. Clears `needs: 'return_address'`. |
 | `exportRecovery()` | a swap exists | Returns `{ fileName, mimeType, text }`. Sets `recoveryExportedAt`. The page saves the text as is. |
-| `importRecovery(text)` | no other unfinished swap | Restores and continues the swap. Throws `RECOVERY_INVALID`, `RECOVERY_MISMATCH`, `SWAP_EXISTS`. |
+| `importRecovery(text)` | no other unfinished swap | Restores and continues the swap. The real engine checks the file's addresses as `createSwap` does and computes `deposit.address` and `deposit.uri` from the file's wallet key; it sets `restoredAt`. Throws `RECOVERY_INVALID`, `RECOVERY_MISMATCH`, `SWAP_EXISTS`, `INVALID_ADDRESS`. |
 | `exit(request?)` | `exit_retry` | Runs the exit again from a fresh firm quote. `request.acceptMinimum` lowers the approved minimum to the `minAmountOut` of `exit.offered`, which the user saw and accepted; it can never raise it. In `paid_out` or `exiting` it is a no-op (the engine runs the exit by itself). |
 | `forget()` | before any payment arrives, or after `done` / `refunded` | Deletes the swap and its keys from this browser. Otherwise `WRONG_STAGE`. |
 
@@ -95,6 +95,19 @@ IndexedDB after every call into the WebAssembly and waits for the transaction to
 before the next call; the core never broadcasts or reveals in the call that created the
 record it depends on.
 
+When a write fails, the real engine keeps the records it could not write and emits one
+`error` without `swapId`, code `STORAGE`, `transient: true`. From then on it calls nothing
+in the WebAssembly: every call and every loop step first retries the same write, and a call
+is refused with `STORAGE` while the write fails. The next event after that error means the
+write succeeded.
+
+One tab runs the engine. The page takes the Web Lock `zecret-engine` (demo:
+`zecret-engine-demo`) before it starts the worker. The real engine's store also counts
+writes in `web/version` and refuses a write from a tab whose copy is older; that engine
+then stops and emits `OTHER_TAB`. A WebAssembly trap (`RuntimeError`) stops the engine at
+once, no later call reaches the trapped instance, and the engine emits `ENGINE_CRASHED`;
+the page ends the worker and starts a new one, which resumes from storage.
+
 ### How the real engine makes the website's stages
 
 | Stage | Source |
@@ -107,9 +120,9 @@ record it depends on.
 | `funding_sent` | Core `Funded`. |
 | `funding_confirming` | The wallet's scan height minus the funding's height, up to k_Z. |
 | `ready` | The escrow reads `Ready` at a final block once the funding has k_Z confirmations, or the core commits (not on the punish path). |
-| `committing`, `claiming`, `claimed`, `paid_out` | Core `Committed`, `Revealed`, `Claimed`, `Completed` (with `payout`). `claim.punishPath` from the core's log. |
+| `committing`, `claiming`, `claimed`, `paid_out` | Core `Committed`, `Revealed`, `Claimed`, `Completed` (with `payout`). `claim.punishPath` from the core's log. Core `PayoutPending` (the claim is final, but the maker has not sent `withdraw` within 5 minutes) stays on `claimed` with a `waiting` activity that names the call any NEAR account can send: the escrow's `withdraw` for the taker key, 200 Tgas. |
 | `recovering`, `recovered` | Core `Recovering`, `Recovered`. |
-| `refunding`, `refunded` | After `Recovered` or `Aborted`: `returnLeftover` to the return address; `refunded` once that transaction is mined. |
+| `refunding`, `refunded` | After `Recovered` or `Aborted`: `returnLeftover` to the return address; `refunded` once that transaction is mined. A core `Aborted` reason that starts with `MAKER REFUSED` (the maker's signed refusal memo: over its limit, under its minimum, busy, unsupported) becomes `refund.reason` and `lastError` `MAKER_CHECK_FAILED`, with the maker's reason in the message. |
 | `exiting`, `exit_retry`, `done` | The exit (1Click or direct) after `Completed`. |
 
 Activities: `proving` before each proof (from the core's `activity` event, and before a
@@ -135,7 +148,7 @@ stage: `taker` steps need the page open; `network` steps happen anyway.
 | `ready` | The maker set the escrow to Ready. | taker | **keep open** |
 | `committing` | `commit_claim` sent. `claim.punishPath` is true when the maker vanished and the deadline passed. | taker | **keep open** |
 | `claiming` | `claim(a)` sent. | network | **keep open** |
-| `claimed` | The claim is final. | taker (withdraw) | may close |
+| `claimed` | The claim is final. The maker sends `withdraw`; if it does not within 5 minutes, a `waiting` activity names the call that any NEAR account can send. | network (maker) | may close |
 | `paid_out` | USDC is in `intents.near` under the taker key (`payout`). The engine starts the exit by itself. | taker | may close |
 | `exiting` | The exit runs; `exit.phase` says where (below). | taker, then 1Click | may close |
 | `done` | Delivered (`exit.deliveredAmount`). A `leftover` may follow to the return address. | – | – |
@@ -144,7 +157,7 @@ Failure paths:
 
 | Stage | Meaning |
 |---|---|
-| `refunding` | ZEC goes back to the return address. `refund.reason` is `QUOTE_BELOW_MINIMUM`, `MAKER_TIMEOUT` or `MAKER_REFUNDED`. Without a return address: `needs: 'return_address'`. |
+| `refunding` | ZEC goes back to the return address. `refund.reason` is `QUOTE_BELOW_MINIMUM`, `MAKER_TIMEOUT`, `MAKER_CHECK_FAILED` or `MAKER_REFUNDED`. Without a return address: `needs: 'return_address'`. |
 | `refunded` | Sent: `refund.amountZats` to `refund.toAddress`. Terminal. |
 | `recovering` | The maker refunded the escrow, which published key half `b`; the engine spends the shared address with `a + b`. |
 | `recovered` | The ZEC is back in the temporary wallet; `refunding` follows. |
@@ -168,7 +181,10 @@ step; the page only shows `exit.phase` and decides in `exit_retry`.
 
 `exit.approvedMinimum` starts as `params.minDestinationAmount`. `exit.attempts` counts
 firm quotes. A signed exit stays valid for about 72 hours; the real engine keeps polling
-every deposit address it signed for (docs/INTENTS.md §6).
+every deposit address it signed for (docs/INTENTS.md §6). It records the address before it
+submits, so a lost `submit-intent` answer still leaves it to poll; an earlier address that
+reports `SUCCESS` finishes the swap, also before a new firm quote. Explorer links from
+1Click are kept only when they are `https:`.
 
 ## Errors
 
@@ -184,7 +200,7 @@ every deposit address it signed for (docs/INTENTS.md §6).
 | `RECOVERY_INVALID` | The file cannot be read, or belongs to another engine. |
 | `RECOVERY_MISMATCH` | The file is for another network. |
 | `QUOTE_BELOW_MINIMUM` | The maker's firm quote was below `minUsdc`. Refund path. |
-| `MAKER_CHECK_FAILED` | The maker's quote or escrow failed another of the engine's checks (signature, proof of knowledge, windows, escrow parameters, code hash, stipend). Nothing was funded. Refund path. |
+| `MAKER_CHECK_FAILED` | The maker's quote or escrow failed another of the engine's checks (signature, proof of knowledge, windows, escrow parameters, code hash, stipend), or the maker refused the request with a signed refusal memo (the message gives its reason). Nothing was funded. Refund path. |
 | `MAKER_TIMEOUT` | No quote in time. Refund path. |
 | `MAKER_REFUNDED` | The maker refunded the escrow instead of setting it ready. Recovery path. |
 | `EXIT_FAILED` | 1Click reported `FAILED` or `REFUNDED`. |
@@ -193,7 +209,9 @@ every deposit address it signed for (docs/INTENTS.md §6).
 | `EXIT_AMOUNT_TOO_LOW` | 1Click: "Amount is too low for bridge". Another destination is needed. |
 | `EXIT_REFUSED` | The safety check refused the quote or payload. Nothing was signed. |
 | `NETWORK` | A server did not answer. Transient; the engine retries. |
-| `STORAGE` | The browser refuses storage. |
+| `STORAGE` | The browser refuses storage. With `transient: true`: a write failed, and the engine does nothing until it succeeds. |
+| `OTHER_TAB` | Another tab of this browser changed the swap; this tab's engine stopped. |
+| `ENGINE_CRASHED` | The WebAssembly engine trapped; the page restarts it from storage. |
 | `INTERNAL` | A bug. |
 
 ## The direct exit (networks without 1Click)
@@ -205,13 +223,18 @@ whose configuration says `exit.mode: "direct"` (local and testnet), the exit is:
 |---|---|---|
 | `signing` | Reads the taker key's Verifier balance, checks that the NEAR account exists and is registered with the token, fixes a deadline (1 hour) and a versioned nonce, and stores this plan. | `direct`, `amountIn` = `amountOut` = `minAmountOut` (the token's base units), `depositAddress` (the NEAR account), `intentHash` |
 | `delivering` | Signs one `ft_withdraw` with the taker key and hands it to the maker's relay (`zecret maker --relay`), which sends `execute_intents` and pays the gas. Resending after a reload sends the same signed bytes; a used nonce means it executed. | a `TxRef` for `execute_intents` |
-| `done` | The taker's Verifier balance is zero. | `deliveredAmount` |
+| `done` | The receiver's token balance rose by the amount, or (a receiver that moves the tokens on at once) the taker's Verifier balance reads zero for 15 s. | `deliveredAmount` |
 
 The taker's own NEAR account cannot send `execute_intents`: an `ft_withdraw` needs 40 Tgas
 attached (35 fails), and what is left of the 0.03 NEAR stipend pays for at most about
 25 Tgas at the pessimistic price NEAR checks first (measured in
-`crates/zecret-wasm/tests/sandbox.rs`). The relay sends only payloads whose signer is the
-taker of one of its maker's swaps and that `simulate_intents` accepts.
+`crates/zecret-wasm/tests/sandbox.rs`). The relay sends only a payload with exactly one
+`ft_withdraw` of the maker's token, for at most the swap's price, signed by the taker of
+one of its maker's swaps that paid out (maker stage `Sweeping` or `Swept`, or a recorded
+`withdraw` for the taker), that `simulate_intents` accepts; at most 3 transactions per swap
+and 6 requests a minute per address; never the same payload twice. It answers 503 (the
+engine retries) while the maker has not seen the claim yet, when it is busy, or when an
+address asks too often, and 400 for a refusal.
 
 The page still asks 1Click (mainnet) for a price for the chosen token and chain and shows
 it as a labelled preview.

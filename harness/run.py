@@ -911,12 +911,95 @@ def s21_unexpected_escrow_code():
         "escrow contract check failed", warp=False, taker_extra={"escrow_code_hash": "11111111111111111111111111111111"})
 
 
+def s22_maker_refuses():
+    scen = "s22_maker_refuses"
+    maker, taker = parties(scen)
+    c = Checks(scen, "The maker refuses a request above its limit with a signed refusal memo: the taker stops at once (no quote timeout), pays only the request fee, and the maker pays only the reply fee. A request outside the maker's signed, published limits is refused by the taker before anything is sent")
+    # (1) Outside the published limits: the taker does not start.
+    before0 = snapshot(maker, taker)
+    taker.start("--zats", str(10 * LOT))
+    code = taker.wait(60)
+    c.ok("amount above the published limit: the taker refused to start, nothing sent", code != 0 and "outside the maker's published limits" in taker.logtext() and taker.swap() is None, code)
+    c.ok("nothing paid for the refused start", snapshot(maker, taker)["taker_zec"] == before0["taker_zec"])
+    # (2) The maker lowers its limit after it published the entry: the taker's request is
+    # inside the published limits, above the maker's current one.
+    cfg = maker.config()
+    cfg["max_zats"] = LOT // 2
+    maker.write_config(cfg)
+    before = snapshot(maker, taker)
+    maker.start()
+    t0 = time.time()
+    taker.start("--zats", str(LOT))
+    taker.wait(300)
+    took = time.time() - t0
+    maker.wait_log("REFUSAL (over_limit) sent", 120)
+    settle()
+    maker.kill()
+    t = taker.swap()
+    after = snapshot(maker, taker)
+    refusals = [json.load(open(os.path.join(maker.dir, "refusal", f))) for f in os.listdir(os.path.join(maker.dir, "refusal")) if f.endswith(".json")]
+    c.facts.update(before=before, after=after, seconds_to_abort=round(took))
+    c.ok("taker stopped with the maker's reason", stage_name(t) == "Aborted" and abort_reason(t).startswith("MAKER REFUSED (over_limit)"), abort_reason(t))
+    c.ok("taker stopped well before its quote timeout (400 s)", took < 200, round(took))
+    c.ok("taker sent no acceptance and funded nothing", t.get("accept_txid") is None and t.get("fund_txid") is None)
+    c.ok("taker paid only the request fee (exact)", before["taker_zec"] - after["taker_zec"] == FEE, before["taker_zec"] - after["taker_zec"])
+    c.ok("maker paid only the reply fee (exact)", before["maker_zec"] - after["maker_zec"] == FEE, before["maker_zec"] - after["maker_zec"])
+    c.ok("maker made no swap and one refusal reply", maker.swap() is None and len(refusals) == 1 and refusals[0]["done"] and refusals[0]["txid"], refusals)
+    c.ok("maker opened nothing on NEAR", after["maker_wnear"] == before["maker_wnear"])
+    try:
+        tx = zrpc("getrawtransaction", [refusals[0]["txid"], 1])
+        iw = (tx.get("ironwood") or {}).get("actions") or []
+        c.ok("the refusal is a fully shielded Ironwood transaction with 2 actions, like every swap message",
+             not tx.get("vin") and not tx.get("vout") and not (tx.get("orchard") or {}).get("actions") and not tx.get("vShieldedSpend") and len(iw) == 2, len(iw))
+    except Exception as e:
+        c.ok("the refusal transaction is on chain", False, e)
+    return c.save(maker, taker)
+
+
+def s23_refund_with_two_joint_notes():
+    scen = "s23_refund_with_two_joint_notes"
+    maker, taker = parties(scen)
+    c = Checks(scen, "F2-01: after the taker funds, a second note (from someone else) arrives at the joint address; the maker refunds after t1. The taker sweeps its own funding first, then the other note, and erases a only when no joint note above the fee is left")
+    before = snapshot(maker, taker)
+    maker.start("--exit-after", "1")
+    taker.start("--zats", str(LOT), "--vanish-at", "Funded")
+    taker.wait(400)
+    maker.wait_log("READY", 200)
+    t = taker.swap()
+    # A third wallet pays 200 000 zats to the joint address.
+    third = Party(scen, "third", taker.config())
+    third.fund_coinbase()
+    time.sleep(4)
+    extra = 200_000
+    third_tx = sh(BIN, "pay", "--dir", third.dir, "--to", t["joint_address"], "--zats", str(extra)).strip()
+    settle()
+    m = maker.swap()
+    warp_to(m["t1"] + 1)
+    taker.start()
+    taker.wait(400)
+    maker.wait(200)
+    t, m = taker.swap(), maker.swap()
+    after = snapshot(maker, taker)
+    sweeps = [l for l in t["log"] if "sweeping the joint note" in l]
+    c.facts.update(before=before, after=after, escrow_id=m["escrow_id"], third_tx=third_tx, sweeps=sweeps)
+    c.ok("maker refunded from a final block past t1", stage_name(m) == "Refunded", stage_name(m))
+    c.ok("taker swept two joint notes", len(sweeps) == 2, sweeps)
+    c.ok("the taker's own funding was swept first", bool(sweeps) and t["fund_txid"] in sweeps[0], sweeps[:1])
+    c.ok("taker reached Recovered only after both sweeps", stage_name(t) == "Recovered" and any("no joint note above the fee is left" in l for l in t["log"]), stage_name(t))
+    c.ok("taker ZEC: premium + 4 tx fees lost, plus the extra note less its sweep fee (exact)",
+         before["taker_zec"] - after["taker_zec"] == PREMIUM + 4 * FEE - (extra - FEE), before["taker_zec"] - after["taker_zec"])
+    c.ok("maker tokens fully restored", after["maker_wnear"] == before["maker_wnear"])
+    c.ok("a never published (escrow has no a)", get_swap(m["escrow_id"]).get("a") is None)
+    return c.save(maker, taker)
+
+
 SCENARIOS = {"s1": s1_happy, "s2": s2_taker_vanishes_before_funding, "s3": s3_taker_vanishes_after_funding,
              "s4": s4_maker_vanishes_after_open, "s5": s5_rogue_key, "s6": s6_underfund,
              "s8": s8_free_claim_attempt, "s9": s9_late_commit, "s10": s10_lock_without_reveal,
              "s11": s11_maker_liveness_violated, "s12": s12_cover_traffic, "s15": s15_impostor_directory,
              "s16": s16_short_reveal_window, "s17": s17_far_horizon, "s18": s18_late_funding,
-             "s19": s19_no_stipend, "s20": s20_short_open, "s21": s21_unexpected_escrow_code}
+             "s19": s19_no_stipend, "s20": s20_short_open, "s21": s21_unexpected_escrow_code,
+             "s22": s22_maker_refuses, "s23": s23_refund_with_two_joint_notes}
 
 
 def write_report():

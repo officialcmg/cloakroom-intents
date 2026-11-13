@@ -19,7 +19,7 @@ test('full swap: price, recovery file, payment, progress, delivery', async ({ pa
   await expect(line).toContainText('You pay 1.00 ZEC.');
   await expect(line).toContainText(/You receive at least [\d,.]+ USDC on Base\./);
   // The last quote on the form used the user's own address.
-  expect(mock.quotes.at(-1)).toMatchObject({ recipient: EVM_ADDRESS, dry: true, amount: '937838000' });
+  expect(mock.quotes.at(-1)).toMatchObject({ recipient: EVM_ADDRESS, dry: true, amount: '935488000' });
 
   const filePath = await createAndSave(page);
   const file = JSON.parse(readFileSync(filePath, 'utf8'));

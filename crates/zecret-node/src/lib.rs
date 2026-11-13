@@ -4,3 +4,6 @@
 pub mod devnet;
 pub mod io;
 pub mod relay;
+
+#[cfg(test)]
+mod testnet_config;

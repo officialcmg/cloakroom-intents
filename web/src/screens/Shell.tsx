@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { InitStatus, SwapState } from '../engine';
+import type { EngineErrorData, InitStatus, SwapState } from '../engine';
 import { appStore, usePref } from '../app/useZecret';
 import { FAILURES, SPEEDS, settingsUrl, type PageSettings } from '../app/settings';
 import { Icon } from '../ui/Icon';
 import { Logo, Notice } from '../ui/bits';
-import type { NetworkConfig } from '../lib/netconfig';
+import type { ConfigChoice, NetworkConfig } from '../lib/netconfig';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -58,6 +58,52 @@ export function Footer() {
       </p>
       <p className="muted">Prices for the delivery come from NEAR Intents. Amounts round down.</p>
     </footer>
+  );
+}
+
+/**
+ * A development build loaded network settings that this site does not ship (review 3,
+ * NV3-01). Those settings choose the escrow, the servers and the maker, so the page says so
+ * above everything else.
+ */
+export function ConfigOverrideBanner({ choice }: { choice?: ConfigChoice }) {
+  if (!choice) return null;
+  return (
+    <div className="config-warning" role="alert" data-testid="config-warning">
+      <Icon name="alert" size={20} />
+      <div>
+        <strong>Test build with outside network settings.</strong> This page uses the settings from <code className="mono">{choice.name}</code>, not the ones this site ships. That file chooses
+        the escrow, the servers and the maker. Do not pay into this page unless you made that file yourself.
+      </div>
+    </div>
+  );
+}
+
+/** Problems the engine reports that are not about one call: storage, a restarted engine. */
+export function EngineWarnings({ warnings, restartedAt }: { warnings: EngineErrorData[]; restartedAt?: number }) {
+  return (
+    <>
+      {restartedAt !== undefined && (
+        <Notice tone="warn" title="The swap engine restarted" role="status">
+          The engine in this tab stopped because of an internal error. The page started it again from the swap stored in this browser, and the swap continues. Save the recovery file if you
+          have not.
+        </Notice>
+      )}
+      {warnings.map((w, i) =>
+        w.code === 'STORAGE' && w.transient ? (
+          <Notice key={i} tone="danger" title="Your swap could not be saved in this browser" role="alert">
+            <span data-testid="storage-stopped">
+              The engine has stopped and does nothing until this browser stores the swap again. It tries again every few seconds. Keep this tab open, free some disk space, and save the
+              recovery file. ({w.message})
+            </span>
+          </Notice>
+        ) : (
+          <Notice key={i} tone="warn" title={w.code === 'STORAGE' ? 'Storage is off in this browser' : 'The engine reports a problem'} role="alert">
+            {w.message}
+          </Notice>
+        ),
+      )}
+    </>
   );
 }
 

@@ -8,11 +8,11 @@
     "name": "Zecret test maker",
     "zcashAddress": "utest13x4neahaknjvdwe5j4h5le2zhfh502nava4jf5g43z9n8ynk9g5whlvsztnn9lm88eq83zzpvsjst0vnfda32lywxv9uz8qgk8wtgr84d6da980fg0wrj2en9hnywv4khl35008f263gztnlqa3zf0he97k0ahttlmmhm7e7ycmn45nm",
     "requestKey": "6b3f0a8e2d1c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2",
-    "nearAccount": "maker.zecret.testnet",
-    "escrowContract": "escrow.zecret.testnet"
+    "nearAccount": "maker.zecret-3f109eea1e.testnet",
+    "escrowContract": "escrow2.zecret-3f109eea1e.testnet"
   },
   "rate": { "usdcPerZec": "940.00", "validForSeconds": 300 },
   "limits": { "minZec": "0.01", "maxZec": "2" },
-  "premium": { "bps": 20, "minZec": "0.0002" },
+  "premium": { "bps": 0, "minZec": "0.0045" },
   "zcashFeePerSendZec": "0.0001"
 }

@@ -28,7 +28,7 @@ const out = {
   network,
   updatedAt: new Date().toISOString(),
   status: 'online',
-  maker: { name: 'Zecret maker', zcashAddress: e.ua, requestKey: e.rfq_pub, nearAccount: e.near_account, escrowContract: cfg.chains.escrow, nearPublicKey: e.near_pk, epoch: e.epoch },
+  maker: { name: 'Zecret maker', zcashAddress: e.ua, requestKey: e.rfq_pub, nearAccount: e.near_account, escrowContract: cfg.chains.escrow, nearPublicKey: e.near_pk, epoch: e.epoch, ...(e.limits ? { signedLimits: e.limits } : {}) },
   rate: { usdcPerZec: rate, validForSeconds: 300 },
   limits: { minZec: process.env.MIN_ZEC || '0.01', maxZec: process.env.MAX_ZEC || '2' },
   premium: { bps: 0, minZec: process.env.PREMIUM_MIN_ZEC || zec(cfg.premium_zats) },

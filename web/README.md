@@ -39,9 +39,20 @@ cd ..                                   # repository root
 crates/zecret-wasm/build.sh             # needs wasm-bindgen-cli 0.2.129
 ```
 
-Then the page runs it with `?config=<name>`: `public/config/<name>.json`
-(`src/lib/netconfig.ts` describes the format), or with `VITE_ZECRET_CONFIG=<name or URL>`
-at build time. `?demo=1` always runs the demo.
+Then the page runs it with `?config=local` or `?config=testnet`
+(`public/config/<name>.json`; `src/lib/netconfig.ts` describes the format), or with
+`VITE_ZECRET_CONFIG=<name or URL>` at build time. `?demo=1` always runs the demo.
+
+A link cannot load other network settings (security review 3, NV3-01): a production build
+takes only those two names from `?config=`. In development (`npm run dev`), or in a build
+made with `VITE_ZECRET_ALLOW_CONFIG_URL=1`, `?config=` may name any file or URL, and the
+page shows a red warning that names it. A mainnet configuration must use https endpoints
+and the escrow, code hash, token and Verifier built into the bundle (`MAINNET_ANCHORS`;
+the escrow comes from `VITE_MAINNET_ESCROW` and `VITE_MAINNET_ESCROW_CODE_HASH` at build
+time, and without them the page refuses mainnet).
+
+One tab runs the engine at a time (a Web Lock). A second tab shows "This swap is open in
+another tab" and continues by itself when the first one closes.
 
 ### Against the local network (Zebra regtest and a NEAR sandbox)
 
@@ -60,6 +71,11 @@ also served as `?config=local`), a NEAR account registered for wNEAR to receive 
 a funded native wallet and the command that pays the QR address from it
 (`zecret pay --dir … --to <address> --zats <amount>`). Zcash blocks are mined every few
 seconds. Stop with Ctrl-C.
+
+The runner must build the site with `VITE_ZECRET_ALLOW_CONFIG_URL=1`, because it opens
+`?config=/run/<scenario>/config.json`. With `SKIP_BUILD=1`, `dist/` must come from such a
+build (`VITE_ZECRET_ALLOW_CONFIG_URL=1 npx vite build`); `npm run build` and `npm run e2e`
+write a `dist/` without it.
 
 The automatic check runs five scenarios through the page the same way:
 `node harness/browser/run.mjs` (or `a b c d e`); results in `../harness/BROWSER_RESULTS.md`.
@@ -80,6 +96,16 @@ The automatic check runs five scenarios through the page the same way:
 4. testnet ZEC in a wallet that can pay a unified address, and a NEAR testnet account
    registered with the test USDC token (`storage_deposit`).
 
+The relay at `http://127.0.0.1:3410` works only from a site served without the headers of
+`vercel.json` (as in step 3): the deployed CSP allows no `http:` host. For the deployed
+site, run the relay behind a public https URL, put that URL into `exit.relayUrl` of
+`public/config/testnet.json` and its origin into `connect-src` of `vercel.json`;
+`tests/unit/csp.test.ts` fails until both agree.
+
+The relay pays `execute_intents` only for one `ft_withdraw` of the maker's token, from the
+taker account of a swap that paid out, at most 3 times per swap and 6 requests a minute per
+address. It refuses to start on mainnet (`crates/zecret-node/src/relay.rs`).
+
 ## Trying it by hand
 
 Open `http://localhost:5173/?speed=20`. Enter an amount, keep USDC on Base or pick a
@@ -95,19 +121,23 @@ browser (no key; CORS is open).
 
 | Setting | Default | How to change |
 |---|---|---|
-| Maker directory | `/maker-directory.json` (a sample for Zcash testnet, in `public/`) | `VITE_DIRECTORY_URL` at build time, or `?directory=<url>` on the page |
+| Maker directory | `/maker-directory.json` (a sample for Zcash testnet, in `public/`) | `VITE_DIRECTORY_URL` at build time, or `?directory=<url>` on the page (demo only; with a network configuration the page uses the configuration's directory) |
 | 1Click API | `https://1click.chaindefuser.com` | `VITE_ONECLICK_URL` at build time |
-| Engine | simulated (demo) | a network configuration: `?config=local`, `?config=testnet`, a URL, or `VITE_ZECRET_CONFIG` at build time; `?demo=1` forces the demo |
+| Engine | simulated (demo) | a network configuration: `?config=local`, `?config=testnet`, or `VITE_ZECRET_CONFIG` at build time (any other `?config=` only in development, see above); `?demo=1` forces the demo |
+| Mainnet escrow | none (mainnet refused) | `VITE_MAINNET_ESCROW`, `VITE_MAINNET_ESCROW_CODE_HASH` at build time |
 
 The directory format is `MakerDirectory` in `src/lib/directory.ts`: maker name, Zcash
 unified address, request key, NEAR account, escrow contract, indicative rate in USDC per
-ZEC, limits, premium (bps and minimum) and the Zcash fee per send. The page rejects a
+ZEC, limits, premium (bps and minimum) and the Zcash fee per send. The sample describes
+the testnet maker of `../deploy/maker/README.md` (940 USDC per ZEC, 0.01 to 2 ZEC, a flat
+premium of 450,000 zats) with the accounts of `../deploy/deployment.testnet.json`; its
+Zcash address and request key are placeholders. The page rejects a
 file that does not match, with the reason.
 
 ## Deploying
 
-Vercel: set the project root to `web/`. `vercel.json` sets the build (`npm run build`,
-output `dist/`) and headers: a Content-Security-Policy that allows exactly the hosts of
+Vercel: set the project root to `web/`. `vercel.json` sets the install (`npm ci`, the
+locked versions), the build (`npm run build`, output `dist/`) and headers: a Content-Security-Policy that allows exactly the hosts of
 the testnet configuration and 1Click (see `../docs/WEB.md`, "Headers"), and
 `Referrer-Policy: no-referrer`, so explorer links do not tell explorers where the user
 came from. The build does not compile the WebAssembly engine: run

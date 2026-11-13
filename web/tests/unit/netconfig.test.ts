@@ -26,7 +26,9 @@ describe('network configuration', () => {
 
   it('picks the configuration from the URL, the build, or the demo', () => {
     expect(configUrl('?config=testnet', undefined)).toBe('/config/testnet.json');
-    expect(configUrl('?config=/run/a/config.json', undefined)).toBe('/run/a/config.json');
+    // Paths and URLs only in a development build (see config_override.test.ts).
+    expect(configUrl('?config=/run/a/config.json', undefined, true)).toBe('/run/a/config.json');
+    expect(() => configUrl('?config=/run/a/config.json', undefined, false)).toThrow(NetConfigError);
     expect(configUrl('', 'local')).toBe('/config/local.json');
     expect(configUrl('?demo=1', 'local')).toBeUndefined();
     expect(configUrl('', undefined)).toBeUndefined();

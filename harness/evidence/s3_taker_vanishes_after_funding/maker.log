@@ -1,34 +1,31 @@
 
 ===== start maker --exit-after 1 =====
-[maker 1794553009] up: UA uregtest18khvug9yyxumyv6f7894036guv2ddqxru2p7zc2cfcgvzuarpwlxu78puu35vsruvu384ydfsn4l75h2cycp94dp3nf5z7gpxcgsccue NEAR maker.test.near key ed25519:9aLSknz1SCSC99eBsGCTB9tso6LeKh4HgKHeotXhhjZP
-[maker 1794553023] 91696624 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
-[maker 1794553023] 91696624 stage Quoting
-[maker 1794553023]  transient: requests wait for a quote, but the wallet has 0 spendable zats, less than a quote fee (10000)
-[maker 1794553023] {"type":"zcash_tx","swap":"91696624d0be42f770120549ccadacff","what":"quote","txid":"82760d26d5e31cbb62f8d836ac743203222f3750158a7845666da13412542c37"}
-[maker 1794553023] 91696624 encrypted QUOTE sent in tx 82760d26d5e31cbb62f8d836ac743203222f3750158a7845666da13412542c37
-[maker 1794553023] 91696624 stage Quoted
-[maker 1794553027] 91696624 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id 6e1c082f
-[maker 1794553027] 91696624 stage Opening
-[maker 1794553032] {"type":"near_tx","swap":"91696624d0be42f770120549ccadacff","what":"open","hash":"4wN1rVtvkdrrsnyA3yqWWfZuUFo2F6Ctw2zfDNSePRtN"}
-[maker 1794553032] 91696624 escrow OPEN id 6e1c082fead5ce697d01cf8c8bb506cad9dcc03bec3fb06e6d8c19c6dde12292 amount 30000000000000000000000000 t0=1794553145 t1=1794553205 t2=1794553265 W=45, tx 4wN1rVtvkdrrsnyA3yqWWfZuUFo2F6Ctw2zfDNSePRtN
-[maker 1794553032] {"type":"near_tx","swap":"91696624d0be42f770120549ccadacff","what":"stipend","hash":"BtNBAdSupMJ2B5Bx27YuGj2kJzDz6dpAYJ85ws1VsVUb"}
-[maker 1794553032] 91696624 STIPEND of 30000000000000000000000 yoctoNEAR sent to a4063ddfec42fc3045852f8e8f8f9d890ff5a0c4100235c267bc12a6ed077efc, tx BtNBAdSupMJ2B5Bx27YuGj2kJzDz6dpAYJ85ws1VsVUb
-[maker 1794553032] 91696624 stage Opened
-[maker 1794553043] {"type":"near_tx","swap":"91696624d0be42f770120549ccadacff","what":"set_ready","hash":"9x6vRuL6be7jAAF7ssQwzob1pC3KYaXTcfCU4AhRUnsf"}
-[maker 1794553043] 91696624 joint note 100010000 zats with 2 confirmations (k_Z = 2); READY, tx 9x6vRuL6be7jAAF7ssQwzob1pC3KYaXTcfCU4AhRUnsf
-[maker 1794553043] 91696624 stage Ready
-[maker 1794553051] 91696624 final block 373 (t=1794553205) is past t1 with state Ready; refunding
-[maker 1794553051] 91696624 stage RefundSent
-[maker 1794553053] {"type":"alert","swap":"91696624d0be42f770120549ccadacff","message":"t1 1794553205 is near (NEAR time 1794553205) and the escrow is Ready"}
-[maker 1794553053] 91696624 ALERT: t1 1794553205 is near (NEAR time 1794553205) and the escrow is Ready
-[maker 1794553053] {"type":"near_tx","swap":"91696624d0be42f770120549ccadacff","what":"refund","hash":"AwHRZtxjddhsZ2Jc1TjytFjU4oCpSZZDs9ZUbLoXNPyB"}
-[maker 1794553053] 91696624 REFUND publishes b, tx AwHRZtxjddhsZ2Jc1TjytFjU4oCpSZZDs9ZUbLoXNPyB (executed); waiting for it to be final
-[maker 1794553055] {"type":"alert","swap":"91696624d0be42f770120549ccadacff","message":"t1 1794553205 is near (NEAR time 1794553210) and the escrow is Ready"}
-[maker 1794553055] 91696624 ALERT: t1 1794553205 is near (NEAR time 1794553210) and the escrow is Ready
-[maker 1794553055] {"type":"near_tx","swap":"91696624d0be42f770120549ccadacff","what":"refund","hash":"erpjhsmyTieiuL1MZ378i7kpoUDZ5gqei4Nycs9593h"}
-[maker 1794553055] 91696624 refund not on chain; RE-SENT REFUND publishes b, tx erpjhsmyTieiuL1MZ378i7kpoUDZ5gqei4Nycs9593h ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: TooEarly: no refund window is open"}}}} at escrow.test.near); waiting for it to be final
-[maker 1794553058] 91696624 refund is final (block <= 383); withdraw of 30000000000000000000000000 for the maker, tx 6B5xfPqhYSGc4Ju1kbXv6yvUq6oE5V9EzqYXHqybJYwm
-[maker 1794553058] 91696624 refund is final (block <= 388); the maker's credit is withdrawn
-[maker 1794553058] 91696624 stage Refunded
-[maker 1794553058] 91696624 DONE Refunded
-[maker 1794553058] 1 swap(s) terminal; exiting
+[maker 1794560158] up: UA uregtest1z0el7jej72js25l09eq502usg4znj5eek8hwd8rufy9rzf5zspn9824eyavmn79wf5fhp925addsk358cuf5kgkkfknhaf0ymumerw3u NEAR maker.test.near key ed25519:3jvBFbxDGs7bHfQk4zVwAKDZP3oJGozuhcioE1MD6icp
+[maker 1794560171] 37c55a50 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794560171] 37c55a50 stage Quoting
+[maker 1794560171] {"type":"zcash_tx","swap":"37c55a502bee44344f761a13a7006e5d","what":"quote","txid":"0c7b68ec40559f1bb4ea6012979302c7ad6b42c500d962fe10a2053b57b42d82"}
+[maker 1794560171] 37c55a50 encrypted QUOTE sent in tx 0c7b68ec40559f1bb4ea6012979302c7ad6b42c500d962fe10a2053b57b42d82
+[maker 1794560171] 37c55a50 stage Quoted
+[maker 1794560175] 37c55a50 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 620c827b
+[maker 1794560175] 37c55a50 stage Opening
+[maker 1794560180] {"type":"near_tx","swap":"37c55a502bee44344f761a13a7006e5d","what":"open","hash":"Cu6Yod2oSuoqNgspx8BsfGKCfGCciPvFSAFFMj3kuR5H"}
+[maker 1794560180] 37c55a50 escrow OPEN id 620c827bf44da74d6196fd3f69f68a93e67ba2a4138cc510a33686bcf492db45 amount 30000000000000000000000000 t0=1794560387 t1=1794560447 t2=1794560507 W=45, tx Cu6Yod2oSuoqNgspx8BsfGKCfGCciPvFSAFFMj3kuR5H
+[maker 1794560180] {"type":"near_tx","swap":"37c55a502bee44344f761a13a7006e5d","what":"stipend","hash":"CDxUyBzG4uL1LwFHwb2CrbM2HyKZBNXw227SRMMydGyf"}
+[maker 1794560180] 37c55a50 STIPEND of 30000000000000000000000 yoctoNEAR sent to 18a7655890af8c7a600c5076f741aa6a74b9c4aaf02fbf51395262f689cdc9d5, tx CDxUyBzG4uL1LwFHwb2CrbM2HyKZBNXw227SRMMydGyf
+[maker 1794560180] 37c55a50 stage Opened
+[maker 1794560192] {"type":"near_tx","swap":"37c55a502bee44344f761a13a7006e5d","what":"set_ready","hash":"HZh4quwA8HK2khNwZfmMCKnDASurLGsjRpcN3oNmVTrr"}
+[maker 1794560192] 37c55a50 joint note 100010000 zats with 2 confirmations (k_Z = 2); READY, tx HZh4quwA8HK2khNwZfmMCKnDASurLGsjRpcN3oNmVTrr
+[maker 1794560192] 37c55a50 stage Ready
+[maker 1794560202] 37c55a50 final block 524 (t=1794560448) is past t1 with state Ready; refunding
+[maker 1794560202] 37c55a50 stage RefundSent
+[maker 1794560204] {"type":"alert","swap":"37c55a502bee44344f761a13a7006e5d","message":"t1 1794560447 is near (NEAR time 1794560448) and the escrow is Ready"}
+[maker 1794560204] 37c55a50 ALERT: t1 1794560447 is near (NEAR time 1794560448) and the escrow is Ready
+[maker 1794560204] {"type":"near_tx","swap":"37c55a502bee44344f761a13a7006e5d","what":"refund","hash":"G36DHDxc2R3kmd6ePMyR1br67e7m6VJkdtRMR5ZE3oJd"}
+[maker 1794560204] 37c55a50 REFUND publishes b, tx G36DHDxc2R3kmd6ePMyR1br67e7m6VJkdtRMR5ZE3oJd (executed); waiting for it to be final
+[maker 1794560204] {"type":"alert","swap":"37c55a502bee44344f761a13a7006e5d","message":"t1 1794560447 is near (NEAR time 1794560450) and the escrow is Ready"}
+[maker 1794560204] 37c55a50 ALERT: t1 1794560447 is near (NEAR time 1794560450) and the escrow is Ready
+[maker 1794560207] 37c55a50 refund is final (block <= 529); withdraw of 30000000000000000000000000 for the maker, tx BiGXRhLmjXNtrz1k7heN2efnEStzNEGfu8VfwJKKaHy9
+[maker 1794560207] 37c55a50 refund is final (block <= 534); the maker's credit is withdrawn
+[maker 1794560207] 37c55a50 stage Refunded
+[maker 1794560207] 37c55a50 DONE Refunded
+[maker 1794560207] 1 swap(s) terminal; exiting

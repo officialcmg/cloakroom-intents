@@ -145,10 +145,12 @@ fn relay(w: &World, takers: &[&str]) -> String {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("swap")).unwrap();
     for (i, t) in takers.iter().enumerate() {
-        std::fs::write(dir.join(format!("swap/{i:02}.json")), json!({"taker_account": t}).to_string()).unwrap();
+        // The relay serves only swaps whose record shows a payout, for at most the price.
+        let rec = json!({"rfq_id": format!("{i:02}"), "taker_account": t, "stage": "Swept", "price": (1000 * ONE_NEAR).to_string()});
+        std::fs::write(dir.join(format!("swap/{i:02}.json")), rec.to_string()).unwrap();
     }
     let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-    let r = zecret_node::relay::Relay { near_rpc: w.rpc.url.clone(), verifier: w.intents.clone(), maker_account: w.root.account_id.clone(), key: w.root.key.clone(), store_dir: dir };
+    let r = zecret_node::relay::Relay { near_rpc: w.rpc.url.clone(), verifier: w.intents.clone(), token: w.wrap.clone(), maker_account: w.root.account_id.clone(), key: w.root.key.clone(), store_dir: dir };
     let addr = format!("127.0.0.1:{port}");
     let a = addr.clone();
     std::thread::spawn(move || r.serve(&a).unwrap());

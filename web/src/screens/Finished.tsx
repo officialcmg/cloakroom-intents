@@ -107,7 +107,7 @@ export function DoneScreen({ swap }: { swap: SwapState }) {
           )}
           {!direct && (
             <div className="row">
-              <dt>Your guaranteed minimum was</dt>
+              <dt>Your minimum was</dt>
               <dd>{destAmount(swap, swap.params.minDestinationAmount)}</dd>
             </div>
           )}

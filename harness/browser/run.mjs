@@ -281,7 +281,7 @@ function writeRun(scen, maker, rate) {
     network: 'regtest',
     updatedAt: new Date().toISOString(),
     status: 'online',
-    maker: { name: 'Local test maker', zcashAddress: e.ua, requestKey: e.rfq_pub, nearAccount: e.near_account, escrowContract: chains.escrow, nearPublicKey: e.near_pk, epoch: e.epoch },
+    maker: { name: 'Local test maker', zcashAddress: e.ua, requestKey: e.rfq_pub, nearAccount: e.near_account, escrowContract: chains.escrow, nearPublicKey: e.near_pk, epoch: e.epoch, ...(e.limits ? { signedLimits: e.limits } : {}) },
     rate: { usdcPerZec: rate, validForSeconds: 300 },
     limits: { minZec: '0.01', maxZec: '5' },
     premium: { bps: 0, minZec: '0.0005' },
@@ -721,12 +721,16 @@ async function main() {
   fs.mkdirSync(WORK, { recursive: true });
   if (!process.env.SKIP_BUILD) {
     log('building the wasm engine, the site and the test helper');
-    for (const [cmd, a, cwd] of [
-      ['sh', [path.join(ROOT, 'crates/zecret-wasm/build.sh')], ROOT],
-      ['npx', ['vite', 'build', '--logLevel', 'error'], WEB],
-      ['cargo', ['build', '-p', 'zecret-wasm', '--example', 'sandbox_account'], path.join(ROOT, 'crates')],
+    // The runner gives the page `?config=<URL>` for each scenario; production builds refuse
+    // that, so the site is built with the development switch (docs/security/fixes-3.md).
+    // With SKIP_BUILD=1, build web/dist the same way:
+    //   cd web && VITE_ZECRET_ALLOW_CONFIG_URL=1 npx vite build
+    for (const [cmd, a, cwd, extra] of [
+      ['sh', [path.join(ROOT, 'crates/zecret-wasm/build.sh')], ROOT, {}],
+      ['npx', ['vite', 'build', '--logLevel', 'error'], WEB, { VITE_ZECRET_ALLOW_CONFIG_URL: '1' }],
+      ['cargo', ['build', '-p', 'zecret-wasm', '--example', 'sandbox_account'], path.join(ROOT, 'crates'), {}],
     ]) {
-      const env = { ...process.env };
+      const env = { ...process.env, ...extra };
       delete env.LD_PRELOAD;
       const r = spawnSync(cmd, a, { cwd, stdio: 'inherit', env });
       if (r.status !== 0) throw new Error(`${cmd} ${a.join(' ')} failed`);

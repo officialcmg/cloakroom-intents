@@ -29,9 +29,16 @@ describe('Content-Security-Policy', () => {
     expect(directive('frame-ancestors')).toEqual(["'none'"]);
   });
 
-  it('lists exactly the hosts of the testnet configuration and 1Click in connect-src', () => {
+  it('lists exactly the https hosts of the testnet configuration and 1Click in connect-src', () => {
+    // Driven by the configuration (review 3, H10): when public/config/testnet.json names a
+    // public relay (exit.relayUrl, https), its origin must be added to connect-src. A relay
+    // on this computer (http://127.0.0.1) is never allowed by the deployed site's CSP; it
+    // works only from a local build served without these headers.
     const cfg = parseNetworkConfig(JSON.parse(read('public/config/testnet.json')));
-    const hosts = new Set(["'self'", 'https://1click.chaindefuser.com', new URL(cfg.zcash.lightwalletd!).origin, new URL(cfg.near.rpc).origin]);
+    const endpoints = [cfg.zcash.lightwalletd!, cfg.near.rpc, cfg.exit.mode === 'direct' ? cfg.exit.relayUrl : cfg.exit.oneClickUrl];
+    const https = endpoints.filter((u) => new URL(u).protocol === 'https:').map((u) => new URL(u).origin);
+    const hosts = new Set(["'self'", 'https://1click.chaindefuser.com', ...https]);
     expect(new Set(directive('connect-src'))).toEqual(hosts);
+    expect(directive('connect-src').filter((h) => h.startsWith('http:'))).toEqual([]);
   });
 });

@@ -16,8 +16,9 @@ The page holds no keys and moves no money. The engine does that, in a Web Worker
 engines implement the same interface:
 
 - the real engine (`crates/zecret-wasm` in `src/engine/real/`), when the page has a
-  network configuration (`?config=local`, `?config=testnet`, a URL, or
-  `VITE_ZECRET_CONFIG` at build time);
+  network configuration (`?config=local`, `?config=testnet`, or `VITE_ZECRET_CONFIG` at
+  build time; any other file or URL in `?config=` only in a development build, with a red
+  warning that names it);
 - the simulated engine (the demo), when it has none, or with `?demo=1`. The page then
   shows a banner: "Demo with a simulated engine: no real funds move."
 
@@ -25,6 +26,10 @@ On a test network the real engine's page shows a banner with the network's name 
 is real there (from the configuration's `honesty` lines): real transactions, test money,
 the stand-in token, and that the exit goes to a NEAR account because NEAR Intents has no
 testnet.
+
+One tab of a browser runs the engine at a time. The page takes a Web Lock before it starts
+the engine; a second tab shows "This swap is open in another tab", starts no engine, and
+continues by itself when the first tab closes.
 
 ## Screens
 
@@ -42,6 +47,7 @@ Screenshots of each screen, light and dark, desktop and phone, are in `web/scree
 | Refunded | `refunded` | `14-refunded` |
 | Restore | The user chose "Restore a swap" | `16-restore` |
 | Start failed | The maker directory or the engine did not load | `17-directory-failed` |
+| Another tab | Another tab of this browser runs the engine | no stored screenshot |
 
 ### Swap form
 
@@ -63,7 +69,10 @@ Screenshots of each screen, light and dark, desktop and phone, are in `web/scree
   network fees for three transactions, the maker's premium, the ZEC sold, the maker's
   rate against the market price, the USDC from the maker and the 1% floor below which the
   swap stops, the NEAR Intents fee from the quote (`appFees`), the cost of the exit
-  together, and the guaranteed minimum.
+  together, and "Your minimum" with what the engine enforces: no maker price below the
+  floor (the swap stops and the ZEC comes back), no signed delivery whose firm minimum is
+  below this amount unless the user accepts a lower one; NEAR Intents then delivers at
+  least the signed minimum or returns the USDC. Delivery itself is not guaranteed.
 - **Errors from 1Click** have their own words: "no price for this pair at this moment"
   (retried after 20 s), "too small for this route, at least N USDC", "no liquidity",
   "cannot reach NEAR Intents".
@@ -139,11 +148,15 @@ confirmation. In the demo, a dashed box offers "Simulate the payment" and "Pay o
 | Page closed and reopened | The swap continues; the engine catches up with the networks first. | Nothing. |
 | Browser data lost | The form shows; "Have a recovery file? Restore a swap". | Choose or drop the file. |
 | Maker directory or engine fails | What failed and a likely reason. | "Try again". |
+| A link names network settings the site does not ship | "The network settings did not load", with the reason. | Use the site's own link. |
+| The browser refuses to store the swap | A red notice: the engine has stopped and does nothing until the browser stores the swap again; it retries every few seconds. | Keep the tab open, free disk space, save the recovery file. |
+| The WebAssembly engine crashes | The page starts a new engine from the stored swap and says so. After three crashes in ten minutes: the start-failed screen. | Nothing, or "Try again". |
+| The swap is open in another tab | "This swap is open in another tab". | Use the other tab, or close it. |
 
 ### Done and refunded
 
 Done: a check seal, "You received 933.623 USDC on Base", the address, the destination
-transaction, what was paid, what the maker paid, the guaranteed minimum, any leftover
+transaction, what was paid, what the maker paid, the user's minimum, any leftover
 ZEC, and "What this swap revealed": what stayed private (the Zcash wallet, the link
 between that wallet and the destination, the memos) and what is public (the escrow
 steps and USDC amount on NEAR, the amount and address on the destination chain, what
@@ -168,7 +181,11 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
 |---|---|
 | The engine runs the exit itself; the page passes only the approved asset, address and minimum. | The safety check before signing lives in the engine (`crates/zecret-intents`). The page cannot be tricked into signing. |
 | The page makes dry quotes only. | Price display needs no deposit address. Firm quotes belong to the engine. |
-| The guaranteed minimum is 1Click's `minAmountOut` (1% slippage), scaled down to the lowest USDC the engine accepts (1% below the indicative rate). | `minAmountOut` is exactly `amountOut × 0.99`. Measured drift over 10 minutes was at most 0.32% (docs/INTENTS.md §5), so the minimum is reachable. The engine takes a fresh firm quote at exit and does not sign below the minimum. |
+| The user's minimum is 1Click's `minAmountOut` (1% slippage), scaled down to the lowest USDC the engine accepts (1% below the indicative rate). It is called "Your minimum", not a guarantee. | `minAmountOut` is exactly `amountOut × 0.99`. Measured drift over 10 minutes was at most 0.32% (docs/INTENTS.md §5), so the minimum is reachable. The engine takes a fresh firm quote at exit and does not sign below the minimum; delivery can still fail and refund (security review 3, H9). |
+| `?config=` takes only the shipped names in production builds; mainnet settings must match constants in the bundle. | The configuration chooses the escrow, the servers and the maker. A link must not choose them (security review 3, NV3-01). |
+| One tab runs the engine (Web Lock), and the real engine's store refuses a write from a tab with an older copy (`web/version`). | Two engines on one swap overwrite each other's records (security review 3, NV3-02). |
+| After a failed write the engine calls nothing in the core until the write succeeds. | Nothing that reveals a secret or broadcasts may run on state that storage does not hold (security review 3, H1). |
+| Links from 1Click, configuration explorer templates and recovery files must be https. | They become links on the page (security review 3, H3). |
 | Fees come from the quote, not from constants. | Without a key, 1Click adds 1 to 20 bp as `appFees`; the amount varies by route. |
 | Amounts are integers (bigint) and display rounds down. | A shown minimum is never above the real one. |
 | One swap per browser. | The temporary wallet, its keys and the recovery file stay simple. A second swap waits for the first. |
@@ -200,6 +217,12 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
   parsing and error classes, address checks for every chain family, Zcash unified
   addresses against vectors from `zcash_address`, the reducer, and the simulated engine
   through the real transport on every path.
+- Unit, security review 3: `config_override.test.ts` (what `?config=` and a configuration
+  may choose), `realEngine.test.ts` (with a scripted WebAssembly module: a failed write
+  stops the core calls, a trap stops the engine, the version guard, the payment address of
+  a restored file).
+- End to end, `web/e2e/tabs.spec.ts`: two tabs of one browser on one swap; a production
+  build refuses settings from a link.
 - End to end (`web/e2e/journey.spec.ts`), on a desktop and a phone viewport: the full
   swap; each failure case; reload mid-swap; restore after a cleared browser and in a
   fresh browser; form checks with keyboard-only token selection; 1Click errors; the
@@ -212,7 +235,7 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
 
 | Header | Value and why |
 |---|---|
-| `Content-Security-Policy` | `default-src 'self'`; `script-src 'self' 'wasm-unsafe-eval'` plus the SHA-256 of the one inline script (the theme, before first paint); `worker-src 'self'`; `connect-src 'self'` plus exactly the hosts the engine and the page call on testnet: `https://1click.chaindefuser.com`, `https://zcash-testnet.chainsafe.dev`, `https://rpc.testnet.fastnear.com`; `img-src 'self' data: blob:`; `style-src 'self'`; `font-src 'self'`; `object-src 'none'`; `base-uri 'none'`; `form-action 'none'`; `frame-ancestors 'none'`. WebAssembly needs `wasm-unsafe-eval`. The synchronous XMLHttpRequests of the worker are governed by `connect-src`. `tests/unit/csp.test.ts` checks the hash and the hosts against `public/config/testnet.json`. A deployment with the maker's relay at a public URL must add that URL to `connect-src` and to the configuration. |
+| `Content-Security-Policy` | `default-src 'self'`; `script-src 'self' 'wasm-unsafe-eval'` plus the SHA-256 of the one inline script (the theme, before first paint); `worker-src 'self'`; `connect-src 'self'` plus exactly the hosts the engine and the page call on testnet: `https://1click.chaindefuser.com`, `https://zcash-testnet.chainsafe.dev`, `https://rpc.testnet.fastnear.com`; `img-src 'self' data: blob:`; `style-src 'self'`; `font-src 'self'`; `object-src 'none'`; `base-uri 'none'`; `form-action 'none'`; `frame-ancestors 'none'`. WebAssembly needs `wasm-unsafe-eval`. The synchronous XMLHttpRequests of the worker are governed by `connect-src`. `tests/unit/csp.test.ts` checks the hash and the hosts against the https endpoints of `public/config/testnet.json`, including `exit.relayUrl`, and refuses any `http:` host. A deployment with the maker's relay at a public https URL writes that URL into the configuration; the test then fails until `connect-src` lists it. |
 | `Referrer-Policy` | `no-referrer` |
 | `X-Content-Type-Options`, `X-Frame-Options` | `nosniff`, `DENY` |
 | `Cross-Origin-Opener-Policy` | `same-origin` |
@@ -220,6 +243,11 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
 
 The browser scenarios (`harness/browser/run.mjs`) serve the site with these headers and add
 only the local endpoints to `connect-src`; a CSP violation would show in their console log.
+They must build the site with `VITE_ZECRET_ALLOW_CONFIG_URL=1`, because they load their
+configuration from a path.
+
+`vercel.json` also sets `"installCommand": "npm ci"`, so the deployment installs the locked
+versions.
 
 ## Not done here
 

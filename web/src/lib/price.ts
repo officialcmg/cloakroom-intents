@@ -70,8 +70,10 @@ export interface CombinedPrice extends ZecSide {
   /** Expected destination amount at the indicative rate and the current quote. */
   destExpected: bigint;
   /**
-   * Guaranteed minimum: the 1Click minimum for the quoted USDC, scaled down to the
-   * lowest USDC the engine accepts. The exit does not run below this without the user's consent.
+   * The user's minimum: the 1Click minimum for the quoted USDC, scaled down to the lowest
+   * USDC the engine accepts. The engine signs no exit whose firm minAmountOut is below it
+   * without the user's consent, and 1Click delivers at least the signed minAmountOut or
+   * refunds. It is not a promise of delivery (security review 3, H9).
    */
   destMin: bigint;
   /** Cost of the exit through NEAR Intents in basis points of the USDC, if 1Click gave USD values. */

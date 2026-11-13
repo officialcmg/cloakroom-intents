@@ -204,7 +204,7 @@ fn f2_01_dust_note_does_not_hold_the_recovery() {
 }
 
 /// R4: the maker refunds while the taker's funding is broadcast but not mined. The taker
-/// keeps `a` (stage Recovering) until the funding is mined or has expired unmined by k_Z
+/// keeps `a` (the stage stays where it was) until the funding is mined or has expired unmined by k_Z
 /// blocks; only then does it end with nothing to recover.
 #[test]
 fn f2_01_refund_before_the_funding_is_mined_keeps_a() {
@@ -219,8 +219,9 @@ fn f2_01_refund_before_the_funding_is_mined_keeps_a() {
     let mut tk = open(&f, &rec, &n, 100, &mut store);
     tk.tick(NOW, &mut store);
     let s = tk.swap().unwrap().clone();
-    assert_eq!(s.stage, TakerStage::Recovering, "log: {:?}", s.log);
+    assert_eq!(s.stage, TakerStage::Funded, "log: {:?}", s.log);
     assert!(!s.a.is_empty(), "a must be kept while the funding may still be mined");
+    assert!(s.log.last().unwrap().contains("keeping a"));
 
     // Past expiry (10 000) + k_Z (2): nothing more can arrive.
     let v = view(&rec, &near, "Refunded", (NOW - 100, NOW + 600, NOW + 1500), 600, None, b);

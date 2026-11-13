@@ -437,7 +437,14 @@ function PriceCard({ price, token, payZats, zecUsd }: { price: ReturnType<typeof
                 <dd>about {fmtDest(shown.destExpected)}</dd>
               </div>
               <div className="row row-total">
-                <dt>Guaranteed minimum</dt>
+                <dt>
+                  Your minimum
+                  <span className="row-note" data-testid="minimum-note">
+                    What the engine enforces: it accepts no maker price below {formatUsdc(shown.usdcMin)} {payTokenLabel()} (the swap stops and your ZEC comes back), and it
+                    signs no delivery whose firm minimum is below this amount unless you accept a lower one. NEAR Intents then delivers at least the signed minimum, or returns the{' '}
+                    {payTokenLabel()} to your key. Delivery itself is not guaranteed.
+                  </span>
+                </dt>
                 <dd>{fmtDest(shown.destMin)}</dd>
               </div>
             </dl>

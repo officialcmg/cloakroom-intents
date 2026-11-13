@@ -64,8 +64,10 @@ The browser cannot block on IndexedDB, so use `store::MemStore`:
 The engine is built for this: it never uses a new secret, or sends a message that depends
 on a new record, in the same call that created it. Examples: `start` creates `a` and the
 NEAR key and returns; the request memo goes out in a later `tick`. A Zcash transaction is
-built (and stored with the record) in one tick and broadcast in the next. `claim(a)` and
-`refund(b)` are decided in one tick and sent in the next.
+built (and stored with the record) in one tick and broadcast in the next. `refund(b)` is
+decided in one tick and sent in the next. `claim(a)` takes three: one tick decides to
+reveal (stage `Revealed`), the next signs the claim and stores it (`claim_raw`), and the
+next checks R2r again and broadcasts the stored bytes (security review 2, F2-02).
 
 **Recovery file.** The records are the recovery file: `wallet` plus `swap/<rfq_id>`. A host
 that restores them into a fresh store and opens the engine continues the swap.
@@ -102,6 +104,13 @@ pub enum Next { At(u64), Done }      // JSON: {"kind":"at","at":1794540785} / {"
   swap is in a terminal stage (or there is no swap).
 - `tick` never fails. A network or node error becomes an `Event::Warning` and a retry time
   a few seconds later.
+- A Zcash sync error stops only the stages that need the Zcash wallet. In `Funded`,
+  `Committed`, `Revealed`, `Claimed` and `PayoutPending` the tick emits a `warning` and
+  goes on with the NEAR steps. A refund seen with an old Zcash view does not end the
+  swap: the recovery waits for a good sync.
+- The light wallet trusts its server (security review 2, H8). It has no reorganization
+  handling and does not check that each block hash links to the one before. It relies on
+  k_Z confirmations and an honest light-wallet server.
 
 ## 2. The taker API (`taker::Taker`)
 
@@ -124,6 +133,8 @@ wallet::prepare_proving_key()    // build the Orchard proving key now (about 20 
 - `start` fails (and stores nothing) if a swap is in progress, if the maker's directory
   entry is not signed by its NEAR key, or if that key is not a full-access key of the
   maker's NEAR account at a final block. Nothing is sent and nothing is paid then.
+- If the entry publishes `limits`, `start` also fails when the amount is outside
+  `min_zats..=max_zats` or `premium_zats` is above `max_premium`.
 - Call `prepare_proving_key` at worker start, before the user pays. Otherwise the first
   shielded send (the request) builds it.
 - A worker loop:
@@ -165,6 +176,7 @@ Amounts above 2^53 are decimal strings. The `//` comments explain fields; they a
   "min_stipend": "30000000000000000000000",   // 0.03 NEAR
   "max_horizon_secs": 172800,            // R1q horizon H (default 48 h)
   "quote_timeout_secs": 600,             // wait for the quote, and for the escrow after accepting
+  "payout_wait_secs": 300,               // after the claim is final: when to report PayoutPending
   "cover": {"min_secs": 0, "max_secs": 0, "k": 0}   // cover delays (off by default)
 }
 ```
@@ -178,8 +190,13 @@ own values to check the maker's quote (R1q).
 build; `zecret devnet` prints it for the local network, and `near::tx::code_hash(wasm)`
 computes it. `chains.intents` is also the Intents account the escrow must pay into.
 
-The `maker` entry is what the maker daemon prints with `zecret directory`. `misbehave` is a
-test-only field; leave it out.
+The `maker` entry is what the maker daemon prints with `zecret directory`. It has an
+optional `limits` object (`{"min_zats", "max_zats", "premium_zats"}`). When it is present,
+`sig` covers it (`keys::directory_digest_v2`, domain `maker-directory-near-v2`); an entry
+without it is signed with the first digest. Removing or changing the limits breaks the
+signature. `misbehave` is a test-only field; leave it out. A build without the cargo
+feature `misbehave` refuses it, and the taker's test-only code is not compiled into such
+a build.
 
 ### 2.2 Stages
 
@@ -189,14 +206,15 @@ carries the name.
 | Stage | Meaning | Leaves when | Next stage |
 |---|---|---|---|
 | `WaitingDeposit` | The swap exists; the wallet waits for `required_deposit` zatoshis. | The balance is enough: the encrypted request memo is built and broadcast. | `RfqSent` |
-| `RfqSent` | Request sent to the maker. | A quote memo arrives and passes every check (proof of knowledge of B, escrow and maker ids, the maker's ed25519 signature, price ≥ `min_price`, premium ≤ `max_premium`, stipend ≥ `min_stipend`, R1q: W > F + B_R and t2 − open ≤ H, funding and claim windows long enough). The acceptance memo with the premium is broadcast. Rejection or no quote by `quote_timeout_secs`: `Aborted`, nothing funded. | `Accepted` |
-| `Accepted` | Premium paid; waiting for the escrow. | `open` is at a final block and every stored parameter equals the quote (R1: maker, token, amount, taker key, A, B, windows, state Open); the escrow account runs `escrow_code_hash`, has no access keys and pays into `chains.intents`; the stipend is in the taker's NEAR account, and NEAR time + ∆fund < t0 (R1b). The joint address is funded. A mismatch, or R1b closing first: `Aborted` (the premium is lost; no ZEC moved). | `Funded` |
+| `RfqSent` | Request sent to the maker. | A signed refusal memo arrives: `Aborted("MAKER REFUSED (<code>): <reason>; nothing was funded")` with a `refused` event (`code`: `over_limit`, `under_minimum`, `busy`, `unsupported`). A refusal not signed by the maker's key is ignored. Or a quote memo arrives and passes every check (proof of knowledge of B, escrow and maker ids, the maker's ed25519 signature, price ≥ `min_price`, premium ≤ `max_premium`, stipend ≥ `min_stipend`, R1q: W > F + B_R and t2 − open ≤ H, funding and claim windows long enough). The acceptance memo with the premium is broadcast. Rejection or no quote by `quote_timeout_secs`: `Aborted`, nothing funded. | `Accepted` |
+| `Accepted` | Premium paid; waiting for the escrow. | `open` is at a final block and every stored parameter equals the quote (R1: maker, token, amount, taker key, A, B, state Open; t1 − t0, t2 − t1 and W exactly as quoted, t0 no later than now + the quoted funding window); the escrow account runs `escrow_code_hash`, has no access keys and pays into `chains.intents`; the stipend is in the taker's NEAR account, and NEAR time + ∆fund < t0 (R1b). The joint address is funded. A mismatch, or R1b closing first: `Aborted` (the premium is lost; no ZEC moved). | `Funded` |
 | `Funded` | ZEC at the joint address. | Ready is final and now + B_R < t1 (R2c): `commit_claim`, signed by the taker key, sent from the taker's own NEAR account. Or the punish path: Open/Ready at a final block from t2. If the maker refunds: recovery. If t1 − B_R passes with no Ready: the engine logs `R2c` and waits for the refund or for t2. | `Committed` (or `Recovering`) |
-| `Committed` | Escrow locked by the taker's commitment. | The lock is final and now + B_R < locked_at + W (R2r): the engine decides to reveal (stored), then sends `claim(a)` on the next tick. | `Revealed` |
-| `Revealed` | `a` is public (or about to be). | The claim is final. If the claim is not on chain after D, it is sent again while the window is open. | `Claimed` |
-| `Claimed` | The claim is final; `a`, the seeds and the joint key are erased (R4). | The payout is in `intents.near` under the taker's account (`withdraw` by the taker if its stipend pays the gas, otherwise by the maker; anyone may call it). | `Completed` |
+| `Committed` | Escrow locked by the taker's commitment. | The lock is final and now + B_R < locked_at + W (R2r): the engine decides to reveal (stored). | `Revealed` |
+| `Revealed` | `a` is public (or about to be). | First tick: R2r again, then `claim(a)` is signed and stored (`claim_raw`, `claim_tx`); nothing is sent. Next tick: R2r again, then the stored bytes are broadcast (`claim_at`). If R2r fails while `claim_at` is None, nothing is sent: the stored claim is dropped and the stage goes back to `Committed` (the maker's R3l refund then gives b). After the broadcast: the claim is final; if it is not on chain after D, a new claim is sent while the window is open. | `Claimed` (or back to `Committed`) |
+| `Claimed` | The claim is final; `a`, the seeds and the joint key are erased (R4). | The payout is in `intents.near` under the taker's account. The maker sends `withdraw`; the taker sends it only if its own account holds the prepaid gas at the pessimistic price (about 0.2 NEAR; the stipend does not). If the payout is not there `payout_wait_secs` after the stage began: `PayoutPending`. | `Completed` or `PayoutPending` |
+| `PayoutPending` | The claim is final, the payout is not in `intents.near`: the maker has not sent `withdraw`. The tokens wait in the escrow as the taker's credit; they can only go to the taker. The `payout_pending` event and the log give the call that any NEAR account can send: `<escrow>.withdraw({"token": <token>, "owner": <taker_account>})`, 200 Tgas, no deposit; the sender needs about 0.2 NEAR free for NEAR's gas check. Polled every 10 s. | The payout arrives. | `Completed` |
 | `Completed` | Terminal. The token is in `intents.near`, owned by `taker_account` (the hex of the NEAR key). | | |
-| `Recovering` | The maker refunded; `b` was read from the escrow; the sweep of the joint note with a + b is broadcast. | The sweep has k_Z confirmations (it is built again if it expires). If no note was ever funded, or the funding expired unmined, the engine goes straight to `Recovered`. While a broadcast funding may still be mined, it keeps `a` (R4). | `Recovered` |
+| `Recovering` | The maker refunded; `b` was read from the escrow; a sweep of a joint note with a + b is broadcast. | Every joint note worth more than the sweep fee is swept, the taker's own funding first, one sweep at a time; each needs k_Z confirmations (a sweep is built again if it expires). The stage ends only when no joint note above the fee is left and no funding of this engine can still be mined (it is mined, or its expiry height + k_Z has passed); `a` is kept until then (R4, security review 2, F2-01). Notes at or below the fee are ignored. If no note was ever funded, the engine goes straight to `Recovered`. | `Recovered` |
 | `Recovered` | Terminal. The ZEC is back in the temporary wallet (minus fees and the premium). | | |
 | `Aborted` | Terminal, with a reason. Nothing more happens. | | |
 
@@ -222,6 +240,8 @@ characters). Amounts in token base units and yoctoNEAR are strings.
 | `activity` | `swap`, `kind` (`proving`), `label`, `estimated_secs` | Emitted in its own tick, right before a shielded send's proof (request, acceptance, funding, recovery sweep). The next tick blocks for about 25 s in a browser. |
 | `warning` | `swap`, `message` | A transient error; the engine retries. |
 | `alert` | `swap`, `message` | Maker only: a swap near t1 or t2 that is not settled. |
+| `refused` | `swap`, `code`, `min_zats`, `max_zats` | The maker refused the request with a signed memo (codes as in 2.2). The swap ends `Aborted`. |
+| `payout_pending` | `swap`, `receiver`, `method` (`withdraw`), `args` (JSON text), `gas` (gas units, string), `deposit` (`"0"`), `credit` | The claim is final and the payout did not arrive within `payout_wait_secs`. Any NEAR account can send this call. |
 | `done` | `swap`, `outcome` (`Completed`, `Recovered`, `Aborted`) | Terminal stage reached. |
 
 Example:
@@ -261,7 +281,7 @@ mapping; the rows marked "not in the core" are done by that layer, as described 
 | `ready` | Not a core stage: the layer reads the escrow state once the funding has k_Z confirmations, and emits `ready` before `committing` otherwise (not on the punish path). |
 | `committing` | `Committed` |
 | `claiming` | `Revealed` |
-| `claimed` | `Claimed` |
+| `claimed` | `Claimed`, and `PayoutPending` (the worker stays on `claimed` and shows a `waiting` activity that names the `withdraw` call) |
 | `paid_out` | `Completed` (with the `payout` event) |
 | `exiting`, `done`, `exit_retry` | Not in the core: the exit (the `zecret-intents` crate) runs after `Completed`, with the NEAR key from `TakerSwap.near_sk`: through 1Click on mainnet, and as a direct `ft_withdraw` sent by the maker's relay on networks without 1Click (`crates/zecret-wasm/src/exit.rs`, `crates/zecret-node/src/relay.rs`). |
 | `recovering` | `Recovering` |
@@ -282,8 +302,9 @@ Other differences:
 - `Aborted(reason)`: the web distinguishes `QUOTE_BELOW_MINIMUM`, `MAKER_TIMEOUT` and
   `MAKER_CHECK_FAILED`. The core's reasons are text: a reason that starts with `QUOTE
   REJECTED: price` is below the minimum; `no quote before the timeout` and `the maker never
-  opened the escrow` are timeouts; other `QUOTE REJECTED` and escrow-check reasons are
-  safety refusals (`MAKER_CHECK_FAILED`).
+  opened the escrow` are timeouts; a reason that starts with `MAKER REFUSED` is the maker's
+  signed refusal, shown as `MAKER_CHECK_FAILED` with the maker's reason; other `QUOTE
+  REJECTED` and escrow-check reasons are safety refusals (`MAKER_CHECK_FAILED`).
 - The core emits only the `proving` activity; the layer adds `syncing`, `waiting`,
   `signing` and `broadcasting`.
 - `createSwap.shown.premiumZats` becomes the taker's `max_premium` for that swap.
@@ -297,7 +318,9 @@ Other differences:
   `claim` itself; there is no relayer. A signer must hold the prepaid gas at a pessimistic
   price (about 10^9 yoctoNEAR per gas): the engine attaches 15 Tgas to `commit_claim` and 25
   Tgas to `claim` (it burns 16.8 Tgas). Both cost about 0.002 NEAR in total. A 200 Tgas
-  `withdraw` does not fit in the stipend; the maker sends it.
+  `withdraw` does not fit in the stipend (NEAR wants about 0.2 NEAR held); the maker sends
+  it. The taker does not try unless its account holds that much. If the payout does not
+  arrive, the engine reports `PayoutPending` with the call (section 2.2).
 - Transactions are built, borsh-serialized and signed in `near::tx`, and sent with
   `send_tx` (`wait_until: EXECUTED`). Views use `finality: final` or a final block's hash.
 - The direct exit (`ft_withdraw` out of the Verifier) needs 40 Tgas attached; NEAR checks
@@ -332,6 +355,21 @@ Order of work in one tick (security review 2, F2-04 and H2; details in
 2. Advance every swap from `Opening` on (the swaps with deadlines).
 3. Read new memos.
 4. Expire requests, then build quotes.
+5. Build or send refusal replies, from the quote budget that no quote used.
+
+A request that the maker does not quote gets a signed refusal memo (envelope type 5,
+`msg::Refusal`: code, the maker's `min_zats` and `max_zats`, and an ed25519 signature by
+the maker's NEAR key over `refuse-sig-near`, the request id and the fields). It is sealed
+to the taker's ephemeral key from the request with the maker's epoch key (label
+`refuse`). Codes: `over_limit`, `under_minimum`, `busy` (at `max_pending_quotes`),
+`unsupported` (invalid proof of knowledge or NEAR key). A reply costs the maker one Zcash
+fee and one proof, so it is limited: at most `max_refusals_per_hour` replies in any hour
+(counted from the stored records `refusal/<rfq_id>`, also across restarts), one per
+request id, built only when the wallet is in sync, no request waits for its quote and
+the tick's quote budget is unused (one proof per tick for quotes and replies together),
+dropped if not built within `quote_ttl_secs`. Requests without a reply are refused
+silently, as before. The directory entry (`zecret directory`) publishes `limits`
+(`min_zats`, `max_zats`, `premium_zats`) under the signature.
 
 Maker settings for requests that nobody has paid for yet (all optional):
 
@@ -340,6 +378,7 @@ Maker settings for requests that nobody has paid for yet (all optional):
 | `max_pending_quotes` | 32 | A request is refused while this many swaps are `Quoting` or `Quoted`. |
 | `quote_ttl_secs` | 3600 | A `Quoting` or `Quoted` swap with no transaction in flight becomes `Aborted("request expired")` after this many seconds. Keep it above 2 × the takers' `quote_timeout_secs` plus the time to mine an acceptance. |
 | `max_quotes_per_tick` | 1 | Quotes built at most in one tick. No quote is built (and no RPC is made for one) while the wallet's spendable ZEC is below one quote fee. |
+| `max_refusals_per_hour` | 6 | Refusal replies at most in any hour; 0 turns them off. |
 | `premium_check` | none; required when `chains.network` is `main` | `{"yocto_near_per_zec": "<yoctoNEAR for 1 ZEC>", "costs_per_request_yocto": "<gas + storage per accepted request, default 0.015 NEAR>"}`. `Maker::open` fails if `premium_zats` is worth less than `stipend` + `costs_per_request_yocto`. |
 
 `misbehave` (test-only) is refused unless the binary is built with the cargo feature

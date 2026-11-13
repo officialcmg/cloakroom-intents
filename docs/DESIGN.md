@@ -57,6 +57,12 @@ This section is always current. The numbered sections below give the detail.
   the page again and the swap continues. The app also gives a recovery file.
 - ZEC that is left in the temporary wallet goes back to a Zcash address that the user
   gives.
+- If the maker does not take the request, the maker sends a short signed refusal memo
+  with a reason. The app stops at once and returns the ZEC. The app also checks the
+  amount against the maker's signed limits before it sends a request.
+- If the maker does not send the withdraw call after the claim, the USDC stays in the
+  escrow as a credit for the taker. After 5 minutes the app shows the exact call. Any
+  NEAR account can send it. The USDC can only go to the taker.
 
 **Decided**
 
@@ -83,15 +89,22 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | The recovery file holds the temporary wallet key, key half `a`, the swap seeds, the NEAR key and the swap settings. It is not encrypted. A file saved before the payment is enough: after a restore, the app reads from the chains which messages and payments already went out, and it sends nothing twice. |
 | 2026-11-13 | The project name is Zecret. The repository is `officialcmg/zecret`. |
 | 2026-11-13 | Correction to the withdraw entry above. The withdraw call needs 200 Tgas. NEAR accepts it only if the sender holds about 0.2 NEAR, not 0.1 NEAR. The stipend cannot pay that. |
+| 2026-11-13 | The maker answers a request that it does not quote with a refusal memo. The memo has a reason code: over the limit, under the minimum, busy, or not supported. It also has the maker's limits and the maker's signature. The taker stops at once and pays no premium. Reason: on testnet the taker waited 30 minutes for an answer that never came. |
+| 2026-11-13 | A refusal costs the maker one Zcash fee and one proof. So the maker sends at most 6 refusals in one hour (setting `max_refusals_per_hour`; 0 turns them off) and at most one for each request. It builds a refusal only when no request waits for a quote and the cycle's quote budget is unused. A refusal that is not sent within the request lifetime is dropped. |
+| 2026-11-13 | The maker publishes its limits in its signed directory entry: the smallest and largest amount and the premium. The signature covers them. The taker checks the amount and the premium against them before it sends anything. |
+| 2026-11-13 | The stipend stays at 0.03 NEAR. The maker sends the withdraw call. If the payout is not in NEAR Intents 5 minutes after the claim is final, the taker engine goes to the stage `PayoutPending`. It reports the exact call: the escrow's `withdraw` with the token and the taker's account, 200 Tgas, no deposit. Any NEAR account can send it. The engine keeps watching and finishes when the payout arrives. |
+| 2026-11-13 | The taker sends its first claim in two steps. One step signs the claim and stores it. The next step checks the reveal deadline again and then sends it. If the deadline check fails before anything was sent, the taker does not reveal its key half. Reason: security review 2, F2-02. |
+| 2026-11-13 | After a refund, the taker takes back every note at the shared address that is worth more than its fee, its own payment first. It keeps its key half until no such note is left and no payment of its own can still arrive. Reason: security review 2, F2-01. |
+| 2026-11-13 | The testnet settings use the measured Zcash testnet block times (mean 20 s, but three blocks took up to 538 s). The funding window is 600 s, the time to Ready is 900 s, and the quote timeout is 600 s. |
 
 **Open**
 
 | Question | Status |
 |---|---|
 | The taker trusts one NEAR RPC endpoint. | Open. A false endpoint that works with the maker can take the taker's ZEC. See section 10. |
-| Who sends withdraw if the maker stops after the claim? | Open. The taker cannot pay for it. Any account can send it. The USDC can only go to the taker. |
+| Who sends withdraw if the maker stops after the claim? | Decided: the maker sends it. If it does not, the app shows the call after 5 minutes. Any account can send it. The USDC can only go to the taker. |
 | The residual USDC case. | Open. The tokens can stay in NEAR Intents, credited to nobody. Nobody is paid twice. See section 10. |
-| The taker-side bugs of security review 2 (F2-01, F2-02, F2-03). | Open. See `docs/security/review-2.md`. |
+| The taker-side bugs of security review 2 (F2-01, F2-02, F2-03). | Fixed. See `docs/security/fixes-2-taker.md`. |
 
 ## 1. What we are building
 
@@ -287,6 +300,6 @@ live Intents code.
 | Keys in browser storage | A cleared browser loses the swap's keys. | Recovery file, shown before any money moves. |
 | The build environment is temporary | Docker, the sandbox binary and helper tools must be set up again on a new machine. | Done: `scripts/setup-env.sh`. Commit and push often. |
 | The taker trusts one NEAR RPC endpoint | The taker reads every NEAR fact it acts on from one endpoint, without proofs. An endpoint that works with the maker can show an escrow that does not exist, and the maker then takes the taker's ZEC. An endpoint alone can only delay a swap. | Not built. Options: let the user choose the endpoint; compare two or more endpoints; light-client proofs. See `docs/security/fixes-2-core.md` section 4. |
-| The taker cannot pay for `withdraw` | `withdraw` needs 200 Tgas, so the sender must hold about 0.2 NEAR. The stipend leaves about 0.028 NEAR. If the maker stops after the claim, the USDC stays in the escrow, credited to the taker, until some account sends `withdraw`. Any account can send it, and the tokens can only go to the taker. | Open: a larger stipend, or say it plainly in the app and the documents. |
+| The taker cannot pay for `withdraw` | `withdraw` needs 200 Tgas, so the sender must hold about 0.2 NEAR. The stipend leaves about 0.028 NEAR. If the maker stops after the claim, the USDC stays in the escrow, credited to the taker, until some account sends `withdraw`. Any account can send it, and the tokens can only go to the taker. | Decided: the maker sends it; after `payout_wait_secs` (300 s) the taker engine reports `PayoutPending` with the exact call. See `docs/security/fixes-2-taker.md`. |
 | The residual USDC case | If the deposit into NEAR Intents fails and USDC's resolve step panics in the same window, the tokens stay in the Intents contract, credited to nobody. The escrow pays nobody twice, but its last USDC withdraw fails until the Intents operators return the tokens. Not tested. | Open. See `docs/security/fixes-2.md` section 5. |
-| Taker-side bugs of security review 2 | F2-01 and F2-02 (medium) and F2-03 (low) are not fixed. The maker side is fixed. | Next fix round. See `docs/security/review-2.md` and `docs/security/fixes-2-core.md` section 6. |
+| Taker-side bugs of security review 2 | F2-01 and F2-02 (medium) and F2-03 (low). | Fixed, with H1, H5 (taker side) and H6. See `docs/security/fixes-2-taker.md`. |

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import sample from '../../public/maker-directory.json';
 import { formatUnits, formatZec, parseUnits, toDecimalString, mulDiv } from '../../src/lib/units';
@@ -6,7 +7,10 @@ import { combine, computeZecSide, formatBps, makerMarginBps, premiumFor, quoteMe
 import { parsePaymentUri, paymentUri } from '../../src/lib/zip321';
 import { classifyError, parseQuote, selectDestinations } from '../../src/lib/oneclick';
 
-const terms = parseDirectory(sample).terms;
+const sampleTerms = parseDirectory(sample).terms;
+// The price math below uses a percentage premium (0.2%, at least 0.0002 ZEC), so that both
+// rules are exercised; the bundled sample has a flat premium, like the maker it describes.
+const terms = { ...sampleTerms, premiumBps: 20n, premiumMinZats: 20_000n };
 
 describe('units', () => {
   it('parses decimal input into base units', () => {
@@ -43,6 +47,17 @@ describe('maker directory', () => {
     expect(terms.minZats).toBe(1_000_000n);
     expect(terms.maxZats).toBe(200_000_000n);
     expect(terms.feePerSendZats).toBe(10_000n);
+  });
+  it('the sample matches the testnet maker of deploy/maker/README.md and deploy/deployment.testnet.json', () => {
+    const deployment = JSON.parse(readFileSync(new URL('../../../deploy/deployment.testnet.json', import.meta.url), 'utf8'));
+    expect(sample.maker.nearAccount).toBe(deployment.maker.account_id);
+    expect(sample.maker.escrowContract).toBe(deployment.escrow.account_id);
+    // premium_zats 450000 at the example price: the smallest premium the maker's premium check passes.
+    expect(sampleTerms.premiumBps).toBe(0n);
+    expect(sampleTerms.premiumMinZats).toBe(450_000n);
+    expect(premiumFor(sampleTerms.minZats, sampleTerms)).toBe(450_000n);
+    expect(premiumFor(sampleTerms.maxZats, sampleTerms)).toBe(450_000n);
+    expect(sampleTerms.rateMicroUsdcPerZec).toBe(940_000_000n); // price_per_zec 940000000
   });
   it('rejects broken files with a reason', () => {
     expect(() => parseDirectory({ ...sample, format: 'x' })).toThrow(DirectoryError);

@@ -346,6 +346,33 @@ h1:focus {
   flex: 1 1 260px;
 }
 
+.config-warning {
+  max-width: 1040px;
+  width: calc(100% - 2 * var(--space-4));
+  margin: var(--space-3) auto 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.config-warning > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--danger);
+}
+
+.config-warning code {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
 .demo-banner-link {
   font-weight: 650;
   color: var(--accent-ink);
@@ -931,6 +958,11 @@ select.input {
 .row-total dt {
   color: var(--text);
   font-weight: 650;
+}
+
+.row-total .row-note {
+  font-weight: 400;
+  color: var(--text-3);
 }
 
 .rows-compact .row:first-child {

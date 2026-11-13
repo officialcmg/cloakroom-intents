@@ -1295,9 +1295,6 @@ impl Taker {
         let Some(n) = self.joint_notes_to_sweep(s).into_iter().next() else {
             if let Some(dead_after) = self.funding_may_still_come(s) {
                 self.log_once(s, format!("maker REFUNDED; our funding is not visible yet: keeping a until it is mined or expires (height > {dead_after})"));
-                if s.stage != TakerStage::Recovering {
-                    self.set_stage(s, TakerStage::Recovering, now);
-                }
                 return Ok(Next::At(now + POLL_SECS));
             }
             let line = match (&s.fund_txid, s.fund_expiry) {
@@ -1488,6 +1485,32 @@ mod tests {
         assert!(e.contains("not signed by"), "{e}");
         assert!(store.keys(PREFIX_SWAP).unwrap().is_empty(), "nothing stored");
         assert!(tk.swap().is_none());
+    }
+
+    /// H1: a configured maker key that does not parse rejects every quote.
+    #[test]
+    fn quote_check_fails_closed_on_a_bad_maker_key() {
+        let (mut tk, key) = setup();
+        let id = [9u8; 16];
+        let q = good_quote(&id, &key);
+        assert_eq!(tk.reject_quote(&q, &id, 1000), None);
+        tk.cfg.maker.near_pk = "ed25519:not-a-key".into();
+        let why = tk.reject_quote(&q, &id, 1000).expect("must reject");
+        assert!(why.contains("does not parse"), "{why}");
+    }
+
+    /// H6: a request built again has the same proof of knowledge, so the same plaintext
+    /// under the same AEAD key and nonce; other inputs give other proofs.
+    #[test]
+    fn rebuilt_request_has_the_same_plaintext() {
+        let a = keys::random_scalar();
+        let id = [7u8; 16];
+        let (p1, p2) = (keys::pok_prove(&a, &id, b"taker"), keys::pok_prove(&a, &id, b"taker"));
+        assert_eq!(p1, p2);
+        assert!(keys::pok_verify(&(keys::g() * a), &p1, &id, b"taker"));
+        assert_ne!(p1, keys::pok_prove(&a, &[8u8; 16], b"taker"));
+        assert_ne!(p1, keys::pok_prove(&a, &id, b"maker"));
+        assert_ne!(p1[..32], keys::pok_prove(&keys::random_scalar(), &id, b"taker")[..32], "nonce depends on the secret");
     }
 
     #[test]

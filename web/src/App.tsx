@@ -10,7 +10,7 @@ import { PayScreen, RecoveryStep } from './screens/Pay';
 import { ProgressScreen } from './screens/Progress';
 import { DoneScreen, RefundedScreen } from './screens/Finished';
 import { RestoreScreen } from './screens/Restore';
-import { DemoBanner, Footer, Header, NetworkBanner } from './screens/Shell';
+import { ConfigOverrideBanner, DemoBanner, EngineWarnings, Footer, Header, NetworkBanner } from './screens/Shell';
 
 type View = 'auto' | 'restore' | 'recovery';
 
@@ -104,6 +104,31 @@ export default function App() {
         <p>Starting Zecret in this browser…</p>
       </div>
     );
+  } else if (app.phase === 'other_tab') {
+    content = (
+      <div className="stack-lg narrow">
+        <section className="card card-main stack" aria-labelledby="other-tab-title" data-testid="other-tab">
+          <span className="seal-icon" aria-hidden="true">
+            <Icon name="lock" size={22} />
+          </span>
+          <h1 id="other-tab-title" className="h1">
+            This swap is open in another tab
+          </h1>
+          <p>Zecret runs a swap in one tab at a time, so that two tabs never act on it at once. This tab does nothing while the other one is open.</p>
+          <p>Use the other tab, or close it: this tab then continues the swap by itself.</p>
+          {app.failure && (
+            <>
+              <Notice tone="warn" role="alert">
+                {app.failure.message}
+              </Notice>
+              <button type="button" className="btn btn-secondary" onClick={() => location.reload()}>
+                <Icon name="refresh" /> Reload this tab
+              </button>
+            </>
+          )}
+        </section>
+      </div>
+    );
   } else if (app.phase === 'failed') {
     content = (
       <div className="stack-lg narrow">
@@ -146,13 +171,10 @@ export default function App() {
       </a>
       <Header init={app.init} network={app.terms?.network} onHome={() => !swap && setView('auto')} />
       <DemoBanner settings={app.settings} init={app.init} swap={swap} />
+      <ConfigOverrideBanner choice={app.configOverride} />
       <NetworkBanner network={app.network} />
       <main id="main" ref={main} className={`main main-${screenKey}`}>
-        {app.warnings.map((w, i) => (
-          <Notice key={i} tone="warn" title="Storage is off in this browser" role="alert">
-            {w.message}
-          </Notice>
-        ))}
+        <EngineWarnings warnings={app.warnings} restartedAt={app.restartedAt} />
         {content}
       </main>
       <Footer />
