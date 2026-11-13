@@ -147,6 +147,7 @@ Amounts above 2^53 are decimal strings. The `//` comments explain fields; they a
              "fund_secs": 600, "k_z": 3},
   "maker": {"ua": "utest1...", "epoch": 1, "rfq_pub": "<hex>", "near_account": "maker.testnet",
             "near_pk": "ed25519:...", "sig": "<hex, 64 bytes>"},
+  "escrow_code_hash": "<base58 sha256 of the reviewed escrow wasm>",
   "min_price": "4990000",                // smallest price (token base units) the user accepts
   "max_premium": 100000,                 // zatoshis
   "min_stipend": "30000000000000000000000",   // 0.03 NEAR
@@ -161,6 +162,10 @@ Amounts above 2^53 are decimal strings. The `//` comments explain fields; they a
 block intervals, plus D) and k_Z. B_R = (R+1)·D + R·F + `margin_secs`. The taker uses its
 own values to check the maker's quote (R1q).
 
+`escrow_code_hash` is the code hash (as `view_account` reports it) of the reviewed escrow
+build; `zecret devnet` prints it for the local network, and `near::tx::code_hash(wasm)`
+computes it. `chains.intents` is also the Intents account the escrow must pay into.
+
 The `maker` entry is what the maker daemon prints with `zecret directory`. `misbehave` is a
 test-only field; leave it out.
 
@@ -173,7 +178,7 @@ carries the name.
 |---|---|---|---|
 | `WaitingDeposit` | The swap exists; the wallet waits for `required_deposit` zatoshis. | The balance is enough: the encrypted request memo is built and broadcast. | `RfqSent` |
 | `RfqSent` | Request sent to the maker. | A quote memo arrives and passes every check (proof of knowledge of B, escrow and maker ids, the maker's ed25519 signature, price ≥ `min_price`, premium ≤ `max_premium`, stipend ≥ `min_stipend`, R1q: W > F + B_R and t2 − open ≤ H, funding and claim windows long enough). The acceptance memo with the premium is broadcast. Rejection or no quote by `quote_timeout_secs`: `Aborted`, nothing funded. | `Accepted` |
-| `Accepted` | Premium paid; waiting for the escrow. | `open` is at a final block and every stored parameter equals the quote (R1), the stipend is in the taker's NEAR account, and NEAR time + ∆fund < t0 (R1b). The joint address is funded. A mismatch, or R1b closing first: `Aborted` (the premium is lost; no ZEC moved). | `Funded` |
+| `Accepted` | Premium paid; waiting for the escrow. | `open` is at a final block and every stored parameter equals the quote (R1: maker, token, amount, taker key, A, B, windows, state Open); the escrow account runs `escrow_code_hash`, has no access keys and pays into `chains.intents`; the stipend is in the taker's NEAR account, and NEAR time + ∆fund < t0 (R1b). The joint address is funded. A mismatch, or R1b closing first: `Aborted` (the premium is lost; no ZEC moved). | `Funded` |
 | `Funded` | ZEC at the joint address. | Ready is final and now + B_R < t1 (R2c): `commit_claim`, signed by the taker key, sent from the taker's own NEAR account. Or the punish path: Open/Ready at a final block from t2. If the maker refunds: recovery. If t1 − B_R passes with no Ready: the engine logs `R2c` and waits for the refund or for t2. | `Committed` (or `Recovering`) |
 | `Committed` | Escrow locked by the taker's commitment. | The lock is final and now + B_R < locked_at + W (R2r): the engine decides to reveal (stored), then sends `claim(a)` on the next tick. | `Revealed` |
 | `Revealed` | `a` is public (or about to be). | The claim is final. If the claim is not on chain after D, it is sent again while the window is open. | `Claimed` |
@@ -245,4 +250,7 @@ k_Z confirmations before t0; refund early only in Open with no sufficient note a
 taker's funding window (R3e); refund after t1 only from a final block past t1 with
 now + B_R < t2 (R3d); refund a lock only from a final block past locked_at + W (R3l); never
 Ready once b is public; pays the taker's credit into `intents.near` once the claim is
-final. `zecret maker` (crates/zecret-node) runs it in a loop.
+final; before it sends the stipend it checks that the swap at its id is its own (maker,
+token, amount, taker key, A, B, reveal window), so a look-alike swap opened by someone
+else gets no stipend. Its `add_storage_funds` is always for its own account.
+`zecret maker` (crates/zecret-node) runs it in a loop.

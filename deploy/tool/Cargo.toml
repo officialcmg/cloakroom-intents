@@ -1,0 +1,23 @@
+[package]
+name = "zecret-deploy"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "MIT"
+description = "Deploys and verifies the Zecret contracts on NEAR testnet and mainnet."
+
+[dependencies]
+near-workspaces = "0.24"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+sha2 = "0.10"
+bs58 = "0.5"
+hex = "0.4"
+rand = "0.8"
+chrono = "0.4"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+ed25519-dalek = "2"
+base64 = "0.22"
+zecret-intents = { path = "../../crates/zecret-intents" }

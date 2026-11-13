@@ -1,0 +1,5 @@
+# near-sdk calls the NEAR host functions (panic_utf8, sha256, ...) only when the crate
+# graph is compiled with `--cfg near`, which cargo-near sets. Without it, a contract
+# panic traps with no message.
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg", "near"]

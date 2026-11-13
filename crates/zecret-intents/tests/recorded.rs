@@ -732,3 +732,122 @@ fn manual_captures_have_valid_quote_signatures_and_nonces() {
         ))
     );
 }
+
+// ---------------------------------------------------------------------------
+// Review-1 F-02: quote freshness from the signed `timestamp`. The recorded quotes are
+// old, so every test passes a "now" consistent with the fixture (`Case::now` is the
+// fixture's `recorded_at`); the crate never reads the clock.
+
+/// Proof of concept from `docs/security/poc/f02_request_deadline_unsigned.rs`, kept as
+/// a regression test.
+#[test]
+fn poc_f02_expired_request_deadline_cannot_be_hidden() {
+    for mut c in both() {
+        // 31 minutes after the recording: the 30-minute request deadline has passed.
+        c.now += chrono::Duration::minutes(31);
+        assert!(matches!(c.check(), Err(Refusal::QuoteExpired { .. })));
+        // The attacker moves the unsigned request deadline into the future.
+        c.edit_quote(|q| q["quoteRequest"]["deadline"] = json!("2026-12-31T00:00:00.000Z"));
+        assert!(
+            c.quote.signature_is_valid(),
+            "the edit does not break the signature"
+        );
+        assert!(
+            c.check().is_err(),
+            "F-02: an exit was accepted for a quote whose request deadline had passed"
+        );
+    }
+}
+
+fn signed_timestamp(c: &Case) -> zecret_intents::time::Time {
+    time::parse(c.quote.raw["timestamp"].as_str().unwrap()).unwrap()
+}
+
+#[test]
+fn quote_freshness_comes_from_the_signed_timestamp() {
+    for mut c in both() {
+        let ts = signed_timestamp(&c);
+        // The fixture's "now" is within a few seconds of the quote.
+        assert!(c.check().is_ok());
+        // Just under the default 5 minutes: accepted.
+        c.now = ts + chrono::Duration::minutes(5) - chrono::Duration::milliseconds(1);
+        assert!(c.check().is_ok(), "{:?}", c.check());
+        // 5 minutes old: refused, although the request deadline (30 min) is still ahead.
+        c.now = ts + chrono::Duration::minutes(5);
+        assert!(
+            matches!(
+                c.check(),
+                Err(Refusal::QuoteTooOld {
+                    max_age_secs: 300,
+                    ..
+                })
+            ),
+            "{:?}",
+            c.check()
+        );
+        // A longer policy accepts it.
+        let policy = Policy {
+            max_quote_age: chrono::Duration::minutes(10),
+            ..Policy::default()
+        };
+        assert!(check_quote(&c.approved, &c.quote, &policy, c.now).is_ok());
+        // Up to one minute in the future is clock difference; more is refused.
+        c.now = ts - chrono::Duration::minutes(1);
+        assert!(c.check().is_ok(), "{:?}", c.check());
+        c.now = ts - chrono::Duration::minutes(1) - chrono::Duration::milliseconds(1);
+        assert!(
+            matches!(c.check(), Err(Refusal::QuoteFromFuture { .. })),
+            "{:?}",
+            c.check()
+        );
+    }
+    // The timestamp is signed: moving it breaks the signature.
+    for mut c in both() {
+        let fresh = time::format(c.now);
+        c.edit_quote(|q| q["timestamp"] = json!(fresh));
+        assert!(matches!(c.check(), Err(Refusal::QuoteSignature)));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Review-1 hardening note H4: the generated nonce must be versioned and expire with the
+// intent.
+
+impl Case {
+    fn set_nonce(&mut self, nonce: &Nonce) {
+        let b64 = nonce.to_base64();
+        match self.standard {
+            Standard::RawEd25519 => self.edit_payload(|v| v["nonce"] = json!(b64)),
+            Standard::Nep413 => self.generated.payload["nonce"] = json!(b64),
+        }
+    }
+}
+
+#[test]
+fn refuses_a_legacy_or_long_lived_nonce() {
+    for mut c in both() {
+        c.set_nonce(&Nonce::legacy([7u8; 32]).unwrap());
+        assert!(
+            matches!(c.check(), Err(Refusal::BadNonce(_))),
+            "{:?}",
+            c.check()
+        );
+    }
+    for mut c in both() {
+        let ok = c.check().unwrap();
+        let salt = zecret_intents::nonce::Salt::from_hex("252812b3").unwrap();
+        // The same nonce, re-encoded, is accepted.
+        let same = Nonce::versioned(salt, ok.deadline, [1u8; 15]).unwrap();
+        c.set_nonce(&same);
+        assert!(c.check().is_ok(), "{:?}", c.check());
+        // A nonce that outlives the intent is refused.
+        let later =
+            Nonce::versioned(salt, ok.deadline + chrono::Duration::days(30), [1u8; 15]).unwrap();
+        c.set_nonce(&later);
+        assert!(
+            matches!(c.check(), Err(Refusal::BadNonce(_))),
+            "{:?}",
+            c.check()
+        );
+    }
+}

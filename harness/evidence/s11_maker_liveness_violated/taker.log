@@ -1,41 +1,41 @@
 
 ===== start taker --zats 100000000 =====
-[taker 1794541418] new swap 0487ae11 for 100000000 zats; NEAR account 9c8ce14aa8df708399f5001f735dcfd5283cbd9f7409a132c5a2e33dd5ea0945; wallet uregtest1p2ymjnpxf4tgd9q4mem8n426lcgzdl7shxd9rhw5gw0esvkna6rzcfdrqtjtcaqkjjd6j9f9ljd2rfdsxnc2gw6shcr8sv88gv488xtg
-[taker 1794541418] 0487ae11 stage WaitingDeposit
-[taker 1794541423] balance 208333333 zats
-[taker 1794541423] balance 0 zats
-[taker 1794541423] {"type":"zcash_tx","swap":"0487ae11b14e99c5c3024079f2e682e9","what":"rfq","txid":"b6f95f46a0c4b829f585d1e25c380de1932d4e0e90eeefb666236706d53c7c50"}
-[taker 1794541423] 0487ae11 encrypted RFQ for 100000000 zats sent to the maker in shielded tx b6f95f46a0c4b829f585d1e25c380de1932d4e0e90eeefb666236706d53c7c50
-[taker 1794541423] 0487ae11 stage RfqSent
-[taker 1794541425] balance 208323333 zats
-[taker 1794541429] 0487ae11 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
-[taker 1794541429] {"type":"quote","swap":"0487ae11b14e99c5c3024079f2e682e9","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest12mxlppppfete3v49wnrs9m4nx8rx0u8trr56gscuh73l8fcuddnknmk8fda0gqyqwv7jx6cdlaqjr37ph38glg705kc8j0f0syje420e"}
-[taker 1794541432] balance 0 zats
-[taker 1794541432] {"type":"zcash_tx","swap":"0487ae11b14e99c5c3024079f2e682e9","what":"accept","txid":"41872a9db87f50340327dd3f52ab4fefa9f63ac980df6f29de1303a114ba755b"}
-[taker 1794541432] 0487ae11 encrypted ACCEPT with 50000 zats premium sent in tx 41872a9db87f50340327dd3f52ab4fefa9f63ac980df6f29de1303a114ba755b; joint address uregtest12mxlppppfete3v49wnrs9m4nx8rx0u8trr56gscuh73l8fcuddnknmk8fda0gqyqwv7jx6cdlaqjr37ph38glg705kc8j0f0syje420e
-[taker 1794541432] 0487ae11 stage Accepted
-[taker 1794541434] balance 208263333 zats
-[taker 1794541438] 0487ae11 escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
-[taker 1794541440] 0487ae11 escrow de5f3ea6 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
-[taker 1794541440] {"type":"escrow_verified","swap":"0487ae11b14e99c5c3024079f2e682e9","escrow_id":"de5f3ea6cc17028a8b5862b5c4196c68a3d5f4ef96c030a06e20863cd2c5fc67","t0":1794542465,"t1":1794542525,"t2":1794542585}
-[taker 1794541440] 0487ae11 [MISBEHAVE free-claim] escrow verified; NOT funding; will try to claim after t0
-[taker 1794541440] 0487ae11 stage Funded
-[taker 1794541447] 0487ae11 [MISBEHAVE free-claim] commit_claim without Ready before t2 REJECTED by the escrow: {"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: NotClaimable: commit_claim needs Ready before t1, or any time from t2"}}}} at escrow.test.near; waiting for t2
-[taker 1794541447] 0487ae11 R2c: claim window closed (NEAR time 1794542584, t1 1794542525, budget 15s); not committing; waiting for the maker's refund or for t2 1794542585
-[taker 1794541452] {"type":"near_tx","swap":"0487ae11b14e99c5c3024079f2e682e9","what":"commit_claim","hash":"ApzFK6SgZn8vYqUtGK91LX4gSWLUQiHbSa6BCDRrYh4w"}
-[taker 1794541452] 0487ae11 past t2 with escrow Open: LOCKED via the punish path, tx ApzFK6SgZn8vYqUtGK91LX4gSWLUQiHbSa6BCDRrYh4w [MISBEHAVE free-claim, never funded]
-[taker 1794541452] 0487ae11 stage Committed
-[taker 1794541454] 0487ae11 lock final (block 1845); revealing a before the deadline 1794542635
-[taker 1794541454] 0487ae11 stage Revealed
-[taker 1794541456] {"type":"near_tx","swap":"0487ae11b14e99c5c3024079f2e682e9","what":"claim","hash":"G4BBaVXjmpQXUPk5wQdeFyftr2PKJ1xhpQdMwoZApusU"}
-[taker 1794541456] 0487ae11 REVEALED a with claim, tx G4BBaVXjmpQXUPk5wQdeFyftr2PKJ1xhpQdMwoZApusU; waiting for the claim to be final
-[taker 1794541458] 0487ae11 claim is final (block 1852)
-[taker 1794541458] 0487ae11 stage Claimed
-[taker 1794541458] 0487ae11 the taker cannot send withdraw (send_tx AscXgq7opYGuz2BiHZaL7jeztp3SAsWVHCAwZHY4NpEV: NEAR RPC error HANDLER_ERROR / INVALID_TRANSACTION: {"TxExecutionError":{"InvalidTxError":{"NotEnoughBalance":{"balance":"27879743912765000000000","cost":"100919628919299500000000","signer_id":"9c8ce14aa8df708399f5001f735dcfd5283cbd9f7409a132c5a2e33dd5ea0945"}}}}); waiting for the maker to withdraw
-[taker 1794541458] 0487ae11 claim final; waiting for the payout (credit 30000000000000000000000000, in intents 0)
-[taker 1794541462] 0487ae11 claim final; waiting for the payout (credit 0, in intents 0)
-[taker 1794541464] 0487ae11 PAYOUT: 30000000000000000000000000 of wrap.test.near in intents.near, owned by 9c8ce14aa8df708399f5001f735dcfd5283cbd9f7409a132c5a2e33dd5ea0945
-[taker 1794541464] 0487ae11 payout 30000000000000000000000000 wrap.test.near to 9c8ce14aa8df708399f5001f735dcfd5283cbd9f7409a132c5a2e33dd5ea0945 in intents
-[taker 1794541464] 0487ae11 stage Completed
-[taker 1794541464] 0487ae11 DONE Completed
-[taker 1794541464] finished: Completed
+[taker 1794542547] new swap 59979931 for 100000000 zats; NEAR account 9529977921e69b287b9762b9f4b36ed3fd16dd96abf24fcdc14c0f596c5b3332; wallet uregtest1jjrvn8ttx4fg79kja53ek4vsl00calq430ge0xa4qxhxg37un4xztrkejspc3mxhtgtqlwq54qhtrqn6rpa3lj5ne3tpn34pzy9cmnpg
+[taker 1794542547] 59979931 stage WaitingDeposit
+[taker 1794542555] balance 208333333 zats
+[taker 1794542555] balance 0 zats
+[taker 1794542555] {"type":"zcash_tx","swap":"59979931644fbfa57acca313bf9d2a6a","what":"rfq","txid":"84935f844f0ef73d87ec72515fb45dede639ff266a18220fc2cb3ad548f2c0a5"}
+[taker 1794542555] 59979931 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 84935f844f0ef73d87ec72515fb45dede639ff266a18220fc2cb3ad548f2c0a5
+[taker 1794542555] 59979931 stage RfqSent
+[taker 1794542557] balance 208323333 zats
+[taker 1794542565] 59979931 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+[taker 1794542565] {"type":"quote","swap":"59979931644fbfa57acca313bf9d2a6a","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest1hmc05wn776zhq0f0zsyjqpyp6x80egs8qrcwch732d95zqj003sazfayurm2r2mf6mce3r4aqttnn8y8xzt8h758v460stzpau5ya03r"}
+[taker 1794542569] balance 0 zats
+[taker 1794542569] {"type":"zcash_tx","swap":"59979931644fbfa57acca313bf9d2a6a","what":"accept","txid":"f21778aabe03e6328c92a941a2e6fe1fa7e16a88cd8d05052293a248fade6a80"}
+[taker 1794542569] 59979931 encrypted ACCEPT with 50000 zats premium sent in tx f21778aabe03e6328c92a941a2e6fe1fa7e16a88cd8d05052293a248fade6a80; joint address uregtest1hmc05wn776zhq0f0zsyjqpyp6x80egs8qrcwch732d95zqj003sazfayurm2r2mf6mce3r4aqttnn8y8xzt8h758v460stzpau5ya03r
+[taker 1794542569] 59979931 stage Accepted
+[taker 1794542570] balance 208263333 zats
+[taker 1794542574] 59979931 escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+[taker 1794542576] 59979931 escrow 0fe4c870 verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794542576] {"type":"escrow_verified","swap":"59979931644fbfa57acca313bf9d2a6a","escrow_id":"0fe4c870727233575534227794e4f57902858b4fdc34c27091b85ecc03ea3e27","t0":1794543595,"t1":1794543655,"t2":1794543715}
+[taker 1794542576] 59979931 [MISBEHAVE free-claim] escrow verified; NOT funding; will try to claim after t0
+[taker 1794542576] 59979931 stage Funded
+[taker 1794542581] 59979931 [MISBEHAVE free-claim] commit_claim without Ready before t2 REJECTED by the escrow: {"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: NotClaimable: commit_claim needs Ready before t1, or any time from t2"}}}} at escrow.test.near; waiting for t2
+[taker 1794542581] 59979931 R2c: claim window closed (NEAR time 1794543707, t1 1794543655, budget 15s); not committing; waiting for the maker's refund or for t2 1794543715
+[taker 1794542587] {"type":"near_tx","swap":"59979931644fbfa57acca313bf9d2a6a","what":"commit_claim","hash":"73vsWeDazHATqL7MZtpxBKTRPAcaA6dqmQV8Yn9ECTaS"}
+[taker 1794542587] 59979931 past t2 with escrow Open: LOCKED via the punish path, tx 73vsWeDazHATqL7MZtpxBKTRPAcaA6dqmQV8Yn9ECTaS [MISBEHAVE free-claim, never funded]
+[taker 1794542587] 59979931 stage Committed
+[taker 1794542589] 59979931 lock final (block 1908); revealing a before the deadline 1794543765
+[taker 1794542589] 59979931 stage Revealed
+[taker 1794542591] {"type":"near_tx","swap":"59979931644fbfa57acca313bf9d2a6a","what":"claim","hash":"Hy3RxRsAcQgzn6kFYEtwZLyeM4hMGJz5ZFrah919ccPv"}
+[taker 1794542591] 59979931 REVEALED a with claim, tx Hy3RxRsAcQgzn6kFYEtwZLyeM4hMGJz5ZFrah919ccPv; waiting for the claim to be final
+[taker 1794542593] 59979931 claim is final (block 1915)
+[taker 1794542593] 59979931 stage Claimed
+[taker 1794542593] 59979931 the taker cannot send withdraw (send_tx A3vm6iN3RU9pKfY9xZBmyKQP3xx1VAYM6JtfvnpiAzZ5: NEAR RPC error HANDLER_ERROR / INVALID_TRANSACTION: {"TxExecutionError":{"InvalidTxError":{"NotEnoughBalance":{"balance":"27872541828702500000000","cost":"100919628919299500000000","signer_id":"9529977921e69b287b9762b9f4b36ed3fd16dd96abf24fcdc14c0f596c5b3332"}}}}); waiting for the maker to withdraw
+[taker 1794542593] 59979931 claim final; waiting for the payout (credit 30000000000000000000000000, in intents 0)
+[taker 1794542597] 59979931 claim final; waiting for the payout (credit 0, in intents 0)
+[taker 1794542599] 59979931 PAYOUT: 30000000000000000000000000 of wrap.test.near in intents.near, owned by 9529977921e69b287b9762b9f4b36ed3fd16dd96abf24fcdc14c0f596c5b3332
+[taker 1794542599] 59979931 payout 30000000000000000000000000 wrap.test.near to 9529977921e69b287b9762b9f4b36ed3fd16dd96abf24fcdc14c0f596c5b3332 in intents
+[taker 1794542599] 59979931 stage Completed
+[taker 1794542599] 59979931 DONE Completed
+[taker 1794542599] finished: Completed

@@ -18,7 +18,7 @@ error handling are in [`docs/INTENTS.md`](../../docs/INTENTS.md).
 |---|---|
 | `oneclick` | Request builders and parsers for the 1Click API: `GET /v0/tokens`, `POST /v0/quote` (dry and firm), `POST /v0/generate-intent`, `POST /v0/submit-intent`, `GET /v0/status`. |
 | `quote_sig` | Checks 1Click's ed25519 signature over a quote, with the algorithm and key of the official TypeScript SDK 0.1.26. |
-| `check` | The pre-signing check. Refuses to sign unless the quote is signed by 1Click and matches what the user approved, and the generated payload is exactly one `transfer` of the approved amount of the approved token to the quote's deposit address, from the taker's account, on `intents.near`, with a deadline in range. |
+| `check` | The pre-signing check. Refuses to sign unless the quote is signed by 1Click, is recent by its signed `timestamp`, and matches what the user approved, and the generated payload is exactly one `transfer` of the approved amount of the approved token to the quote's deposit address, from the taker's account, on `intents.near`, with a deadline in range and a versioned nonce that expires with the intent. |
 | `signer` | The taker's ed25519 key: account id (hex of the public key), `raw_ed25519` and `nep413` signatures. It can sign only payloads this crate built or checked. |
 | `payload` | Intents (`transfer`, `ft_withdraw`), the Verifier payload for both standards, NEP-413 hashing, intent hashes, the signed `MultiPayload`. |
 | `nonce` | Versioned (salted, expiring) and legacy Verifier nonces. |
@@ -40,6 +40,32 @@ let client = ExitClient::new(my_transport, OneClick::default());
 let exit = client.execute_exit(&signer, &approved, 100, now + 30min, Standard::RawEd25519, now)?;
 // then poll client.status(exit.deposit_address()) until status.is_final()
 ```
+
+### Quote freshness
+
+1Click signs a firm quote's `timestamp` (when the quote was made) and `quote.deadline`
+(the request deadline plus 72 hours). It does not sign `quoteRequest.deadline` on a
+firm quote: the signed message takes `deadline` from `quote.deadline`. So the check
+takes freshness from the signed `timestamp` (review-1 F-02):
+
+- the quote is refused (`Refusal::QuoteTooOld`) when `timestamp + Policy::max_quote_age
+  <= now`. `max_quote_age` defaults to 5 minutes;
+- the quote is refused (`Refusal::QuoteFromFuture`) when `timestamp` is more than
+  `MAX_QUOTE_CLOCK_AHEAD` (1 minute) after `now`;
+- `quoteRequest.deadline` and `quote.deadline` must also be after `now`
+  (`Refusal::QuoteExpired`). The first is an extra check only, because it is not
+  signed.
+
+This also refuses a replayed old quote. "Now" is an argument: the caller passes its
+clock, and the tests pass the time of the recording. The caller must get the firm
+quote and run the check within `max_quote_age`; `execute_exit` does both in one call.
+
+### Nonce
+
+1Click chooses the nonce of the payload it generates. The check accepts only a
+versioned nonce whose deadline equals the intent deadline (`Refusal::BadNonce`), as
+1Click returned in every recording. The salt is not compared with the Verifier's
+`current_salt`, because the crate does no I/O; the Verifier refuses an invalid salt.
 
 `HttpTransport` has one method, `send(&HttpRequest) -> Result<HttpResponse, String>`.
 It is the contract of `zecret_core::net::Transport::post` plus GET, which
@@ -65,7 +91,9 @@ wasm-check/run.sh                                 # runs the wasm build in Node
   parsing), so the signature our code makes is the one 1Click accepted. Every refusal
   of the safety check is tested on real payloads: wrong receiver, amount, token,
   signer, contract, standard, intent type, intent count, memo, contract call,
-  deadlines, a quote that differs from the approval, and a tampered or unsigned quote.
+  deadlines, a quote that differs from the approval, a tampered or unsigned quote, a
+  quote older than `max_quote_age` or from the future, the review-1 F-02 proof of
+  concept (an edited, unsigned request deadline), and a legacy or long-lived nonce.
 - **Sandbox tests** (`tests/sandbox.rs`): the Verifier code fetched from
   `intents.near`, in nearcore sandbox 2.14.1. A token is deposited for an unfunded
   key; the crate signs an `ft_withdraw` (`raw_ed25519`) and a `transfer` (`nep413`); a

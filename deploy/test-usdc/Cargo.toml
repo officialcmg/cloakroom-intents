@@ -1,0 +1,17 @@
+[package]
+name = "test-usdc"
+version = "0.1.0"
+edition = "2021"
+description = "Stand-in USDC for NEAR testnet: a standard NEP-141 token with 6 decimals and an open mint for demos. Not money."
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "5.30"
+near-contract-standards = "5.30"
+
+[dev-dependencies]
+near-sdk = { version = "5.30", features = ["unit-testing"] }

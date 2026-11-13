@@ -1,23 +1,23 @@
 
 ===== start maker --exit-after 1 =====
-[maker 1794541127] up: UA uregtest1msyceycwlqelxngn3x42032uulx43xqprjcqru30wm6jfsz0zhxlvd9xyd88dkme2h7m5sm644jdhud5f39crvsx0d7nfq3xqc0lnw3t NEAR maker.test.near key ed25519:AZYrGBDkJ1CYaevJBu17PuJFkRgPPZ4SNAffuMvZYqPK
-[maker 1794541152] d6532c49 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
-[maker 1794541152] d6532c49 stage Quoting
-[maker 1794541152] {"type":"zcash_tx","swap":"d6532c491fd7cd54d13380d98c161483","what":"quote","txid":"e1b4ba515c1e1874a1f4f894cb7ea0aa124a280fc7379d57c1243f2c29f38c7d"}
-[maker 1794541152] d6532c49 encrypted QUOTE sent in tx e1b4ba515c1e1874a1f4f894cb7ea0aa124a280fc7379d57c1243f2c29f38c7d
-[maker 1794541152] d6532c49 stage Quoted
-[maker 1794541167] d6532c49 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 28aa9f60
-[maker 1794541167] d6532c49 stage Opening
-[maker 1794541167] {"type":"near_tx","swap":"d6532c491fd7cd54d13380d98c161483","what":"open","hash":"BqCVENWmCiXZoY3Yi8rsTxkwzaiWkQPTmjQerE5NMUEd"}
-[maker 1794541167] d6532c49 escrow OPEN id 28aa9f603638433bdb8853b40b2096a05c1c6025ea9a9f00525f2ae20a2dd887 amount 30000000000000000000000000 t0=1794541754 t1=1794541814 t2=1794541874 W=45, tx BqCVENWmCiXZoY3Yi8rsTxkwzaiWkQPTmjQerE5NMUEd
-[maker 1794541167] {"type":"near_tx","swap":"d6532c491fd7cd54d13380d98c161483","what":"stipend","hash":"7BmMYBYx697n6xerHwi5tk1Vgzm9bMGjt6cLBxy1UvCP"}
-[maker 1794541167] d6532c49 STIPEND of 30000000000000000000000 yoctoNEAR sent to b009bde8b8a4fa51be5beedb1faa426a96cac2e7d5c5310f2873cece04af7a81, tx 7BmMYBYx697n6xerHwi5tk1Vgzm9bMGjt6cLBxy1UvCP
-[maker 1794541167] d6532c49 stage Opened
-[maker 1794541182] d6532c49 joint note underfunded (50005000 < 100010000) before t0; refunding
-[maker 1794541182] d6532c49 stage RefundSent
-[maker 1794541185] {"type":"near_tx","swap":"d6532c491fd7cd54d13380d98c161483","what":"refund","hash":"B7651qgc4i8PS3ee3TCHMFoYTjQQAX2MFCuFf7yCwS3s"}
-[maker 1794541185] d6532c49 REFUND publishes b, tx B7651qgc4i8PS3ee3TCHMFoYTjQQAX2MFCuFf7yCwS3s (executed); waiting for it to be final
-[maker 1794541188] d6532c49 refund is final (block <= 954); tokens withdrawn, tx BwQLX3gQa4Vhm64wgxY8Bd64S9hoLVvwshYL1tUDJz4W
-[maker 1794541188] d6532c49 stage Refunded
-[maker 1794541188] d6532c49 DONE Refunded
-[maker 1794541188] 1 swap(s) terminal; exiting
+[maker 1794542284] up: UA uregtest15ls9smzrz48tzralt6py2ssutctwymqgg0he58xa0f3eap5rxasevdn6h85armlsq6wduwnuhsdj46g0u8mhtnzyk7m4mvswech865tq NEAR maker.test.near key ed25519:9WAAQk5ax9SzDGB41LjYyV6x64YDHdX1qfsdtagHhfY1
+[maker 1794542296] 7e3f76b9 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794542296] 7e3f76b9 stage Quoting
+[maker 1794542296] {"type":"zcash_tx","swap":"7e3f76b97c284140d3f7e30f37658c0e","what":"quote","txid":"cbf3366b297080eceb3ea20b81ba0b5223a07f3b2ece8cfc0df445da82230db6"}
+[maker 1794542296] 7e3f76b9 encrypted QUOTE sent in tx cbf3366b297080eceb3ea20b81ba0b5223a07f3b2ece8cfc0df445da82230db6
+[maker 1794542296] 7e3f76b9 stage Quoted
+[maker 1794542307] 7e3f76b9 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id ebe8f39e
+[maker 1794542307] 7e3f76b9 stage Opening
+[maker 1794542307] {"type":"near_tx","swap":"7e3f76b97c284140d3f7e30f37658c0e","what":"open","hash":"Bdt4moN1qkQLXqtGL2qdJvFYVegE8YnP4KvvUqt3PybL"}
+[maker 1794542307] 7e3f76b9 escrow OPEN id ebe8f39ef3345394c2a1c13bbfde8a9975646cbd8dfa070bd81eb3941808206f amount 30000000000000000000000000 t0=1794542892 t1=1794542952 t2=1794543012 W=45, tx Bdt4moN1qkQLXqtGL2qdJvFYVegE8YnP4KvvUqt3PybL
+[maker 1794542307] {"type":"near_tx","swap":"7e3f76b97c284140d3f7e30f37658c0e","what":"stipend","hash":"HuS3hJyjzZpM7QEmJvDccuqnukZmS2qpeg9y69NqUDrG"}
+[maker 1794542307] 7e3f76b9 STIPEND of 30000000000000000000000 yoctoNEAR sent to 02233dadc7a4973a336ac98618ab370e2d14263f1544ffbf50c2f724cb95714b, tx HuS3hJyjzZpM7QEmJvDccuqnukZmS2qpeg9y69NqUDrG
+[maker 1794542307] 7e3f76b9 stage Opened
+[maker 1794542328] 7e3f76b9 joint note underfunded (50005000 < 100010000) before t0; refunding
+[maker 1794542328] 7e3f76b9 stage RefundSent
+[maker 1794542331] {"type":"near_tx","swap":"7e3f76b97c284140d3f7e30f37658c0e","what":"refund","hash":"BjgrjYN1BHfk3YGuogYLscZxjj9ARMGUrFpenbzPZLA3"}
+[maker 1794542331] 7e3f76b9 REFUND publishes b, tx BjgrjYN1BHfk3YGuogYLscZxjj9ARMGUrFpenbzPZLA3 (executed); waiting for it to be final
+[maker 1794542334] 7e3f76b9 refund is final (block <= 1033); tokens withdrawn, tx 3L5UNMdbspGEgf9RN6KBbPmU7xoPA8nkM3HKJsu6oo9u
+[maker 1794542334] 7e3f76b9 stage Refunded
+[maker 1794542334] 7e3f76b9 DONE Refunded
+[maker 1794542334] 1 swap(s) terminal; exiting

@@ -7,10 +7,13 @@
 //! 1. **The quote.** 1Click's signature over the quote is valid, and the signed quote
 //!    says what the user approved: origin asset and amount, destination asset,
 //!    recipient, refunds to the taker's own Verifier account, a minimum output not
-//!    below the approved minimum, a firm (not dry) quote with a deposit address.
+//!    below the approved minimum, a firm (not dry) quote with a deposit address, and
+//!    a signed `timestamp` that is recent (at most [`Policy::max_quote_age`] old and
+//!    at most [`MAX_QUOTE_CLOCK_AHEAD`] in the future).
 //! 2. **The payload.** Decoded strictly (unknown fields or intent types are refused):
 //!    the verifying contract, the signer, a deadline that is in the future and not too
-//!    far away, and exactly one `transfer` intent that moves exactly the approved
+//!    far away, a versioned nonce whose deadline is the intent deadline, and exactly
+//!    one `transfer` intent that moves exactly the approved
 //!    amount of exactly the approved token to exactly the quote's deposit address,
 //!    with no memo and no contract call.
 //!
@@ -20,6 +23,7 @@
 use core::fmt;
 
 use chrono::Duration;
+use serde_json::Value;
 
 use crate::oneclick::{GeneratedIntent, QuoteResponse, VERIFIER_MAINNET, amount};
 use crate::payload::{Intent, Nep413Payload, Standard, UnsignedPayload};
@@ -66,6 +70,10 @@ impl ApprovedExit {
     }
 }
 
+/// How far in the future a quote's signed `timestamp` may be, to allow for clock
+/// differences between 1Click and the caller.
+pub const MAX_QUOTE_CLOCK_AHEAD: Duration = Duration::minutes(1);
+
 /// Limits that do not come from the user.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Policy {
@@ -75,6 +83,11 @@ pub struct Policy {
     /// intent deadline to the quote's deposit deadline, which was the request deadline
     /// plus 72 hours in every quote measured; the default allows 96 hours.
     pub max_intent_validity: Duration,
+    /// The oldest a firm quote may be, counted from its signed `timestamp` to now. The
+    /// request deadline (`quoteRequest.deadline`) is not signed on firm quotes, so the
+    /// quote's age is what proves that 1Click still executes it. The default is 5
+    /// minutes; the request deadline is 30 minutes in every quote this crate requests.
+    pub max_quote_age: Duration,
 }
 
 impl Default for Policy {
@@ -82,6 +95,7 @@ impl Default for Policy {
         Self {
             quote_key: quote_sig::ONE_CLICK_QUOTE_KEY,
             max_intent_validity: Duration::hours(96),
+            max_quote_age: Duration::minutes(5),
         }
     }
 }
@@ -111,6 +125,16 @@ pub enum Refusal {
     /// The quote's deposit deadline has passed.
     QuoteExpired {
         deadline: String,
+    },
+    /// The quote's signed `timestamp` is older than [`Policy::max_quote_age`].
+    QuoteTooOld {
+        timestamp: String,
+        max_age_secs: i64,
+    },
+    /// The quote's signed `timestamp` is more than [`MAX_QUOTE_CLOCK_AHEAD`] in the
+    /// future.
+    QuoteFromFuture {
+        timestamp: String,
     },
     /// The API returned a payload for another standard than requested.
     WrongStandard {
@@ -154,6 +178,9 @@ pub enum Refusal {
     },
     /// The transfer carries a memo.
     Memo,
+    /// The payload's nonce is not a versioned nonce whose deadline is the intent
+    /// deadline.
+    BadNonce(String),
 }
 
 impl fmt::Display for Refusal {
@@ -173,6 +200,16 @@ impl fmt::Display for Refusal {
                 "quote guarantees {quoted}, below the approved minimum {approved}"
             ),
             Self::QuoteExpired { deadline } => write!(f, "quote expired at {deadline}"),
+            Self::QuoteTooOld {
+                timestamp,
+                max_age_secs,
+            } => write!(
+                f,
+                "quote made at {timestamp} is older than {max_age_secs} seconds"
+            ),
+            Self::QuoteFromFuture { timestamp } => {
+                write!(f, "quote timestamp {timestamp} is in the future")
+            }
             Self::WrongStandard { expected, found } => {
                 write!(f, "payload standard {found}, requested {expected}")
             }
@@ -199,6 +236,7 @@ impl fmt::Display for Refusal {
                 write!(f, "transfer amount {found}, expected {expected}")
             }
             Self::Memo => write!(f, "the transfer carries a memo"),
+            Self::BadNonce(m) => write!(f, "nonce refused: {m}"),
         }
     }
 }
@@ -291,7 +329,9 @@ pub fn check_quote(
         return Err(Refusal::NoDepositAddress);
     }
     // The swap must still be possible: the request deadline (after which 1Click
-    // refunds) and the deposit deadline must both be in the future.
+    // refunds) and the deposit deadline must both be in the future. On a firm quote
+    // the request deadline is not signed, so this is only an extra check; the signed
+    // timestamp below is what proves freshness.
     for d in [Some(r.deadline.as_str()), q.deadline.as_deref()]
         .into_iter()
         .flatten()
@@ -300,6 +340,25 @@ pub fn check_quote(
         if t <= now {
             return Err(Refusal::QuoteExpired { deadline: d.into() });
         }
+    }
+    // Freshness from signed data (review-1 F-02). Read the timestamp from the answer as
+    // received, which is the value the signature covers.
+    let timestamp = quote
+        .raw
+        .get("timestamp")
+        .and_then(Value::as_str)
+        .ok_or_else(|| Refusal::Malformed("quote has no timestamp".into()))?;
+    let issued = time::parse(timestamp).map_err(|e| Refusal::Malformed(e.to_string()))?;
+    if issued + policy.max_quote_age <= now {
+        return Err(Refusal::QuoteTooOld {
+            timestamp: timestamp.into(),
+            max_age_secs: policy.max_quote_age.num_seconds(),
+        });
+    }
+    if issued > now + MAX_QUOTE_CLOCK_AHEAD {
+        return Err(Refusal::QuoteFromFuture {
+            timestamp: timestamp.into(),
+        });
     }
     Ok(())
 }
@@ -367,6 +426,21 @@ pub fn check_generated_intent(
             deadline: time::format(d.deadline),
             limit: time::format(limit),
         });
+    }
+
+    // A versioned nonce expires with the intent, so a hostile API cannot pick a legacy
+    // nonce or one that outlives the intent (review-1 hardening note H4). The salt is
+    // checked by the Verifier.
+    match d.nonce.as_versioned() {
+        None => return Err(Refusal::BadNonce("not a versioned nonce".into())),
+        Some(v) if v.deadline != d.deadline => {
+            return Err(Refusal::BadNonce(format!(
+                "nonce deadline {} is not the intent deadline {}",
+                time::format(v.deadline),
+                time::format(d.deadline)
+            )));
+        }
+        Some(_) => {}
     }
 
     if d.intents.len() != 1 {

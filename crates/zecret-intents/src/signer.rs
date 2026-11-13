@@ -5,6 +5,7 @@
 //! any `add_public_key` call, and the account does not need to exist on NEAR.
 
 use ed25519_dalek::{Signer as _, SigningKey, VerifyingKey};
+use zeroize::Zeroizing;
 
 use crate::error::{Error, Result};
 use crate::payload::{SignedPayload, UnsignedPayload};
@@ -23,15 +24,17 @@ impl IntentSigner {
         }
     }
 
-    /// A new random key from the platform's random source.
+    /// A new random key from the platform's random source. The seed buffer is zeroed
+    /// when this returns. (`SigningKey` zeroes its own copy on drop.)
     pub fn generate() -> Result<Self> {
-        let mut seed = [0u8; 32];
-        crate::random_bytes(&mut seed)?;
+        let mut seed = Zeroizing::new([0u8; 32]);
+        crate::random_bytes(&mut seed[..])?;
         Ok(Self::from_seed(&seed))
     }
 
-    pub fn seed(&self) -> [u8; 32] {
-        self.key.to_bytes()
+    /// A copy of the 32-byte seed, zeroed when the returned value is dropped.
+    pub fn seed(&self) -> Zeroizing<[u8; 32]> {
+        Zeroizing::new(self.key.to_bytes())
     }
 
     pub fn public_key(&self) -> [u8; 32] {

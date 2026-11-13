@@ -1,0 +1,23 @@
+# Deployment tooling for Zecret on NEAR. A standalone workspace with one target
+# directory (deploy/target).
+[workspace]
+resolver = "2"
+members = ["tool", "test-usdc"]
+
+# The contract build (wasm32, release). The tool runs in the dev profile.
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
+
+# Keep builds small on disk.
+[profile.dev]
+debug = false
+incremental = false
+
+[profile.test]
+debug = false
+incremental = false
