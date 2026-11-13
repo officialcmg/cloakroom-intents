@@ -15,3 +15,8 @@
 [taker 1794541633] cf35d0e0 encrypted ACCEPT with 50000 zats premium sent in tx 20b53dea17d66e2cadd0bc50e4adbc35e54f9e106ac84fb267c6493f92b1cd27; joint address uregtest1y08t0hkxapw362sgwddtvpu09fupl8vasskqyykwjgg7na9e52hwfk3u5wfzjjedgywz2r7tc9vtc5477ksde2axgxchghcdhuhffxrf
 [taker 1794541633] cf35d0e0 stage Accepted
 [taker 1794541634] balance 208263333 zats
+[taker 1794541638] cf35d0e0 escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+[taker 1794541642] cf35d0e0 ABORT: (R1b) NEAR time 1794542955 + fund window 30s is not before t0 1794542981; not funding
+[taker 1794541642] cf35d0e0 stage Aborted
+[taker 1794541642] cf35d0e0 DONE Aborted
+[taker 1794541642] finished: Aborted
