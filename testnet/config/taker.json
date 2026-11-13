@@ -1,0 +1,32 @@
+{
+  "chains": {
+    "lightwalletd": "https://zcash-testnet.chainsafe.dev",
+    "birthday": 4614922,
+    "network": "test",
+    "near_rpc": "https://rpc.testnet.fastnear.com",
+    "escrow": "escrow2.zecret-3f109eea1e.testnet",
+    "token": "usdc.zecret-3f109eea1e.testnet",
+    "intents": "intents.zecret-3f109eea1e.testnet"
+  },
+  "timing": {
+    "inclusion_secs": 30,
+    "finality_secs": 10,
+    "reorg_budget": 2,
+    "margin_secs": 0,
+    "fund_secs": 900,
+    "k_z": 3
+  },
+  "maker": {
+    "ua": "utest1g08wwdh0ye55dah3eagn8nyna8ws3wpweny50p3sjf74faa458jd35aerxt7cjnz2wncujawpwu04dy4gs2smejyrw6uhe3p7u9f3rka",
+    "epoch": 1,
+    "rfq_pub": "2e4c5f737c9af5f91e440d59e22dccd79caf1533da7af06146bdf898d62b3db7",
+    "near_account": "maker.zecret-3f109eea1e.testnet",
+    "near_pk": "ed25519:8xU2efSdeDJRF6tLDFec17oW4vzbMm8Dj5ybUvGjYtov",
+    "sig": "4ce2c6add7936ed4926a6a30ae8303522fb068f0753e807c8725406d2e3903148ece03b0977b1f930ae4b5bf291cfed42ed36775ecccfe5e3bfeb48fda492d07"
+  },
+  "escrow_code_hash": "DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1",
+  "min_price": "0",
+  "max_premium": 2000,
+  "min_stipend": "30000000000000000000000",
+  "quote_timeout_secs": 1800
+}

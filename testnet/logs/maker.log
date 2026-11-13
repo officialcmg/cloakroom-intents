@@ -1,0 +1,29 @@
+05:37:23.174 [maker 1794548243] up: UA utest1g08wwdh0ye55dah3eagn8nyna8ws3wpweny50p3sjf74faa458jd35aerxt7cjnz2wncujawpwu04dy4gs2smejyrw6uhe3p7u9f3rka NEAR maker.zecret-3f109eea1e.testnet key ed25519:8xU2efSdeDJRF6tLDFec17oW4vzbMm8Dj5ybUvGjYtov
+05:38:18.020 [maker 1794548298]  RFQ rejected: amount 50000000 outside 100000..=10000000
+05:39:16.388 [maker 1794548356] de41faf8 RFQ for 10000000 zats decrypted and verified; quoting price 3000000 (premium 1000 zats, stipend 30000000000000000000000 yocto)
+05:39:16.388 [maker 1794548356] de41faf8 stage Quoting
+05:39:16.716 [maker 1794548356]  transient: requests wait for a quote, but the wallet has 0 spendable zats, less than a quote fee (10000)
+05:39:16.716 [maker 1794548356] {"type":"zcash_tx","swap":"de41faf899eec6840bdcb2ce212bf71e","what":"quote","txid":"c0e344e0443e26f6a4d7f149c4725450545a048425dc8458bcfbbc1e30cc2c48"}
+05:39:16.716 [maker 1794548356] de41faf8 encrypted QUOTE sent in tx c0e344e0443e26f6a4d7f149c4725450545a048425dc8458bcfbbc1e30cc2c48
+05:39:16.716 [maker 1794548356] de41faf8 stage Quoted
+05:41:20.668 [maker 1794548480] de41faf8 ACCEPT decrypted (premium 1000 zats received, seed commitment opens, negated: true); escrow id 04a469d6
+05:41:20.668 [maker 1794548480] de41faf8 stage Opening
+05:41:29.098 [maker 1794548489] {"type":"near_tx","swap":"de41faf899eec6840bdcb2ce212bf71e","what":"open","hash":"DnGg8B2paHKMUcXAhzC2hfYQkTitqv3qVzKT5euZVe8x"}
+05:41:29.098 [maker 1794548489] de41faf8 escrow OPEN id 04a469d68c2d16588a3face45cd57309198270cb1ed95fdd716159b48e84ace4 amount 3000000 t0=1794550279 t1=1794550879 t2=1794551779 W=600, tx DnGg8B2paHKMUcXAhzC2hfYQkTitqv3qVzKT5euZVe8x
+05:41:29.098 [maker 1794548489] {"type":"near_tx","swap":"de41faf899eec6840bdcb2ce212bf71e","what":"stipend","hash":"CTza5f9XvaCXYuXSoGsjSgiA3k3RGRxjNehfp76TXHbf"}
+05:41:29.098 [maker 1794548489] de41faf8 STIPEND of 30000000000000000000000 yoctoNEAR sent to 15968c4ae680388e6c4b4511de8cfaab2a71a8eb0023f2f787ccdc085a2a9067, tx CTza5f9XvaCXYuXSoGsjSgiA3k3RGRxjNehfp76TXHbf
+05:41:29.098 [maker 1794548489] de41faf8 stage Opened
+05:42:04.953 [maker 1794548524] {"type":"near_tx","swap":"de41faf899eec6840bdcb2ce212bf71e","what":"set_ready","hash":"9kn4hxVUxMqd16AzvkwaWQUouYhDrVeoJdyPp4cUXqix"}
+05:42:04.953 [maker 1794548524] de41faf8 joint note 10010000 zats with 3 confirmations (k_Z = 3); READY, tx 9kn4hxVUxMqd16AzvkwaWQUouYhDrVeoJdyPp4cUXqix
+05:42:04.953 [maker 1794548524] de41faf8 stage Ready
+05:42:25.846 [maker 1794548545] {"type":"near_tx","swap":"de41faf899eec6840bdcb2ce212bf71e","what":"withdraw","hash":"DodbZPEToNesVSF5G9yQUogm1zN9FqF3hdTdwEGPepL6"}
+05:42:25.846 [maker 1794548545] de41faf8 withdraw for the taker into intents.near, tx DodbZPEToNesVSF5G9yQUogm1zN9FqF3hdTdwEGPepL6 (executed)
+05:42:25.846 [maker 1794548545] de41faf8 CLAIMED: read a from the escrow
+05:42:26.485 [maker 1794548546] {"type":"zcash_tx","swap":"de41faf899eec6840bdcb2ce212bf71e","what":"sweep","txid":"2c9987356abb408ae6553df8b014e9de2ddb52bfa20c74f40f2573b21785c368"}
+05:42:26.485 [maker 1794548546] de41faf8 swept the joint note with (a+b) to the maker's wallet, tx 2c9987356abb408ae6553df8b014e9de2ddb52bfa20c74f40f2573b21785c368; waiting for 3 confirmations
+05:42:26.485 [maker 1794548546] de41faf8 stage Sweeping
+05:43:54.914 [maker 1794548634] de41faf8 sweep 2c9987356abb408ae6553df8b014e9de2ddb52bfa20c74f40f2573b21785c368 has 3 confirmations (k_Z = 3); done
+05:43:54.914 [maker 1794548634] de41faf8 stage Swept
+05:43:54.914 [maker 1794548634] de41faf8 DONE Swept
+05:43:54.914 [maker 1794548634] 1 swap(s) terminal; exiting
+MAKER EXIT 0

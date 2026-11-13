@@ -1,0 +1,9 @@
+05:37:49.397 [taker 1794548269] new swap 7e299b14 for 50000000 zats; NEAR account 0bd71f51a824133c481f3f34b4f1f9460dc498de3e14bf37433998aa9a186c88; wallet utest1zdyw8dscgrelws7muvgznaa2xwld5aysr50w7xy46p4aqyrvlw7t2ejxllda8j6qp9dtc557f6cnnj7uypn8wkmqknzmcd225ca9ca04
+05:37:49.397 [taker 1794548269] 7e299b14 stage WaitingDeposit
+05:37:50.114 [taker 1794548270] balance 100000000 zats
+05:37:50.114 [taker 1794548270] {"type":"activity","swap":"7e299b147676afcccf9e973ef047624b","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+05:37:55.335 [taker 1794548275] balance 0 zats
+05:37:55.335 [taker 1794548275] {"type":"zcash_tx","swap":"7e299b147676afcccf9e973ef047624b","what":"rfq","txid":"918cc073441430964f47e109253fe6c23dcae240329a33eac984b86fe9777cee"}
+05:37:55.335 [taker 1794548275] 7e299b14 encrypted RFQ for 50000000 zats sent to the maker in shielded tx 918cc073441430964f47e109253fe6c23dcae240329a33eac984b86fe9777cee
+05:37:55.335 [taker 1794548275] 7e299b14 stage RfqSent
+05:38:16.444 [taker 1794548296] balance 99990000 zats

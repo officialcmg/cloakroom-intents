@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-13 05:35 UTC. Deadline: 2026-11-14 23:59 UTC.
+Updated: 2026-11-13 05:52 UTC. Deadline: 2026-11-14 23:59 UTC.
 
 Any session can resume from this file. Read `docs/BUILD_PLAN.md` for the packages and
 their checks.
@@ -9,6 +9,7 @@ their checks.
 
 | Package | Result |
 |---|---|
+| T. A swap on public test networks | Done. The native maker and taker swapped 0.1 testnet ZEC for 3 test USDC on Zcash testnet and NEAR testnet through `escrow2`, then the taker's signed withdrawal moved the tokens out of the stand-in verifier. Taker finished in 222 s, 322 s with the exit. The main session checked on NEAR by RPC: the claim was sent by the taker's own key and succeeded, and the escrow shows the swap as Claimed for 3,000,000 units. The Zcash side was checked by the agent only (6 transactions, all fully shielded). Testnet ZEC came from the Zcash Foundation faucet. Evidence: `docs/TESTNET.md`, `testnet/EVIDENCE.json`. The two wallets in `.tools/testnet/` (untracked) still hold funds. |
 | NV-02 fix. Two-step payout | PASS, rerun by the main session: 57 unit tests, 6 sandbox tests, and 8 tests against the USDC code from mainnet (pause, blocklist and races between delivery and resolve: the taker is paid exactly once). The old escrow fails the same tests. New testnet escrow: `escrow2.zecret-3f109eea1e.testnet`, code hash `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1`, no access keys (checked by RPC). `withdraw` now needs 200 Tgas. Still open: the client code and configs in `crates/` use 100 Tgas and the old escrow id. See `docs/security/fixes-2.md`. |
 | S2. Security review 2 (core, native client) | Done. 4 bugs: F2-01 medium (taker erases its key half after a refund while its funding is still at the shared address), F2-02 medium (first claim sent without re-checking the reveal deadline), F2-04 medium (unpaid requests slow the maker without limit), F2-03 low (an oversized reveal window freezes both sides). 2 open questions: one NEAR RPC endpoint is trusted; the premium is not tied to the stipend. Report and proofs: `docs/security/review-2.md`, `poc2/`. The taker-side fixes (F2-01, F2-02, F2-03) wait until package E finishes, because E is editing `taker.rs`. |
 | CD. Shared core, NEAR adapter, native maker and taker | PASS. The agent ran 19 two-party scenarios (maker and taker as separate programs, Zebra regtest plus NEAR sandbox with the real escrow and the live `intents.near` code); the main session reran s1 (happy path), s3 (maker refund) and s4 (punish path) and the 25 core unit tests, all passing. `crates/zecret-core` has no I/O and builds for WebAssembly. The binary is `zecret` in `crates/zecret-node`. Reorganization scenarios s13 and s14 were dropped: NEAR final blocks cannot be reorganized. Not verified: a swap on public test networks. See `harness/RESULTS.md`, `docs/ENGINE.md`. |
@@ -27,7 +28,6 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 | E. Taker engine in the browser, wired into the website | 04:44 | `crates/zecret-wasm/`, `web/`, `harness/` |
-| T. A swap on public test networks (native maker and taker; needs testnet ZEC) | 05:35 | `docs/TESTNET.md`, `testnet/`, wallets in `.tools/testnet/` (untracked) |
 | S2-fix (maker side). Fixes for review 2 that are outside `taker.rs` | 05:30 | `crates/zecret-core` (not `taker.rs`), `crates/zecret-node` |
 
 ## Next
@@ -35,6 +35,13 @@ their checks.
 After E: a swap on public test networks (needs testnet ZEC for the maker and taker), README and documentation (K), a second security review of the core, engine and website with fixes, and the final wording review (L).
 
 Plan change: packages C and D are merged into one (CD), because the browser spike showed the right structure is one shared core crate with no I/O. The website (F) starts now against a documented engine interface with a simulated engine, so UX work runs in parallel.
+
+## Next fix round (after package E finishes)
+
+- Taker side of security review 2: F2-01, F2-02, F2-03, H1 (`crates/zecret-core/src/taker.rs`).
+- From the testnet swap: the maker sends no answer to a request above its limit, so the taker waits the full quote timeout (`maker.rs` around line 440); the maker's directory entry should publish its limits; a wrong "0 spendable zats" warning in the maker log.
+- The taker can never pay for `withdraw` (200 Tgas needs about 0.2 NEAR). If the maker stops after the claim, the USDC waits in the escrow until any account sends `withdraw`. Decide: a larger stipend, or say it plainly in the app and docs.
+- Zcash testnet blocks arrive every 23 s on average; the configs are sized for 75 s blocks.
 
 ## Blocked or skipped
 

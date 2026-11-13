@@ -213,6 +213,8 @@ def start_near():
     cfgp = os.path.join(home, "config.json")
     cfg = json.load(open(cfgp))
     cfg["rpc"]["addr"] = f"127.0.0.1:{NEAR_PORT}"
+    # Not the default 24567: the browser runner (harness/browser) runs its own sandbox.
+    cfg["network"]["addr"] = "127.0.0.1:24667"
     json.dump(cfg, open(cfgp, "w"))
     near_proc = subprocess.Popen([binp, "--home", home, "run"], env=env, stdout=open(os.path.join(WORK, "near.log"), "w"), stderr=subprocess.STDOUT)
     wait_for(lambda: _near_up(), 60, "NEAR sandbox")

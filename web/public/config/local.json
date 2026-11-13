@@ -8,7 +8,7 @@
   "near": {
     "rpc": "http://127.0.0.1:3130",
     "escrow": "escrow.test.near",
-    "escrowCodeHash": "REPLACE: printed by harness/browser/run.mjs --serve, which writes the complete file to /run/local/config.json",
+    "escrowCodeHash": "DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1",
     "token": "wrap.test.near",
     "tokenSymbol": "wNEAR",
     "tokenDecimals": 24,

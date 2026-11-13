@@ -1,0 +1,340 @@
+{
+ "run": "one swap of shielded testnet ZEC for test USDC, native maker and native taker",
+ "date_utc": "2026-11-13",
+ "code": {
+  "git_head": "cec2efcc1caac61f240023d7763c9ba2e527fd59",
+  "note": "working tree differed from HEAD only in crates/zecret-core/tests/maker_bounds.rs (a test file)",
+  "zecret_binary_sha256": "a755baab11a2d5f11698cf4869e1d386cd5e688ed853ed9fe7e70d4dab9a9153"
+ },
+ "networks": {
+  "zcash": "testnet (NU7 active since 4,465,026), light-wallet server https://zcash-testnet.chainsafe.dev (gRPC-web)",
+  "near": "testnet, RPC https://rpc.testnet.fastnear.com"
+ },
+ "accounts": {
+  "escrow": "escrow2.zecret-3f109eea1e.testnet",
+  "escrow_code_hash": "DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1",
+  "token": "usdc.zecret-3f109eea1e.testnet",
+  "verifier_standin": "intents.zecret-3f109eea1e.testnet",
+  "maker": "maker.zecret-3f109eea1e.testnet",
+  "taker_key_account": "15968c4ae680388e6c4b4511de8cfaab2a71a8eb0023f2f787ccdc085a2a9067",
+  "exit_destination": "zecret-3f109eea1e.testnet"
+ },
+ "zcash_addresses": {
+  "maker_wallet": "utest1g08wwdh0ye55dah3eagn8nyna8ws3wpweny50p3sjf74faa458jd35aerxt7cjnz2wncujawpwu04dy4gs2smejyrw6uhe3p7u9f3rka",
+  "taker_wallet": "utest1zdyw8dscgrelws7muvgznaa2xwld5aysr50w7xy46p4aqyrvlw7t2ejxllda8j6qp9dtc557f6cnnj7uypn8wkmqknzmcd225ca9ca04",
+  "joint_address": "utest1lulr4vwpya0cfnv54mka0p8yhs9m4ut2nxlyr0fdxn2jsepvqqvlp9t6ky4paljvj69afc7j4379tr3ha5q0gcrckge0akvley6n39xy"
+ },
+ "swap": {
+  "rfq_id": "de41faf899eec6840bdcb2ce212bf71e",
+  "escrow_swap_id": "04a469d68c2d16588a3face45cd57309198270cb1ed95fdd716159b48e84ace4",
+  "zats": 10000000,
+  "price_usdc_base_units": "3000000",
+  "premium_zats": 1000,
+  "stipend_yocto": "30000000000000000000000",
+  "escrow_final_state": "Claimed (a published, b null)",
+  "taker_result": "Completed",
+  "maker_result": "Swept"
+ },
+ "zcash_transactions": [
+  {
+   "txid": "75d81b9a34d10875969c67b596c11dbebc23368234d02040dd4711ef65600fc9",
+   "height": 4614924,
+   "block_time_unix": 1794548190,
+   "version": "v6",
+   "transparent_in_out": "0/0",
+   "sapling_spends_outputs": "0/0",
+   "orchard_actions": 2,
+   "ironwood_actions": 1,
+   "ironwood_value_balance_zats": -100000000,
+   "role": "faucet drip to taker wallet (Fauzec, 1 TAZ)"
+  },
+  {
+   "txid": "a805b089fa495b0708db9f86d4f3a56dc5d82b5cff9a62e2abaea2dc1110208e",
+   "height": 4614924,
+   "block_time_unix": 1794548190,
+   "version": "v6",
+   "transparent_in_out": "0/0",
+   "sapling_spends_outputs": "0/0",
+   "orchard_actions": 2,
+   "ironwood_actions": 1,
+   "ironwood_value_balance_zats": -100000000,
+   "role": "faucet drip to maker wallet (Fauzec, 1 TAZ)"
+  },
+  {
+   "txid": "918cc073441430964f47e109253fe6c23dcae240329a33eac984b86fe9777cee",
+   "height": 4614926,
+   "block_time_unix": 1794548279,
+   "version": "v6",
+   "transparent_in_out": "0/0",
+   "sapling_spends_outputs": "0/0",
+   "orchard_actions": 0,
+   "ironwood_actions": 2,
+   "ironwood_value_balance_zats": 10000,
+   "role": "first RFQ, 50,000,000 zats; rejected by the maker (above max_zats); swap abandoned before any lock"
+  },
+  {
+   "txid": "1d0e35b69c9f75b503df44958ba13682567d538e18531a0947de0d05c209be08",
+   "height": 4614927,
+   "block_time_unix": 1794548329,
+   "version": "v6",
+   "transparent_in_out": "0/0",
+   "sapling_spends_outputs": "0/0",
+   "orchard_actions": 0,
+   "ironwood_actions": 2,
+   "ironwood_value_balance_zats": 10000,
+   "role": "RFQ (taker -> maker), swap de41faf8"
+  },
+  {
+   "txid": "c0e344e0443e26f6a4d7f149c4725450545a048425dc8458bcfbbc1e30cc2c48",
+   "height": 4614930,
+   "block_time_unix": 1794548437,
+   "version": "v6",
+   "transparent_in_out": "0/0",
+   "sapling_spends_outputs": "0/0",
+   "orchard_actions": 0,
+   "ironwood_actions": 2,
+   "ironwood_value_balance_zats": 10000,
+   "role": "QUOTE (maker -> taker)"
+  },
+  {
+   "txid": "be00a12b1622c2b66a5f620fd5fed9bcb23138275c09a83ac888dc35d1f0dade",
+   "height": 4614932,
+   "block_time_unix": 1794548464,
+   "version": "v6",
+   "transparent_in_out": "0/0",
+   "sapling_spends_outputs": "0/0",
+   "orchard_actions": 0,
+   "ironwood_actions": 2,
+   "ironwood_value_balance_zats": 10000,
+   "role": "ACCEPT + 1,000-zat premium (taker -> maker)"
+  },
+  {
+   "txid": "48cf8e0fb0144352df7fc9257f44cd15cfee3e03b5c9ca4f3dadcc74c46fef5a",
+   "height": 4614934,
+   "block_time_unix": 1794548497,
+   "version": "v6",
+   "transparent_in_out": "0/0",
+   "sapling_spends_outputs": "0/0",
+   "orchard_actions": 0,
+   "ironwood_actions": 2,
+   "ironwood_value_balance_zats": 10000,
+   "role": "FUND: 10,010,000 zats to the joint address"
+  },
+  {
+   "txid": "2c9987356abb408ae6553df8b014e9de2ddb52bfa20c74f40f2573b21785c368",
+   "height": 4614937,
+   "block_time_unix": 1794548552,
+   "version": "v6",
+   "transparent_in_out": "0/0",
+   "sapling_spends_outputs": "0/0",
+   "orchard_actions": 0,
+   "ironwood_actions": 2,
+   "ironwood_value_balance_zats": 10000,
+   "role": "SWEEP: joint note to the maker wallet with a+b"
+  }
+ ],
+ "zcash_audit": "every swap transaction: v6, 0 transparent, 0 Sapling, 0 Orchard, exactly 2 Ironwood actions, value balance 10,000 zats (the fee). Faucet drips: 2 Orchard actions in, 1 Ironwood action out (Orchard to Ironwood), no transparent part.",
+ "near_transactions": [
+  {
+   "step": "open",
+   "hash": "DnGg8B2paHKMUcXAhzC2hfYQkTitqv3qVzKT5euZVe8x",
+   "signer": "maker.zecret-3f109eea1e.testnet",
+   "receiver": "usdc.zecret-3f109eea1e.testnet",
+   "actions": [
+    "ft_transfer_call"
+   ],
+   "block_height": 277468656,
+   "block_hash": "CC1m2m6uUKaTnZWAAnAQrXbKsbWzwXQVKRjWXNuy7onD",
+   "block_time_utc": "05:41:23.321",
+   "gas_burnt_tgas": 12.21,
+   "status": "success",
+   "final": "FINAL",
+   "failed_receipts": 0
+  },
+  {
+   "step": "stipend",
+   "hash": "CTza5f9XvaCXYuXSoGsjSgiA3k3RGRxjNehfp76TXHbf",
+   "signer": "maker.zecret-3f109eea1e.testnet",
+   "receiver": "15968c4ae680388e6c4b4511de8cfaab2a71a8eb0023f2f787ccdc085a2a9067",
+   "actions": [
+    "Transfer"
+   ],
+   "block_height": 277468662,
+   "block_hash": "E1Y49fHafmFbDq6aYTd2MjnYfMs3m4EuiApee5pW1LmN",
+   "block_time_utc": "05:41:26.901",
+   "gas_burnt_tgas": 8.57,
+   "status": "success",
+   "final": "FINAL",
+   "failed_receipts": 0
+  },
+  {
+   "step": "set_ready",
+   "hash": "9kn4hxVUxMqd16AzvkwaWQUouYhDrVeoJdyPp4cUXqix",
+   "signer": "maker.zecret-3f109eea1e.testnet",
+   "receiver": "escrow2.zecret-3f109eea1e.testnet",
+   "actions": [
+    "set_ready"
+   ],
+   "block_height": 277468721,
+   "block_hash": "FL3qxqDUhgKT5nX7nHcoUAnJQ8ZqCfRT5jFWj5WbZF6B",
+   "block_time_utc": "05:42:02.672",
+   "gas_burnt_tgas": 2.6,
+   "status": "success",
+   "final": "FINAL",
+   "failed_receipts": 0
+  },
+  {
+   "step": "commit_claim",
+   "hash": "8fdBEHbFBN4p64YFuNyHCX8v2TApKSyQaZjiAxaUVrds",
+   "signer": "15968c4ae680388e6c4b4511de8cfaab2a71a8eb0023f2f787ccdc085a2a9067",
+   "receiver": "escrow2.zecret-3f109eea1e.testnet",
+   "actions": [
+    "commit_claim"
+   ],
+   "block_height": 277468729,
+   "block_hash": "9iKtdSprDjh81qVQ9YV7CNKgYRmPXyGh8ho3mtJqzvuk",
+   "block_time_utc": "05:42:07.546",
+   "gas_burnt_tgas": 10.21,
+   "status": "success",
+   "final": "FINAL",
+   "failed_receipts": 0
+  },
+  {
+   "step": "claim",
+   "hash": "DGShdiHZfLWRyUyWX69dDCt14JV86FFHJq1Twowmk3Dz",
+   "signer": "15968c4ae680388e6c4b4511de8cfaab2a71a8eb0023f2f787ccdc085a2a9067",
+   "receiver": "escrow2.zecret-3f109eea1e.testnet",
+   "actions": [
+    "claim"
+   ],
+   "block_height": 277468738,
+   "block_hash": "4P9uzSjKcXZfWNmhRUvW9yGrFEYtvDznGKhPVEz5HjTA",
+   "block_time_utc": "05:42:12.951",
+   "gas_burnt_tgas": 24.37,
+   "status": "success",
+   "final": "FINAL",
+   "failed_receipts": 0
+  },
+  {
+   "step": "withdraw",
+   "hash": "DodbZPEToNesVSF5G9yQUogm1zN9FqF3hdTdwEGPepL6",
+   "signer": "maker.zecret-3f109eea1e.testnet",
+   "receiver": "escrow2.zecret-3f109eea1e.testnet",
+   "actions": [
+    "withdraw"
+   ],
+   "block_height": 277468747,
+   "block_hash": "BvGPW9Gtw58bQamJfFCzf6ECUXbQBCpQuzi4LcXwH7t",
+   "block_time_utc": "05:42:18.413",
+   "gas_burnt_tgas": 21.64,
+   "status": "success",
+   "final": "FINAL",
+   "failed_receipts": 0
+  },
+  {
+   "step": "execute_intents(ft_withdraw)",
+   "hash": "D2eRTKBNsJtbasRARwyjGPfjqQ9zYAQQG9LKCiJFic3z",
+   "signer": "maker.zecret-3f109eea1e.testnet",
+   "receiver": "intents.zecret-3f109eea1e.testnet",
+   "actions": [
+    "execute_intents"
+   ],
+   "block_height": 277468922,
+   "block_hash": "BQBYP5McydnhYDBPgZHxevhUV4qUXZjLCLUjZzEEmK2u",
+   "block_time_utc": "05:44:04.456",
+   "gas_burnt_tgas": 11.35,
+   "status": "success",
+   "final": "FINAL",
+   "failed_receipts": 0
+  }
+ ],
+ "near_transaction_not_on_chain": {
+  "hash": "3wt89rSW8T5nhsBCVSFk1WV7G1WH8siscWzxeq5ncxrc",
+  "what": "withdraw signed by the taker key, refused by the RPC before inclusion (NotEnoughBalance: balance 0.02805 NEAR, cost 0.20092 NEAR); the maker's withdraw paid out instead"
+ },
+ "faucet": {
+  "name": "Fauzec (Zcash Foundation)",
+  "api": "POST https://fauzec.com/api/v1/claim",
+  "requests": [
+   {
+    "request_id": "01M79PFVQ28NFPB6ZM84WVEMVQ",
+    "to": "taker",
+    "txid": "75d81b9a34d10875969c67b596c11dbebc23368234d02040dd4711ef65600fc9"
+   },
+   {
+    "request_id": "01M79PGBD58MQG4XXPK44WV0EQ",
+    "to": "maker",
+    "txid": "a805b089fa495b0708db9f86d4f3a56dc5d82b5cff9a62e2abaea2dc1110208e"
+   }
+  ]
+ },
+ "timings_utc": {
+  "taker_start": "05:38:42.9",
+  "rfq_sent": "05:38:49.1",
+  "maker_reads_rfq": "05:39:16.4",
+  "quote_sent": "05:39:16.7",
+  "taker_verifies_quote": "05:40:50.3",
+  "accept_sent": "05:40:54.1",
+  "maker_reads_accept": "05:41:20.7",
+  "escrow_open_block": "05:41:23.3",
+  "stipend_block": "05:41:26.9",
+  "taker_verifies_escrow": "05:41:34.4",
+  "fund_sent": "05:41:35.1",
+  "fund_block": "05:41:37",
+  "set_ready_block": "05:42:02.7",
+  "commit_claim_block": "05:42:07.5",
+  "claim_block": "05:42:13.0",
+  "claim_final_seen": "05:42:18.1",
+  "withdraw_block": "05:42:18.4",
+  "taker_completed": "05:42:24.9",
+  "sweep_sent": "05:42:26.5",
+  "sweep_block": "05:42:32",
+  "maker_swept_3_conf": "05:43:54.9",
+  "exit_execute_intents_block": "05:44:04.5"
+ },
+ "durations_s": {
+  "taker_start_to_completed": 222.0,
+  "taker_start_to_maker_swept": 312.0,
+  "taker_start_to_exit_done": 321.6
+ },
+ "balances": {
+  "taker_wallet_zats": {
+   "before": 100000000,
+   "after": 89949000
+  },
+  "maker_wallet_zats": {
+   "before": 100000000,
+   "after": 109991000
+  },
+  "maker_tusdc_base_units": {
+   "before": "19999000000",
+   "after": "19996000000"
+  },
+  "maker_near_yocto": {
+   "before": "875594396581694799999997",
+   "after": "834012232903572599999996"
+  },
+  "maker_escrow_storage_funds_yocto": {
+   "before": "491040000000000000000000",
+   "after": "485520000000000000000000"
+  },
+  "taker_in_verifier_tusdc": {
+   "after_swap": "3000000",
+   "after_exit": "0"
+  },
+  "exit_destination_tusdc": {
+   "before_exit": "3000000",
+   "after_exit": "6000000"
+  },
+  "escrow2_tusdc": {
+   "before": "0",
+   "after": "0"
+  },
+  "taker_key_account_near_yocto_after": "28047577857125900000000"
+ },
+ "zcash_block_interval": {
+  "measured_blocks": "4613950..4614945 (995 intervals)",
+  "mean_s": 23.0,
+  "median_s": 16
+ }
+}

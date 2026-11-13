@@ -1,25 +1,26 @@
 
 ===== start maker --vanish-at Opened =====
-[maker 1794544002] up: UA uregtest1cn8p70k6d4hxyd8gj7jtqx8wu2nccdlftx7ry0vn4lceqj9r36gpr0jrr2c4sdchqlqqp0u3rk7ll9ac8h37vfxwdatpxnwvkuhgra82 NEAR maker.test.near key ed25519:DmU43XuYxFL4Vtj4XcGMNKkPiQrpSRwCe9ks4xmSzMBE
-[maker 1794544013] 4c59e9e3 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
-[maker 1794544013] 4c59e9e3 stage Quoting
-[maker 1794544013] {"type":"zcash_tx","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","what":"quote","txid":"a81b98a68157a09e8b3a12f320d33c5e7e3de201d499467fc3b21ebc577c469c"}
-[maker 1794544013] 4c59e9e3 encrypted QUOTE sent in tx a81b98a68157a09e8b3a12f320d33c5e7e3de201d499467fc3b21ebc577c469c
-[maker 1794544013] 4c59e9e3 stage Quoted
-[maker 1794544017] 4c59e9e3 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 09986f1d
-[maker 1794544017] 4c59e9e3 stage Opening
-[maker 1794544022] {"type":"near_tx","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","what":"open","hash":"DqTJcf2SyeKXyjimP9No1EyVRQLPyZxXWhk7ECdUQth5"}
-[maker 1794544022] 4c59e9e3 escrow OPEN id 09986f1d6f03a4d33d25f130870a7547e93a076b5f59a68cbd6d99657264117c amount 30000000000000000000000000 t0=1794545046 t1=1794545106 t2=1794545166 W=45, tx DqTJcf2SyeKXyjimP9No1EyVRQLPyZxXWhk7ECdUQth5
-[maker 1794544022] {"type":"near_tx","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","what":"stipend","hash":"FSrbQXtngLXcxK7eeQpZqbkMfg5MifBcz8P9nhp4GbfR"}
-[maker 1794544022] 4c59e9e3 STIPEND of 30000000000000000000000 yoctoNEAR sent to f63464c758a425c725663e2092dc25f60afb4c7b87240a85a2dc1f5c1e73883f, tx FSrbQXtngLXcxK7eeQpZqbkMfg5MifBcz8P9nhp4GbfR
-[maker 1794544022] 4c59e9e3 stage Opened
-[maker 1794544022] VANISH at stage Opened (process exits; state is stored)
+[maker 1794548914] up: UA uregtest1rqd9nca8xrj0pe2hxzzu4ccy7zww8dmdn5u6yhwuktqw9kdqx5mxslsyg6ycj5ksmpnslnemzjlyan2w7m3nyqvn9flpxrl3nqz5zrvq NEAR maker.test.near key ed25519:5LjziZsctzBGb8C4ZD3itW76Kr17HECZSkBm27CjBcME
+[maker 1794548925] 4fe108d9 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794548925] 4fe108d9 stage Quoting
+[maker 1794548925]  transient: requests wait for a quote, but the wallet has 0 spendable zats, less than a quote fee (10000)
+[maker 1794548925] {"type":"zcash_tx","swap":"4fe108d901f6656b925489904df32950","what":"quote","txid":"c6ad081d2b76c899e00d494cdf394af51187915ea00eebb6758b3ddbdd4576de"}
+[maker 1794548925] 4fe108d9 encrypted QUOTE sent in tx c6ad081d2b76c899e00d494cdf394af51187915ea00eebb6758b3ddbdd4576de
+[maker 1794548925] 4fe108d9 stage Quoted
+[maker 1794548929] 4fe108d9 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id c3413ba7
+[maker 1794548929] 4fe108d9 stage Opening
+[maker 1794548935] {"type":"near_tx","swap":"4fe108d901f6656b925489904df32950","what":"open","hash":"D95WcDJr62KFKhxTDtDP3SUmWeH8v545PZEvdMShNsod"}
+[maker 1794548935] 4fe108d9 escrow OPEN id c3413ba7bf1145259400567a6457fd07b30b4d3a55ef1e0ee11b7461735ddb16 amount 30000000000000000000000000 t0=1794549430 t1=1794549490 t2=1794549550 W=45, tx D95WcDJr62KFKhxTDtDP3SUmWeH8v545PZEvdMShNsod
+[maker 1794548935] {"type":"near_tx","swap":"4fe108d901f6656b925489904df32950","what":"stipend","hash":"GUbDVkXtde5qFcyfZkxS23ZU4gb7oSaFkDKJSDP9NZzj"}
+[maker 1794548935] 4fe108d9 STIPEND of 30000000000000000000000 yoctoNEAR sent to b84a318bc7da5f93a0b86550b080f988620db2ee8c21416699bab5c2a6459cf5, tx GUbDVkXtde5qFcyfZkxS23ZU4gb7oSaFkDKJSDP9NZzj
+[maker 1794548935] 4fe108d9 stage Opened
+[maker 1794548935] VANISH at stage Opened (process exits; state is stored)
 
 ===== start maker --exit-after 1 =====
-[maker 1794544041] up: UA uregtest1cn8p70k6d4hxyd8gj7jtqx8wu2nccdlftx7ry0vn4lceqj9r36gpr0jrr2c4sdchqlqqp0u3rk7ll9ac8h37vfxwdatpxnwvkuhgra82 NEAR maker.test.near key ed25519:DmU43XuYxFL4Vtj4XcGMNKkPiQrpSRwCe9ks4xmSzMBE
-[maker 1794544045] {"type":"near_tx","swap":"4c59e9e3f6f274401eba9f2a8bbcd5a8","what":"withdraw","hash":"DhvbJ2rpFt9czKpfgSSEzQ7ZUPjEgfovaU4z4K4fJdpM"}
-[maker 1794544045] 4c59e9e3 withdraw for the taker into intents.near, tx DhvbJ2rpFt9czKpfgSSEzQ7ZUPjEgfovaU4z4K4fJdpM (executed)
-[maker 1794544045] 4c59e9e3 stage Aborted
-[maker 1794544045] 4c59e9e3 CLAIMED via the punish path, but no joint note exists: the maker was offline for all of [t1, t2) (assumption L_M violated) and lost the escrowed tokens
-[maker 1794544045] 4c59e9e3 DONE Aborted
-[maker 1794544045] 1 swap(s) terminal; exiting
+[maker 1794548953] up: UA uregtest1rqd9nca8xrj0pe2hxzzu4ccy7zww8dmdn5u6yhwuktqw9kdqx5mxslsyg6ycj5ksmpnslnemzjlyan2w7m3nyqvn9flpxrl3nqz5zrvq NEAR maker.test.near key ed25519:5LjziZsctzBGb8C4ZD3itW76Kr17HECZSkBm27CjBcME
+[maker 1794548958] {"type":"near_tx","swap":"4fe108d901f6656b925489904df32950","what":"withdraw","hash":"6B8nVPA8KdypiYkc4fH417Y15jxyg16QSaVohGVKXfhT"}
+[maker 1794548958] 4fe108d9 withdraw for the taker into intents.near, tx 6B8nVPA8KdypiYkc4fH417Y15jxyg16QSaVohGVKXfhT (executed)
+[maker 1794548958] 4fe108d9 stage Aborted
+[maker 1794548958] 4fe108d9 CLAIMED via the punish path, but no joint note exists: the maker was offline for all of [t1, t2) (assumption L_M violated) and lost the escrowed tokens
+[maker 1794548958] 4fe108d9 DONE Aborted
+[maker 1794548958] 1 swap(s) terminal; exiting

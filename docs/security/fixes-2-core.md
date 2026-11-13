@@ -145,8 +145,20 @@ Options, from simplest:
 
 ## 5. Test runs for this change
 
-See the report of this change for the commands and outputs (unit tests, integration tests,
-clippy, the wasm32 build and the harness).
+Run on 2026-11-13 from `crates/` after `source .tools/env.sh`:
+
+| Command | Result |
+|---|---|
+| `cargo test -p zecret-core` | lib 26 passed; `maker_bounds` 11 passed; `poc2_maker` 1 passed |
+| `cargo test -p zecret-node --lib --bins` | 3 passed |
+| `LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test -p zecret-node --test sandbox` | 1 passed (failed with `GAS_WITHDRAW` = 100 Tgas against the new escrow; passes with 200) |
+| `cargo clippy -p zecret-core -p zecret-node --all-targets -- -D warnings` | 1 error, in `taker.rs:576` (`clippy::type_complexity`, `find_quote`), a file this change does not touch. With `-A clippy::type_complexity` added: clean, also with `--features zecret-node/misbehave`. |
+| `cargo build -p zecret-core --target wasm32-unknown-unknown --release` | builds |
+| `python3 -I harness/run.py s1 s3 s4 s11` (escrow wasm rebuilt by the runner, code hash `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1`) | s1 PASS (72 s), s3 PASS (62 s), s4 PASS (75 s), s11 PASS (57 s) |
+
+`harness/run.py` now gives its NEAR sandbox the network address `127.0.0.1:24667`
+(`start_near`). The browser runner (`harness/browser`) runs its own sandbox on the default
+24567, and two earlier runs of `run.py` failed with "Address already in use".
 
 ## 6. Still open for the next person (taker side, `crates/zecret-core/src/taker.rs`)
 

@@ -1,0 +1,6 @@
+Fri Nov 13 05:37:14 UTC 2026
+maker maker.zecret-3f109eea1e.testnet: 875594396581694799999997 yoctoNEAR, 19999000000 usdc.zecret-3f109eea1e.testnet base units, escrow storage funds 491040000000000000000000
+escrow2 usdc: "0"
+intents usdc: "0"
+{"height":4614925,"ua":"utest1g08wwdh0ye55dah3eagn8nyna8ws3wpweny50p3sjf74faa458jd35aerxt7cjnz2wncujawpwu04dy4gs2smejyrw6uhe3p7u9f3rka","zats":100000000}
+{"height":4614925,"ua":"utest1zdyw8dscgrelws7muvgznaa2xwld5aysr50w7xy46p4aqyrvlw7t2ejxllda8j6qp9dtc557f6cnnj7uypn8wkmqknzmcd225ca9ca04","zats":100000000}

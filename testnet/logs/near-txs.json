@@ -1,0 +1,114 @@
+[
+ {
+  "step": "open",
+  "hash": "DnGg8B2paHKMUcXAhzC2hfYQkTitqv3qVzKT5euZVe8x",
+  "signer": "maker.zecret-3f109eea1e.testnet",
+  "receiver": "usdc.zecret-3f109eea1e.testnet",
+  "actions": [
+   "ft_transfer_call"
+  ],
+  "block_height": 277468656,
+  "block_hash": "CC1m2m6uUKaTnZWAAnAQrXbKsbWzwXQVKRjWXNuy7onD",
+  "block_time_utc": "05:41:23.321",
+  "gas_burnt_tgas": 12.21,
+  "status": "success",
+  "final": "FINAL",
+  "failed_receipts": 0
+ },
+ {
+  "step": "stipend",
+  "hash": "CTza5f9XvaCXYuXSoGsjSgiA3k3RGRxjNehfp76TXHbf",
+  "signer": "maker.zecret-3f109eea1e.testnet",
+  "receiver": "15968c4ae680388e6c4b4511de8cfaab2a71a8eb0023f2f787ccdc085a2a9067",
+  "actions": [
+   "Transfer"
+  ],
+  "block_height": 277468662,
+  "block_hash": "E1Y49fHafmFbDq6aYTd2MjnYfMs3m4EuiApee5pW1LmN",
+  "block_time_utc": "05:41:26.901",
+  "gas_burnt_tgas": 8.57,
+  "status": "success",
+  "final": "FINAL",
+  "failed_receipts": 0
+ },
+ {
+  "step": "set_ready",
+  "hash": "9kn4hxVUxMqd16AzvkwaWQUouYhDrVeoJdyPp4cUXqix",
+  "signer": "maker.zecret-3f109eea1e.testnet",
+  "receiver": "escrow2.zecret-3f109eea1e.testnet",
+  "actions": [
+   "set_ready"
+  ],
+  "block_height": 277468721,
+  "block_hash": "FL3qxqDUhgKT5nX7nHcoUAnJQ8ZqCfRT5jFWj5WbZF6B",
+  "block_time_utc": "05:42:02.672",
+  "gas_burnt_tgas": 2.6,
+  "status": "success",
+  "final": "FINAL",
+  "failed_receipts": 0
+ },
+ {
+  "step": "commit_claim",
+  "hash": "8fdBEHbFBN4p64YFuNyHCX8v2TApKSyQaZjiAxaUVrds",
+  "signer": "15968c4ae680388e6c4b4511de8cfaab2a71a8eb0023f2f787ccdc085a2a9067",
+  "receiver": "escrow2.zecret-3f109eea1e.testnet",
+  "actions": [
+   "commit_claim"
+  ],
+  "block_height": 277468729,
+  "block_hash": "9iKtdSprDjh81qVQ9YV7CNKgYRmPXyGh8ho3mtJqzvuk",
+  "block_time_utc": "05:42:07.546",
+  "gas_burnt_tgas": 10.21,
+  "status": "success",
+  "final": "FINAL",
+  "failed_receipts": 0
+ },
+ {
+  "step": "claim",
+  "hash": "DGShdiHZfLWRyUyWX69dDCt14JV86FFHJq1Twowmk3Dz",
+  "signer": "15968c4ae680388e6c4b4511de8cfaab2a71a8eb0023f2f787ccdc085a2a9067",
+  "receiver": "escrow2.zecret-3f109eea1e.testnet",
+  "actions": [
+   "claim"
+  ],
+  "block_height": 277468738,
+  "block_hash": "4P9uzSjKcXZfWNmhRUvW9yGrFEYtvDznGKhPVEz5HjTA",
+  "block_time_utc": "05:42:12.951",
+  "gas_burnt_tgas": 24.37,
+  "status": "success",
+  "final": "FINAL",
+  "failed_receipts": 0
+ },
+ {
+  "step": "withdraw",
+  "hash": "DodbZPEToNesVSF5G9yQUogm1zN9FqF3hdTdwEGPepL6",
+  "signer": "maker.zecret-3f109eea1e.testnet",
+  "receiver": "escrow2.zecret-3f109eea1e.testnet",
+  "actions": [
+   "withdraw"
+  ],
+  "block_height": 277468747,
+  "block_hash": "BvGPW9Gtw58bQamJfFCzf6ECUXbQBCpQuzi4LcXwH7t",
+  "block_time_utc": "05:42:18.413",
+  "gas_burnt_tgas": 21.64,
+  "status": "success",
+  "final": "FINAL",
+  "failed_receipts": 0
+ },
+ {
+  "step": "execute_intents(ft_withdraw)",
+  "hash": "D2eRTKBNsJtbasRARwyjGPfjqQ9zYAQQG9LKCiJFic3z",
+  "signer": "maker.zecret-3f109eea1e.testnet",
+  "receiver": "intents.zecret-3f109eea1e.testnet",
+  "actions": [
+   "execute_intents"
+  ],
+  "block_height": 277468922,
+  "block_hash": "BQBYP5McydnhYDBPgZHxevhUV4qUXZjLCLUjZzEEmK2u",
+  "block_time_utc": "05:44:04.456",
+  "gas_burnt_tgas": 11.35,
+  "status": "success",
+  "final": "FINAL",
+  "failed_receipts": 0
+ }
+]
