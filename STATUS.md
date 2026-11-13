@@ -16,6 +16,46 @@ their checks.
   `withdraw` itself (the app shows the payout-pending state with the exact call). See
   `docs/security/`.
 
+## Hand-over: where the build is (2026-11-13 13:05 UTC)
+
+Read this section first if you continue the build. Then `CLAUDE.md`, `docs/BUILD_PLAN.md`.
+
+Live and verified: the site https://zecret-chrismgs-projects.vercel.app (landing at `/`,
+app at `/swap`) and the maker with relay on Railway. A push to `main` redeploys both.
+Vercel skips commits whose message starts with "WIP". Three swaps through the hosted site
+completed (`docs/TESTNET.md`, `testnet/hosted/result-*.json`), one of them paid by the
+Fauzec faucet with no wallet (`ZECRET_PAY=faucet`, `testnet/hosted/result-faucet-0.05.json`).
+
+In progress, not pushed as a real commit yet (it is in the WIP commits):
+
+1. `web/src/screens/Pay.tsx`: the testnet hint names Zkool or Zingo and adds a faucet
+   hint. Type-check and lint pass. Unit and e2e tests were not rerun after this edit.
+2. The faucet hint says the surplus goes to the return address. That is not proven yet.
+   The faucet-paid swap ended before the page sent the 0.95 TAZ surplus. Prove it with
+   `node testnet/hosted/restore.mjs <site> .tools/testnet/hosted/recovery.json` (restores
+   the swap in a fresh browser and waits for "It went back to"), then check that the
+   balance of `.tools/testnet/taker` rose by about 94,990,000 zats. If the surplus does
+   not return, remove the faucet hint or fix the engine's leftover step
+   (`web/src/engine/real/realEngine.ts`, `leftoverStep`).
+3. After that: say in `README.md` ("Try it", step 2), `docs/WEB.md`, `docs/TESTNET.md`
+   and the landing page FAQ (`web/src/screens/Landing.tsx`) that a judge can pay from the
+   faucet with no wallet, and that Zkool and Zingo offer testnet wallets (not tested
+   against the site). Rerun `npm run typecheck && npm run lint && npm test && npm run e2e
+   -- --trace off` in `web/`, then push with a message that does not start with "WIP".
+
+Wallet research (sources in the session, summary): the page's address has one
+Orchard-protocol receiver, and since NU6.3 a wallet can pay it only into the Ironwood
+pool. Zodl, Cake and Edge support Ironwood but ship no testnet app. YWallet and zcashd
+cannot pay it.
+
+Only on the build machine, not in git: `deploy/.keys/testnet/` (owner and old maker
+keys) and `.tools/testnet/` (funded test wallets, recovery files). A new machine does not
+have them. The hosted maker does not need them: its keys are on its Railway volume. A
+new machine can still run a hosted swap with `ZECRET_PAY=faucet`.
+
+Owner only: NEAR mainnet payout account, make the repository public, demo video, post,
+submission form (`docs/SUBMISSION.md`, `docs/DEMO_SCRIPT.md`). Deadline 2026-11-14 23:59 UTC.
+
 ## Done
 
 | Package | Result |
