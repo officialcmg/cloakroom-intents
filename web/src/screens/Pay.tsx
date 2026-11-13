@@ -122,7 +122,11 @@ export function RecoveryStep({ swap, onDone }: { swap: SwapState; onDone: () => 
   );
 }
 
-const WALLETS = 'Zodl, Zingo, Zkool, Edge, Cake';
+/** Wallet apps with a released version that pays into the Ironwood pool (docs/WEB.md, "Wallets"). */
+const WALLETS = 'Zodl, Zingo, Zkool, Edge or Cake';
+/** Of those, the ones that offer a Zcash testnet wallet in the app. */
+const TESTNET_WALLETS = 'Zkool or Zingo';
+const FAUCET_URL = 'https://fauzec.com';
 
 export function PayScreen({ swap }: { swap: SwapState }) {
   const app = useApp();
@@ -190,8 +194,19 @@ export function PayScreen({ swap }: { swap: SwapState }) {
               <Icon name="wallet" /> Open in a wallet app
             </a>
             <p className="hint">
-              Use a shielded wallet such as {WALLETS}. Scan the code, or copy the address and the amount. {testnet ? 'This is Zcash testnet: use testnet ZEC only.' : ''}
+              {testnet
+                ? `Pay with testnet ZEC from a wallet set to testnet, such as ${TESTNET_WALLETS}. Scan the code, or copy the address and the amount.`
+                : `Use a shielded wallet such as ${WALLETS}. Scan the code, or copy the address and the amount.`}
             </p>
+            {swap.network === 'testnet' && owed <= 100_000_000n && (
+              <p className="hint" data-testid="faucet-hint">
+                No wallet? The{' '}
+                <a href={FAUCET_URL} target="_blank" rel="noreferrer noopener">
+                  Fauzec faucet
+                </a>{' '}
+                pays 1 test ZEC to the address above. The swap uses the amount shown, and the rest goes to your return address.
+              </p>
+            )}
           </div>
         </div>
 

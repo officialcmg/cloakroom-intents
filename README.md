@@ -90,7 +90,7 @@ This uses real Zcash testnet and NEAR testnet transactions with test money.
 
 You need:
 
-- Testnet ZEC. The Fauzec faucet (<https://fauzec.com>, by the Zcash Foundation) gives
+- Testnet ZEC. The Fauzec faucet (<https://fauzec.com>) gives
   1 TAZ per address every 24 hours.
 - A Zcash testnet wallet that can pay a shielded unified address. The engine reads only
   the Ironwood pool; a payment into the Orchard pool is not seen

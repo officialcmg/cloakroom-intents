@@ -60,7 +60,7 @@ folder hold private keys and stay there.
 The wallet reads only the Ironwood pool (`crates/zecret-core/src/wallet.rs:406-419`,
 `:464-481`). A payment into the Orchard pool would not be seen.
 
-Faucet: Fauzec (`https://fauzec.com`, by the Zcash Foundation). It gives 1 TAZ per
+Faucet: Fauzec (`https://fauzec.com`). It gives 1 TAZ per
 address every 24 hours to unified or Sapling addresses. The web form uses a Cloudflare
 Turnstile check. The documented API (`/.well-known/openapi.json`) takes claims without
 it ("for now", says the site). One request was sent per wallet:
