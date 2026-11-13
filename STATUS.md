@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-13 07:08 UTC. Deadline: 2026-11-14 23:59 UTC.
+Updated: 2026-11-13 08:18 UTC. Deadline: 2026-11-14 23:59 UTC.
 
 Any session can resume from this file. Read `docs/BUILD_PLAN.md` for the packages and
 their checks.
@@ -31,7 +31,9 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 
-## Running now (07:10 UTC)
+## Running now (resumed 08:15 UTC)
+
+The 5-hour usage limit was reached at about 07:12 UTC and reset at 08:10 UTC. Both agents below stopped at their first step and were resumed at 08:15 UTC. About one hour was lost. The next reset is 13:10 UTC; from now on at most two agents run at the same time.
 
 - Taker-side fixes: F2-01, F2-02, F2-03, H1, H6, the refusal reply, published limits, the payout-pending state, testnet timing configs. In `crates/` and `harness/`. It must rerun all native scenarios and all five browser scenarios.
 - Security review 3: the website, `zecret-wasm` and the maker's relay. Read-only, writes `docs/security/review-3.md`.
@@ -75,7 +77,7 @@ Plan change: packages C and D are merged into one (CD), because the browser spik
 
 ## Notes for whoever resumes
 
-- Usage window resets at 03:10 UTC on 2026-11-13, then every 5 hours.
+- Usage window resets at 03:10 UTC on 2026-11-13, then every 5 hours (08:10, 13:10, 18:10 UTC). A full window lasted about 4 hours with three agents.
 - An hourly scheduled task wakes the main session (trigger `trig_01Bbv8VUrvwpGeEr3NWMoRAU`).
 - Main session: `session_01UpiMzVjgad99bzMjoPrgGL`.
 - Agents edit separate folders and do not commit. The main session reviews, runs the
