@@ -1,0 +1,60 @@
+
+===== start taker --zats 1000000000 =====
+Error: amount 1000000000 zats is outside the maker's published limits 1000..=500000000 zats; nothing was sent
+
+Stack backtrace:
+   0: <anyhow::Error>::msg::<alloc::string::String>
+             at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/backtrace.rs:10:14
+   1: <zecret_core::taker::Taker>::start_with_min_price
+   2: <zecret_core::taker::Taker>::start
+             at ./crates/zecret-core/src/taker.rs:303:14
+   3: zecret::run_taker
+             at ./crates/zecret-node/src/main.rs:213:24
+   4: zecret::main
+             at ./crates/zecret-node/src/main.rs:151:20
+   5: <fn() -> core::result::Result<(), anyhow::Error> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+   6: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/sys/backtrace.rs:166:18
+   7: std::rt::lang_start::<core::result::Result<(), anyhow::Error>>::{closure#0}
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:206:18
+   8: <&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:287:21
+   9: std::panicking::catch_unwind::do_call::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
+  10: std::panicking::catch_unwind::<i32, &dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
+  11: std::panic::catch_unwind::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
+  12: std::rt::lang_start_internal::{closure#0}
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:175:24
+  13: std::panicking::catch_unwind::do_call::<std::rt::lang_start_internal::{closure#0}, isize>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
+  14: std::panicking::catch_unwind::<isize, std::rt::lang_start_internal::{closure#0}>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
+  15: std::panic::catch_unwind::<std::rt::lang_start_internal::{closure#0}, isize>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
+  16: std::rt::lang_start_internal
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:171:5
+  17: main
+  18: __libc_start_call_main
+             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+  19: __libc_start_main_impl
+             at ./csu/../csu/libc-start.c:360:3
+  20: _start
+
+===== start taker --zats 100000000 =====
+[taker 1794561286] new swap f32f0721 for 100000000 zats; NEAR account 1743912b7a0a2be626462742916c1d970ae02741ebae95e505cbcdf31e735740; wallet uregtest1el2cyz3llsgk5pn7man6zvg9al4yg2mwmyg6fpes6e6ncnnhgvcnqegevgfc4ar8cu9ha4wp7dsxautdd6psnr0ghsstdfrx6qcmmjjs
+[taker 1794561286] f32f0721 stage WaitingDeposit
+[taker 1794561287] balance 208333333 zats
+[taker 1794561287] {"type":"activity","swap":"f32f0721c49497cf78743583036eea91","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794561292] balance 0 zats
+[taker 1794561292] {"type":"zcash_tx","swap":"f32f0721c49497cf78743583036eea91","what":"rfq","txid":"f2fc21b792ef251e8f25887ad942bed101cd23a012436d5e206c0e8014596aa3"}
+[taker 1794561292] f32f0721 encrypted RFQ for 100000000 zats sent to the maker in shielded tx f2fc21b792ef251e8f25887ad942bed101cd23a012436d5e206c0e8014596aa3
+[taker 1794561292] f32f0721 stage RfqSent
+[taker 1794561294] balance 208323333 zats
+[taker 1794561300] {"type":"refused","swap":"f32f0721c49497cf78743583036eea91","code":"over_limit","min_zats":1000,"max_zats":50000000}
+[taker 1794561300] f32f0721 ABORT: MAKER REFUSED (over_limit): the amount 100000000 zats is above the maker's limit of 50000000 zats; nothing was funded
+[taker 1794561300] f32f0721 stage Aborted
+[taker 1794561300] f32f0721 DONE Aborted
+[taker 1794561300] finished: Aborted

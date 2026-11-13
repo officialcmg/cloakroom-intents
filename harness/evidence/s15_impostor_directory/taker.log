@@ -1,19 +1,19 @@
 
 ===== start taker --zats 100000000 =====
-Error: maker directory entry is not signed by ed25519:DmU43XuYxFL4Vtj4XcGMNKkPiQrpSRwCe9ks4xmSzMBE
+Error: maker directory entry is not signed by ed25519:3jvBFbxDGs7bHfQk4zVwAKDZP3oJGozuhcioE1MD6icp
 
 Stack backtrace:
    0: <anyhow::Error>::msg::<alloc::string::String>
              at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/backtrace.rs:10:14
    1: <zecret_core::taker::Taker>::verify_maker
    2: <zecret_core::taker::Taker>::start_with_min_price
-             at ./crates/zecret-core/src/taker.rs:287:14
+             at ./crates/zecret-core/src/taker.rs:316:14
    3: <zecret_core::taker::Taker>::start
-             at ./crates/zecret-core/src/taker.rs:274:14
+             at ./crates/zecret-core/src/taker.rs:303:14
    4: zecret::run_taker
-             at ./crates/zecret-node/src/main.rs:188:24
+             at ./crates/zecret-node/src/main.rs:213:24
    5: zecret::main
-             at ./crates/zecret-node/src/main.rs:148:20
+             at ./crates/zecret-node/src/main.rs:151:20
    6: <fn() -> core::result::Result<(), anyhow::Error> as core::ops::function::FnOnce<()>>::call_once
              at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
    7: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>
@@ -46,20 +46,20 @@ Stack backtrace:
   21: _start
 
 ===== start taker --zats 100000000 =====
-Error: maker key ed25519:ELQnXaK7CLL5MB2BMD4bNswiixRymrmrD4x7gqkLcM2k is not a key of maker.test.near
+Error: maker key ed25519:BgQbj8rdzQtJNtag7SnwrsWFqzz3Y7pyAgsHVAXim7se is not a key of maker.test.near
 
 Stack backtrace:
    0: <anyhow::Error>::msg::<alloc::string::String>
              at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/backtrace.rs:10:14
    1: <zecret_core::taker::Taker>::verify_maker
    2: <zecret_core::taker::Taker>::start_with_min_price
-             at ./crates/zecret-core/src/taker.rs:287:14
+             at ./crates/zecret-core/src/taker.rs:316:14
    3: <zecret_core::taker::Taker>::start
-             at ./crates/zecret-core/src/taker.rs:274:14
+             at ./crates/zecret-core/src/taker.rs:303:14
    4: zecret::run_taker
-             at ./crates/zecret-node/src/main.rs:188:24
+             at ./crates/zecret-node/src/main.rs:213:24
    5: zecret::main
-             at ./crates/zecret-node/src/main.rs:148:20
+             at ./crates/zecret-node/src/main.rs:151:20
    6: <fn() -> core::result::Result<(), anyhow::Error> as core::ops::function::FnOnce<()>>::call_once
              at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
    7: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>

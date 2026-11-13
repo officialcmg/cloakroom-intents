@@ -1,0 +1,136 @@
+{
+  "scenario": "s22_maker_refuses",
+  "title": "The maker refuses a request above its limit with a signed refusal memo: the taker stops at once (no quote timeout), pays only the request fee, and the maker pays only the reply fee. A request outside the maker's signed, published limits is refused by the taker before anything is sent",
+  "chain_branch": "77190ad9",
+  "checks": [
+    {
+      "check": "amount above the published limit: the taker refused to start, nothing sent",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "check": "nothing paid for the refused start",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "taker stopped with the maker's reason",
+      "pass": true,
+      "detail": "MAKER REFUSED (over_limit): the amount 100000000 zats is above the maker's limit of 50000000 zats; nothing was funded"
+    },
+    {
+      "check": "taker stopped well before its quote timeout (400 s)",
+      "pass": true,
+      "detail": "15"
+    },
+    {
+      "check": "taker sent no acceptance and funded nothing",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "taker paid only the request fee (exact)",
+      "pass": true,
+      "detail": "10000"
+    },
+    {
+      "check": "maker paid only the reply fee (exact)",
+      "pass": true,
+      "detail": "10000"
+    },
+    {
+      "check": "maker made no swap and one refusal reply",
+      "pass": true,
+      "detail": "[{'rfq_id': 'f32f0721c49497cf78743583036eea91', 'code': 'over_limit', 'reply': '4ea37087b01437b445842424ec0b4d484ef773d9400deb829cc6edf5f93f81658dc6227138d91276a6c68e', 'memo': 'ff5a4352540105f32f0721c49497cf78743583036eea916100965f1f0b08ed2f04328b2bcb0157459ab537e5cf92af68ef25520aa2606e6d81131f378b9133d2d5d697df2518b24052785f7a48f61a0bed1fc65ff598effea44780366f31362c4d6edd3c39d20ac6e7ae0286323e03de053a14e609bf3a240291000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000', 'created_at': 1794561294, 'pending': None, 'done': True, 'txid': 'a03c4bc37a6be6d4ee2cd919bc1b4b753d4c6da51e27f0bb5069f24dd4bbea02'}]"
+    },
+    {
+      "check": "maker opened nothing on NEAR",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "the refusal is a fully shielded Ironwood transaction with 2 actions, like every swap message",
+      "pass": true,
+      "detail": "2"
+    },
+    {
+      "check": "privacy audit: all 1 Zcash txs by maker/taker are fully shielded Ironwood v6 (no transparent in/out)",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "check": "R4: per-swap secrets erased by every party in a terminal stage (b, s_M, e_M / a, s_T, e_T; joint FVK)",
+      "pass": true,
+      "detail": "checked=['taker:Aborted'] not_terminal=[] bad=[]"
+    }
+  ],
+  "facts": {
+    "before": {
+      "maker_zec": 208333333,
+      "taker_zec": 208333333,
+      "maker_wnear": 9879998750000000000000000000
+    },
+    "after": {
+      "maker_zec": 208323333,
+      "taker_zec": 208323333,
+      "maker_wnear": 9879998750000000000000000000
+    },
+    "seconds_to_abort": 15,
+    "zcash_txs": [
+      {
+        "txid": "f2fc21b792ef251e8f25887ad942bed101cd23a012436d5e206c0e8014596aa3",
+        "height": 475,
+        "version": 6,
+        "ironwood_actions": 2,
+        "ironwood_value_balance": 10000,
+        "transparent_in": 0,
+        "transparent_out": 0
+      }
+    ],
+    "r4_checked": [
+      "taker:Aborted"
+    ],
+    "r4_not_terminal": []
+  },
+  "maker_swap": null,
+  "taker_swap": {
+    "rfq_id": "f32f0721c49497cf78743583036eea91",
+    "stage": {
+      "Aborted": "MAKER REFUSED (over_limit): the amount 100000000 zats is above the maker's limit of 50000000 zats; nothing was funded"
+    },
+    "zats": 100000000,
+    "a": "",
+    "s_t": "",
+    "e_t": "",
+    "e_t_pub": "04c7ed688fa2007f027282de2ba57f1bc92773df9616fb125d960345186b2f2a",
+    "near_sk": "<redacted>",
+    "taker_account": "1743912b7a0a2be626462742916c1d970ae02741ebae95e505cbcdf31e735740",
+    "reply_index": 554119155,
+    "created_at": 1794561286,
+    "min_price": "30000000000000000000000000",
+    "stage_at": 1794561300,
+    "quote": null,
+    "negated": false,
+    "joint_fvk": null,
+    "joint_address": null,
+    "escrow_id": null,
+    "pending_then": null,
+    "pending": null,
+    "rfq_txid": "f2fc21b792ef251e8f25887ad942bed101cd23a012436d5e206c0e8014596aa3",
+    "accept_txid": null,
+    "fund_txid": null,
+    "fund_expiry": null,
+    "sweep_txid": null,
+    "sweep_height": null,
+    "commit_tx": null,
+    "claim_tx": null,
+    "claim_at": null,
+    "claim_raw": null,
+    "withdraw_tx": null,
+    "withdraw_at": null,
+    "log": [
+      "encrypted RFQ for 100000000 zats sent to the maker in shielded tx f2fc21b792ef251e8f25887ad942bed101cd23a012436d5e206c0e8014596aa3",
+      "ABORT: MAKER REFUSED (over_limit): the amount 100000000 zats is above the maker's limit of 50000000 zats; nothing was funded"
+    ]
+  }
+}

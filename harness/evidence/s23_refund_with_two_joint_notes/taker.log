@@ -1,0 +1,52 @@
+
+===== start taker --zats 100000000 --vanish-at Funded =====
+[taker 1794561321] new swap 9697b247 for 100000000 zats; NEAR account 4faa38cc5a13fe077d5b5cccf49b7166e8eeb970c38ae0c0af8f4e5dd019f62a; wallet uregtest1ksq0kl0vcg6smqfwgxldwtm7asvfrvnqajqclfhacurk94ts4wx622wczs36kcasg6j2m0n8hd4dkq826xwqht6ytfdpzrsdqg8hav44
+[taker 1794561321] 9697b247 stage WaitingDeposit
+[taker 1794561321] balance 208333333 zats
+[taker 1794561321] {"type":"activity","swap":"9697b247df47eb45e9a81f9b43b6d017","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794561327] balance 0 zats
+[taker 1794561327] {"type":"zcash_tx","swap":"9697b247df47eb45e9a81f9b43b6d017","what":"rfq","txid":"56a0c0ce811ddba6e894e18c3054be999bed0b379004205905b7643e91544339"}
+[taker 1794561327] 9697b247 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 56a0c0ce811ddba6e894e18c3054be999bed0b379004205905b7643e91544339
+[taker 1794561327] 9697b247 stage RfqSent
+[taker 1794561329] balance 208323333 zats
+[taker 1794561335] 9697b247 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+[taker 1794561335] {"type":"quote","swap":"9697b247df47eb45e9a81f9b43b6d017","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest1n07r0d5lphqzkk2kvt7k6jctp7v7wfz8xlhz8ug9ykngmkg0stykwyyy502u8wflla2rn24ql0tvvlslygtwwp88fk9qe9vjxs244ygd"}
+[taker 1794561336] {"type":"activity","swap":"9697b247df47eb45e9a81f9b43b6d017","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794561339] balance 0 zats
+[taker 1794561339] {"type":"zcash_tx","swap":"9697b247df47eb45e9a81f9b43b6d017","what":"accept","txid":"59abad1590196f18cb428e9c02ac0987d8644eeeffa0d2e08264797d6e8461db"}
+[taker 1794561339] 9697b247 encrypted ACCEPT with 50000 zats premium sent in tx 59abad1590196f18cb428e9c02ac0987d8644eeeffa0d2e08264797d6e8461db; joint address uregtest1n07r0d5lphqzkk2kvt7k6jctp7v7wfz8xlhz8ug9ykngmkg0stykwyyy502u8wflla2rn24ql0tvvlslygtwwp88fk9qe9vjxs244ygd
+[taker 1794561339] 9697b247 stage Accepted
+[taker 1794561341] balance 208263333 zats
+[taker 1794561347] 9697b247 escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+[taker 1794561349] 9697b247 escrow 2f998b47 verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794561349] {"type":"escrow_verified","swap":"9697b247df47eb45e9a81f9b43b6d017","escrow_id":"2f998b47cad0c3e5d9f254b2faebaa6d2093cae1840ecac42e99679c3942da93","t0":1794562955,"t1":1794563015,"t2":1794563075}
+[taker 1794561349] {"type":"activity","swap":"9697b247df47eb45e9a81f9b43b6d017","kind":"proving","label":"Building the proof for the payment to the shared address","estimated_secs":25}
+[taker 1794561352] 9697b247 escrow 2f998b47 verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794561352] {"type":"escrow_verified","swap":"9697b247df47eb45e9a81f9b43b6d017","escrow_id":"2f998b47cad0c3e5d9f254b2faebaa6d2093cae1840ecac42e99679c3942da93","t0":1794562955,"t1":1794563015,"t2":1794563075}
+[taker 1794561352] balance 0 zats
+[taker 1794561352] {"type":"zcash_tx","swap":"9697b247df47eb45e9a81f9b43b6d017","what":"fund","txid":"3c78ffb4f5bca48b6f48a48e1186f39705d56b156475b085f9b6631737d631f2"}
+[taker 1794561352] 9697b247 FUNDED the joint address in fully shielded tx 3c78ffb4f5bca48b6f48a48e1186f39705d56b156475b085f9b6631737d631f2
+[taker 1794561352] 9697b247 stage Funded
+[taker 1794561352] VANISH at stage Funded (process exits; state is stored)
+
+===== start taker  =====
+[taker 1794561383] resuming swap 9697b247 at stage Funded
+[taker 1794561384] balance 108243333 zats
+[taker 1794561384] 9697b247 R2c: claim window closed (NEAR time 1794563017, t1 1794563015, budget 15s); not committing; waiting for the maker's refund or for t2 1794563075
+[taker 1794561387] {"type":"activity","swap":"9697b247df47eb45e9a81f9b43b6d017","kind":"proving","label":"Building the proof that takes the ZEC back from the shared address","estimated_secs":25}
+[taker 1794561393] 9697b247 maker REFUNDED: read b from the escrow; sweeping the joint note of 100010000 zats from tx 3c78ffb4f5bca48b6f48a48e1186f39705d56b156475b085f9b6631737d631f2
+[taker 1794561393] {"type":"zcash_tx","swap":"9697b247df47eb45e9a81f9b43b6d017","what":"sweep","txid":"1775d7125a7b147faf82e91d23658de77e92b0762257c25af368bc57018d9bcb"}
+[taker 1794561393] 9697b247 swept the joint note back with (a+b), tx 1775d7125a7b147faf82e91d23658de77e92b0762257c25af368bc57018d9bcb; waiting for 2 confirmations
+[taker 1794561393] 9697b247 stage Recovering
+[taker 1794561395] balance 208243333 zats
+[taker 1794561397] 9697b247 recovery sweep 1775d7125a7b147faf82e91d23658de77e92b0762257c25af368bc57018d9bcb has 2 confirmations, but 1 joint note(s) above the fee are left; keeping a and sweeping again
+[taker 1794561397] {"type":"activity","swap":"9697b247df47eb45e9a81f9b43b6d017","kind":"proving","label":"Building the proof that takes the ZEC back from the shared address","estimated_secs":25}
+[taker 1794561399] 9697b247 maker REFUNDED: read b from the escrow; sweeping the joint note of 200000 zats from tx 8c42e69fec0cb6a47e0e6f55b810072a445bf407e80e45b75c4585ce0674d2f9
+[taker 1794561400] {"type":"zcash_tx","swap":"9697b247df47eb45e9a81f9b43b6d017","what":"sweep","txid":"df2a5aebf0ca45142cf874e99bc397f4a3a52467de6a0ed974091b9cfcbc8831"}
+[taker 1794561400] 9697b247 swept the joint note back with (a+b), tx df2a5aebf0ca45142cf874e99bc397f4a3a52467de6a0ed974091b9cfcbc8831; waiting for 2 confirmations
+[taker 1794561400] 9697b247 stage Recovering
+[taker 1794561401] balance 208433333 zats
+[taker 1794561405] 9697b247 recovery sweep df2a5aebf0ca45142cf874e99bc397f4a3a52467de6a0ed974091b9cfcbc8831 has 2 confirmations (k_Z = 2); no joint note above the fee is left; done
+[taker 1794561405] 9697b247 stage Recovered
+[taker 1794561405] 9697b247 DONE Recovered
+[taker 1794561405] finished: Recovered
