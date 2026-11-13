@@ -107,6 +107,13 @@ impl Session {
         e.intents_balance(account, &At::Final)
     }
 
+    /// The swap token's balance of `account` (a NEAR account), at a final block.
+    pub fn token_balance(&self, account: &str) -> Result<u128> {
+        let c = &self.taker.cfg.chains;
+        let e = Escrow { rpc: &self.taker.near, escrow: c.escrow.clone(), token: c.token.clone(), intents: c.intents.clone() };
+        e.ft_balance(account, &At::Final)
+    }
+
     /// Sends what is left in the temporary wallet to `ua`, minus the fee. Proves once.
     pub fn return_leftover(&mut self, ua: &str) -> Result<String> {
         let txid = self.taker.return_leftover(ua)?;

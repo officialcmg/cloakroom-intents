@@ -269,6 +269,11 @@ impl WasmTaker {
         Ok(self.s.intents_balance(account).map_err(js)?.to_string())
     }
 
+    #[wasm_bindgen(js_name = tokenBalance)]
+    pub fn token_balance(&self, account: &str) -> Result<String, JsError> {
+        Ok(self.s.token_balance(account).map_err(js)?.to_string())
+    }
+
     #[wasm_bindgen(js_name = returnLeftover)]
     pub fn return_leftover(&mut self, ua: &str) -> Result<String, JsError> {
         self.s.return_leftover(ua).map_err(js)

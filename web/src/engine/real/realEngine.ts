@@ -71,6 +71,8 @@ interface Meta {
   /** The core's swap reached a terminal stage. */
   coreDone?: boolean;
   directPlan?: DirectPlan;
+  /** The receiver's token balance before the direct exit was sent. */
+  directBefore?: string;
   exitQuote?: { raw: unknown; amountIn: string; amountOut: string; minAmountOut: string; depositAddress: string; timeEstimateS?: number; feeBps: number; at: number };
   exitSubmitted?: { depositAddress: string; intentHash: string };
   /** Every 1Click deposit address this swap signed for (docs/INTENTS.md §6). */
@@ -115,6 +117,7 @@ export class RealEngine implements EngineBackend {
   private keys: 'idle' | 'building' | 'ready' = 'idle';
   private lastPayout?: Extract<CoreEvent, { type: 'payout' }>;
   private provingSince?: { what: string; at: number };
+  private directCheckSince?: number;
   private readonly store: RecordStore;
   private readonly base: string;
 
@@ -1049,6 +1052,10 @@ export class RealEngine implements EngineBackend {
     }
     const plan = m.directPlan;
     if (s.exit?.phase === 'signing' || s.exit?.phase === 'submitted') {
+      if (m.directBefore === undefined) {
+        m.directBefore = this.taker!.tokenBalance(receiver);
+        await this.persist();
+      }
       await this.activity({ kind: 'broadcasting', label: 'Signing the transfer and handing it to the maker’s relay', startedAt: now(), estimatedMs: 5_000 });
       const t = now();
       const r = parse<WasmResult<{ txHash: string | null; delivered: string }>>(wasm.directRelay(cfg.near.rpc, cfg.exit.relayUrl, this.nearSeed(), JSON.stringify(plan), now()));
@@ -1064,9 +1071,21 @@ export class RealEngine implements EngineBackend {
       await this.stage('exiting', { exit: { phase: 'delivering' }, addTxs: [this.nearTx(`exit-${s.exit.attempts}`, 'Exit intent executed (ft_withdraw from NEAR Intents)', hash)] });
       return 0;
     }
-    // delivering: the Verifier balance is gone once the ft_withdraw executed.
-    const left = this.taker!.intentsBalance(s.payout?.intentsAccount ?? plan.signerId);
-    if (left !== '0') return 3_000;
+    // delivering: done once the receiver holds the amount more, at a final block. (A failed
+    // ft_transfer is refunded into the Verifier by the Verifier itself.)
+    const got = BigInt(this.taker!.tokenBalance(receiver)) - BigInt(m.directBefore ?? '0');
+    if (got < BigInt(plan.amount)) {
+      const left = this.taker!.intentsBalance(s.payout?.intentsAccount ?? plan.signerId);
+      // Views read final blocks, which trail the executed transaction by a few seconds.
+      this.directCheckSince ??= now();
+      if (left === plan.amount && now() - this.directCheckSince > 30_000) {
+        this.directCheckSince = undefined;
+        m.directPlan = undefined;
+        m.directBefore = undefined;
+        return this.exitFailed({ code: 'EXIT_FAILED', message: `The transfer to ${receiver} did not arrive and the tokens are back under your key in NEAR Intents.` }, 'refunded');
+      }
+      return 3_000;
+    }
     await this.stage('done', {
       exit: { phase: 'done', deliveredAmount: plan.amount },
       addTxs: [{ ...this.nearTx('delivery', `${cfg.near.tokenSymbol} sent to ${receiver}`, s.txs.find((t) => t.id === `exit-${s.exit?.attempts}`)?.hash ?? plan.intentHash) }],

@@ -97,6 +97,16 @@ async function view(contract, method, args) {
   return r.result.length ? JSON.parse(Buffer.from(r.result).toString()) : null;
 }
 const wnear = async (a) => BigInt((await view(chains.token, 'ft_balance_of', { account_id: a })) ?? '0');
+/** The balance once it reaches `want` (final blocks trail execution), or the last value read after 30 s. */
+async function wnearAtLeast(a, want) {
+  let v = 0n;
+  for (let i = 0; i < 60; i++) {
+    v = await wnear(a);
+    if (v >= want) break;
+    await sleep(500);
+  }
+  return v;
+}
 const intentsBal = async (a) => BigInt(await view(chains.intents, 'mt_balance_of', { account_id: a, token_id: `nep141:${chains.token}` }));
 const escrowSwap = (id) => view(chains.escrow, 'get_swap', { id });
 async function nearBlock(finality = 'final') {
@@ -501,7 +511,7 @@ async function scenarioA() {
   c.ok('the done screen names the delivery', title.includes('wNEAR') && (await page.getByText(recv).count()) > 0, title);
   c.ok('the taker key held exactly the price in the Verifier (mt_balance_of)', maxIntents === PRICE, `${maxIntents} vs ${PRICE}`);
   c.ok('the engine recorded the payout of the price (micro-units)', BigInt(st.payout?.usdc ?? 0) === PRICE / 10n ** 18n, st.payout?.usdc);
-  c.ok('the exit delivered the whole price to the NEAR account', (await wnear(recv)) === PRICE, await wnear(recv));
+  c.ok('the exit delivered the whole price to the NEAR account', (await wnearAtLeast(recv, PRICE)) === PRICE, await wnear(recv));
   c.ok('nothing is left under the taker key in the Verifier', acct && (await intentsBal(acct)) === 0n);
   c.ok('the maker paid exactly the price', makerBefore - (await wnear(chains.maker)) === PRICE);
   const e = await escrowSwap(st.escrow.swapId);
@@ -584,7 +594,7 @@ async function scenarioC() {
   c.ok('first reload happened before the funding', ['accepted', 'quote_received', 'escrow_open'].includes(before.stage) && !before.txs.some((t) => t.id === 'funding'), before.stage);
   c.ok('second reload happened between commit and claim', ['committing', 'claiming'].includes(mid.stage) && !mid.history.some((h) => h.stage === 'claimed'), mid.stage);
   c.ok('the swap completed after the reloads', st.stage === 'done', `${st.stage} ${JSON.stringify(st.lastError ?? '')}`);
-  c.ok('the NEAR account received the price', (await wnear(recv)) === PRICE, await wnear(recv));
+  c.ok('the NEAR account received the price', (await wnearAtLeast(recv, PRICE)) === PRICE, await wnear(recv));
   const e = await escrowSwap(st.escrow.swapId);
   c.ok('escrow Claimed', e?.state === 'Claimed', e?.state);
   await privacyAudit(c, [payTx, ...zcashTxids(st, maker)]);
@@ -620,7 +630,7 @@ async function scenarioD() {
   c.facts.timings = stageTimings(st, b.timings);
   c.facts.timings_first = a.timings.map((t) => ({ what: t.what, secs: t.ms / 1000 }));
   c.ok('the restored swap completed', st.stage === 'done', `${st.stage} ${JSON.stringify(st.lastError ?? '')}`);
-  c.ok('the NEAR account received the price', (await wnear(recv)) === PRICE, await wnear(recv));
+  c.ok('the NEAR account received the price', (await wnearAtLeast(recv, PRICE)) === PRICE, await wnear(recv));
   const m = maker.swap();
   c.ok('the maker saw one request, one acceptance and one funding (nothing sent twice)', m && m.stage === 'Swept', m?.stage);
   const restoredLog = fs.readFileSync(path.join(EVID, scen, 'console-fresh.log'), 'utf8');

@@ -22,6 +22,7 @@ export interface WasmTaker {
   txHeight(txid: string): number | undefined;
   escrowState(escrowId: string): string | undefined;
   intentsBalance(account: string): string;
+  tokenBalance(account: string): string;
   returnLeftover(ua: string): string;
   free(): void;
 }
