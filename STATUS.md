@@ -25,6 +25,7 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 | E. Taker engine in the browser, wired into the website | 04:44 | `crates/zecret-wasm/`, `web/`, `harness/` |
+| S2. Security review of the core and the native client | 04:55 | `docs/security/` |
 | NV-02 fix. Make the Intents payout safe against a USDC pause or blocklist; redeploy on testnet | 04:50 | `contracts/near-escrow/`, `deploy/` |
 
 ## Next
