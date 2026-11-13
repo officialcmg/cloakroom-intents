@@ -88,11 +88,33 @@ export interface NowCopy {
   safetyText: string;
 }
 
-const usdc = (v?: string) => (v ? `${formatUsdc(BigInt(v))} USDC` : 'the USDC');
+// The token the maker pays: USDC, or the stand-in a test network uses (set at boot from
+// the network configuration; amounts stay in micro-units either way).
+let payToken = 'USDC';
+export function setPayToken(symbol: string): void {
+  payToken = symbol;
+}
+export function payTokenLabel(): string {
+  return payToken;
+}
+
+const usdc = (v?: string) => (v ? `${formatUsdc(BigInt(v))} ${payToken}` : `the ${payToken}`);
 const zec = (v?: string) => (v ? `${formatZec(BigInt(v))} ZEC` : 'your ZEC');
 
 export function destAmount(s: SwapState, v: string): string {
   return `${formatUnits(BigInt(v), s.params.destination.decimals)} ${s.params.destination.symbol}`;
+}
+
+/** An exit amount: the destination token, or the stand-in token of a direct exit. */
+export function exitAmount(s: SwapState, v: string): string {
+  const d = s.exit?.direct;
+  return d ? `${formatUnits(BigInt(v), d.decimals, { maxFrac: 4 })} ${d.symbol}` : destAmount(s, v);
+}
+
+/** What the user receives, in one phrase: "at least 5 USDC on Base", or a direct exit's account. */
+export function receiveLine(s: SwapState, standIn?: string): string {
+  if (s.params.directExit) return `${s.exit?.direct?.symbol ?? standIn ?? 'tokens'} to the NEAR account ${s.params.directExit.nearAccount}`;
+  return `at least ${destAmount(s, s.params.minDestinationAmount)} on ${chainName(s.params.destination.chain)}`;
 }
 
 const SAFE_CLOSE = 'You can close this tab. The swap waits and continues when you come back.';
@@ -165,6 +187,17 @@ export function nowCopy(s: SwapState): NowCopy {
       };
     case 'exiting': {
       const e = s.exit;
+      if (e?.direct) {
+        const leave = 'You can close this tab. The tokens stay under your key until the transfer is final.';
+        if (e.phase === 'delivering')
+          return { title: `Sending ${e.direct.symbol} to ${e.direct.nearAccount}`, body: `The transfer of ${e.amountOut ? exitAmount(s, e.amountOut) : e.direct.symbol} from NEAR Intents executed. The engine checks that it is final.`, safety: 'safe', safetyText: leave };
+        return {
+          title: `Sending ${e.direct.symbol} to your NEAR account`,
+          body: `On this network there is no 1Click, so nothing goes to another chain. This browser signs one transfer of ${e.amountOut ? exitAmount(s, e.amountOut) : e.direct.symbol} from NEAR Intents to ${e.direct.nearAccount}, and the maker’s relay sends it to NEAR. The signature allows exactly this transfer and nothing else.`,
+          safety: 'safe',
+          safetyText: leave,
+        };
+      }
       const min = e ? destAmount(s, e.approvedMinimum) : '';
       const leaveOk = 'You can close this tab. The USDC stays under your key until the delivery is final.';
       if (!e || e.phase === 'quoting') {
@@ -228,6 +261,11 @@ export function refundReason(code: ErrorCode | undefined, s: SwapState): { title
       };
     case 'MAKER_TIMEOUT':
       return { title: 'The maker did not answer', body: 'No price came back in time. The swap stopped before the premium was paid, and your ZEC goes back to you, less two network fees.' };
+    case 'MAKER_CHECK_FAILED':
+      return {
+        title: 'The maker’s offer failed a safety check',
+        body: `This browser checks every part of the maker’s offer and of the escrow before your ZEC moves. One check failed: ${s.lastError?.message ?? 'see the details'}. Your ZEC did not go to the shared address, and it goes back to you, less network fees${s.history.some((h) => h.stage === 'accepted') ? ' and the premium' : ''}.`,
+      };
     case 'MAKER_REFUNDED':
       return {
         title: 'The maker stopped the swap',
@@ -238,5 +276,5 @@ export function refundReason(code: ErrorCode | undefined, s: SwapState): { title
   }
 }
 
-export const formatUsdcAmount = (v: string) => `${formatUnits(BigInt(v), USDC_DECIMALS, { maxFrac: 2, minFrac: 2 })} USDC`;
+export const formatUsdcAmount = (v: string) => `${formatUnits(BigInt(v), USDC_DECIMALS, { maxFrac: 2, minFrac: 2 })} ${payToken}`;
 export { zec as formatZecAmount };

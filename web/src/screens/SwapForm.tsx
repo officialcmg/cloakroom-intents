@@ -9,6 +9,7 @@ import { formatBps, makerMarginBps, type CombinedPrice } from '../lib/price';
 import { formatUnits, formatUsdc, formatZec, parseUnits, toDecimalString, ZEC_DECIMALS } from '../lib/units';
 import { Icon } from '../ui/Icon';
 import { Notice, Spinner, useNow } from '../ui/bits';
+import { payTokenLabel } from '../app/stageCopy';
 import { chainName, TokenBadge, TokenPicker } from '../ui/TokenPicker';
 
 const DEFAULT_TOKEN = 'nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near';
@@ -28,6 +29,10 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
   const [amount, setAmount] = useState('');
   const [tokenId, setTokenId] = usePref<string>('token', DEFAULT_TOKEN);
   const [address, setAddress] = useState('');
+  const network = app.network;
+  const direct = network?.exit.mode === 'direct';
+  const [nearAccount, setNearAccount] = useState('');
+  const [nearTouched, setNearTouched] = useState(false);
   const [addressTouched, setAddressTouched] = useState(false);
   const [showReturn, setShowReturn] = useState(false);
   const [returnAddress, setReturnAddress] = useState('');
@@ -35,7 +40,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
   const [submitting, setSubmitting] = useState(false);
   const [submitFailure, setSubmitFailure] = useState<{ message: string; inputs: string }>();
   const [triedSubmit, setTriedSubmit] = useState(false);
-  const ids = { amount: useId(), token: useId(), address: useId(), ret: useId() };
+  const ids = { amount: useId(), token: useId(), address: useId(), ret: useId(), near: useId() };
 
   const list = tokens.list?.destinations ?? [];
   const token: Token | undefined = list.find((t) => t.assetId === tokenId) ?? list.find((t) => t.assetId === DEFAULT_TOKEN) ?? list[0];
@@ -44,7 +49,9 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
   const payZats = parsed.ok && parsed.value > 0n ? parsed.value : undefined;
   const price = usePrice(payZats, token, address, terms);
 
-  const addrCheck = token ? validateDestinationAddress(token.blockchain, address) : undefined;
+  const addrCheck = token ? (direct ? { ok: true as const, address: '', note: undefined } : validateDestinationAddress(token.blockchain, address)) : undefined;
+  const nearOk = /^(?=.{2,64}$)[a-z0-9]+([-_][a-z0-9]+)*(\.[a-z0-9]+([-_][a-z0-9]+)*)*$/.test(nearAccount.trim());
+  const showNearError = direct && (nearTouched || triedSubmit) && nearAccount.trim() !== '' && !nearOk;
   const addrRejectedByIntents = price.status === 'error' && price.error.kind === 'recipient' && addrCheck?.ok;
   const showAddrError = (addressTouched || triedSubmit) && address.trim() !== '' && addrCheck && !addrCheck.ok;
   const retCheck = returnAddress.trim() ? validateZcashReturnAddress(returnAddress, terms.network) : undefined;
@@ -52,21 +59,23 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
   const amtErr = amountError(amount);
 
   // An error from the engine applies to the inputs it was given; editing them hides it.
-  const inputs = [amount, tokenId, address, returnAddress].join('|');
+  const inputs = [amount, tokenId, address, returnAddress, nearAccount].join('|');
   const submitError = submitFailure?.inputs === inputs ? submitFailure.message : undefined;
 
-  const ready = price.status === 'ok' && addrCheck?.ok && price.recipientChecked && (!retCheck || retCheck.ok) && !!token;
+  const ready = price.status === 'ok' && addrCheck?.ok && (direct ? nearOk : price.recipientChecked) && (!retCheck || retCheck.ok) && !!token;
   const blocker = !payZats
     ? 'Enter an amount.'
     : price.status === 'invalid'
       ? undefined
-      : !address.trim()
+      : direct && !nearOk
+        ? 'Enter your NEAR account.'
+        : !direct && !address.trim()
         ? `Enter your ${token?.symbol ?? ''} address.`
         : addrCheck && !addrCheck.ok
           ? 'Check the receiving address.'
           : retCheck && !retCheck.ok
             ? 'Check the return address.'
-            : price.status === 'loading' || (price.status === 'ok' && !price.recipientChecked)
+            : price.status === 'loading' || (price.status === 'ok' && !price.recipientChecked && !direct)
               ? 'Getting the price…'
               : price.status === 'error'
                 ? 'No price yet.'
@@ -81,6 +90,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
       amountZats: p.payZats.toString(),
       destination: { assetId: token.assetId, symbol: token.symbol, chain: token.blockchain, decimals: token.decimals, address: addrCheck.address },
       returnAddress: retCheck?.ok ? retCheck.address : undefined,
+      directExit: direct ? { nearAccount: nearAccount.trim() } : undefined,
       minUsdc: p.usdcMin.toString(),
       minDestinationAmount: p.destMin.toString(),
       shown: { usdcExpected: p.usdcExpected.toString(), destinationExpected: p.destExpected.toString(), premiumZats: p.premiumZats.toString(), networkFeeZats: p.networkFeeZats.toString() },
@@ -164,6 +174,42 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
           )}
         </div>
 
+        {direct && network ? (
+          <div className="field">
+            <label className="label" htmlFor={ids.near}>
+              Your NEAR account on this network
+            </label>
+            <div className={`input-wrap${showNearError ? ' has-error' : ''}${nearOk ? ' is-valid' : ''}`}>
+              <input
+                id={ids.near}
+                className="input input-mono"
+                value={nearAccount}
+                onChange={(e) => setNearAccount(e.target.value)}
+                onBlur={() => setNearTouched(true)}
+                placeholder={network.network === 'testnet' ? 'alice.testnet' : 'alice.test.near'}
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-invalid={showNearError}
+                aria-describedby={`${ids.near}-hint`}
+                data-testid="near-account"
+              />
+              {nearOk && <Icon name="check" className="input-ok" />}
+            </div>
+            <p className="hint" id={`${ids.near}-hint`}>
+              {showNearError ? (
+                <span className="text-danger">This is not a NEAR account id: lower-case letters, digits, and - _ . between them.</span>
+              ) : (
+                <>
+                  NEAR Intents has no 1Click on {network.network === 'testnet' ? 'testnet' : 'this network'}. The engine sends the {payTokenLabel()} it receives to this NEAR
+                  account instead of to {token?.symbol ?? 'the token'} on {token ? chainName(token.blockchain) : 'another chain'}. The account must be registered with the token
+                  contract {network.near.token}.
+                </>
+              )}
+            </p>
+          </div>
+        ) : (
         <div className="field">
           <label className="label" htmlFor={ids.address}>
             Your {token ? `${token.symbol} address on ${chainName(token.blockchain)}` : 'receiving address'}
@@ -197,6 +243,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
             )}
           </p>
         </div>
+        )}
 
         <div className="field">
           {!showReturn ? (
@@ -357,14 +404,20 @@ function PriceCard({ price, token, payZats, zecUsd }: { price: ReturnType<typeof
                     </span>
                   )}
                 </dt>
-                <dd>1 ZEC = {formatUsdc(terms.rateMicroUsdcPerZec)} USDC</dd>
+                <dd>
+                  1 ZEC = {formatUsdc(terms.rateMicroUsdcPerZec)} {payTokenLabel()}
+                </dd>
               </div>
               <div className="row">
                 <dt>
-                  USDC from the maker
-                  <span className="row-note">The maker’s firm price arrives later. Below {formatUsdc(shown.usdcMin)} USDC the swap stops and your ZEC comes back.</span>
+                  {payTokenLabel()} from the maker
+                  <span className="row-note">
+                    The maker’s firm price arrives later. Below {formatUsdc(shown.usdcMin)} {payTokenLabel()} the swap stops and your ZEC comes back.
+                  </span>
                 </dt>
-                <dd>{formatUsdc(shown.usdcExpected)} USDC</dd>
+                <dd>
+                  {formatUsdc(shown.usdcExpected)} {payTokenLabel()}
+                </dd>
               </div>
               <div className="row">
                 <dt>

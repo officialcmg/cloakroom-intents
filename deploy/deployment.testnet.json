@@ -1,7 +1,7 @@
 {
   "network": "testnet",
   "rpc_url": "https://rpc.testnet.fastnear.com",
-  "updated_at": "2026-11-13T04:17:12Z",
+  "updated_at": "2026-11-13T05:13:05Z",
   "owner": "zecret-3f109eea1e.testnet",
   "escrow": {
     "account_id": "escrow.zecret-3f109eea1e.testnet",
@@ -222,6 +222,18 @@
       "included_ms": 1605,
       "included_final_ms": 3100,
       "final_ms": 4270
+    },
+    {
+      "step": "create escrow account (one temporary key)",
+      "hash": "A2eEhqHVW7CRso43kmzUGGqfKHYjS3RsXmRyhiZTDD9y",
+      "signer": "zecret-3f109eea1e.testnet",
+      "receiver": "escrow2.zecret-3f109eea1e.testnet",
+      "block_height": 277465816,
+      "block_hash": "AgTfFnPyoCSGSn3PJtB7UEnrA2tJ1LdoFyQEfQv3ZPNh",
+      "gas_burnt_tgas": 8.57,
+      "included_ms": 2016,
+      "included_final_ms": 2774,
+      "final_ms": 3900
     }
   ]
 }
