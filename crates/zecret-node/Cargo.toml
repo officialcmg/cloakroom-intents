@@ -20,3 +20,10 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking"] 
 # Native builds prove with all cores.
 orchard = { version = "0.16.0", features = ["multicore"] }
 zcash_primitives = { version = "=0.31.0-pre.1", features = ["multicore"] }
+
+[lib]
+path = "src/lib.rs"
+
+[dev-dependencies]
+pasta_curves = "0.6.1"
+group = "0.14"

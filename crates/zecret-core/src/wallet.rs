@@ -160,6 +160,22 @@ pub fn prepare_proving_key() {
 /// transaction not mined by `target height + EXPIRY_DELTA` can never be mined.
 pub const EXPIRY_DELTA: u64 = 40;
 
+/// A node's answer to a broadcast.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Broadcast {
+    Accepted,
+    Refused(String),
+}
+
+impl Broadcast {
+    pub fn ok(self) -> Result<()> {
+        match self {
+            Broadcast::Accepted => Ok(()),
+            Broadcast::Refused(e) => bail!("transaction refused: {e}"),
+        }
+    }
+}
+
 /// A built, signed transaction that is not broadcast yet.
 #[derive(Clone, Debug)]
 pub struct BuiltTx {
@@ -352,19 +368,20 @@ impl Wallet {
         }
     }
 
-    /// Broadcast a built transaction. Sending the same transaction again is harmless: a
-    /// node that already has it (in its mempool or in a block) answers with an error that
-    /// this function treats as success.
-    pub fn broadcast(&mut self, tx: &BuiltTx) -> Result<()> {
+    /// Broadcast a built transaction. `Err` means no answer from the node (retry);
+    /// `Refused` is the node's answer. Sending the same transaction again is harmless: a
+    /// node that already has it answers with an error that counts as `Accepted`.
+    pub fn broadcast(&mut self, tx: &BuiltTx) -> Result<Broadcast> {
         self.track(&tx.txid);
         let r = match &mut self.backend {
-            Backend::Zebra(rpc) => rpc.call("sendrawtransaction", json!([hex::encode(&tx.raw)])).map(|_| ()),
-            Backend::Lwd(l) => l.send(tx.raw.clone()),
+            Backend::Zebra(rpc) => rpc.call_raw("sendrawtransaction", json!([hex::encode(&tx.raw)]))?.map(|_| ()).map_err(|e| e.to_string()),
+            Backend::Lwd(l) => l.send(tx.raw.clone())?,
         };
-        match r {
-            Err(e) if is_already_known(&format!("{e:#}")) => Ok(()),
-            r => r,
-        }
+        Ok(match r {
+            Ok(()) => Broadcast::Accepted,
+            Err(e) if is_already_known(&e) => Broadcast::Accepted,
+            Err(e) => Broadcast::Refused(e),
+        })
     }
 
     pub fn sync(&mut self) -> Result<()> {
@@ -624,7 +641,7 @@ impl Wallet {
         outputs: Vec<(Address, u64, [u8; 512], Option<OutgoingViewingKey>)>,
     ) -> Result<String> {
         let tx = self.build(spends, outputs)?;
-        self.broadcast(&tx)?;
+        self.broadcast(&tx)?.ok()?;
         Ok(tx.txid)
     }
 
@@ -681,7 +698,7 @@ impl Wallet {
     /// Build and broadcast a payment in one call (tools and tests).
     pub fn pay(&mut self, label: &str, ask: &SpendAuthorizingKey, change: Address, outputs: Vec<(Address, u64, [u8; 512])>) -> Result<String> {
         let tx = self.build_pay(label, ask, change, outputs)?;
-        self.broadcast(&tx)?;
+        self.broadcast(&tx)?.ok()?;
         Ok(tx.txid)
     }
 

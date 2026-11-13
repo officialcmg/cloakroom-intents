@@ -277,6 +277,35 @@ export const CHAINS: ChainInfo[] = [
   { id: 'aleo', name: 'Aleo', family: 'aleo', hint: 'An Aleo address that starts with aleo1.', example: 'aleo1…' },
 ];
 
+/**
+ * A valid public address per family, used only as the recipient of dry price quotes made
+ * before the user has entered an address. 1Click accepted each of these on 2026-11-13.
+ */
+const QUOTE_SAMPLE: Record<Family, string> = {
+  evm: '0x85F17Cf997934a597031b2E18a9aB6ebD4B9f6a4',
+  btc: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+  ltc: 'LKsFs2FQnubNFuTp2Ar9tU5JrpvrgsivEC',
+  doge: 'DH5yaieqoZN36fDVciNyRueRGvGLR3mr7L',
+  bch: 'bitcoincash:qpm2qsznhks23z7629mms6s4cwef74vcwvy22gdx6a',
+  dash: 'XpESxaUmonkq8RaLLp46Brx2K39ggQe226',
+  solana: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
+  near: 'alice.near',
+  move: '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b',
+  sui: '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7',
+  starknet: '0x05ce53b9b68fb8e9ecab9283a96d97948914733fd6ed8d9a53a276a419497841',
+  ton: 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs',
+  tron: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+  stellar: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+  xrp: 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh',
+  cardano: 'addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x',
+  aleo: 'aleo1kelm7k8786anyygg788ntlgkx4uqkmkpj7k5ugfuqchd8rnf858sun3qcr',
+};
+
+export function quoteSampleAddress(chainId: string): string | undefined {
+  const c = BY_ID.get(chainId);
+  return c ? QUOTE_SAMPLE[c.family] : undefined;
+}
+
 const BY_ID = new Map(CHAINS.map((c) => [c.id, c]));
 
 export function chainInfo(id: string): ChainInfo | undefined {

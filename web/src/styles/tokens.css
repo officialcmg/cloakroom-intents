@@ -1,0 +1,139 @@
+/* Zecret design tokens. Light is the default; dark follows the system unless the user picks one. */
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('../assets/fonts/Archivo-variable.woff2') format('woff2');
+  font-weight: 400 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('../assets/fonts/IBMPlexMono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 180ms;
+}
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --bg-wash: #ece6d8;
+  --surface: #fffdf9;
+  --surface-sunk: #f1ece2;
+  --surface-raised: #ffffff;
+  --text: #17191e;
+  --text-2: #464a52;
+  --text-3: #5f636b;
+  --line: #e1dacc;
+  --line-strong: #c4bba9;
+  --accent: #e8b23a;
+  --accent-hover: #f1c159;
+  --on-accent: #1a1406;
+  --accent-ink: #7a5200;
+  --accent-soft: #f8ecc9;
+  --seal: #1c2331;
+  --on-seal: #f4f1ea;
+  --ok: #1d6638;
+  --ok-soft: #e0f0e4;
+  --info: #23519b;
+  --info-soft: #e2e9f6;
+  --warn: #835000;
+  --warn-soft: #faefd5;
+  --danger: #a2261c;
+  --danger-soft: #f8e2df;
+  --focus: #23519b;
+  --shadow-card: 0 1px 2px rgb(23 25 30 / 6%), 0 12px 32px -18px rgb(23 25 30 / 28%);
+  --shadow-pop: 0 2px 6px rgb(23 25 30 / 10%), 0 24px 48px -20px rgb(23 25 30 / 35%);
+  --qr-ink: #17191e;
+  --qr-paper: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0e1015;
+    --bg-wash: #151924;
+    --surface: #161a22;
+    --surface-sunk: #11141a;
+    --surface-raised: #1c212b;
+    --text: #edece7;
+    --text-2: #bfc2c9;
+    --text-3: #9ea2ab;
+    --line: #272c37;
+    --line-strong: #3b4250;
+    --accent: #e8b23a;
+    --accent-hover: #f1c159;
+    --on-accent: #1a1406;
+    --accent-ink: #f2c561;
+    --accent-soft: #3a2d0c;
+    --seal: #e8b23a;
+    --on-seal: #1a1406;
+    --ok: #82d39c;
+    --ok-soft: #13301d;
+    --info: #a3bff2;
+    --info-soft: #15233f;
+    --warn: #f2c561;
+    --warn-soft: #382a0b;
+    --danger: #ff9187;
+    --danger-soft: #3b1512;
+    --focus: #f2c561;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 16px 40px -20px rgb(0 0 0 / 70%);
+    --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 24px 48px -16px rgb(0 0 0 / 80%);
+  }
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0e1015;
+  --bg-wash: #151924;
+  --surface: #161a22;
+  --surface-sunk: #11141a;
+  --surface-raised: #1c212b;
+  --text: #edece7;
+  --text-2: #bfc2c9;
+  --text-3: #9ea2ab;
+  --line: #272c37;
+  --line-strong: #3b4250;
+  --accent: #e8b23a;
+  --accent-hover: #f1c159;
+  --on-accent: #1a1406;
+  --accent-ink: #f2c561;
+  --accent-soft: #3a2d0c;
+  --seal: #e8b23a;
+  --on-seal: #1a1406;
+  --ok: #82d39c;
+  --ok-soft: #13301d;
+  --info: #a3bff2;
+  --info-soft: #15233f;
+  --warn: #f2c561;
+  --warn-soft: #382a0b;
+  --danger: #ff9187;
+  --danger-soft: #3b1512;
+  --focus: #f2c561;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 16px 40px -20px rgb(0 0 0 / 70%);
+  --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 24px 48px -16px rgb(0 0 0 / 80%);
+}

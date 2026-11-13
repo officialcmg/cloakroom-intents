@@ -69,7 +69,7 @@ impl Timing {
 }
 
 /// The windows a maker quotes, relative to the time of `open`.
-#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Windows {
     /// t0 = open + t0_secs: last moment for Ready.
     pub t0_secs: u32,

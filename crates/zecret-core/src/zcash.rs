@@ -151,12 +151,13 @@ impl Lwd {
     pub fn raw_tx(&self, txid_internal: &[u8]) -> Result<Vec<u8>> {
         Ok(self.unary::<_, RawTransaction>("GetTransaction", &TxFilter { block: None, index: 0, hash: txid_internal.to_vec() })?.data)
     }
-    pub fn send(&self, data: Vec<u8>) -> Result<()> {
+    /// Outer `Err`: no answer. Inner `Err`: the server refused the transaction.
+    pub fn send(&self, data: Vec<u8>) -> Result<std::result::Result<(), String>> {
         let r: SendResponse = self.unary("SendTransaction", &RawTransaction { data, height: 0 })?;
         if r.error_code != 0 {
-            bail!("lightwalletd rejected tx: {} {}", r.error_code, r.error_message);
+            return Ok(Err(format!("lightwalletd refused the transaction: {} {}", r.error_code, r.error_message)));
         }
-        Ok(())
+        Ok(Ok(()))
     }
 }
 
