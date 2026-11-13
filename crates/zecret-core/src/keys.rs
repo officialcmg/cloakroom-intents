@@ -96,9 +96,18 @@ pub fn point_from_hex(s: &str) -> Result<pallas::Point> {
 // ---------------------------------------------------------------- proofs of knowledge
 
 /// Schnorr proof of knowledge of x for X = [x]G, bound to (swap id, role).
+///
+/// The nonce k is derived from (x, swap id, role), like an EdDSA nonce: the same inputs
+/// always give the same proof, and different inputs give independent nonces. So a request
+/// that is built again (after a node refused the first one) has the same plaintext, and
+/// the AEAD key of the request never encrypts two different messages (security review 2,
+/// H6).
 pub fn pok_prove(x: &pallas::Scalar, sid: &[u8; 16], role: &[u8]) -> [u8; 64] {
     let gg = g();
-    let k = random_scalar();
+    let mut k = hash_to_scalar(b"pok-nonce", &[&x.to_repr(), sid, role]);
+    if bool::from(k.is_zero()) {
+        k = random_scalar();
+    }
     let r = gg * k;
     let xp = gg * x;
     let c = hash_to_scalar(b"pok", &[sid, role, &xp.to_bytes(), &r.to_bytes()]);
@@ -136,6 +145,16 @@ pub struct Joint {
 /// signature and that the key is an access key of the named account.
 pub fn directory_digest(ua: &str, epoch: u32, rfq_pub: &[u8; 32], near_account: &str) -> [u8; 32] {
     h32(b"maker-directory-near", &[ua.as_bytes(), &epoch.to_le_bytes(), rfq_pub, near_account.as_bytes()])
+}
+
+/// The digest of a directory entry that also publishes the maker's limits. The domain
+/// differs from [`directory_digest`], so an entry cannot drop or change its limits and
+/// keep a valid signature.
+pub fn directory_digest_v2(ua: &str, epoch: u32, rfq_pub: &[u8; 32], near_account: &str, l: &crate::config::MakerLimits) -> [u8; 32] {
+    h32(
+        b"maker-directory-near-v2",
+        &[ua.as_bytes(), &epoch.to_le_bytes(), rfq_pub, near_account.as_bytes(), &l.min_zats.to_le_bytes(), &l.max_zats.to_le_bytes(), &l.premium_zats.to_le_bytes()],
+    )
 }
 
 /// Escrow salt. The public swap id sha256(maker, salt) cannot be computed from the RFQ id

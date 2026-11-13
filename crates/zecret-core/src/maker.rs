@@ -28,7 +28,7 @@ use crate::{
     config::{MakerConfig, MakerEntry, Misbehave},
     engine::{self, drive_pending, short, Event, Next, PendingState, PendingZ, Tick},
     keys,
-    msg::{self, Envelope, Quote, Rfq},
+    msg::{self, Envelope, Quote, RefuseCode, Refusal, Rfq},
     near::{escrow, tx::Action, At, Escrow, NearKey, NearRpc, Signer, SwapState, SwapView},
     net::SharedTransport,
     store::{get_json, put_json, Store},
@@ -44,6 +44,27 @@ pub const KEY_NEAR: &str = "near_key";
 pub const KEY_RFQ: &str = "rfq_key";
 pub const KEY_SEEN: &str = "seen";
 pub const PREFIX_SWAP: &str = "swap/";
+pub const PREFIX_REFUSAL: &str = "refusal/";
+
+/// A refusal reply the maker owes a request it does not quote (see
+/// `MakerConfig::max_refusals_per_hour`). Stored before its transaction is built, and with
+/// the built transaction before the broadcast, like a quote.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct MakerRefusal {
+    pub rfq_id: String,
+    /// `over_limit`, `under_minimum`, `busy` or `unsupported`.
+    pub code: String,
+    /// Hex of the request's reply address (43 bytes).
+    pub reply: String,
+    /// Hex of the sealed memo.
+    pub memo: String,
+    /// Wall-clock time the request was refused.
+    pub created_at: u64,
+    pub pending: Option<PendingZ>,
+    /// True once a node took the reply, or once it was dropped.
+    pub done: bool,
+    pub txid: Option<String>,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum MakerStage {
@@ -173,6 +194,8 @@ pub struct Maker {
     pending_quotes: usize,
     /// The wallet could not pay a quote fee at the last look (to warn once, not every tick).
     quote_funds_low: bool,
+    /// Refusal replies of the last hour and the ones not sent yet.
+    refusals: BTreeMap<String, MakerRefusal>,
 }
 
 impl Maker {
@@ -213,7 +236,17 @@ impl Maker {
             swaps.insert(s.rfq_id.clone(), s);
         }
         let signer = Signer::new(&cfg.near_account, key);
-        let mut m = Maker { epoch: rk.epoch, rfq_sk: keys::scalar_from_hex(&rk.sk)?, cfg, me, wallet, near, signer, seen, swaps, covers: HashMap::new(), covers_passed: BTreeSet::new(), ev: vec![], zcash_stale: false, quote_budget: 0, pending_quotes: 0, quote_funds_low: false };
+        let mut refusals = BTreeMap::new();
+        for k in store.keys(PREFIX_REFUSAL)? {
+            let r: MakerRefusal = get_json(store, &k)?.ok_or_else(|| anyhow!("record {k} vanished"))?;
+            refusals.insert(r.rfq_id.clone(), r);
+        }
+        let mut m = Maker { epoch: rk.epoch, rfq_sk: keys::scalar_from_hex(&rk.sk)?, cfg, me, wallet, near, signer, seen, swaps, covers: HashMap::new(), covers_passed: BTreeSet::new(), ev: vec![], zcash_stale: false, quote_budget: 0, pending_quotes: 0, quote_funds_low: false, refusals };
+        for r in m.refusals.values() {
+            if let Some(p) = &r.pending {
+                m.wallet.track(&p.txid);
+            }
+        }
         for s in m.swaps.values().cloned().collect::<Vec<_>>() {
             if !s.stage.is_terminal() {
                 if let Some(f) = &s.joint_fvk {
@@ -237,11 +270,13 @@ impl Maker {
         self.swaps.values()
     }
 
-    /// The maker's signed directory entry, for takers.
+    /// The maker's signed directory entry, for takers. It publishes the limits (smallest
+    /// and largest request, premium); the signature covers them.
     pub fn directory_entry(&self) -> MakerEntry {
         let rfq_pub = msg::dh_public(&self.rfq_sk);
         let ua = self.ua();
-        let digest = keys::directory_digest(&ua, self.epoch, &rfq_pub, &self.cfg.near_account);
+        let limits = self.cfg.limits();
+        let digest = keys::directory_digest_v2(&ua, self.epoch, &rfq_pub, &self.cfg.near_account, &limits);
         MakerEntry {
             ua,
             epoch: self.epoch,
@@ -249,7 +284,12 @@ impl Maker {
             near_account: self.cfg.near_account.clone(),
             near_pk: self.signer.key.public_key_str(),
             sig: hex::encode(self.signer.key.sign(&digest)),
+            limits: Some(limits),
         }
+    }
+
+    pub fn refusals(&self) -> impl Iterator<Item = &MakerRefusal> {
+        self.refusals.values()
     }
 
     fn esc(&self) -> Escrow<'_> {
@@ -333,15 +373,25 @@ impl Maker {
         let can_pay = !self.zcash_stale && self.wallet.spendable("wallet") >= fee;
         self.quote_budget = if can_pay { self.cfg.max_quotes_per_tick } else { 0 };
         let ids: Vec<String> = self.swaps.iter().filter(|(_, s)| quoting(s)).map(|(k, _)| k.clone()).collect();
-        let waiting = ids.iter().any(|id| self.swaps[id].stage == MakerStage::Quoting);
-        if waiting && !can_pay && !self.zcash_stale && !self.quote_funds_low {
-            let have = self.wallet.spendable("wallet");
-            self.ev.push(Event::Warning { swap: String::new(), message: format!("requests wait for a quote, but the wallet has {have} spendable zats, less than a quote fee ({fee})") });
+        // Requests that still need a quote built. A quote that is built but not yet
+        // broadcast (pending) holds its note: that is not a lack of funds.
+        let waiting = ids.iter().any(|id| self.swaps[id].stage == MakerStage::Quoting && self.swaps[id].pending.is_none());
+        // Short of funds only when the wallet's whole balance, notes set aside for
+        // transactions in flight included, cannot pay a quote fee. Set-aside notes come
+        // back (as change) when their transaction is mined.
+        let short = self.wallet.balance("wallet") < fee;
+        if waiting && !can_pay && short && !self.zcash_stale && !self.quote_funds_low {
+            let have = self.wallet.balance("wallet");
+            self.ev.push(Event::Warning { swap: String::new(), message: format!("requests wait for a quote, but the wallet holds {have} zats, less than a quote fee ({fee})") });
         }
         if !self.zcash_stale {
-            self.quote_funds_low = waiting && !can_pay;
+            self.quote_funds_low = waiting && !can_pay && short;
         }
         self.advance_all(ids, now, store, &mut next)?;
+        // Refusal replies last: only from the quote budget that no quote used, and never
+        // while a request waits for its quote (quotes come first).
+        let waiting = self.swaps.values().any(|s| s.stage == MakerStage::Quoting && s.pending.is_none());
+        self.advance_refusals(now, waiting, store, &mut next)?;
         if self.zcash_stale {
             next = next.min(now + RETRY_SECS);
         }
@@ -427,9 +477,6 @@ impl Maker {
         if epoch != self.epoch {
             bail!("RFQ for epoch {epoch}, current epoch is {}", self.epoch);
         }
-        if self.pending_quotes >= self.cfg.max_pending_quotes {
-            bail!("{} requests already wait for a quote or an acceptance (max_pending_quotes); request refused", self.pending_quotes);
-        }
         let me_pub = msg::dh_public(&self.rfq_sk);
         let rfq = Rfq::from_bytes(&msg::open(b"rfq", &self.rfq_sk, &eph, &eph, &me_pub, ct)?)?;
         let rfq_hex = hex::encode(rfq.rfq_id);
@@ -437,16 +484,27 @@ impl Maker {
             return Ok(());
         }
         let c = self.cfg.clone();
-        if rfq.zats < c.min_zats || rfq.zats > c.max_zats {
-            bail!("amount {} outside {}..={}", rfq.zats, c.min_zats, c.max_zats);
+        let refusal = if self.pending_quotes >= c.max_pending_quotes {
+            Some((RefuseCode::Busy, format!("{} requests already wait for a quote or an acceptance (max_pending_quotes); request refused", self.pending_quotes)))
+        } else if rfq.zats > c.max_zats {
+            Some((RefuseCode::OverLimit, format!("amount {} outside {}..={}", rfq.zats, c.min_zats, c.max_zats)))
+        } else if rfq.zats < c.min_zats {
+            Some((RefuseCode::UnderMinimum, format!("amount {} outside {}..={}", rfq.zats, c.min_zats, c.max_zats)))
+        } else {
+            let a_ok = keys::point_from_bytes(&rfq.a_pub).map(|a| keys::pok_verify(&a, &rfq.pok_a, &rfq.rfq_id, b"taker")).unwrap_or(false);
+            if !a_ok {
+                Some((RefuseCode::Unsupported, "taker proof of knowledge invalid".to_string()))
+            } else if rfq.taker_pk == [0u8; 32] || ed25519_dalek::VerifyingKey::from_bytes(&rfq.taker_pk).is_err() {
+                Some((RefuseCode::Unsupported, "taker NEAR key is not a valid ed25519 key".to_string()))
+            } else {
+                None
+            }
+        };
+        if let Some((code, why)) = refusal {
+            let reply = self.queue_refusal(&rfq, code, &eph, now, store)?;
+            bail!("{why}; {reply}");
         }
         let a_pub = keys::point_from_bytes(&rfq.a_pub)?;
-        if !keys::pok_verify(&a_pub, &rfq.pok_a, &rfq.rfq_id, b"taker") {
-            bail!("taker proof of knowledge invalid");
-        }
-        if rfq.taker_pk == [0u8; 32] || ed25519_dalek::VerifyingKey::from_bytes(&rfq.taker_pk).is_err() {
-            bail!("taker NEAR key is not a valid ed25519 key");
-        }
         wallet::addr_from_raw(&rfq.reply_addr)?;
         let gg = keys::g();
         let (b, b_pub) = if c.misbehave == Some(Misbehave::RogueKey) {
@@ -534,6 +592,111 @@ impl Maker {
         self.ev.push(Event::Stage { swap: s.rfq_id.clone(), stage: s.stage.name().into() });
         self.pending_quotes += 1;
         self.save(&mut s, store)
+    }
+
+    /// Decides whether a refused request gets a refusal reply, and if so stores it (the
+    /// transaction is built in a later step of the tick, from the leftover quote budget).
+    /// Returns a phrase for the log. A reply costs the maker a Zcash fee and a proof, so:
+    /// at most `max_refusals_per_hour` in any hour (sliding window, counted from the stored
+    /// records, also across restarts), at most one per request id, and none when the reply
+    /// address does not parse.
+    fn queue_refusal(&mut self, rfq: &Rfq, code: RefuseCode, eph: &[u8; 32], now: u64, store: &mut dyn Store) -> Result<String> {
+        let rfq_hex = hex::encode(rfq.rfq_id);
+        if self.cfg.max_refusals_per_hour == 0 {
+            return Ok("no reply (refusal replies are off)".into());
+        }
+        if self.refusals.contains_key(&rfq_hex) {
+            return Ok("a reply is already sent or queued".into());
+        }
+        let hour = now.saturating_sub(3600);
+        let recent = self.refusals.values().filter(|r| r.created_at > hour).count();
+        if recent >= self.cfg.max_refusals_per_hour {
+            return Ok(format!("no reply ({recent} refusal replies in the last hour, max_refusals_per_hour)"));
+        }
+        if wallet::addr_from_raw(&rfq.reply_addr).is_err() {
+            return Ok("no reply (the reply address does not parse)".into());
+        }
+        let mut f = Refusal { code, min_zats: self.cfg.min_zats, max_zats: self.cfg.max_zats, sig: [0u8; 64] };
+        f.sig = self.signer.key.sign(&f.sig_digest(&rfq.rfq_id));
+        let me_pub = msg::dh_public(&self.rfq_sk);
+        let ct = msg::seal(b"refuse", &self.rfq_sk, eph, eph, &me_pub, &f.to_bytes())?;
+        let env = Envelope::Refuse { rfq_id: rfq.rfq_id, ct };
+        let r = MakerRefusal {
+            rfq_id: rfq_hex.clone(),
+            code: code.name().into(),
+            reply: hex::encode(rfq.reply_addr),
+            memo: hex::encode(env.encode()),
+            created_at: now,
+            pending: None,
+            done: false,
+            txid: None,
+        };
+        put_json(store, &format!("{PREFIX_REFUSAL}{rfq_hex}"), &r)?;
+        self.refusals.insert(rfq_hex, r);
+        Ok(format!("a refusal reply ({}) is queued", code.name()))
+    }
+
+    /// Builds and broadcasts queued refusal replies. A reply is built only when the wallet
+    /// is in sync, no request waits for a quote, and this tick's quote budget is not used
+    /// (at most one proof per tick for quotes and refusals together). A reply not built
+    /// within `quote_ttl_secs` is dropped. A built reply goes out on the next tick, like a
+    /// quote; one that dies unbroadcast is dropped, not built again.
+    fn advance_refusals(&mut self, now: u64, quotes_waiting: bool, store: &mut dyn Store, next: &mut u64) -> Result<()> {
+        let ids: Vec<String> = self.refusals.iter().filter(|(_, r)| !r.done).map(|(k, _)| k.clone()).collect();
+        for id in ids {
+            let mut r = self.refusals[&id].clone();
+            let before = r.clone();
+            if let Some(mut p) = r.pending.clone() {
+                if self.zcash_stale {
+                    continue;
+                }
+                match drive_pending(&mut self.wallet, &mut p) {
+                    Ok(PendingState::Waiting) if p.broadcast => {
+                        r.done = true;
+                        r.txid = Some(p.txid.clone());
+                        r.pending = None;
+                        self.ev.push(Event::ZcashTx { swap: id.clone(), what: "refusal".into(), txid: p.txid.clone() });
+                        self.ev.push(Event::Log { swap: id.clone(), line: format!("REFUSAL ({}) sent to the taker in tx {}", r.code, p.txid) });
+                    }
+                    Ok(PendingState::Mined(_)) => {
+                        r.done = true;
+                        r.txid = Some(p.txid.clone());
+                        r.pending = None;
+                    }
+                    Ok(PendingState::Waiting) => r.pending = Some(p),
+                    Ok(PendingState::Dead(why)) => {
+                        r.done = true;
+                        r.pending = None;
+                        self.ev.push(Event::Log { swap: id.clone(), line: format!("refusal reply {} {why}; dropped", short(&p.txid)) });
+                    }
+                    Err(e) => self.ev.push(Event::Warning { swap: id.clone(), message: format!("refusal reply: {e:#}") }),
+                }
+            } else if now > r.created_at.saturating_add(self.cfg.quote_ttl_secs) {
+                r.done = true;
+                self.ev.push(Event::Log { swap: id.clone(), line: "refusal reply not sent within quote_ttl_secs; dropped".into() });
+            } else if !self.zcash_stale && !quotes_waiting && self.quote_budget > 0 {
+                self.quote_budget -= 1;
+                let memo: [u8; 512] = hex::decode(&r.memo)?.try_into().map_err(|_| anyhow!("memo length"))?;
+                let raw: [u8; 43] = hex::decode(&r.reply)?.try_into().map_err(|_| anyhow!("reply address length"))?;
+                let to = wallet::addr_from_raw(&raw)?;
+                match self.wallet.build_pay("wallet", &self.me.ask, self.me.change(), vec![(to, 0, memo)]) {
+                    Ok(tx) => {
+                        r.pending = Some(PendingZ::new("refusal", &tx));
+                        *next = now;
+                    }
+                    Err(e) => self.ev.push(Event::Warning { swap: id.clone(), message: format!("refusal reply not built: {e:#}") }),
+                }
+            }
+            if r != before {
+                put_json(store, &format!("{PREFIX_REFUSAL}{id}"), &r)?;
+                self.refusals.insert(id, r);
+            }
+        }
+        // Done replies older than an hour no longer count against the cap; their records
+        // stay in the store.
+        let hour = now.saturating_sub(3600);
+        self.refusals.retain(|_, r| !r.done || r.created_at > hour);
+        Ok(())
     }
 
     /// Ok(true) when the message is dealt with (accepted or rejected for good).
@@ -875,7 +1038,7 @@ impl Maker {
             SwapState::Refunded => return self.on_refunded(s, &fin, now),
             SwapState::Locked => {
                 // R3l: refund a lock only if a final block at or after lockedAt + W shows Locked.
-                let deadline = v.locked_at.unwrap_or(0) + v.reveal_window;
+                let deadline = v.locked_at.unwrap_or(0).saturating_add(v.reveal_window);
                 if tnow >= deadline {
                     return self.refund(s, tnow, &format!("the taker locked but did not reveal by {deadline} (final block {})", fin.height));
                 }

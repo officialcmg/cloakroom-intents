@@ -59,6 +59,15 @@ pub enum Event {
     Warning { swap: String, message: String },
     /// The swap reached a terminal stage.
     Done { swap: String, outcome: String },
+    /// Taker only: the maker answered the request with a signed refusal. `code` is
+    /// `over_limit`, `under_minimum`, `busy` or `unsupported`; the limits are the maker's.
+    /// The swap then ends in `Aborted`; nothing was funded and no premium was paid.
+    Refused { swap: String, code: String, min_zats: u64, max_zats: u64 },
+    /// Taker only: the claim is final, but the payout is not in the Verifier after
+    /// `payout_wait_secs`. Any NEAR account can send this call: `receiver` is the escrow,
+    /// `args` is the JSON of the call, `gas` is in gas units, `deposit` is 0. The taker's
+    /// stipend does not pay for it. `credit` is what the escrow owes (token base units).
+    PayoutPending { swap: String, receiver: String, method: String, args: String, gas: String, deposit: String, credit: String },
 }
 
 /// A built Zcash transaction kept in a swap record until it is mined. It is written to

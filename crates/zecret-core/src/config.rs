@@ -53,13 +53,13 @@ impl Timing {
     /// The reorganization budget B_R = (R+1)·D + R·F, plus the extra margin.
     pub fn budget(&self) -> u64 {
         let (d, f, r) = (self.inclusion_secs, self.finality_secs, self.reorg_budget);
-        (r + 1) * d + r * f + self.margin_secs
+        r.saturating_add(1).saturating_mul(d).saturating_add(r.saturating_mul(f)).saturating_add(self.margin_secs)
     }
 
     /// A key-revealing transaction sent at `now` is final before `deadline` even if it is
     /// reorganized R times: `now + B_R < deadline` (rules R2c, R2r, R3d).
     pub fn in_time(&self, now: u64, deadline: u64) -> bool {
-        now + self.budget() < deadline
+        now.saturating_add(self.budget()) < deadline
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -77,10 +77,10 @@ impl Timing {
     pub fn check_windows(&self, w: &Windows) -> Result<()> {
         let (d, f, b) = (self.inclusion_secs, self.finality_secs, self.budget());
         let checks = [
-            ("reveal window W", w.reveal_secs as u64, f + b),
-            ("t0 - open", w.t0_secs as u64, f + self.fund_secs),
-            ("t1 - t0", w.t1_secs as u64, f + b),
-            ("t2 - t1", w.t2_secs as u64, d + f + b),
+            ("reveal window W", w.reveal_secs as u64, f.saturating_add(b)),
+            ("t0 - open", w.t0_secs as u64, f.saturating_add(self.fund_secs)),
+            ("t1 - t0", w.t1_secs as u64, f.saturating_add(b)),
+            ("t2 - t1", w.t2_secs as u64, d.saturating_add(f).saturating_add(b)),
         ];
         for (what, have, bound) in checks {
             if have <= bound {
@@ -142,6 +142,33 @@ pub struct MakerEntry {
     pub near_pk: String,
     /// Hex of the 64-byte ed25519 signature.
     pub sig: String,
+    /// The maker's limits, covered by `sig` when present (`keys::directory_digest_v2`).
+    /// The taker checks a request against them before it sends anything. An entry without
+    /// limits is signed with the first digest (`keys::directory_digest`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limits: Option<MakerLimits>,
+}
+
+impl MakerEntry {
+    /// The digest that `sig` signs: with the limits when the entry has them.
+    pub fn digest(&self) -> anyhow::Result<[u8; 32]> {
+        let rfq_pub = crate::keys::unhex32(&self.rfq_pub)?;
+        Ok(match &self.limits {
+            Some(l) => crate::keys::directory_digest_v2(&self.ua, self.epoch, &rfq_pub, &self.near_account, l),
+            None => crate::keys::directory_digest(&self.ua, self.epoch, &rfq_pub, &self.near_account),
+        })
+    }
+}
+
+/// What a maker publishes about the requests it takes (signed in its directory entry).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MakerLimits {
+    /// Smallest request (zatoshis sold) the maker quotes.
+    pub min_zats: u64,
+    /// Largest request the maker quotes.
+    pub max_zats: u64,
+    /// The premium (zatoshis) the maker asks with every quote.
+    pub premium_zats: u64,
 }
 
 /// Test-only behaviours. The scenario runner uses them to play a dishonest party and check
@@ -233,6 +260,15 @@ pub struct TakerConfig {
     pub cover: Cover,
     #[serde(default, deserialize_with = "de_misbehave")]
     pub misbehave: Option<Misbehave>,
+    /// Seconds (wall clock) after the claim is final before the engine reports that the
+    /// payout is pending (stage `PayoutPending`, event `payout_pending`). The maker sends
+    /// `withdraw`; the taker's stipend cannot pay its gas. Any NEAR account can send it.
+    #[serde(default = "default_payout_wait")]
+    pub payout_wait_secs: u64,
+}
+
+fn default_payout_wait() -> u64 {
+    300
 }
 
 fn default_horizon() -> u64 {
@@ -288,6 +324,17 @@ pub struct MakerConfig {
     /// check runs when it is set.
     #[serde(default)]
     pub premium_check: Option<PremiumCheck>,
+    /// Refusal replies the maker sends at most in one hour (sliding window). A refusal tells
+    /// a taker why its request gets no quote (amount above or below the limits, the maker is
+    /// busy, the request is not supported). Each one costs the maker a Zcash fee and a proof,
+    /// so they are capped, sent only from the quote budget that no quote used, and at most
+    /// one per request. 0 turns the replies off.
+    #[serde(default = "default_max_refusals_per_hour")]
+    pub max_refusals_per_hour: usize,
+}
+
+fn default_max_refusals_per_hour() -> usize {
+    6
 }
 
 /// What an accepted request costs the maker, and the price of ZEC in NEAR. `Maker::open`
@@ -330,6 +377,11 @@ fn default_storage_topup() -> u128 {
 }
 
 impl MakerConfig {
+    /// The limits this maker publishes in its directory entry.
+    pub fn limits(&self) -> MakerLimits {
+        MakerLimits { min_zats: self.min_zats, max_zats: self.max_zats, premium_zats: self.premium_zats }
+    }
+
     /// Token base units for `zats` zatoshis, rounded down.
     pub fn price_for(&self, zats: u64) -> u128 {
         zats as u128 * self.price_per_zec / 100_000_000
@@ -365,6 +417,9 @@ impl MakerConfig {
     pub fn check_limits(&self) -> Result<()> {
         if self.max_pending_quotes == 0 || self.max_quotes_per_tick == 0 || self.quote_ttl_secs == 0 {
             bail!("max_pending_quotes, max_quotes_per_tick and quote_ttl_secs must be at least 1");
+        }
+        if self.min_zats == 0 || self.min_zats > self.max_zats {
+            bail!("min_zats must be at least 1 and not above max_zats");
         }
         Ok(())
     }

@@ -25,6 +25,7 @@ const T_RFQ: u8 = 1;
 const T_QUOTE: u8 = 2;
 const T_ACCEPT: u8 = 3;
 const T_FUND: u8 = 4;
+const T_REFUSE: u8 = 5;
 const HDR: usize = 7;
 
 /// Longest NEAR account id.
@@ -66,6 +67,77 @@ pub struct Quote {
     pub sig: [u8; 64],
 }
 
+/// Why a maker sends no quote for a request.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RefuseCode {
+    /// The amount is above the maker's largest request.
+    OverLimit = 1,
+    /// The amount is below the maker's smallest request.
+    UnderMinimum = 2,
+    /// The maker has its largest number of requests waiting (`max_pending_quotes`).
+    Busy = 3,
+    /// The request is not one this maker can take (for example an invalid key or proof).
+    Unsupported = 4,
+}
+
+impl RefuseCode {
+    pub fn from_u8(v: u8) -> Result<RefuseCode> {
+        Ok(match v {
+            1 => RefuseCode::OverLimit,
+            2 => RefuseCode::UnderMinimum,
+            3 => RefuseCode::Busy,
+            4 => RefuseCode::Unsupported,
+            v => bail!("unknown refusal code {v}"),
+        })
+    }
+    /// The code as the engine reports it (`over_limit`, `under_minimum`, `busy`, `unsupported`).
+    pub fn name(self) -> &'static str {
+        match self {
+            RefuseCode::OverLimit => "over_limit",
+            RefuseCode::UnderMinimum => "under_minimum",
+            RefuseCode::Busy => "busy",
+            RefuseCode::Unsupported => "unsupported",
+        }
+    }
+}
+
+/// The maker's answer to a request it does not quote. It is encrypted to the taker's
+/// ephemeral key from the request (label `refuse`, with the maker's epoch key) and signed
+/// with the maker's NEAR key, like a quote.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Refusal {
+    pub code: RefuseCode,
+    /// The maker's limits at the time of the refusal.
+    pub min_zats: u64,
+    pub max_zats: u64,
+    pub sig: [u8; 64],
+}
+
+impl Refusal {
+    pub const LEN: usize = 1 + 8 + 8 + 64;
+
+    pub fn unsigned_bytes(&self) -> Vec<u8> {
+        [&[self.code as u8][..], &self.min_zats.to_le_bytes(), &self.max_zats.to_le_bytes()].concat()
+    }
+    /// What the maker signs: domain-separated, bound to the request id.
+    pub fn sig_digest(&self, rfq_id: &[u8; 16]) -> [u8; 32] {
+        crate::keys::h32(b"refuse-sig-near", &[rfq_id, &self.unsigned_bytes()])
+    }
+    pub fn to_bytes(&self) -> Vec<u8> {
+        [self.unsigned_bytes(), self.sig.to_vec()].concat()
+    }
+    pub fn from_bytes(b: &[u8]) -> Result<Refusal> {
+        if b.len() != Self::LEN {
+            bail!("bad refusal length");
+        }
+        let mut r = Rd(b);
+        let code = RefuseCode::from_u8(r.take(1)?[0])?;
+        let q = Refusal { code, min_zats: r.u64()?, max_zats: r.u64()?, sig: r.arr()? };
+        r.end()?;
+        Ok(q)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Accept {
     pub s_t: [u8; 32],
@@ -79,6 +151,7 @@ pub enum Envelope {
     Quote { rfq_id: [u8; 16], eph: [u8; 32], ct: Vec<u8> },
     Accept { rfq_id: [u8; 16], ct: Vec<u8> },
     Fund { rfq_id: [u8; 16] },
+    Refuse { rfq_id: [u8; 16], ct: Vec<u8> },
 }
 
 fn header(t: u8) -> Vec<u8> {
@@ -124,6 +197,12 @@ impl Envelope {
                 v = header(T_FUND);
                 v.extend_from_slice(rfq_id);
             }
+            Envelope::Refuse { rfq_id, ct } => {
+                v = header(T_REFUSE);
+                v.extend_from_slice(rfq_id);
+                v.extend_from_slice(&(ct.len() as u16).to_le_bytes());
+                v.extend_from_slice(ct);
+            }
         }
         to_memo(v)
     }
@@ -149,6 +228,7 @@ impl Envelope {
             T_QUOTE => Envelope::Quote { rfq_id: b[..16].try_into()?, eph: b[16..48].try_into()?, ct: take_ct(48)? },
             T_ACCEPT => Envelope::Accept { rfq_id: b[..16].try_into()?, ct: take_ct(16)? },
             T_FUND => Envelope::Fund { rfq_id: b[..16].try_into()? },
+            T_REFUSE => Envelope::Refuse { rfq_id: b[..16].try_into()?, ct: take_ct(16)? },
             t => bail!("unknown message type {t}"),
         }))
     }
@@ -379,6 +459,33 @@ mod tests {
         // decoding what was encoded gives the same envelope bytes
         for e in [&env, &qenv, &aenv, &Envelope::Fund { rfq_id: [2; 16] }] {
             assert_eq!(Envelope::decode(&e.encode()).unwrap().unwrap().encode(), e.encode());
+        }
+    }
+
+    #[test]
+    fn refusal_roundtrip_binding_and_size() {
+        let (maker_epoch, e_t) = (random_scalar(), random_scalar());
+        let (pm, pt) = (dh_public(&maker_epoch), dh_public(&e_t));
+        let key = crate::near::NearKey::generate();
+        let id = [4u8; 16];
+        let mut r = Refusal { code: RefuseCode::OverLimit, min_zats: 100_000, max_zats: 10_000_000, sig: [0; 64] };
+        r.sig = key.sign(&r.sig_digest(&id));
+        // The maker seals with its epoch key and the taker's ephemeral key from the request.
+        let ct = seal(b"refuse", &maker_epoch, &pt, &pt, &pm, &r.to_bytes()).unwrap();
+        let env = Envelope::Refuse { rfq_id: id, ct };
+        assert!(env.wire_len() <= 512);
+        let Envelope::Refuse { rfq_id, ct } = Envelope::decode(&env.encode()).unwrap().unwrap() else { panic!() };
+        assert_eq!(rfq_id, id);
+        // The taker opens it with its ephemeral secret and the maker's published key.
+        let got = Refusal::from_bytes(&open(b"refuse", &e_t, &pm, &pt, &pm, &ct).unwrap()).unwrap();
+        assert_eq!(got, r);
+        assert!(crate::near::tx::verify(&key.public_bytes(), &got.sig_digest(&id), &got.sig));
+        assert!(!crate::near::tx::verify(&key.public_bytes(), &got.sig_digest(&[5u8; 16]), &got.sig), "bound to the request id");
+        // The request's own key cannot open it (labels separate keys).
+        assert!(open(b"rfq", &e_t, &pm, &pt, &pm, &ct).is_err());
+        assert!(Refusal::from_bytes(&[9u8; Refusal::LEN]).is_err(), "unknown code");
+        for c in [RefuseCode::OverLimit, RefuseCode::UnderMinimum, RefuseCode::Busy, RefuseCode::Unsupported] {
+            assert_eq!(RefuseCode::from_u8(c as u8).unwrap(), c);
         }
     }
 

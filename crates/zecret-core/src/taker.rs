@@ -16,8 +16,11 @@
 //!                  or Open/Ready from t2; commit_claim--> Committed
 //! Committed      --lock final, now + B_R < lockedAt + W
 //!                  (R2r); claim(a)----------------------> Revealed
-//! Revealed       --claim final-------------------------> Claimed
+//! Revealed       --claim(a) signed and stored; R2r checked
+//!                  again at the broadcast; claim final-> Claimed
+//!                  (R2r fails before anything was sent --> Committed)
 //! Claimed        --payout in intents.near--------------> Completed
+//! Claimed        --no payout after payout_wait_secs----> PayoutPending --payout--> Completed
 //! any of Funded..Revealed --refund(b) seen-------------> Recovering --k_Z conf--> Recovered
 //! ```
 //!
@@ -29,11 +32,13 @@ use group::GroupEncoding;
 use orchard::keys::{FullViewingKey, Scope};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "misbehave")]
+use crate::config::Misbehave;
 use crate::{
-    config::{Misbehave, TakerConfig, Windows},
+    config::{TakerConfig, Windows},
     engine::{self, drive_pending, short, Event, Next, PendingState, PendingZ, Tick},
     keys,
-    msg::{self, Accept, Envelope, Quote, Rfq},
+    msg::{self, Accept, Envelope, Quote, Refusal, Rfq},
     near::{escrow, At, Escrow, NearKey, NearRpc, Signer, SwapState},
     net::SharedTransport,
     store::{get_json, put_json, Store},
@@ -55,6 +60,10 @@ pub enum TakerStage {
     Committed,
     Revealed,
     Claimed,
+    /// The claim is final, but the payout is not in the Verifier after `payout_wait_secs`:
+    /// the maker has not sent `withdraw`. Any NEAR account can send it (event
+    /// `payout_pending` has the call). Still polled; ends in `Completed`.
+    PayoutPending,
     Completed,
     Recovering,
     Recovered,
@@ -71,6 +80,7 @@ impl TakerStage {
             TakerStage::Committed => "Committed",
             TakerStage::Revealed => "Revealed",
             TakerStage::Claimed => "Claimed",
+            TakerStage::PayoutPending => "PayoutPending",
             TakerStage::Completed => "Completed",
             TakerStage::Recovering => "Recovering",
             TakerStage::Recovered => "Recovered",
@@ -144,8 +154,12 @@ pub struct TakerSwap {
     pub sweep_height: Option<u64>,
     pub commit_tx: Option<String>,
     pub claim_tx: Option<String>,
-    /// NEAR time of the last claim(a) broadcast.
+    /// NEAR time of the last claim(a) broadcast. None while nothing has left the engine.
     pub claim_at: Option<u64>,
+    /// Hex of the signed first claim(a) transaction, stored one tick before its broadcast
+    /// (security review 2, F2-02). Cleared if R2r fails before the broadcast.
+    #[serde(default)]
+    pub claim_raw: Option<String>,
     pub withdraw_tx: Option<String>,
     pub withdraw_at: Option<u64>,
     pub log: Vec<String>,
@@ -195,7 +209,19 @@ pub struct Taker {
     announced: Option<String>,
     /// The cover delay that has passed (swap and broadcast), until that broadcast is built.
     cover_passed: Option<String>,
+    /// True in a tick whose Zcash sync failed: the wallet's view is old. Only the stages
+    /// that need NEAR alone go on (security review 2, F2-02).
+    zcash_stale: bool,
 }
+
+/// Stages that need only NEAR: a Zcash sync error does not stop them.
+fn near_only(stage: &TakerStage) -> bool {
+    matches!(stage, TakerStage::Funded | TakerStage::Committed | TakerStage::Revealed | TakerStage::Claimed | TakerStage::PayoutPending)
+}
+
+/// yoctoNEAR per gas unit at which NEAR checks that a signer can pay its prepaid gas (a
+/// pessimistic price, about 10^9 in the 2.14.1 sandbox; see `near::escrow`).
+const PESSIMISTIC_GAS_PRICE: u128 = 1_000_000_000;
 
 impl Taker {
     /// Opens the taker's wallet (creating its key in the store on first use) and the
@@ -220,7 +246,7 @@ impl Taker {
                 swap = Some(s);
             }
         }
-        let mut tk = Taker { cfg, me, wallet, near, swap, cover: None, ev: vec![], last_balance: None, announced: None, cover_passed: None };
+        let mut tk = Taker { cfg, me, wallet, near, swap, cover: None, ev: vec![], last_balance: None, announced: None, cover_passed: None, zcash_stale: false };
         if let Some(s) = tk.swap.clone() {
             tk.watch_joint(&s)?;
             if let Some(p) = &s.pending {
@@ -258,9 +284,8 @@ impl Taker {
     pub fn verify_maker(&self) -> Result<()> {
         let m = &self.cfg.maker;
         let pk = crate::near::tx::parse_public_key(&m.near_pk)?;
-        let rfq_pub = keys::unhex32(&m.rfq_pub)?;
         let sig: [u8; 64] = hex::decode(&m.sig)?.try_into().map_err(|_| anyhow!("directory signature must be 64 bytes"))?;
-        let digest = keys::directory_digest(&m.ua, m.epoch, &rfq_pub, &m.near_account);
+        let digest = m.digest()?;
         if !crate::near::tx::verify(&pk, &digest, &sig) {
             bail!("maker directory entry is not signed by {}", m.near_pk);
         }
@@ -289,6 +314,16 @@ impl Taker {
             bail!("amount is zero");
         }
         self.verify_maker()?;
+        // The signed limits (if the entry has them): a request outside them would only cost
+        // the request fee and get a refusal or no answer.
+        if let Some(l) = self.cfg.maker.limits {
+            if zats < l.min_zats || zats > l.max_zats {
+                bail!("amount {zats} zats is outside the maker's published limits {}..={} zats; nothing was sent", l.min_zats, l.max_zats);
+            }
+            if l.premium_zats > self.cfg.max_premium {
+                bail!("the maker's published premium {} zats is above this swap's limit {}; nothing was sent", l.premium_zats, self.cfg.max_premium);
+            }
+        }
         let rfq_id: [u8; 16] = crate::random_bytes();
         let a = keys::random_scalar();
         let e_t = keys::random_scalar();
@@ -323,6 +358,7 @@ impl Taker {
             commit_tx: None,
             claim_tx: None,
             claim_at: None,
+            claim_raw: None,
             withdraw_tx: None,
             withdraw_at: None,
             log: vec![],
@@ -354,11 +390,25 @@ impl Taker {
     }
 
     fn step(&mut self, now: u64, store: &mut dyn Store) -> Result<Next> {
-        self.wallet.sync().context("Zcash sync")?;
-        let bal = self.balance();
-        if self.last_balance != Some(bal) {
-            self.last_balance = Some(bal);
-            self.ev.push(Event::Balance { zats: bal });
+        // F2-02: a Zcash sync error stops only the stages that need the Zcash wallet. The
+        // NEAR stages (Funded to PayoutPending) go on with the last synced view; a decision
+        // that needs Zcash data (a recovery) waits for a good sync.
+        self.zcash_stale = false;
+        if let Err(e) = self.wallet.sync() {
+            match &self.swap {
+                Some(s) if near_only(&s.stage) => {
+                    self.ev.push(Event::Warning { swap: s.rfq_id.clone(), message: format!("Zcash sync: {e:#}; the NEAR steps go on") });
+                    self.zcash_stale = true;
+                }
+                _ => return Err(e.context("Zcash sync")),
+            }
+        }
+        if !self.zcash_stale {
+            let bal = self.balance();
+            if self.last_balance != Some(bal) {
+                self.last_balance = Some(bal);
+                self.ev.push(Event::Balance { zats: bal });
+            }
         }
         let Some(mut s) = self.swap.clone() else { return Ok(Next::Done) };
         if s.stage.is_terminal() {
@@ -379,7 +429,17 @@ impl Taker {
             self.swap = Some(s.clone());
         }
         let next = r?;
-        Ok(if s.stage.is_terminal() { Next::Done } else { next })
+        Ok(if s.stage.is_terminal() {
+            Next::Done
+        } else if self.zcash_stale {
+            // Come back soon for the sync, but not before the NEAR step asked to.
+            match next {
+                Next::At(t) => Next::At(t.min(now + RETRY_SECS)),
+                Next::Done => Next::Done,
+            }
+        } else {
+            next
+        })
     }
 
     fn log(&mut self, s: &mut TakerSwap, line: String) {
@@ -457,8 +517,9 @@ impl Taker {
     }
 
     fn advance(&mut self, s: &mut TakerSwap, now: u64) -> Result<Next> {
-        // A built Zcash transaction goes out before anything else happens.
-        if let Some(mut p) = s.pending.clone() {
+        // A built Zcash transaction goes out before anything else happens. With an old
+        // Zcash view (sync failed) it waits; the NEAR stage below still runs.
+        if let Some(mut p) = s.pending.clone().filter(|_| !self.zcash_stale) {
             let st = drive_pending(&mut self.wallet, &mut p)?;
             let first_accept = (p.broadcast || matches!(st, PendingState::Mined(_))) && s.pending_then.is_some();
             s.pending = Some(p.clone());
@@ -502,7 +563,7 @@ impl Taker {
             TakerStage::Funded => self.on_funded(s, now),
             TakerStage::Committed => self.on_committed(s, now),
             TakerStage::Revealed => self.on_revealed(s, now),
-            TakerStage::Claimed => self.on_claimed(s, now),
+            TakerStage::Claimed | TakerStage::PayoutPending => self.on_claimed(s, now),
             TakerStage::Recovering => self.on_recovering(s, now),
             TakerStage::Completed | TakerStage::Recovered | TakerStage::Aborted(_) => Ok(Next::Done),
         }
@@ -585,6 +646,23 @@ impl Taker {
             Ok(Some(Envelope::Quote { rfq_id: id, eph, ct })) if id == rfq_id => {
                 msg::open(b"quote", &e_t, &eph, &e_t_pub, &eph, &ct).ok().and_then(|b| Quote::from_bytes(&b).ok().map(|q| (q, b, eph, r.height)))
             }
+            _ => None,
+        }))
+    }
+
+    /// The maker's signed refusal of this request among the received memos, if any. A memo
+    /// that does not open, or whose signature is not the maker's, is ignored.
+    fn find_refusal(&self, s: &TakerSwap) -> Result<Option<Refusal>> {
+        let rfq_id = s.rfq_bytes()?;
+        let e_t = keys::scalar_from_bytes(&keys::unhex32(&s.e_t)?)?;
+        let e_t_pub = keys::unhex32(&s.e_t_pub)?;
+        let maker_pub = keys::unhex32(&self.cfg.maker.rfq_pub)?;
+        let Ok(maker_pk) = crate::near::tx::parse_public_key(&self.cfg.maker.near_pk) else { return Ok(None) };
+        Ok(self.wallet.received.iter().filter(|r| r.label == "wallet").find_map(|r| match Envelope::decode(&r.memo) {
+            Ok(Some(Envelope::Refuse { rfq_id: id, ct })) if id == rfq_id => msg::open(b"refuse", &e_t, &maker_pub, &e_t_pub, &maker_pub, &ct)
+                .ok()
+                .and_then(|b| Refusal::from_bytes(&b).ok())
+                .filter(|f| crate::near::tx::verify(&maker_pk, &f.sig_digest(&rfq_id), &f.sig)),
             _ => None,
         }))
     }
@@ -685,7 +763,17 @@ impl Taker {
         let e_t_pub = keys::unhex32(&s.e_t_pub)?;
         let found = self.find_quote(s)?;
         let Some((q, body, e_m_pub, quote_height)) = found else {
-            if now > s.stage_at + self.cfg.quote_timeout_secs {
+            if let Some(f) = self.find_refusal(s)? {
+                let why = match f.code {
+                    msg::RefuseCode::OverLimit => format!("the amount {} zats is above the maker's limit of {} zats", s.zats, f.max_zats),
+                    msg::RefuseCode::UnderMinimum => format!("the amount {} zats is below the maker's minimum of {} zats", s.zats, f.min_zats),
+                    msg::RefuseCode::Busy => "the maker has too many requests waiting; try again later".to_string(),
+                    msg::RefuseCode::Unsupported => "the maker does not take this request".to_string(),
+                };
+                self.ev.push(Event::Refused { swap: s.rfq_id.clone(), code: f.code.name().into(), min_zats: f.min_zats, max_zats: f.max_zats });
+                return self.abort(s, format!("MAKER REFUSED ({}): {why}; nothing was funded", f.code.name()), now);
+            }
+            if now > s.stage_at.saturating_add(self.cfg.quote_timeout_secs) {
                 return self.abort(s, "no quote before the timeout; nothing funded".into(), now);
             }
             return Ok(Next::At(now + POLL_SECS));
@@ -722,7 +810,11 @@ impl Taker {
     fn reject_quote(&self, q: &Quote, rfq_id: &[u8; 16], min_price: u128) -> Option<String> {
         let c = &self.cfg;
         let t = &c.timing;
-        let maker_pk = crate::near::tx::parse_public_key(&c.maker.near_pk).ok()?;
+        // H1: a configured maker key that does not parse rejects every quote (fail closed).
+        let maker_pk = match crate::near::tx::parse_public_key(&c.maker.near_pk) {
+            Ok(k) => k,
+            Err(e) => return Some(format!("the configured maker key does not parse ({e:#})")),
+        };
         let b_pub = match keys::point_from_bytes(&q.b_pub) {
             Ok(p) => p,
             Err(_) => return Some("maker key B is not a valid point".into()),
@@ -744,15 +836,15 @@ impl Taker {
             Some(format!("premium {} above the taker's limit {}", q.premium, c.max_premium))
         } else if q.stipend < c.min_stipend {
             Some(format!("stipend {} below the taker's minimum {}", q.stipend, c.min_stipend))
-        } else if q.reveal_secs as u64 <= t.finality_secs + t.budget() {
-            Some(format!("reveal window {}s too short for finality (R1q needs W > F + B_R = {}s)", q.reveal_secs, t.finality_secs + t.budget()))
+        } else if q.reveal_secs as u64 <= t.finality_secs.saturating_add(t.budget()) {
+            Some(format!("reveal window {}s too short for finality (R1q needs W > F + B_R = {}s)", q.reveal_secs, t.finality_secs.saturating_add(t.budget())))
         } else if horizon > c.max_horizon_secs {
             Some(format!("deadline horizon t2 - open = {horizon}s above the taker's limit of {}s", c.max_horizon_secs))
-        } else if q.t0_secs as u64 <= t.finality_secs + t.fund_secs + 3 * c.cover.max_secs {
+        } else if q.t0_secs as u64 <= t.finality_secs.saturating_add(t.fund_secs).saturating_add(c.cover.max_secs.saturating_mul(3)) {
             // The funding waits for open's finality and then for a cover delay; if t0 cannot
             // absorb the delay's tail (3 draws), the wait would be cut at a public deadline.
             Some(format!("funding window t0 - open = {}s too short for finality, funding and the cover delay", q.t0_secs))
-        } else if q.t1_secs as u64 <= t.finality_secs + t.budget() {
+        } else if q.t1_secs as u64 <= t.finality_secs.saturating_add(t.budget()) {
             Some(format!("claim window t1 - t0 = {}s too short (needs > F + B_R)", q.t1_secs))
         } else {
             None
@@ -763,7 +855,7 @@ impl Taker {
         let id = s.id_bytes()?;
         let q = s.quote.clone().ok_or_else(|| anyhow!("no quote"))?;
         let Some(v) = self.esc().get_swap(&id, &At::Final)? else {
-            if now > s.stage_at + self.cfg.quote_timeout_secs {
+            if now > s.stage_at.saturating_add(self.cfg.quote_timeout_secs) {
                 return self.abort(s, "the maker never opened the escrow; nothing funded".into(), now);
             }
             return Ok(Next::At(now + POLL_SECS));
@@ -776,6 +868,10 @@ impl Taker {
             b_pub = -b_pub;
         }
         let w = q.windows;
+        let fin = self.near.block(&At::Final)?;
+        let tnow = fin.secs();
+        // F2-03: the windows must EQUAL the quote (the maker writes exactly these), and t0
+        // can be no later than the quoted funding window from now.
         let checks = [
             ("maker", v.maker == self.cfg.maker.near_account),
             ("token", v.token == self.cfg.chains.token),
@@ -783,26 +879,25 @@ impl Taker {
             ("taker key", v.taker_pk == hex::encode(s.near_key()?.public_bytes()) && v.taker_account == s.taker_account),
             ("A", v.a_pub == hex::encode(a_pub.to_bytes())),
             ("B", v.b_pub == hex::encode(b_pub.to_bytes())),
-            ("claim window", v.t1 >= v.t0 + w.t1_secs as u64),
-            ("punish window", v.t2 >= v.t1 + w.t2_secs as u64),
-            ("reveal window", v.reveal_window >= w.reveal_secs as u64),
+            ("funding window", v.t0 <= tnow.saturating_add(w.t0_secs as u64)),
+            ("claim window", v.t1.checked_sub(v.t0) == Some(w.t1_secs as u64)),
+            ("punish window", v.t2.checked_sub(v.t1) == Some(w.t2_secs as u64)),
+            ("reveal window", v.reveal_window == w.reveal_secs as u64),
             ("state", v.state == SwapState::Open),
         ];
         if let Some((what, _)) = checks.iter().find(|(_, ok)| !ok) {
             return self.abort(s, format!("escrow {what} does not match the quote; nothing funded"), now);
         }
-        let fin = self.near.block(&At::Final)?;
-        let tnow = fin.secs();
         // The escrow must not be able to change under us, and must pay into the expected
         // Intents account (security review 1, NV-01).
         if let Err(e) = escrow::check_escrow(&self.near, &self.cfg.chains.escrow, &self.cfg.escrow_code_hash, &self.cfg.chains.intents, &At::Block(fin.hash.clone())) {
             return self.abort(s, format!("escrow contract check failed: {e:#}; nothing funded"), now);
         }
-        if v.t2 > tnow + self.cfg.max_horizon_secs {
+        if v.t2 > tnow.saturating_add(self.cfg.max_horizon_secs) {
             return self.abort(s, format!("escrow t2 {} is beyond the taker's horizon; nothing funded", v.t2), now);
         }
         // R1b: fund only if the maker can still confirm the note and set Ready before t0.
-        if tnow + self.cfg.timing.fund_secs >= v.t0 {
+        if tnow.saturating_add(self.cfg.timing.fund_secs) >= v.t0 {
             return self.abort(s, format!("(R1b) NEAR time {tnow} + fund window {}s is not before t0 {}; not funding", self.cfg.timing.fund_secs, v.t0), now);
         }
         // The stipend pays for commit_claim and claim. It must be there before the ZEC moves.
@@ -815,6 +910,7 @@ impl Taker {
             self.log(s, format!("escrow {} verified ({} checks) at a final block; stipend of {bal} yoctoNEAR arrived", short(&hex::encode(id)), checks.len()));
             self.ev.push(Event::EscrowVerified { swap: s.rfq_id.clone(), escrow_id: hex::encode(id), t0: v.t0, t1: v.t1, t2: v.t2 });
         }
+        #[cfg(feature = "misbehave")]
         if self.cfg.misbehave == Some(Misbehave::FreeClaim) {
             self.log(s, "[MISBEHAVE free-claim] escrow verified; NOT funding; will try to claim after t0".into());
             self.set_stage(s, TakerStage::Funded, now);
@@ -831,13 +927,15 @@ impl Taker {
             return Ok(Next::At(now));
         }
         // Decorrelate the funding from the public open, inside R1b's deadline.
-        let deadline = now + v.t0.saturating_sub(tnow + self.cfg.timing.fund_secs);
+        let deadline = now.saturating_add(v.t0.saturating_sub(tnow.saturating_add(self.cfg.timing.fund_secs)));
         let tip = self.wallet.height;
         if !self.cover_ready(s, "FUND", tip, Some(deadline), now) {
             return Ok(Next::At(now + POLL_SECS));
         }
         let joint = wallet::decode_ua(s.joint_address.as_deref().ok_or_else(|| anyhow!("no joint address"))?)?;
+        #[cfg_attr(not(feature = "misbehave"), allow(unused_mut))]
         let mut amount = s.zats + wallet::zip317_fee(1, 1);
+        #[cfg(feature = "misbehave")]
         if self.cfg.misbehave == Some(Misbehave::Underfund) {
             amount /= 2;
         }
@@ -870,6 +968,8 @@ impl Taker {
         let tnow = fin.secs();
         let v = self.esc().get_swap(&id, &At::Block(fin.hash.clone()))?.ok_or_else(|| anyhow!("escrow vanished"))?;
         let t = self.cfg.timing.clone();
+        // Test-only behaviours exist only in a build with the cargo feature `misbehave` (H5).
+        #[cfg(feature = "misbehave")]
         let mis = self.cfg.misbehave;
         match v.state {
             SwapState::Refunded => self.recover(s, &v, now),
@@ -878,18 +978,10 @@ impl Taker {
                 self.set_stage(s, TakerStage::Committed, now);
                 Ok(Next::At(now))
             }
-            SwapState::Ready if t.in_time(tnow, v.t1) && mis != Some(Misbehave::LateCommit) => {
-                // R2c: Ready is final and now + B_R < t1.
-                let out = self.commit(s)?;
-                if let Some(f) = out.failure() {
-                    self.log(s, format!("commit_claim failed: {f}"));
-                    return Ok(Next::At(now + RETRY_SECS));
-                }
-                self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "commit_claim".into(), hash: out.hash.clone() });
-                self.log(s, format!("escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx {}", out.hash));
-                self.set_stage(s, TakerStage::Committed, now);
-                Ok(Next::At(now + POLL_SECS))
-            }
+            #[cfg(feature = "misbehave")]
+            SwapState::Ready if t.in_time(tnow, v.t1) && mis != Some(Misbehave::LateCommit) => self.commit_ready(s, now),
+            #[cfg(not(feature = "misbehave"))]
+            SwapState::Ready if t.in_time(tnow, v.t1) => self.commit_ready(s, now),
             SwapState::Open | SwapState::Ready if tnow >= v.t2 => {
                 // Punish path: the maker neither set Ready in time nor refunded in [t1, t2).
                 let out = self.commit(s)?;
@@ -898,11 +990,15 @@ impl Taker {
                     return Ok(Next::At(now + RETRY_SECS));
                 }
                 self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "commit_claim".into(), hash: out.hash.clone() });
+                #[cfg(feature = "misbehave")]
                 let tag = if mis == Some(Misbehave::FreeClaim) { " [MISBEHAVE free-claim, never funded]" } else { "" };
+                #[cfg(not(feature = "misbehave"))]
+                let tag = "";
                 self.log(s, format!("past t2 with escrow {:?}: LOCKED via the punish path, tx {}{tag}", v.state, out.hash));
                 self.set_stage(s, TakerStage::Committed, now);
                 Ok(Next::At(now + POLL_SECS))
             }
+            #[cfg(feature = "misbehave")]
             SwapState::Open if mis == Some(Misbehave::FreeClaim) && tnow >= v.t0 && !s.log.iter().any(|l| l.contains("REJECTED")) => {
                 // The attack, before t2: lock without Ready. The escrow must refuse it.
                 let out = self.commit(s)?;
@@ -915,6 +1011,7 @@ impl Taker {
                     None => bail!("free claim lock was ACCEPTED before t2 (tx {}): escrow invariant broken", out.hash),
                 }
             }
+            #[cfg(feature = "misbehave")]
             SwapState::Ready | SwapState::Open if mis == Some(Misbehave::LateCommit) && tnow >= v.t1 && !s.log.iter().any(|l| l.contains("REVERTED")) => {
                 // Ignore the deadline on purpose: the late commit must fail and reveal nothing.
                 let out = self.commit(s)?;
@@ -937,7 +1034,45 @@ impl Taker {
         }
     }
 
-    fn send_claim(&mut self, s: &mut TakerSwap, tnow: u64) -> Result<crate::near::TxOutcome> {
+    /// R2c holds (Ready is final and now + B_R < t1): lock the escrow with commit_claim.
+    fn commit_ready(&mut self, s: &mut TakerSwap, now: u64) -> Result<Next> {
+        // R2c: Ready is final and now + B_R < t1.
+        let out = self.commit(s)?;
+        if let Some(f) = out.failure() {
+            self.log(s, format!("commit_claim failed: {f}"));
+            return Ok(Next::At(now + RETRY_SECS));
+        }
+        self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "commit_claim".into(), hash: out.hash.clone() });
+        self.log(s, format!("escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx {}", out.hash));
+        self.set_stage(s, TakerStage::Committed, now);
+        Ok(Next::At(now + POLL_SECS))
+    }
+
+    /// Signs claim(a) and stores it in the record (`claim_raw`, `claim_tx`). Nothing is sent:
+    /// the broadcast comes on a later tick, after the record is durable (F2-02).
+    fn sign_claim(&mut self, s: &mut TakerSwap) -> Result<()> {
+        let id = s.id_bytes()?;
+        let a = keys::scalar_to_bytes(&s.a_norm()?);
+        let (to, actions) = self.esc().claim(&id, &a);
+        let signer = self.signer(s)?;
+        let tx = self.near.sign(&signer, &to, actions)?;
+        s.claim_tx = Some(tx.hash_str());
+        s.claim_raw = Some(hex::encode(&tx.bytes));
+        Ok(())
+    }
+
+    /// Broadcasts the stored claim(a) and waits for its execution.
+    fn broadcast_claim(&mut self, s: &mut TakerSwap, tnow: u64) -> Result<crate::near::TxOutcome> {
+        let raw = hex::decode(s.claim_raw.as_deref().ok_or_else(|| anyhow!("no signed claim stored"))?)?;
+        let hash_str = s.claim_tx.clone().ok_or_else(|| anyhow!("no claim hash stored"))?;
+        let hash: [u8; 32] = bs58::decode(&hash_str).into_vec()?.try_into().map_err(|_| anyhow!("claim hash length"))?;
+        let tx = crate::near::tx::SignedTx { bytes: raw, hash };
+        s.claim_at = Some(tnow);
+        self.near.wait_executed(&tx, &s.taker_account)
+    }
+
+    /// A claim(a) after the first: a new transaction (a is already public).
+    fn resend_claim(&mut self, s: &mut TakerSwap, tnow: u64) -> Result<crate::near::TxOutcome> {
         let id = s.id_bytes()?;
         let a = keys::scalar_to_bytes(&s.a_norm()?);
         let (to, actions) = self.esc().claim(&id, &a);
@@ -955,18 +1090,21 @@ impl Taker {
         let v = self.esc().get_swap(&id, &At::Block(fin.hash.clone()))?.ok_or_else(|| anyhow!("escrow vanished"))?;
         match v.state {
             SwapState::Locked => {
-                if self.cfg.misbehave == Some(Misbehave::NoReveal) {
+                #[cfg(feature = "misbehave")]
+                if self.cfg.misbehave == Some(crate::config::Misbehave::NoReveal) {
                     self.log_once(s, "[MISBEHAVE no-reveal] lock is final; not revealing a".into());
                     return Ok(Next::At(now + POLL_SECS));
                 }
-                let deadline = v.locked_at.unwrap_or(0) + v.reveal_window;
+                // F2-03: saturating, so a huge W cannot wrap or panic.
+                let deadline = v.locked_at.unwrap_or(0).saturating_add(v.reveal_window);
                 // R2r: reveal only once the lock is final and now + B_R < lockedAt + W.
                 if !self.cfg.timing.in_time(tnow, deadline) {
                     self.log_once(s, format!("R2r: reveal deadline {deadline} too close (NEAR time {tnow}); NOT revealing a; waiting for the maker's refund"));
                     return Ok(Next::At(now + POLL_SECS));
                 }
-                // The decision is stored (stage Revealed) before claim(a) goes out on the
-                // next tick, so a restart never forgets that a may be public.
+                // The decision is stored (stage Revealed) before claim(a) is signed and
+                // stored, and that before it goes out: a restart never forgets that a may
+                // be public. R2r is checked again at the broadcast.
                 self.log(s, format!("lock final (block {}); revealing a before the deadline {deadline}", fin.height));
                 self.set_stage(s, TakerStage::Revealed, now);
                 Ok(Next::At(0))
@@ -988,13 +1126,18 @@ impl Taker {
         }
     }
 
-    /// After revealing a, stay until the claim is final. If the claim is dropped while a
-    /// is public, send it again before the deadline (R2r).
+    /// The first claim(a) goes out in two steps (security review 2, F2-02): one tick signs
+    /// it and stores it; a later tick broadcasts the stored bytes. R2r is checked again
+    /// right before each step. If it fails before anything was sent (`claim_at` is None),
+    /// the engine does not reveal: it goes back to `Committed`, and the maker's refund of
+    /// the lock (R3l) gives b. After the first broadcast, stay until the claim is final,
+    /// and send it again while the window is open.
     fn on_revealed(&mut self, s: &mut TakerSwap, now: u64) -> Result<Next> {
         let id = s.id_bytes()?;
         let fin = self.near.block(&At::Final)?;
         let tnow = fin.secs();
         let v = self.esc().get_swap(&id, &At::Block(fin.hash.clone()))?.ok_or_else(|| anyhow!("escrow vanished"))?;
+        let deadline = v.locked_at.unwrap_or(0).saturating_add(v.reveal_window);
         match v.state {
             SwapState::Claimed => {
                 self.log(s, format!("claim is final (block {})", fin.height));
@@ -1003,7 +1146,19 @@ impl Taker {
             }
             SwapState::Refunded => self.recover(s, &v, now),
             SwapState::Locked if s.claim_at.is_none() => {
-                let out = self.send_claim(s, tnow)?;
+                if !self.cfg.timing.in_time(tnow, deadline) {
+                    s.claim_raw = None;
+                    s.claim_tx = None;
+                    self.log(s, format!("R2r at the hand-off: reveal deadline {deadline} too close (NEAR time {tnow}); claim(a) NOT sent; a stays secret; back to Committed, waiting for the maker's refund"));
+                    self.set_stage(s, TakerStage::Committed, now);
+                    return Ok(Next::At(now + POLL_SECS));
+                }
+                if s.claim_raw.is_none() {
+                    self.sign_claim(s)?;
+                    self.log(s, format!("claim(a) signed and stored, tx {}; it goes out on the next step", s.claim_tx.clone().unwrap_or_default()));
+                    return Ok(Next::At(0));
+                }
+                let out = self.broadcast_claim(s, tnow)?;
                 self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "claim".into(), hash: out.hash.clone() });
                 match out.failure() {
                     Some(f) => self.log(s, format!("REVEALED a, but claim failed: {f}; will re-send while the window is open")),
@@ -1013,10 +1168,9 @@ impl Taker {
             }
             SwapState::Locked => {
                 let head = self.esc().get_swap(&id, &At::Optimistic)?.map(|h| h.state);
-                let deadline = v.locked_at.unwrap_or(0) + v.reveal_window;
-                let pending = s.claim_at.map(|t| tnow < t + self.cfg.timing.inclusion_secs).unwrap_or(false);
+                let pending = s.claim_at.map(|t| tnow < t.saturating_add(self.cfg.timing.inclusion_secs)).unwrap_or(false);
                 if head == Some(SwapState::Locked) && !pending && tnow < deadline {
-                    let out = self.send_claim(s, tnow)?;
+                    let out = self.resend_claim(s, tnow)?;
                     self.log(s, format!("claim not on chain; RE-SENT claim(a), tx {} ({})", out.hash, out.failure().unwrap_or("ok")));
                 }
                 Ok(Next::At(now + POLL_SECS))
@@ -1025,8 +1179,11 @@ impl Taker {
         }
     }
 
-    /// The claim is final: get the payout into intents.near. Anyone may call `withdraw`;
-    /// the taker does it if its stipend still covers the gas, else the maker does.
+    /// The claim is final: wait for the payout into intents.near. The maker sends
+    /// `withdraw` (200 Tgas; NEAR wants about 0.2 NEAR held for it, and the taker's stipend
+    /// is 0.03 NEAR). The taker sends it only if its own account can pay for it. If the
+    /// payout is not there after `payout_wait_secs`, the stage becomes `PayoutPending` and
+    /// the engine says which call any NEAR account can send.
     fn on_claimed(&mut self, s: &mut TakerSwap, now: u64) -> Result<Next> {
         let q = s.quote.clone().ok_or_else(|| anyhow!("no quote"))?;
         // R4: the claim is final, so the taker's share and seeds are no longer needed.
@@ -1034,6 +1191,7 @@ impl Taker {
             s.a.clear();
             s.s_t.clear();
             s.e_t.clear();
+            s.claim_raw = None;
         }
         let fin = self.near.block(&At::Final)?;
         let at = At::Block(fin.hash.clone());
@@ -1046,26 +1204,86 @@ impl Taker {
             self.set_stage(s, TakerStage::Completed, now);
             return Ok(Next::Done);
         }
-        let due = s.withdraw_at.map(|t| fin.secs() >= t + self.cfg.timing.inclusion_secs + self.cfg.timing.finality_secs).unwrap_or(true);
+        let t = &self.cfg.timing;
+        let due = s.withdraw_at.map(|w| fin.secs() >= w.saturating_add(t.inclusion_secs).saturating_add(t.finality_secs)).unwrap_or(true);
         if credit.intents > 0 && due && s.withdraw_tx.is_none() {
-            let (to, actions) = self.esc().withdraw(&s.taker_account);
-            let signer = self.signer(s)?;
+            // Only when the taker's account holds the prepaid gas at NEAR's pessimistic
+            // price; with the stipend alone it does not, and the RPC would refuse the call.
+            let need = escrow::GAS_WITHDRAW as u128 * PESSIMISTIC_GAS_PRICE;
+            let have = self.near.account(&s.taker_account, &at)?.map(|a| a.amount).unwrap_or(0);
             s.withdraw_at = Some(fin.secs());
-            match self.near.transact(&signer, &to, actions) {
-                Ok(out) if out.is_success() => {
-                    s.withdraw_tx = Some(out.hash.clone());
-                    self.log(s, format!("withdraw sent by the taker, tx {}", out.hash));
+            if have >= need {
+                let (to, actions) = self.esc().withdraw(&s.taker_account);
+                let signer = self.signer(s)?;
+                match self.near.transact(&signer, &to, actions) {
+                    Ok(out) if out.is_success() => {
+                        s.withdraw_tx = Some(out.hash.clone());
+                        self.log(s, format!("withdraw sent by the taker, tx {}", out.hash));
+                    }
+                    Ok(out) => self.log(s, format!("withdraw by the taker failed ({}); waiting for the maker to withdraw", out.failure().unwrap_or("?"))),
+                    Err(e) => self.log(s, format!("the taker cannot send withdraw ({e:#}); waiting for the maker to withdraw")),
                 }
-                Ok(out) => self.log(s, format!("withdraw by the taker failed ({}); waiting for the maker to withdraw", out.failure().unwrap_or("?"))),
-                Err(e) => self.log(s, format!("the taker cannot send withdraw ({e:#}); waiting for the maker to withdraw")),
+            } else {
+                self.log(s, format!("the taker's account holds {have} yoctoNEAR, less than the {need} that a withdraw needs; the maker sends withdraw"));
             }
-            s.withdraw_tx.get_or_insert_with(|| "attempted".into());
+            s.withdraw_tx.get_or_insert_with(|| "not sent by the taker".into());
+        }
+        if credit.intents > 0 && s.stage == TakerStage::Claimed && now >= s.stage_at.saturating_add(self.cfg.payout_wait_secs) {
+            let args = serde_json::json!({"token": self.cfg.chains.token, "owner": s.taker_account}).to_string();
+            let gas = escrow::GAS_WITHDRAW;
+            self.log(
+                s,
+                format!(
+                    "claimed; payout pending: the maker has not sent withdraw after {}s. Any NEAR account can send it: call {} withdraw {args} with {} Tgas and no deposit (the caller needs about {} NEAR free for the gas check). The tokens are safe in the escrow as a credit of {} for {}",
+                    self.cfg.payout_wait_secs,
+                    self.cfg.chains.escrow,
+                    gas / crate::near::TGAS,
+                    (gas as u128 * PESSIMISTIC_GAS_PRICE) as f64 / crate::near::ONE_NEAR as f64,
+                    credit.intents,
+                    s.taker_account
+                ),
+            );
+            self.ev.push(Event::PayoutPending {
+                swap: s.rfq_id.clone(),
+                receiver: self.cfg.chains.escrow.clone(),
+                method: "withdraw".into(),
+                args,
+                gas: gas.to_string(),
+                deposit: "0".into(),
+                credit: credit.intents.to_string(),
+            });
+            self.set_stage(s, TakerStage::PayoutPending, now);
+            return Ok(Next::At(now + POLL_SECS));
         }
         self.log_once(s, format!("claim final; waiting for the payout (credit {}, in intents {paid})", credit.intents));
-        Ok(Next::At(now + POLL_SECS))
+        Ok(Next::At(now + if s.stage == TakerStage::PayoutPending { 5 * POLL_SECS } else { POLL_SECS }))
     }
 
+    /// Joint notes that still need a sweep: unspent, and worth more than the sweep fee
+    /// (a smaller note cannot pay its own sweep). The taker's own funding comes first.
+    fn joint_notes_to_sweep(&self, s: &TakerSwap) -> Vec<wallet::Received> {
+        let fee = wallet::zip317_fee(1, 1);
+        let mut v: Vec<wallet::Received> = self.wallet.unspent(&s.rfq_id).into_iter().filter(|n| n.note.value().inner() > fee).collect();
+        v.sort_by_key(|n| (Some(&n.txid) != s.fund_txid.as_ref(), std::cmp::Reverse(n.note.value().inner())));
+        v
+    }
+
+    /// R4: a funding this engine broadcast may still be mined while it is not visible and
+    /// its expiry height + k_Z has not passed. `a` must be kept until then.
+    fn funding_may_still_come(&self, s: &TakerSwap) -> Option<u64> {
+        let (txid, exp) = (s.fund_txid.as_ref()?, s.fund_expiry?);
+        let dead_after = exp.saturating_add(self.cfg.timing.k_z);
+        (self.wallet.mined_height(txid).is_none() && self.wallet.height <= dead_after).then_some(dead_after)
+    }
+
+    /// The maker refunded: sweep every joint note above the fee back with a + b, the
+    /// taker's own funding first, and keep `a` while a funding may still arrive (security
+    /// review 2, F2-01). A note that the maker sent (H10) is swept too; whatever
+    /// `fund_txid` names, the stage ends only when no note above the fee is left.
     fn recover(&mut self, s: &mut TakerSwap, v: &crate::near::SwapView, now: u64) -> Result<Next> {
+        if self.zcash_stale {
+            bail!("the maker refunded, but the Zcash view is old (sync failed); the recovery waits for a good sync");
+        }
         let b = keys::scalar_from_hex(v.b.as_deref().ok_or_else(|| anyhow!("Refunded without b"))?)?;
         let q = s.quote.clone().ok_or_else(|| anyhow!("no quote"))?;
         let b_pub = keys::point_from_hex(&q.b_pub)?;
@@ -1074,24 +1292,20 @@ impl Taker {
             bail!("published b does not match B");
         }
         let a = s.a_norm()?;
-        let Some(n) = self.wallet.unspent(&s.rfq_id).into_iter().next() else {
-            // R4: a broadcast funding may still be unmined. Keep a until it is mined (then
-            // sweep) or has expired unmined by k_Z blocks.
-            if let (Some(txid), Some(exp)) = (s.fund_txid.clone(), s.fund_expiry) {
-                let dead_after = exp + self.cfg.timing.k_z;
-                if self.wallet.mined_height(&txid).is_none() && self.wallet.height <= dead_after {
-                    self.log_once(s, "maker REFUNDED; our funding is not visible yet: keeping a until it is mined or expires".into());
-                    return Ok(Next::At(now + POLL_SECS));
+        let Some(n) = self.joint_notes_to_sweep(s).into_iter().next() else {
+            if let Some(dead_after) = self.funding_may_still_come(s) {
+                self.log_once(s, format!("maker REFUNDED; our funding is not visible yet: keeping a until it is mined or expires (height > {dead_after})"));
+                if s.stage != TakerStage::Recovering {
+                    self.set_stage(s, TakerStage::Recovering, now);
                 }
-                if self.wallet.mined_height(&txid).is_some() {
-                    // Mined, but the joint note is gone: it was swept (by us, earlier).
-                    self.log(s, "maker REFUNDED; the joint note is already spent".into());
-                } else {
-                    self.log(s, format!("maker REFUNDED; our funding expired unmined (height > {dead_after}), nothing to recover"));
-                }
-            } else {
-                self.log(s, "maker REFUNDED; no joint note was funded, nothing to recover".into());
+                return Ok(Next::At(now + POLL_SECS));
             }
+            let line = match (&s.fund_txid, s.fund_expiry) {
+                (Some(t), _) if self.wallet.mined_height(t).is_some() => "maker REFUNDED; no joint note above the fee is left unspent".to_string(),
+                (Some(_), Some(exp)) => format!("maker REFUNDED; our funding expired unmined (height > {}), nothing more to recover", exp.saturating_add(self.cfg.timing.k_z)),
+                _ => "maker REFUNDED; no joint note above the fee, nothing to recover".to_string(),
+            };
+            self.log(s, line);
             self.set_stage(s, TakerStage::Recovered, now);
             return Ok(Next::Done);
         };
@@ -1099,32 +1313,48 @@ impl Taker {
         if !self.cover_ready(s, "RECOVERY SWEEP", tip, None, now) {
             return Ok(Next::At(now + POLL_SECS));
         }
-        let _ = q;
         if !self.announced(s, "sweep", "Building the proof that takes the ZEC back from the shared address") {
             return Ok(Next::At(0));
         }
-        self.log(s, "maker REFUNDED: read b from the escrow".into());
+        self.log(s, format!("maker REFUNDED: read b from the escrow; sweeping the joint note of {} zats from tx {}", n.note.value().inner(), n.txid));
         let tx = self.wallet.build_sweep(n, a + b, self.me.address())?;
         s.sweep_txid = Some(tx.txid.clone());
         s.sweep_height = None;
         Ok(self.pend(s, "sweep", &tx, TakerStage::Recovering))
     }
 
-    /// Keep a (and the joint key) until the recovery sweep has k_Z confirmations; build it
-    /// again if it expired unmined.
+    /// Keep a (and the joint key) until each recovery sweep has k_Z confirmations, no
+    /// joint note above the fee is left, and no funding of ours can still arrive (R4).
     fn on_recovering(&mut self, s: &mut TakerSwap, now: u64) -> Result<Next> {
         let k_z = self.cfg.timing.k_z;
         let tip = self.wallet.height;
         if let Some(h) = s.sweep_height {
-            if tip + 1 - h >= k_z {
-                self.log(s, format!("recovery sweep {} has {} confirmations (k_Z = {k_z}); done", s.sweep_txid.clone().unwrap_or_default(), tip + 1 - h));
+            let conf = (tip + 1).saturating_sub(h);
+            if conf < k_z {
+                return Ok(Next::At(now + POLL_SECS));
+            }
+            let left = self.joint_notes_to_sweep(s);
+            let waiting = self.funding_may_still_come(s);
+            if left.is_empty() && waiting.is_none() {
+                self.log(s, format!("recovery sweep {} has {conf} confirmations (k_Z = {k_z}); no joint note above the fee is left; done", s.sweep_txid.clone().unwrap_or_default()));
                 self.set_stage(s, TakerStage::Recovered, now);
                 return Ok(Next::Done);
             }
-            return Ok(Next::At(now + POLL_SECS));
+            // F2-01: another note is at the joint address (or our funding may still come).
+            self.log(
+                s,
+                format!(
+                    "recovery sweep {} has {conf} confirmations, but {} joint note(s) above the fee are left{}; keeping a and sweeping again",
+                    s.sweep_txid.clone().unwrap_or_default(),
+                    left.len(),
+                    if waiting.is_some() { " and our funding is not mined yet" } else { "" }
+                ),
+            );
+            s.sweep_height = None;
+            s.sweep_txid = None;
         }
         if s.pending.is_none() {
-            // The sweep expired unmined: sweep again.
+            // No sweep in flight (the last one is confirmed or expired unmined): look again.
             let id = s.id_bytes()?;
             let v = self.esc().get_swap(&id, &At::Final)?.ok_or_else(|| anyhow!("escrow vanished"))?;
             return self.recover(s, &v, now);
