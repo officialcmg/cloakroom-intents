@@ -6,8 +6,10 @@ current. `docs/BUILD_PLAN.md` says how the build runs and `STATUS.md` says where
 
 ## Rules
 
-- **Baseline.** The tag `pre-hackathon` marks code imported from `officialcmg/cloakroom`
-  (see `BASELINE.md`). Never move or delete that tag.
+- **Baseline.** Commit `2f8e2f7` holds the code imported from `officialcmg/cloakroom`
+  (see `BASELINE.md`). It is tagged `pre-hackathon` in the build clone and pushed as the
+  branch `pre-hackathon-baseline` (the build environment's git proxy refuses to push
+  tags). Never move or delete that tag or that branch.
 - **Commits.** Author is already configured for this clone; do not change it. No
   co-author trailers and no mention of AI tools in commit messages, code comments,
   READMEs or any other file.

@@ -19,8 +19,8 @@ swap. The protocol is designed so that neither party can take both sides; the op
 issues are listed under [Security](#security).
 
 Zecret builds on Cloakroom, the author's earlier protocol for shielded ZEC and ERC-20
-tokens on Base (built for ZECATHON). Cloakroom is the disclosed baseline at the git tag
-`pre-hackathon`. See [Baseline and what is new](#baseline-and-what-is-new).
+tokens on Base (built for ZECATHON). Cloakroom is the disclosed baseline: commit `2f8e2f7`,
+pushed as the branch `pre-hackathon-baseline`. See [Baseline and what is new](#baseline-and-what-is-new).
 
 Built at NEAR HACKATHON (2026-11-01 to 2026-11-14).
 
@@ -567,10 +567,13 @@ disclosure.
   The first commit of this repository imports selected folders of
   [`officialcmg/cloakroom`](https://github.com/officialcmg/cloakroom) at commit
   `bad9fa37f6fb82475ed222bd300f1a3ffc7e08a9` (2026-10-28), under the MIT licence. That
-  commit is tagged **`pre-hackathon`**. Nothing in it was written for NEAR HACKATHON.
+  baseline commit is `2f8e2f7`, pushed as the branch **`pre-hackathon-baseline`**. The
+  build clone also tags it `pre-hackathon`; the remote has no tags yet, because the git
+  proxy of the build environment refuses to push tags, and the owner can push the tag.
+  Nothing in the baseline commit was written for NEAR HACKATHON.
   Details: [`BASELINE.md`](BASELINE.md).
 - **The diff:**
-  [`https://github.com/officialcmg/zecret/compare/pre-hackathon...main`](https://github.com/officialcmg/zecret/compare/pre-hackathon...main).
+  [`https://github.com/officialcmg/zecret/compare/pre-hackathon-baseline...main`](https://github.com/officialcmg/zecret/compare/pre-hackathon-baseline...main).
 
 | Part | Baseline (Cloakroom) | Built in the hackathon window |
 |---|---|---|

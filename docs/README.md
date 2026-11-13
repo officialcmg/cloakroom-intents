@@ -65,7 +65,7 @@ The `.mmd` files next to the diagrams are their Mermaid sources.
 | File | What it is |
 |---|---|
 | [`../STATUS.md`](../STATUS.md) | Where the build is: done, running, next. |
-| [`../BASELINE.md`](../BASELINE.md) | What was imported from Cloakroom at the tag `pre-hackathon`. |
+| [`../BASELINE.md`](../BASELINE.md) | What was imported from Cloakroom: baseline commit `2f8e2f7`, branch `pre-hackathon-baseline` (tag `pre-hackathon` in the build clone). |
 | [`../harness/RESULTS.md`](../harness/RESULTS.md) | Results of the 19 two-party scenarios on local chains. |
 | [`../harness/BROWSER_RESULTS.md`](../harness/BROWSER_RESULTS.md) | Results of the scenarios with the taker in a browser. |
 | [`../contracts/near-escrow/README.md`](../contracts/near-escrow/README.md) | The escrow's interface, deployment rules, gas and tests. |

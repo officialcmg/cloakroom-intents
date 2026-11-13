@@ -6,7 +6,11 @@ This commit is the starting point of Zecret. It is a copy of selected folders fr
 MIT licence. Cloakroom was built for another hackathon, ZECATHON, and trades shielded
 ZEC against an ERC-20 token on Base.
 
-The commit is tagged `pre-hackathon`. Nothing in it was written for NEAR HACKATHON.
+The commit is `2f8e2f7`. It is pushed as the branch `pre-hackathon-baseline`. In the
+build clone it is also tagged `pre-hackathon`; the git proxy of the build environment
+refuses to push tags, so the owner pushes the tag. Nothing in the commit was written for
+NEAR HACKATHON. The diff of the hackathon work:
+<https://github.com/officialcmg/zecret/compare/pre-hackathon-baseline...main>.
 
 | Folder | What it is |
 |---|---|

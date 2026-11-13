@@ -16,7 +16,7 @@ The payload is sent once, only after the owner has read it in full and said yes.
 | Step | Who | State on 2026-11-13 |
 |---|---|---|
 | Make `github.com/officialcmg/zecret` public (the rules require it by the deadline, and it must stay public through judging). | Owner | Not done: the page answered 404 without login. |
-| Push the tag `pre-hackathon`, so the diff link in the README works. Optionally also tag the submitted commit `hackathon-submission` (rule Q-003). | Owner | Not done: `git ls-remote origin` showed `main` only, no tags. |
+| The baseline commit `2f8e2f7` is on the remote as the branch `pre-hackathon-baseline`, and the README's diff link (`compare/pre-hackathon-baseline...main`) uses it. The tag `pre-hackathon` exists only in the build clone, because the build environment's git proxy refuses to push tags. Optionally push that tag, and tag the submitted commit `hackathon-submission` (rule Q-003). | Owner | Branch pushed: `git ls-remote origin` shows `main` and `pre-hackathon-baseline`, no tags. |
 | Update the status table in `README.md` (one table, marked with a comment) to what `STATUS.md` says at submission time. | Owner or agent | Written for the state at the time of writing. |
 | Decide on the sentence about AI coding assistance in `README.md`, "Libraries, templates and tools" (see section 5). | Owner | Open. |
 | Record the demo video and publish the post on X (`docs/DEMO_SCRIPT.md`). | Owner | Not done. |
@@ -56,7 +56,7 @@ not guess, generate or fill in any OWNER value.
 Zecret swaps shielded ZEC for tokens on other chains with no custodian. A maker locks USDC in an escrow on NEAR; the user's ZEC goes to a shielded address whose key is split between user and maker. Claiming the USDC reveals the user's key half; a refund reveals the maker's. The USDC lands in NEAR Intents under the user's own key, and one checked signature sends it to another chain.
 ```
 
-### "What they built": long version (1,519 characters)
+### "What they built": long version (1,549 characters)
 
 Update the "Status" paragraph if `STATUS.md` changes before submission.
 
@@ -67,7 +67,7 @@ Zecret swaps shielded ZEC for a token on another chain with no custodian. A make
 
 How NEAR fits in: the escrow is a Rust contract on NEAR with no access keys. Each swap uses a new ed25519 implicit account that the maker funds with a 0.03 NEAR stipend, so the user sends her own claim with no relayer and no gas payment that links her to the swap. NEAR's fast finality shrinks the protocol's safety windows from hours (on Base) to minutes. The USDC is paid into NEAR Intents under the user's key, and one signature, checked before signing, sends it to a token on another chain through 1Click.
 
-Status: the escrow and the native maker and taker pass 19 two-party scenarios on local chains, and one swap ran on Zcash testnet and NEAR testnet. The website runs against a simulated engine while the browser engine is finished. The exit with real funds on mainnet is not yet verified. Zecret builds on the author's earlier Cloakroom protocol (ZECATHON, Base), disclosed at the git tag pre-hackathon.
+Status: the escrow and the native maker and taker pass 19 two-party scenarios on local chains, and one swap ran on Zcash testnet and NEAR testnet. The website runs against a simulated engine while the browser engine is finished. The exit with real funds on mainnet is not yet verified. Zecret builds on the author's earlier Cloakroom protocol (ZECATHON, Base), disclosed as baseline commit 2f8e2f7 (branch pre-hackathon-baseline).
 ```
 
 Sources for each statement: the problem sentence is from the abstract of
