@@ -27,7 +27,9 @@ pub const GAS_OPEN: u64 = 100 * TGAS;
 pub const GAS_SET_READY: u64 = 10 * TGAS;
 pub const GAS_COMMIT: u64 = 15 * TGAS;
 pub const GAS_REVEAL: u64 = 25 * TGAS;
-pub const GAS_WITHDRAW: u64 = 100 * TGAS;
+/// The escrow's Intents route (`withdraw` → `on_deposit` → `mt_transfer`) needs at least
+/// 110 Tgas; docs/security/fixes-2.md §8 asks clients to attach 200.
+pub const GAS_WITHDRAW: u64 = 200 * TGAS;
 pub const GAS_STORAGE: u64 = 10 * TGAS;
 
 /// `sha256(DOMAIN_SWAP_ID ‖ len(maker) as u8 ‖ maker ‖ salt)`.

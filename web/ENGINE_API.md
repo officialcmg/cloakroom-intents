@@ -9,21 +9,29 @@ exit; it shows what the engine reports and passes on what the user decides.
   scope, or a `MessageChannel` in tests).
 - Fold events into state: `src/engine/reducer.ts` (used by the page and by the simulator).
 - Simulated engine: `src/engine/sim/`.
+- Real engine: `src/engine/real/` (the worker side of `crates/zecret-wasm`).
 - Typical durations: `src/engine/timeline.ts`.
 
-## Switching to the real engine
+## Which engine runs
 
-One line, in `src/engine/index.ts`:
+`src/engine/index.ts` starts one of two workers. Both call `serveEngine(self, backend)`
+from `rpc.ts` with an `EngineBackend` (the `Engine` methods plus `attach(emit)`).
 
-```ts
-const worker = new Worker(new URL('./sim/sim.worker.ts', import.meta.url), { type: 'module' }); // <- engine worker
-```
+| Engine | When | Worker |
+|---|---|---|
+| Real (`InitStatus.engine: 'wasm'`) | The page has a network configuration: `?config=<name or URL>`, or `VITE_ZECRET_CONFIG` at build time. `?demo=1` overrides both. | `src/engine/real/real.worker.ts` |
+| Simulated (`'simulated'`) | No configuration: the demo. | `src/engine/sim/sim.worker.ts` |
 
-Point the URL at the real engine's worker entry. That entry calls
-`serveEngine(self, backend)` from `rpc.ts`, where `backend` implements `EngineBackend`
-(the `Engine` methods plus `attach(emit)`). The worker reports which engine it is in
-`InitStatus.engine` (`'wasm'`); the page then hides the demo notice and controls. The
-real engine may leave out `sim` (calls to `sim.*` are answered with `INVALID_PARAMS`).
+The network configuration (`src/lib/netconfig.ts`, shipped as `public/config/local.json`
+and `public/config/testnet.json`) names the Zcash endpoint (Zebra JSON-RPC through a CORS
+proxy, or lightwalletd gRPC-web), the NEAR RPC, the escrow and its expected code hash,
+the token and its decimals, the Verifier, the maker directory and the exit mode. The page
+passes it to the engine as `EngineConfig.real`. The real engine does not answer `sim.*`
+(`INVALID_PARAMS`).
+
+The real engine's WebAssembly is built by `crates/zecret-wasm/build.sh` into
+`public/engine/` (not in git) and loaded by the worker at run time, so the page
+type-checks, tests and builds without it.
 
 ## Transport
 
@@ -48,7 +56,7 @@ must emit an `activity` with `estimatedMs` **before** it starts blocking work.
 
 | Method | Allowed | What it does |
 |---|---|---|
-| `init(config)` | once, first | Checks the maker directory, starts the proving-key build, resolves at once with `InitStatus { engine, phase: 'building_keys', startedAt, estimatedMs, timeScale }`. A later `init` event says `phase: 'ready'`. Throws `INIT_FAILED`. |
+| `init(config)` | once, first | Checks the maker directory, starts the proving-key build, resolves at once with `InitStatus { engine, phase: 'building_keys', startedAt, estimatedMs, timeScale }`. A later `init` event says `phase: 'ready'`. Throws `INIT_FAILED`. The real engine also loads its WebAssembly and checks the directory entry's signature and that the maker's key is a full-access key of its NEAR account. Its key build (about 20 s, blocking) starts one second after `init`, after `resume` has answered, and not while a resumed swap is between the funding and the final claim (it would delay a NEAR deadline); a `createSwap` sent during the build answers after it. |
 | `subscribe(listener)` | any time | All events. Returns an unsubscribe function. (Page side only; not a wire call.) |
 | `resume()` | after `init` | Loads the stored swap, if any, emits `swap`, and continues it (the real engine rescans from the wallet's birthday first). Returns the state or `null`. |
 | `getState()` | any time | The current `SwapState` or `null`. |
@@ -68,6 +76,7 @@ must emit an `activity` with `estimatedMs` **before** it starts blocking work.
 | `returnAddress?` | For refunds and leftovers. Optional; the engine asks (`needs`) when it needs one. |
 | `minUsdc` | The engine accepts the maker's firm quote only at or above this. Below it, no premium is paid and the ZEC goes back (`QUOTE_BELOW_MINIMUM`). |
 | `minDestinationAmount` | The approved minimum for the exit. The engine signs no exit whose firm `minAmountOut` is below it. |
+| `directExit?` | `{ nearAccount }`. Required on networks whose exit mode is `direct` (local, testnet): the NEAR account that receives the stand-in token. `destination` then only names the mainnet preview, and its `address` may be empty. |
 | `shown` | What the page showed (`usdcExpected`, `destinationExpected`, `premiumZats`, `networkFeeZats`), for display and the record. |
 
 ## Events
@@ -81,7 +90,31 @@ must emit an `activity` with `estimatedMs` **before** it starts blocking work.
 | `{ type: 'error', swapId?, error }` | A problem not tied to a call. Without `swapId` it is about the browser (for example `STORAGE`). |
 
 The engine persists every change **before** it emits it, so a reload never shows a state
-that storage does not have.
+that storage does not have. The real engine writes the core's changed records to
+IndexedDB after every call into the WebAssembly and waits for the transaction to commit
+before the next call; the core never broadcasts or reveals in the call that created the
+record it depends on.
+
+### How the real engine makes the website's stages
+
+| Stage | Source |
+|---|---|
+| `awaiting_deposit` | `createSwap`; `deposit.receivedZats` from the core's `balance` events. |
+| `deposit_seen`, `deposit_confirmed` | Both when the balance reaches the deposit: the wallet sees mined notes only, and a mined note is spendable. |
+| `request_sent`, `accepted` | Core stages `RfqSent`, `Accepted` (with the `zcash_tx` events). |
+| `quote_received` | Core `quote` event. |
+| `escrow_open` | Core `escrow_verified` event; `deadlines.readyBy` = t0, `punishFrom` = t2 (NEAR block time). |
+| `funding_sent` | Core `Funded`. |
+| `funding_confirming` | The wallet's scan height minus the funding's height, up to k_Z. |
+| `ready` | The escrow reads `Ready` at a final block once the funding has k_Z confirmations, or the core commits (not on the punish path). |
+| `committing`, `claiming`, `claimed`, `paid_out` | Core `Committed`, `Revealed`, `Claimed`, `Completed` (with `payout`). `claim.punishPath` from the core's log. |
+| `recovering`, `recovered` | Core `Recovering`, `Recovered`. |
+| `refunding`, `refunded` | After `Recovered` or `Aborted`: `returnLeftover` to the return address; `refunded` once that transaction is mined. |
+| `exiting`, `exit_retry`, `done` | The exit (1Click or direct) after `Completed`. |
+
+Activities: `proving` before each proof (from the core's `activity` event, and before a
+refund), `waiting` while the swap waits on a chain or the maker, `syncing` after a reload or
+a restore, `signing` and `broadcasting` during the exit.
 
 ## Stages
 
@@ -151,6 +184,7 @@ every deposit address it signed for (docs/INTENTS.md §6).
 | `RECOVERY_INVALID` | The file cannot be read, or belongs to another engine. |
 | `RECOVERY_MISMATCH` | The file is for another network. |
 | `QUOTE_BELOW_MINIMUM` | The maker's firm quote was below `minUsdc`. Refund path. |
+| `MAKER_CHECK_FAILED` | The maker's quote or escrow failed another of the engine's checks (signature, proof of knowledge, windows, escrow parameters, code hash, stipend). Nothing was funded. Refund path. |
 | `MAKER_TIMEOUT` | No quote in time. Refund path. |
 | `MAKER_REFUNDED` | The maker refunded the escrow instead of setting it ready. Recovery path. |
 | `EXIT_FAILED` | 1Click reported `FAILED` or `REFUNDED`. |
@@ -162,16 +196,62 @@ every deposit address it signed for (docs/INTENTS.md §6).
 | `STORAGE` | The browser refuses storage. |
 | `INTERNAL` | A bug. |
 
+## The direct exit (networks without 1Click)
+
+NEAR Intents has no testnet, and 1Click does not see a copy of the Verifier. On networks
+whose configuration says `exit.mode: "direct"` (local and testnet), the exit is:
+
+| `exit.phase` | Engine work | State fields |
+|---|---|---|
+| `signing` | Reads the taker key's Verifier balance, checks that the NEAR account exists and is registered with the token, fixes a deadline (1 hour) and a versioned nonce, and stores this plan. | `direct`, `amountIn` = `amountOut` = `minAmountOut` (the token's base units), `depositAddress` (the NEAR account), `intentHash` |
+| `delivering` | Signs one `ft_withdraw` with the taker key and hands it to the maker's relay (`zecret maker --relay`), which sends `execute_intents` and pays the gas. Resending after a reload sends the same signed bytes; a used nonce means it executed. | a `TxRef` for `execute_intents` |
+| `done` | The taker's Verifier balance is zero. | `deliveredAmount` |
+
+The taker's own NEAR account cannot send `execute_intents`: an `ft_withdraw` needs 40 Tgas
+attached (35 fails), and what is left of the 0.03 NEAR stipend pays for at most about
+25 Tgas at the pessimistic price NEAR checks first (measured in
+`crates/zecret-wasm/tests/sandbox.rs`). The relay sends only payloads whose signer is the
+taker of one of its maker's swaps and that `simulate_intents` accepts.
+
+The page still asks 1Click (mainnet) for a price for the chosen token and chain and shows
+it as a labelled preview.
+
+## Units on networks with a stand-in token
+
+The page counts the maker's side in micro-USDC (6 decimals). Where the token has more
+decimals (wNEAR on the local network: 24), `minUsdc`, `quote.usdc` and `payout.usdc` are
+that token's amounts scaled to 6 decimals; the engine multiplies by 10^(decimals − 6)
+before it compares with the maker's quote. The page shows the token's symbol.
+
 ## The recovery file
 
-The engine defines the content; the page treats it as opaque text. It holds the
-temporary wallet's spending key, key half `a`, the NEAR key, the swap parameters and the
-network, and it is plain JSON (`format: "zecret-recovery"`, `version: 1`, `engine`). The
-page offers it right after `createSwap`, before any money moves, and again on every
-progress screen. Anyone with the file can move the swap's funds; the page says so.
+The engine defines the content; the page treats it as opaque text. It is plain JSON
+(`format: "zecret-recovery"`, `version: 1`, `engine`). The page offers it right after
+`createSwap`, before any money moves, and again on every progress screen. Anyone with the
+file can move the swap's funds; the page says so. It is not encrypted with a passphrase:
+a passphrase the user forgets loses the funds, and the file is meant to be kept like a
+wallet backup.
 
 The simulated engine's file also carries a snapshot of its simulated chain, because a
-simulated swap has no real chain to rescan. The real engine rescans the chain instead.
+simulated swap has no real chain to rescan.
+
+The real engine's file (`engine: "wasm"`) holds:
+
+| Field | Content |
+|---|---|
+| `records.wallet` | The temporary Zcash wallet's spending key. |
+| `records["swap/<id>"]` | The core's swap record: key half `a`, the seeds `s_T` and `e_T`, the NEAR key seed `near_sk` (it owns the payout in the Verifier), the amount and the minimum price. |
+| `web` | The page's swap state and the worker's own record (destination, return address, exit progress). |
+| `config` | The escrow, its code hash, the token, the Verifier and the maker. A file for another deployment is refused (`RECOVERY_MISMATCH`). |
+
+Everything else is read back from the chains. A file saved before the payment is enough:
+after `importRecovery` the engine rescans the temporary wallet and waits for two new Zcash
+blocks while it reconciles the record with the chains (`Taker::reconcile` in the core):
+a mined send of the wallet means the request went out; a send at or after the quote's
+height means the acceptance went out; a note at the joint address means the funding went
+out. Only then does it act, so nothing is sent twice. A transaction that is still in the
+mempool after those two blocks is not seen. Restoring a swap whose exit already finished
+is not supported (nothing is left to do).
 
 ## The simulated engine
 

@@ -2,9 +2,10 @@
 
 The page where a user swaps shielded ZEC for a token on another chain. It is a static
 site (Vite, React, TypeScript) with no backend. The swap engine runs in a Web Worker
-behind the interface in [`ENGINE_API.md`](ENGINE_API.md). Until the WebAssembly engine
-is ready, a simulated engine plays the whole swap with no money and no network; the page
-says so in a banner. Screens, states and design decisions: [`../docs/WEB.md`](../docs/WEB.md).
+behind the interface in [`ENGINE_API.md`](ENGINE_API.md): the real engine (Rust compiled
+to WebAssembly, `crates/zecret-wasm`) when the page has a network configuration, and a
+simulated engine (the demo, no money, no network) when it has none. Screens, states and
+design decisions: [`../docs/WEB.md`](../docs/WEB.md).
 
 ## Commands
 
@@ -27,6 +28,58 @@ Playwright cannot find Chromium, set `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`
 tests mock the 1Click API (`e2e/oneclick-mock.ts`, built from the real token list of
 2026-11-13), so they need no network.
 
+## The real engine
+
+Build its WebAssembly into `public/engine/` (not in git) once, and after every change in
+`crates/`:
+
+```sh
+cd ..                                   # repository root
+./scripts/setup-env.sh && source .tools/env.sh
+crates/zecret-wasm/build.sh             # needs wasm-bindgen-cli 0.2.129
+```
+
+Then the page runs it with `?config=<name>`: `public/config/<name>.json`
+(`src/lib/netconfig.ts` describes the format), or with `VITE_ZECRET_CONFIG=<name or URL>`
+at build time. `?demo=1` always runs the demo.
+
+### Against the local network (Zebra regtest and a NEAR sandbox)
+
+```sh
+cd ..                                   # repository root
+source .tools/env.sh
+export PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
+node harness/browser/run.mjs --serve
+```
+
+This builds the engine, the site and the escrow, starts Zebra regtest (Docker, port 18332),
+a CORS proxy for it (18330), a NEAR sandbox with the escrow, wrap.near and intents.near
+(3130), a maker with its relay (3410) and the site with the headers of `vercel.json`
+(18380). It prints the page URL (`http://127.0.0.1:18380/?config=/run/local/config.json`,
+also served as `?config=local`), a NEAR account registered for wNEAR to receive the tokens,
+a funded native wallet and the command that pays the QR address from it
+(`zecret pay --dir … --to <address> --zats <amount>`). Zcash blocks are mined every few
+seconds. Stop with Ctrl-C.
+
+The automatic check runs five scenarios through the page the same way:
+`node harness/browser/run.mjs` (or `a b c d e`); results in `../harness/BROWSER_RESULTS.md`.
+
+### Against Zcash testnet and NEAR testnet
+
+`public/config/testnet.json` uses `https://zcash-testnet.chainsafe.dev` (gRPC-web),
+`https://rpc.testnet.fastnear.com` and the escrow, test USDC and Verifier of
+`../deploy/deployment.testnet.json`. It also needs, before a swap can run:
+
+1. a maker running on testnet with testnet ZEC for its quote fees, started with
+   `zecret maker --dir M --relay 127.0.0.1:3410` (`../crates/zecret-node/README.md`, "NEAR
+   testnet and Zcash testnet");
+2. its directory: `node ../harness/browser/make-directory.mjs M <USDC per ZEC> testnet >
+   public/config/testnet-directory.json`;
+3. the site: `npm run build && npx vite preview --port 4173`, then
+   `http://localhost:4173/?config=testnet`;
+4. testnet ZEC in a wallet that can pay a unified address, and a NEAR testnet account
+   registered with the test USDC token (`storage_deposit`).
+
 ## Trying it by hand
 
 Open `http://localhost:5173/?speed=20`. Enter an amount, keep USDC on Base or pick a
@@ -44,7 +97,7 @@ browser (no key; CORS is open).
 |---|---|---|
 | Maker directory | `/maker-directory.json` (a sample for Zcash testnet, in `public/`) | `VITE_DIRECTORY_URL` at build time, or `?directory=<url>` on the page |
 | 1Click API | `https://1click.chaindefuser.com` | `VITE_ONECLICK_URL` at build time |
-| Engine | simulated | one line in `src/engine/index.ts` (see `ENGINE_API.md`) |
+| Engine | simulated (demo) | a network configuration: `?config=local`, `?config=testnet`, a URL, or `VITE_ZECRET_CONFIG` at build time; `?demo=1` forces the demo |
 
 The directory format is `MakerDirectory` in `src/lib/directory.ts`: maker name, Zcash
 unified address, request key, NEAR account, escrow contract, indicative rate in USDC per
@@ -54,8 +107,12 @@ file that does not match, with the reason.
 ## Deploying
 
 Vercel: set the project root to `web/`. `vercel.json` sets the build (`npm run build`,
-output `dist/`) and headers (`Referrer-Policy: no-referrer`, so explorer links do not
-tell explorers where the user came from).
+output `dist/`) and headers: a Content-Security-Policy that allows exactly the hosts of
+the testnet configuration and 1Click (see `../docs/WEB.md`, "Headers"), and
+`Referrer-Policy: no-referrer`, so explorer links do not tell explorers where the user
+came from. The build does not compile the WebAssembly engine: run
+`crates/zecret-wasm/build.sh` before `npm run build` (it needs Rust), or the site runs
+only the demo.
 
 ## Layout
 

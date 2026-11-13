@@ -369,7 +369,7 @@ fn premium_below_cost_is_refused() {
 fn misbehave_is_refused_without_the_feature() {
     let mut j = cfg_json();
     j["misbehave"] = json!("no-stipend");
-    let e = serde_json::from_value::<MakerConfig>(j).err().expect("misbehave must be refused").to_string();
+    let e = serde_json::from_value::<MakerConfig>(j).expect_err("misbehave must be refused").to_string();
     assert!(e.contains("misbehave"), "{e}");
     let mut t = serde_json::to_value(taker_cfg("utest")).unwrap();
     t["misbehave"] = json!("no-reveal");

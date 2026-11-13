@@ -58,10 +58,20 @@ let chainsProc;
 async function startChains() {
   chainsProc = spawn('python3', ['-I', path.join(ROOT, 'harness/browser_chains.py')], { stdio: ['pipe', 'pipe', 'inherit'], env: process.env });
   const rl = readline.createInterface({ input: chainsProc.stdout });
+  const queue = [];
+  const waiting = [];
+  chainsLines = { next: () => (queue.length ? Promise.resolve(queue.shift()) : new Promise((r) => waiting.push(r))) };
   chains = await new Promise((resolve, reject) => {
+    let first = true;
     rl.on('line', (l) => {
-      if (l.startsWith('{')) resolve(JSON.parse(l));
-      else console.log(l);
+      if (!l.startsWith('{')) return console.log(l);
+      if (first) {
+        first = false;
+        return resolve(JSON.parse(l));
+      }
+      const w = waiting.shift();
+      if (w) w(l);
+      else queue.push(l);
     });
     chainsProc.on('exit', (c) => reject(new Error(`chains exited ${c}`)));
   });
@@ -112,15 +122,13 @@ function zecret(...args) {
   return r.stdout.trim();
 }
 
+let chainsLines; // answers of browser_chains.py to its commands
+/** Mines one block paying its coinbase to `ua` (through the miner's lock), then waits until the wallet in `dir` sees it. */
 async function coinbase(ua) {
-  for (let i = 0; i < 10; i++) {
-    try {
-      return await zrpc('generatetoaddress', [1, ua]);
-    } catch (e) {
-      await sleep(500);
-      if (i === 9) throw e;
-    }
-  }
+  chainsProc.stdin.write(`fund ${ua}\n`);
+  const r = JSON.parse(await chainsLines.next());
+  if (!r.ok) throw new Error(`fund: ${r.error}`);
+  return r.blocks;
 }
 
 /** Waits until the mempool is empty and one more block is mined. */
@@ -385,12 +393,9 @@ async function startSwap(page, url, { nearAccount, returnAddress, scen }) {
   }
   await page.getByTestId('price-line').getByText('You receive at least').waitFor({ timeout: 90_000 });
   const preview = `${await page.getByTestId('preview-note').innerText()} | ${await page.getByTestId('price-line').innerText()}`;
-  const continueBtn = page.getByRole('button', { name: 'Continue' });
-  for (let i = 0; i < 60 && !(await page.getByRole('heading', { name: 'Save your recovery file' }).isVisible()); i++) {
-    if (i % 10 === 0) await continueBtn.click();
-    await sleep(500);
-  }
-  await page.getByRole('heading', { name: 'Save your recovery file' }).waitFor({ timeout: 30_000 });
+  // createSwap may wait behind the proving-key build (about 20 s) in the worker.
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByRole('heading', { name: 'Save your recovery file' }).waitFor({ timeout: 120_000 });
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save recovery file' }).click();
   const dl = await download;
@@ -460,6 +465,7 @@ async function scenarioA() {
   await coinbase(maker.ua);
   const recv = receiver('alicea');
   await settle();
+  if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
   const makerBefore = await wnear(chains.maker);
   const { page, ctx, timings } = await newPage(scen, 'main');
   const { deposit, preview } = await startSwap(page, url, { nearAccount: recv, returnAddress: user.ua, scen });
@@ -518,6 +524,7 @@ async function scenarioB() {
   await coinbase(maker.ua);
   const recv = receiver('aliceb');
   await settle();
+  if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
   const userBefore = user.balance();
   const makerBefore = await wnear(chains.maker);
   const { page, ctx, timings } = await newPage(scen, 'main');
@@ -559,6 +566,7 @@ async function scenarioC() {
   await coinbase(maker.ua);
   const recv = receiver('alicec');
   await settle();
+  if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
   const { page, ctx, timings } = await newPage(scen, 'main');
   const { deposit } = await startSwap(page, url, { nearAccount: recv, returnAddress: user.ua, scen });
   const payTx = user.pay(deposit.address, PAY_ZATS);
@@ -595,6 +603,7 @@ async function scenarioD() {
   await coinbase(maker.ua);
   const recv = receiver('aliced');
   await settle();
+  if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
   const a = await newPage(scen, 'first');
   const { deposit, file } = await startSwap(a.page, url, { nearAccount: recv, returnAddress: user.ua, scen });
   const payTx = user.pay(deposit.address, PAY_ZATS);
@@ -633,6 +642,7 @@ async function scenarioE() {
   await coinbase(maker.ua);
   const recv = receiver('alicee');
   await settle();
+  if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
   const userBefore = user.balance();
   const makerBefore = await wnear(chains.maker);
   const { page, ctx, timings } = await newPage(scen, 'main');

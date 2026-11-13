@@ -126,6 +126,10 @@ pub struct MakerSwap {
     pub sweep_height: Option<u64>,
     pub taker_withdraw_at: Option<u64>,
     pub log: Vec<String>,
+    /// Wall-clock time the request was taken (F2-04: `Quoting` and `Quoted` expire after
+    /// `quote_ttl_secs`). Records from before this field get the time of their next tick.
+    #[serde(default)]
+    pub created_at: Option<u64>,
 }
 
 impl MakerSwap {
@@ -158,6 +162,14 @@ pub struct Maker {
     /// does not wait twice.
     covers_passed: BTreeSet<String>,
     ev: Vec<Event>,
+    /// True in a tick whose Zcash sync failed: the wallet's view is old (H2).
+    zcash_stale: bool,
+    /// Quotes that may still be built in this tick (F2-04).
+    quote_budget: usize,
+    /// `Quoting` + `Quoted` swaps, counted at the start of the message scan (F2-04).
+    pending_quotes: usize,
+    /// The wallet could not pay a quote fee at the last look (to warn once, not every tick).
+    quote_funds_low: bool,
 }
 
 impl Maker {
@@ -166,6 +178,11 @@ impl Maker {
     pub fn open(cfg: MakerConfig, t: SharedTransport, store: &mut dyn Store) -> Result<Maker> {
         cfg.timing.validate()?;
         cfg.timing.check_windows(&cfg.windows)?;
+        cfg.check_limits()?;
+        cfg.check_premium()?;
+        if cfg.misbehave.is_some() && !cfg!(feature = "misbehave") {
+            bail!("misbehave is a test-only setting; this build does not accept it");
+        }
         let me = match store.get(KEY_WALLET)? {
             Some(b) => Me::from_hex(std::str::from_utf8(&b)?)?,
             None => {
@@ -193,7 +210,7 @@ impl Maker {
             swaps.insert(s.rfq_id.clone(), s);
         }
         let signer = Signer::new(&cfg.near_account, key);
-        let mut m = Maker { epoch: rk.epoch, rfq_sk: keys::scalar_from_hex(&rk.sk)?, cfg, me, wallet, near, signer, seen, swaps, covers: HashMap::new(), covers_passed: BTreeSet::new(), ev: vec![] };
+        let mut m = Maker { epoch: rk.epoch, rfq_sk: keys::scalar_from_hex(&rk.sk)?, cfg, me, wallet, near, signer, seen, swaps, covers: HashMap::new(), covers_passed: BTreeSet::new(), ev: vec![], zcash_stale: false, quote_budget: 0, pending_quotes: 0, quote_funds_low: false };
         for s in m.swaps.values().cloned().collect::<Vec<_>>() {
             if !s.stage.is_terminal() {
                 if let Some(f) = &s.joint_fvk {
@@ -247,9 +264,30 @@ impl Maker {
         Tick { next, events: std::mem::take(&mut self.ev) }
     }
 
+    /// One pass of the maker (security review 2, F2-04 and H2):
+    ///
+    /// 1. Sync the Zcash wallet. A failure is a warning: the NEAR duties still run, with
+    ///    the wallet's older view.
+    /// 2. Advance every swap from `Opening` on. These carry the deadlines (R3d, R3l, L_M),
+    ///    so no amount of unpaid requests can delay them.
+    /// 3. Read new memos (requests are refused above `max_pending_quotes`).
+    /// 4. Expire old `Quoting` and `Quoted` swaps, and build at most `max_quotes_per_tick`
+    ///    quotes, none when the wallet cannot pay a quote fee.
     fn step(&mut self, now: u64, store: &mut dyn Store) -> Result<Next> {
-        self.wallet.sync().context("Zcash sync")?;
+        self.zcash_stale = match self.wallet.sync() {
+            Ok(()) => false,
+            Err(e) => {
+                self.ev.push(Event::Warning { swap: String::new(), message: format!("Zcash sync: {e:#}; NEAR duties go on with the last synced view") });
+                true
+            }
+        };
+        let quoting = |s: &MakerSwap| matches!(s.stage, MakerStage::Quoting | MakerStage::Quoted);
+        let mut next = now + POLL_SECS * 2;
+        // Deadline work first.
+        let ids: Vec<String> = self.swaps.iter().filter(|(_, s)| !s.stage.is_terminal() && !quoting(s)).map(|(k, _)| k.clone()).collect();
+        self.advance_all(ids, now, store, &mut next)?;
         // Incoming messages.
+        self.pending_quotes = self.swaps.values().filter(|s| quoting(s)).count();
         let incoming: Vec<Received> = self.wallet.received.iter().filter(|r| r.label == "wallet").cloned().collect();
         let mut seen_changed = false;
         for r in incoming {
@@ -265,7 +303,12 @@ impl Maker {
                     true
                 }
                 Ok(Some(Envelope::Accept { rfq_id, ct })) => match self.on_accept(rfq_id, &ct, r.note.value().inner(), r.height, now, store) {
-                    Ok(done) => done,
+                    Ok(done) => {
+                        if done {
+                            next = now; // a swap may now be Opening: come back at once
+                        }
+                        done
+                    }
                     Err(e) => {
                         self.ev.push(Event::Warning { swap: hex::encode(rfq_id), message: format!("ACCEPT processing failed, will retry: {e:#}") });
                         false
@@ -281,9 +324,28 @@ impl Maker {
         if seen_changed {
             put_json(store, KEY_SEEN, &self.seen)?;
         }
-        // Every swap that is not finished.
-        let ids: Vec<String> = self.swaps.iter().filter(|(_, s)| !s.stage.is_terminal()).map(|(k, _)| k.clone()).collect();
-        let mut next = now + POLL_SECS * 2;
+        // Quoting work last, bounded per tick. No quote without ZEC for its fee: that check
+        // costs no RPC round trip.
+        let fee = wallet::zip317_fee(1, 2);
+        let can_pay = !self.zcash_stale && self.wallet.spendable("wallet") >= fee;
+        self.quote_budget = if can_pay { self.cfg.max_quotes_per_tick } else { 0 };
+        let ids: Vec<String> = self.swaps.iter().filter(|(_, s)| quoting(s)).map(|(k, _)| k.clone()).collect();
+        let waiting = ids.iter().any(|id| self.swaps[id].stage == MakerStage::Quoting);
+        if waiting && !can_pay && !self.zcash_stale && !self.quote_funds_low {
+            let have = self.wallet.spendable("wallet");
+            self.ev.push(Event::Warning { swap: String::new(), message: format!("requests wait for a quote, but the wallet has {have} spendable zats, less than a quote fee ({fee})") });
+        }
+        if !self.zcash_stale {
+            self.quote_funds_low = waiting && !can_pay;
+        }
+        self.advance_all(ids, now, store, &mut next)?;
+        if self.zcash_stale {
+            next = next.min(now + RETRY_SECS);
+        }
+        Ok(Next::At(next))
+    }
+
+    fn advance_all(&mut self, ids: Vec<String>, now: u64, store: &mut dyn Store, next: &mut u64) -> Result<()> {
         for id in ids {
             let mut s = self.swaps[&id].clone();
             let before = s.clone();
@@ -292,12 +354,12 @@ impl Maker {
                 self.save(&mut s, store)?;
             }
             match r {
-                Ok(Next::At(t)) => next = next.min(t),
+                Ok(Next::At(t)) => *next = (*next).min(t),
                 Ok(Next::Done) => {}
                 Err(e) => self.ev.push(Event::Warning { swap: id.clone(), message: format!("{e:#}") }),
             }
         }
-        Ok(Next::At(next))
+        Ok(())
     }
 
     fn save(&mut self, s: &mut MakerSwap, store: &mut dyn Store) -> Result<()> {
@@ -361,6 +423,9 @@ impl Maker {
     fn on_rfq(&mut self, epoch: u32, eph: [u8; 32], ct: &[u8], height: u64, now: u64, store: &mut dyn Store) -> Result<()> {
         if epoch != self.epoch {
             bail!("RFQ for epoch {epoch}, current epoch is {}", self.epoch);
+        }
+        if self.pending_quotes >= self.cfg.max_pending_quotes {
+            bail!("{} requests already wait for a quote or an acceptance (max_pending_quotes); request refused", self.pending_quotes);
         }
         let me_pub = msg::dh_public(&self.rfq_sk);
         let rfq = Rfq::from_bytes(&msg::open(b"rfq", &self.rfq_sk, &eph, &eph, &me_pub, ct)?)?;
@@ -457,19 +522,25 @@ impl Maker {
             sweep_height: None,
             taker_withdraw_at: None,
             log: vec![],
+            created_at: Some(now),
         };
         let tag = c.misbehave.map(|m| format!(" [MISBEHAVE {m:?}]")).unwrap_or_default();
         let line = format!("RFQ for {} zats decrypted and verified; quoting price {} (premium {} zats, stipend {} yocto){tag}", s.zats, s.price, s.premium, s.stipend);
         self.log(&mut s, line);
         self.ev.push(Event::Stage { swap: s.rfq_id.clone(), stage: s.stage.name().into() });
-        let _ = now;
+        self.pending_quotes += 1;
         self.save(&mut s, store)
     }
 
     /// Ok(true) when the message is dealt with (accepted or rejected for good).
     fn on_accept(&mut self, rfq_id: [u8; 16], ct: &[u8], paid: u64, height: u64, now: u64, store: &mut dyn Store) -> Result<bool> {
         let rfq_hex = hex::encode(rfq_id);
-        let Some(mut s) = self.swaps.get(&rfq_hex).cloned() else { bail!("ACCEPT for an unknown request") };
+        let Some(mut s) = self.swaps.get(&rfq_hex).cloned() else {
+            // Not a request of ours (or one refused at the cap): nothing will change that,
+            // so the memo is handled, not tried again every tick (F2-04).
+            self.ev.push(Event::Log { swap: rfq_hex, line: "ACCEPT for an unknown request; ignored".into() });
+            return Ok(true);
+        };
         match s.stage {
             MakerStage::Quoting => return Ok(false), // our quote is not out yet: look again later
             MakerStage::Quoted => {}
@@ -517,7 +588,23 @@ impl Maker {
     // ------------------------------------------------------------------ swaps
 
     fn advance(&mut self, s: &mut MakerSwap, now: u64) -> Result<Next> {
-        if let Some(mut p) = s.pending.clone() {
+        if matches!(s.stage, MakerStage::Quoting | MakerStage::Quoted) && s.pending.is_none() {
+            // F2-04: unpaid requests expire. A quote still in flight (pending) is not
+            // expired here; it is mined or it dies at its expiry height.
+            let created = *s.created_at.get_or_insert(now);
+            if now > created.saturating_add(self.cfg.quote_ttl_secs) {
+                self.log(s, format!("request expired after {}s without {}", self.cfg.quote_ttl_secs, if s.stage == MakerStage::Quoting { "a quote" } else { "an acceptance" }));
+                self.set_stage(s, MakerStage::Aborted("request expired".into()));
+                return Ok(Next::Done);
+            }
+        }
+        if s.pending.is_some() && self.zcash_stale {
+            // H2: no Zcash server. A pending sweep does not block the NEAR side of
+            // Sweeping (paying the taker's credit); everything else waits.
+            if s.stage != MakerStage::Sweeping {
+                return Ok(Next::At(now + RETRY_SECS));
+            }
+        } else if let Some(mut p) = s.pending.clone() {
             let st = drive_pending(&mut self.wallet, &mut p)?;
             let first = (p.broadcast || matches!(st, PendingState::Mined(_))) && s.pending_then.is_some();
             s.pending = Some(p.clone());
@@ -572,9 +659,15 @@ impl Maker {
     }
 
     fn send_quote(&mut self, s: &mut MakerSwap, now: u64) -> Result<Next> {
+        // F2-04: no build (and no RPC round trip) when the wallet cannot pay the fee or
+        // this tick has built its share of quotes; the request waits, up to its TTL.
+        if self.quote_budget == 0 {
+            return Ok(Next::At(now + RETRY_SECS));
+        }
         if !self.cover_ready(s, "QUOTE", s.rfq_height, None, now) {
             return Ok(Next::At(now + POLL_SECS));
         }
+        self.quote_budget -= 1;
         let memo: [u8; 512] = hex::decode(&s.quote_memo)?.try_into().map_err(|_| anyhow!("memo length"))?;
         // The reply goes to the address in the request; recover it from the stored request.
         let reply = self.reply_address(s)?;
@@ -844,6 +937,10 @@ impl Maker {
         // R3e: refund early only in Open with no sufficient note, once the taker's R1b
         // funding window has closed, and while the refund can still land before t0.
         let window_closed = tnow + t.fund_secs >= v.t0;
+        if self.zcash_stale {
+            // H2: the funding may be there and not seen; R3d after t1 needs no Zcash data.
+            return Ok(Next::At(now + POLL_SECS));
+        }
         if window_closed && tnow + t.inclusion_secs < v.t0 && !enough {
             let why = match &note {
                 Some(n) => format!("joint note underfunded ({} < {need}) before t0", n.note.value().inner()),
@@ -883,6 +980,10 @@ impl Maker {
         let b = s.b_norm()?;
         self.pay_taker(s)?;
         let Some(n) = self.wallet.unspent(&s.rfq_id).into_iter().next() else {
+            if self.zcash_stale {
+                // H2: the note may be there and not seen; never erase b on an old view.
+                return Ok(Next::At(now + RETRY_SECS));
+            }
             let tnow = self.near.block(&At::Final)?.secs();
             if v.t2 <= tnow && s.ready_tx.is_none() && s.pending.is_none() {
                 self.set_stage(s, MakerStage::Aborted("claimed via the punish path without funding: L_M was violated".into()));
@@ -983,6 +1084,10 @@ mod tests {
             storage_topup: 0,
             cover: Cover::default(),
             misbehave: None,
+            max_pending_quotes: 32,
+            quote_ttl_secs: 3600,
+            max_quotes_per_tick: 1,
+            premium_check: None,
         };
         let mut store = MemStore::new();
         store.put(KEY_NEAR, NearKey::generate().secret_str().as_bytes()).unwrap();

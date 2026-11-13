@@ -72,6 +72,16 @@ that restores them into a fresh store and opens the engine continues the swap.
 `TakerSwap.near_sk` is the seed of the NEAR key that owns the payout inside
 `intents.near`; it stays in the record after the swap ends.
 
+A recovery file is usually saved before the payment, so its record says `WaitingDeposit`
+while the request, the acceptance or the funding may already be on chain. After a
+restore, call `taker.reconcile(now, store)` (it syncs the wallet) until the chain has
+advanced by a few blocks, and only then `tick`. It moves the record forward from the
+chain: a mined send of the temporary wallet means the request was sent; a send at or after
+the quote's height means the acceptance was sent; a note at the joint address means the
+funding was sent. A quote that fails the checks is left for `tick`. As a second guard,
+`Accepted` never funds a joint address that already holds a note. The browser engine
+waits for two new blocks (`web/src/engine/real/realEngine.ts`).
+
 ### 1.3 Time: `tick(now)`
 
 The engine reads no clock and never sleeps.
@@ -106,6 +116,7 @@ taker.take_events()              // events from `start`
 taker.tick(now, store)           // run the state machine
 taker.swap()                     // Option<&TakerSwap>: the current record
 taker.return_leftover(ua)?       // after the swap: send what is left to the user's address
+taker.reconcile(now, store)?     // after a restore from an early recovery file (§1.2)
 wallet::prepare_proving_key()    // build the Orchard proving key now (about 20 s in a browser)
 ```
 
@@ -230,27 +241,29 @@ and the `wallet` record. Do not send them anywhere.
 ### 2.5 Mapping to the website's interface (`web/ENGINE_API.md`)
 
 The website talks to an `Engine` in a worker (`web/src/engine/api.ts`). That worker is a
-layer above this core (package E): it adds the recovery file, the return address, the
-exit through 1Click, and converts units. This table is the mapping; the rows marked
-"not in the core" are work for that layer.
+layer above this core: `crates/zecret-wasm` (the core's taker and `zecret-intents` behind
+wasm-bindgen, over synchronous XHR) and `web/src/engine/real/realEngine.ts` (stages,
+units, IndexedDB, the recovery file, the return address and the exit). This table is the
+mapping; the rows marked "not in the core" are done by that layer, as described in
+`web/ENGINE_API.md`, "How the real engine makes the website's stages".
 
 | Web stage | Core |
 |---|---|
 | `awaiting_deposit` | `WaitingDeposit` while `balance` < `required_deposit` |
-| `deposit_seen` | Not in the core: the wallet sees mined notes only, not the mempool. The layer can skip it or show it when the first `balance` event arrives. |
+| `deposit_seen` | Not in the core: the wallet sees mined notes only, not the mempool. The layer emits it together with `deposit_confirmed` when the balance reaches the deposit. |
 | `deposit_confirmed` | `WaitingDeposit` with enough balance; the `activity` event for the request follows |
 | `request_sent` | `RfqSent` |
 | `quote_received` | `quote` event (the stage stays `RfqSent` until the acceptance is broadcast) |
 | `accepted` | `Accepted` |
 | `escrow_open` | `escrow_verified` event |
 | `funding_sent` | `Funded` (the `zcash_tx` event with `what: fund`) |
-| `funding_confirming` | Not in the core: no confirmation count is emitted. The layer can read the funding's height from `TakerSwap.fund_txid` with its own wallet query, or skip it. |
-| `ready` | Not a core stage: the taker sends `commit_claim` in the same tick it sees Ready final, so `ready` and `committing` arrive together. |
+| `funding_confirming` | Not in the core: no confirmation count is emitted. The layer reads the funding's mined height from the wallet (`Session::facts`). |
+| `ready` | Not a core stage: the layer reads the escrow state once the funding has k_Z confirmations, and emits `ready` before `committing` otherwise (not on the punish path). |
 | `committing` | `Committed` |
 | `claiming` | `Revealed` |
 | `claimed` | `Claimed` |
 | `paid_out` | `Completed` (with the `payout` event) |
-| `exiting`, `done`, `exit_retry` | Not in the core: the exit (the `zecret-intents` crate) runs after `Completed`, with the NEAR key from `TakerSwap.near_sk`. |
+| `exiting`, `done`, `exit_retry` | Not in the core: the exit (the `zecret-intents` crate) runs after `Completed`, with the NEAR key from `TakerSwap.near_sk`: through 1Click on mainnet, and as a direct `ft_withdraw` sent by the maker's relay on networks without 1Click (`crates/zecret-wasm/src/exit.rs`, `crates/zecret-node/src/relay.rs`). |
 | `recovering` | `Recovering` |
 | `recovered` | `Recovered` |
 | `refunding`, `refunded` | Not in the core as stages: `Taker::return_leftover(ua)` sends the wallet's ZEC to the return address. Use it after `Recovered`, and after `Aborted` (quote rejected, no quote, no escrow). |
@@ -266,12 +279,14 @@ Other differences:
   the swap sells (the joint note). The layer computes
   `zats = amountZats − required_deposit(0, max_premium)`.
 - `createSwap.minUsdc` maps to `start_with_min_price`. It is stored in the swap record.
-- `Aborted(reason)`: the web distinguishes `QUOTE_BELOW_MINIMUM` and `MAKER_TIMEOUT`. The
-  core's reasons are text: a reason that starts with `QUOTE REJECTED: price` is below the
-  minimum; `no quote before the timeout` and `the maker never opened the escrow` are
-  timeouts; other `QUOTE REJECTED` and escrow-check reasons are safety refusals.
-- The web's `activity` kinds `syncing`, `broadcasting`, `signing` and `waiting` are not
-  emitted; only `proving`.
+- `Aborted(reason)`: the web distinguishes `QUOTE_BELOW_MINIMUM`, `MAKER_TIMEOUT` and
+  `MAKER_CHECK_FAILED`. The core's reasons are text: a reason that starts with `QUOTE
+  REJECTED: price` is below the minimum; `no quote before the timeout` and `the maker never
+  opened the escrow` are timeouts; other `QUOTE REJECTED` and escrow-check reasons are
+  safety refusals (`MAKER_CHECK_FAILED`).
+- The core emits only the `proving` activity; the layer adds `syncing`, `waiting`,
+  `signing` and `broadcasting`.
+- `createSwap.shown.premiumZats` becomes the taker's `max_premium` for that swap.
 
 ## 3. The NEAR side
 
@@ -285,6 +300,10 @@ Other differences:
   `withdraw` does not fit in the stipend; the maker sends it.
 - Transactions are built, borsh-serialized and signed in `near::tx`, and sent with
   `send_tx` (`wait_until: EXECUTED`). Views use `finality: final` or a final block's hash.
+- The direct exit (`ft_withdraw` out of the Verifier) needs 40 Tgas attached; NEAR checks
+  that the signer holds it at the pessimistic price (30 Tgas cost 0.031 NEAR in the
+  sandbox), so what is left of the stipend (0.0281 NEAR) cannot send it. `zecret maker
+  --relay HOST:PORT` serves `POST /execute-intents` for its own takers.
 
 ## 4. The maker (`maker::Maker`)
 
@@ -303,3 +322,25 @@ final; before it sends the stipend it checks that the swap at its id is its own 
 token, amount, taker key, A, B, reveal window), so a look-alike swap opened by someone
 else gets no stipend. Its `add_storage_funds` is always for its own account.
 `zecret maker` (crates/zecret-node) runs it in a loop.
+
+Order of work in one tick (security review 2, F2-04 and H2; details in
+`docs/security/fixes-2-core.md`):
+
+1. Sync the Zcash wallet. If the sync fails, the tick goes on with the last synced view
+   and emits a `warning`. With an old view the maker takes no early refund (R3e) and
+   never erases b for lack of a joint note.
+2. Advance every swap from `Opening` on (the swaps with deadlines).
+3. Read new memos.
+4. Expire requests, then build quotes.
+
+Maker settings for requests that nobody has paid for yet (all optional):
+
+| Field | Default | Meaning |
+|---|---|---|
+| `max_pending_quotes` | 32 | A request is refused while this many swaps are `Quoting` or `Quoted`. |
+| `quote_ttl_secs` | 3600 | A `Quoting` or `Quoted` swap with no transaction in flight becomes `Aborted("request expired")` after this many seconds. Keep it above 2 × the takers' `quote_timeout_secs` plus the time to mine an acceptance. |
+| `max_quotes_per_tick` | 1 | Quotes built at most in one tick. No quote is built (and no RPC is made for one) while the wallet's spendable ZEC is below one quote fee. |
+| `premium_check` | none; required when `chains.network` is `main` | `{"yocto_near_per_zec": "<yoctoNEAR for 1 ZEC>", "costs_per_request_yocto": "<gas + storage per accepted request, default 0.015 NEAR>"}`. `Maker::open` fails if `premium_zats` is worth less than `stipend` + `costs_per_request_yocto`. |
+
+`misbehave` (test-only) is refused unless the binary is built with the cargo feature
+`misbehave`; `harness/run.py` builds it that way, release builds do not.

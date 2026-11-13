@@ -1,10 +1,8 @@
 // Security review 2: proof of concept against the maker state machine
-// (crates/zecret-core/src/maker.rs). The test FAILS on the reviewed code. See
-// docs/security/review-2.md, F2-04.
+// (crates/zecret-core/src/maker.rs), kept as a regression test for F2-04. It failed on
+// the reviewed code and passes with the fix (docs/security/fixes-2-core.md).
+// Copied from docs/security/poc2/maker_pocs.rs; only the `common` import differs.
 //
-// To run: copy `common.rs` and this file to crates/zecret-core/tests/ (as
-// `poc2_common.rs` and `poc2_maker.rs`), change `use super::common` below to
-// `#[path = "poc2_common.rs"] mod common;`, then
 //   cd crates && cargo test -p zecret-core --test poc2_maker -- --nocapture
 
 use std::{collections::BTreeSet, rc::Rc, time::Instant};

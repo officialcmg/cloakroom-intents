@@ -12,9 +12,19 @@ them, and the decisions taken and why. The interface to the swap engine is in
 4. The user pays once, by QR code, from the user's own wallet.
 5. The page shows the progress until the tokens arrive, or until the ZEC comes back.
 
-The page holds no keys and moves no money. The engine does that, in a Web Worker. Until
-the WebAssembly engine is ready, a simulated engine runs behind the same interface. The
-page then shows a banner: "Demo with a simulated engine: no real funds move."
+The page holds no keys and moves no money. The engine does that, in a Web Worker. Two
+engines implement the same interface:
+
+- the real engine (`crates/zecret-wasm` in `src/engine/real/`), when the page has a
+  network configuration (`?config=local`, `?config=testnet`, a URL, or
+  `VITE_ZECRET_CONFIG` at build time);
+- the simulated engine (the demo), when it has none, or with `?demo=1`. The page then
+  shows a banner: "Demo with a simulated engine: no real funds move."
+
+On a test network the real engine's page shows a banner with the network's name and what
+is real there (from the configuration's `honesty` lines): real transactions, test money,
+the stand-in token, and that the exit goes to a NEAR account because NEAR Intents has no
+testnet.
 
 ## Screens
 
@@ -58,6 +68,20 @@ Screenshots of each screen, light and dark, desktop and phone, are in `web/scree
   (retried after 20 s), "too small for this route, at least N USDC", "no liquidity",
   "cannot reach NEAR Intents".
 - Below the form: four lines on how it works, and what stays private and what is public.
+
+### Swap form on a network without 1Click
+
+Local and testnet configurations say `exit.mode: "direct"`. The form then:
+
+- still offers every 1Click token and chain, and shows the live mainnet price for it,
+  under the words "Mainnet preview": the page says that on this network the swap pays the
+  stand-in token and sends it to the user's NEAR account, and that no token is delivered on
+  the chosen chain;
+- asks for a NEAR account instead of an address on the destination chain. It must exist
+  and be registered with the token contract; the engine checks both before it signs.
+
+The maker's side shows the stand-in token's symbol (wNEAR locally, "test USDC" on
+testnet) instead of USDC.
 
 ### Recovery file
 
@@ -182,10 +206,22 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
   token list down; the tab-close guard; page responsiveness while the worker busy-loops;
   the theme toggle.
 
+## Headers
+
+`vercel.json` sets, for every path:
+
+| Header | Value and why |
+|---|---|
+| `Content-Security-Policy` | `default-src 'self'`; `script-src 'self' 'wasm-unsafe-eval'` plus the SHA-256 of the one inline script (the theme, before first paint); `worker-src 'self'`; `connect-src 'self'` plus exactly the hosts the engine and the page call on testnet: `https://1click.chaindefuser.com`, `https://zcash-testnet.chainsafe.dev`, `https://rpc.testnet.fastnear.com`; `img-src 'self' data: blob:`; `style-src 'self'`; `font-src 'self'`; `object-src 'none'`; `base-uri 'none'`; `form-action 'none'`; `frame-ancestors 'none'`. WebAssembly needs `wasm-unsafe-eval`. The synchronous XMLHttpRequests of the worker are governed by `connect-src`. `tests/unit/csp.test.ts` checks the hash and the hosts against `public/config/testnet.json`. A deployment with the maker's relay at a public URL must add that URL to `connect-src` and to the configuration. |
+| `Referrer-Policy` | `no-referrer` |
+| `X-Content-Type-Options`, `X-Frame-Options` | `nosniff`, `DENY` |
+| `Cross-Origin-Opener-Policy` | `same-origin` |
+| `Permissions-Policy` | camera, microphone, geolocation, payment and USB off |
+
+The browser scenarios (`harness/browser/run.mjs`) serve the site with these headers and add
+only the local endpoints to `connect-src`; a CSP violation would show in their console log.
+
 ## Not done here
 
-- The real engine. The page is ready for it through `web/ENGINE_API.md`.
-- A Content-Security-Policy header. Its `connect-src` must list the light-wallet server
-  and NEAR RPC of the real engine; it is better added with the engine.
 - Firefox and Safari were not tested; only Chromium.
 - Destination tags (XRP) and memos are not supported; the page says so for XRP.

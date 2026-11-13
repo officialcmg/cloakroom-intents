@@ -1,2 +1,109 @@
-[maker 1794547229] relay for direct exits on http://127.0.0.1:3410/execute-intents
-[maker 1794547229] up: UA uregtest16hscwpclytu44k2fswgn6u7se0u3c8jjs5wkyyu339vzs8pzfcl84kvnrld3u84tm8yer660cy8srf6nh0tfkur4nkeky5nd0vr8e4ny NEAR maker.test.near key ed25519:HejN86MkCfvC7AryF2LbDmTNtxvaFQBfeSjUFRUzWu5
+[maker 1794547483] relay for direct exits on http://127.0.0.1:3410/execute-intents
+[maker 1794547483] up: UA uregtest1hlcvyae2d7wuwse0k67la0zqqugzuduu0eqnucy6m4ce9tudndu3xd7kq30uardg6pz8qpg43q3ud49lf5qrn8nham6v2ry9yghmaslk NEAR maker.test.near key ed25519:AuvnfGMkrV4QFiUudB2KJccu3c4qpnYdRp8hT1knGJFn
+[maker 1794547558] 9b050ba8 RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794547558] 9b050ba8 stage Quoting
+[maker 1794547558]  transient: requests wait for a quote, but the wallet has 0 spendable zats, less than a quote fee (10000)
+[maker 1794547558] {"type":"zcash_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"quote","txid":"4c3e3f1ace477dfc5940ad672a2d8581fdb3ffe41dd0ff857d272baea29692bb"}
+[maker 1794547558] 9b050ba8 encrypted QUOTE sent in tx 4c3e3f1ace477dfc5940ad672a2d8581fdb3ffe41dd0ff857d272baea29692bb
+[maker 1794547558] 9b050ba8 stage Quoted
+[maker 1794547588] 9b050ba8 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id fbe56d11
+[maker 1794547588] 9b050ba8 stage Opening
+[maker 1794547591] 9b050ba8 added 100000000000000000000000 yoctoNEAR of storage funds to the escrow, tx BMMEZST9pEmxZNWmizzkAZqAGJEZKWruZQLvCyqo79RH
+[maker 1794547596] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"open","hash":"61SqkUwkTu3T3capPum2R3oBM9xZmVNku2K4AuB6FzYr"}
+[maker 1794547596] 9b050ba8 escrow OPEN id fbe56d11c1102c6948a892d50210899bc512a3b07835577683a7193e52a6fee6 amount 29988000000000000000000000 t0=1794547889 t1=1794548039 t2=1794548189 W=60, tx 61SqkUwkTu3T3capPum2R3oBM9xZmVNku2K4AuB6FzYr
+[maker 1794547596] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"stipend","hash":"EqJ5eDLwL2zBvsWM1xPywEjDSWcnqc5Et81PMR4u4J7u"}
+[maker 1794547596] 9b050ba8 STIPEND of 30000000000000000000000 yoctoNEAR sent to 19c15389feef84e464b1383b209865743386ead285744f844183c4ef042987a6, tx EqJ5eDLwL2zBvsWM1xPywEjDSWcnqc5Et81PMR4u4J7u
+[maker 1794547596] 9b050ba8 stage Opened
+[maker 1794547637] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"set_ready","hash":"67znVugPPGyQaNKmn9FmB3GcqEFdp7x4kj2JRqHcQYxS"}
+[maker 1794547637] 9b050ba8 joint note 99970000 zats with 2 confirmations (k_Z = 2); READY, tx 67znVugPPGyQaNKmn9FmB3GcqEFdp7x4kj2JRqHcQYxS
+[maker 1794547637] 9b050ba8 stage Ready
+[maker 1794547652] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"5mBE66EnS3Qa518G7e1xJz3Tf7crnwUD6HDTF5RNXdk7"}
+[maker 1794547652] 9b050ba8 withdraw for the taker into intents.near, tx 5mBE66EnS3Qa518G7e1xJz3Tf7crnwUD6HDTF5RNXdk7 ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547652] 9b050ba8 CLAIMED: read a from the escrow
+[maker 1794547654] {"type":"zcash_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"sweep","txid":"7b82cb08d7d689c1c412e313948caf46ddc6c0f0ab1753fa079731e0c8c888f4"}
+[maker 1794547654] 9b050ba8 swept the joint note with (a+b) to the maker's wallet, tx 7b82cb08d7d689c1c412e313948caf46ddc6c0f0ab1753fa079731e0c8c888f4; waiting for 2 confirmations
+[maker 1794547654] 9b050ba8 stage Sweeping
+[maker 1794547654] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"HhQMVwQnePhRaukiPxp1nrjkvY9FsRCYLgXVKBtSioPE"}
+[maker 1794547654] 9b050ba8 withdraw for the taker into intents.near, tx HhQMVwQnePhRaukiPxp1nrjkvY9FsRCYLgXVKBtSioPE ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547660] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"8RXt1JZdfBMV6QHZFFPHB8vSpwkQ4vZyCniNCL3RemjD"}
+[maker 1794547660] 9b050ba8 withdraw for the taker into intents.near, tx 8RXt1JZdfBMV6QHZFFPHB8vSpwkQ4vZyCniNCL3RemjD ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547666] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"GH181XyZMpUJSDZSD1EZ58sDoAosV5wi7vrQmd5ExsUS"}
+[maker 1794547666] 9b050ba8 withdraw for the taker into intents.near, tx GH181XyZMpUJSDZSD1EZ58sDoAosV5wi7vrQmd5ExsUS ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547672] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"3jT1CHAuyzuHe8CjYP6XwLdZnvSyNn7boYJ8aMKrwg3t"}
+[maker 1794547672] 9b050ba8 withdraw for the taker into intents.near, tx 3jT1CHAuyzuHe8CjYP6XwLdZnvSyNn7boYJ8aMKrwg3t ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547678] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"xgGQbiyCDK5TH9Rv7AQQwESk38M9mtDUDGnU8gbStSJ"}
+[maker 1794547678] 9b050ba8 withdraw for the taker into intents.near, tx xgGQbiyCDK5TH9Rv7AQQwESk38M9mtDUDGnU8gbStSJ ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547684] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"5F92DWWoqe36pZi9aPgnm8vdAcoTjDtRYBZxXj8aMzhw"}
+[maker 1794547684] 9b050ba8 withdraw for the taker into intents.near, tx 5F92DWWoqe36pZi9aPgnm8vdAcoTjDtRYBZxXj8aMzhw ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547690] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"Auu8oaCk8urH8zbdusFUyNyzK9oNP4Cs9P6vekpGvCtX"}
+[maker 1794547690] 9b050ba8 withdraw for the taker into intents.near, tx Auu8oaCk8urH8zbdusFUyNyzK9oNP4Cs9P6vekpGvCtX ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547696] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"BURY4pvkgTyxBQrLhCVqTUP84977docVnTWz2kuPG2po"}
+[maker 1794547696] 9b050ba8 withdraw for the taker into intents.near, tx BURY4pvkgTyxBQrLhCVqTUP84977docVnTWz2kuPG2po ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547702] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"EgXpuMcY5b3yoVqRjSLsvR6mLWyrsCvdF5Pr92m2yDcH"}
+[maker 1794547702] 9b050ba8 withdraw for the taker into intents.near, tx EgXpuMcY5b3yoVqRjSLsvR6mLWyrsCvdF5Pr92m2yDcH ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547708] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"8BSLiA9rMCBtokGi5gFTvxE2xgYsc26t1vRcRhupyEaG"}
+[maker 1794547708] 9b050ba8 withdraw for the taker into intents.near, tx 8BSLiA9rMCBtokGi5gFTvxE2xgYsc26t1vRcRhupyEaG ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547714] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"BXPAAXHFh6GX9NmsQmJVDrrnyJQLSDfwmnWvWWM4ot8L"}
+[maker 1794547714] 9b050ba8 withdraw for the taker into intents.near, tx BXPAAXHFh6GX9NmsQmJVDrrnyJQLSDfwmnWvWWM4ot8L ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547720] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"BtcWeTYy9rK1KJGYSsju61xv6aqDPDnEeJG4v85cFFAK"}
+[maker 1794547720] 9b050ba8 withdraw for the taker into intents.near, tx BtcWeTYy9rK1KJGYSsju61xv6aqDPDnEeJG4v85cFFAK ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547726] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"7f6HTTiRCLLS6SGh5Pc36bc3yAvph56gYSXdZKesskJg"}
+[maker 1794547726] 9b050ba8 withdraw for the taker into intents.near, tx 7f6HTTiRCLLS6SGh5Pc36bc3yAvph56gYSXdZKesskJg ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547733] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"2G2aiyyGogZh9E1tTraaZ729cGGGowcBqprYex8srr8e"}
+[maker 1794547733] 9b050ba8 withdraw for the taker into intents.near, tx 2G2aiyyGogZh9E1tTraaZ729cGGGowcBqprYex8srr8e ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547739] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"GBQp7Yv4BpKpAzkxg1T6eozCYo2NjHEzzwxiDVQqedzn"}
+[maker 1794547739] 9b050ba8 withdraw for the taker into intents.near, tx GBQp7Yv4BpKpAzkxg1T6eozCYo2NjHEzzwxiDVQqedzn ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547745] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"9zsB7scv5f7MiUbJrueRKXJAp3DNuB6cqtzkEmEL55VJ"}
+[maker 1794547745] 9b050ba8 withdraw for the taker into intents.near, tx 9zsB7scv5f7MiUbJrueRKXJAp3DNuB6cqtzkEmEL55VJ ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547751] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"4QdzrhoxntUQfVTmhxc4NoWFEwpHoVnEjbcfeQXCTCf5"}
+[maker 1794547751] 9b050ba8 withdraw for the taker into intents.near, tx 4QdzrhoxntUQfVTmhxc4NoWFEwpHoVnEjbcfeQXCTCf5 ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547757] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"EWEBnqK1hiYKABTWyLDf7DnuHGG6wPg11ERayrm9tLgi"}
+[maker 1794547757] 9b050ba8 withdraw for the taker into intents.near, tx EWEBnqK1hiYKABTWyLDf7DnuHGG6wPg11ERayrm9tLgi ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547763] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"BfmW1KDsMHC7xbGYdizZmgyVhDqch9xWC4t17PunsDds"}
+[maker 1794547763] 9b050ba8 withdraw for the taker into intents.near, tx BfmW1KDsMHC7xbGYdizZmgyVhDqch9xWC4t17PunsDds ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547769] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"4iBDcdq81MeFSEYa5knQqDQbJUeJd3dzqtyMvfVTFt6u"}
+[maker 1794547769] 9b050ba8 withdraw for the taker into intents.near, tx 4iBDcdq81MeFSEYa5knQqDQbJUeJd3dzqtyMvfVTFt6u ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547775] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"BhuLb8hFWcPXgMmqUqadV84sYcN5Q3vJRb16Q4SiAV1u"}
+[maker 1794547775] 9b050ba8 withdraw for the taker into intents.near, tx BhuLb8hFWcPXgMmqUqadV84sYcN5Q3vJRb16Q4SiAV1u ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547781] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"Ga2Wwhdd6iozfFy9veo8beMrQHinz85i133cgvyjrzXg"}
+[maker 1794547781] 9b050ba8 withdraw for the taker into intents.near, tx Ga2Wwhdd6iozfFy9veo8beMrQHinz85i133cgvyjrzXg ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547787] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"FUXPYpXStZdwQcX5oWsva62Wk2GNyTsgodDRcHTCmK4A"}
+[maker 1794547787] 9b050ba8 withdraw for the taker into intents.near, tx FUXPYpXStZdwQcX5oWsva62Wk2GNyTsgodDRcHTCmK4A ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547793] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"7RpcsZLLhjA3cgFaWsbEETMs7y4Aks5G9egQoQiT6j4z"}
+[maker 1794547793] 9b050ba8 withdraw for the taker into intents.near, tx 7RpcsZLLhjA3cgFaWsbEETMs7y4Aks5G9egQoQiT6j4z ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547799] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"7iiMrzN6f1Npoeg1B9xC9ycjbmY3yJecpQDbsjMWnVXU"}
+[maker 1794547799] 9b050ba8 withdraw for the taker into intents.near, tx 7iiMrzN6f1Npoeg1B9xC9ycjbmY3yJecpQDbsjMWnVXU ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547805] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"HYCC64YkskwmH7zHdMcuLKZtGCASp1sNaYm6rxFQ13LJ"}
+[maker 1794547805] 9b050ba8 withdraw for the taker into intents.near, tx HYCC64YkskwmH7zHdMcuLKZtGCASp1sNaYm6rxFQ13LJ ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547811] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"P5cVvrpGJ5iuAc3kL2rPMS7h4kaQYWW6EM3m8TVZsro"}
+[maker 1794547811] 9b050ba8 withdraw for the taker into intents.near, tx P5cVvrpGJ5iuAc3kL2rPMS7h4kaQYWW6EM3m8TVZsro ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547817] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"9T4B8ToW1t4P3vhSBrEgAW9ffp8iz3yidZMSYCka5hYw"}
+[maker 1794547817] 9b050ba8 withdraw for the taker into intents.near, tx 9T4B8ToW1t4P3vhSBrEgAW9ffp8iz3yidZMSYCka5hYw ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547824] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"Be64jvkf1PC6GK5qdxbGhY9kuJsb9MckAGrur9kqPZDa"}
+[maker 1794547824] 9b050ba8 withdraw for the taker into intents.near, tx Be64jvkf1PC6GK5qdxbGhY9kuJsb9MckAGrur9kqPZDa ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547830] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"7bprra4Pih46UtAcePAih4UCrqXtoLRdW5J2MdCXE7cW"}
+[maker 1794547830] 9b050ba8 withdraw for the taker into intents.near, tx 7bprra4Pih46UtAcePAih4UCrqXtoLRdW5J2MdCXE7cW ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547836] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"Eeunt46S664gS6WTpTxfkfJcXPYspp2GnJqs3oKvxqBc"}
+[maker 1794547836] 9b050ba8 withdraw for the taker into intents.near, tx Eeunt46S664gS6WTpTxfkfJcXPYspp2GnJqs3oKvxqBc ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547842] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"9YD3pirRvRgYHRaysi96kZVvdgdTVPY6k2ZwgFUhBAZC"}
+[maker 1794547842] 9b050ba8 withdraw for the taker into intents.near, tx 9YD3pirRvRgYHRaysi96kZVvdgdTVPY6k2ZwgFUhBAZC ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547848] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"EEmAmbNuTm3Vvo67uUvK273erW2KmmzmUnU3WskeCi3i"}
+[maker 1794547848] 9b050ba8 withdraw for the taker into intents.near, tx EEmAmbNuTm3Vvo67uUvK273erW2KmmzmUnU3WskeCi3i ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547854] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"AA9MTSBhGCz4ZvNsktwbURRpyxLPWxaZ15WPnPL6DYFX"}
+[maker 1794547854] 9b050ba8 withdraw for the taker into intents.near, tx AA9MTSBhGCz4ZvNsktwbURRpyxLPWxaZ15WPnPL6DYFX ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547860] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"2fs6Em4MCToPV5GWaSprGzMwJxiQptuQGjkMLmKuMj5H"}
+[maker 1794547860] 9b050ba8 withdraw for the taker into intents.near, tx 2fs6Em4MCToPV5GWaSprGzMwJxiQptuQGjkMLmKuMj5H ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547866] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"BNEfERYCfcsF1aWG4abkfLWotBjbU3HiCtiCis6jpidV"}
+[maker 1794547866] 9b050ba8 withdraw for the taker into intents.near, tx BNEfERYCfcsF1aWG4abkfLWotBjbU3HiCtiCis6jpidV ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547873] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"7pKcUkoTXWDENbE6S5Rhh78ibkG5Nd87QAU3FJYBwMfc"}
+[maker 1794547873] 9b050ba8 withdraw for the taker into intents.near, tx 7pKcUkoTXWDENbE6S5Rhh78ibkG5Nd87QAU3FJYBwMfc ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547878] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"6vU1JxGmjauc4dWsgffwrR14atUnmYfzHcVys81kBmUJ"}
+[maker 1794547878] 9b050ba8 withdraw for the taker into intents.near, tx 6vU1JxGmjauc4dWsgffwrR14atUnmYfzHcVys81kBmUJ ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547884] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"2B2SAn27Mu23ip1kPjedyc9UvZEgzzspfoVWv6bGZ8Xt"}
+[maker 1794547884] 9b050ba8 withdraw for the taker into intents.near, tx 2B2SAn27Mu23ip1kPjedyc9UvZEgzzspfoVWv6bGZ8Xt ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547890] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"FhJZBLW4ttAYes6TNboLA62rxGZgA4ofeitRruT8p5XA"}
+[maker 1794547890] 9b050ba8 withdraw for the taker into intents.near, tx FhJZBLW4ttAYes6TNboLA62rxGZgA4ofeitRruT8p5XA ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547896] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"HeZujYuaviRGht2tXkiMy3kCe1vxTtMD1xmXQVNNiywh"}
+[maker 1794547896] 9b050ba8 withdraw for the taker into intents.near, tx HeZujYuaviRGht2tXkiMy3kCe1vxTtMD1xmXQVNNiywh ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)
+[maker 1794547902] {"type":"near_tx","swap":"9b050ba8c4fb4cfcd91356fd1b1e76e1","what":"withdraw","hash":"8GZM54DSLBdskjDfexdureYxHorZ8fGwKVHWsRAgs2GZ"}
+[maker 1794547902] 9b050ba8 withdraw for the taker into intents.near, tx 8GZM54DSLBdskjDfexdureYxHorZ8fGwKVHWsRAgs2GZ ({"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Exceeded the prepaid gas."}}}} at escrow.test.near)

@@ -70,7 +70,20 @@ def main():
            "bin": R.BIN, **R.state["net"]}
     print(json.dumps(out), flush=True)
     try:
-        sys.stdin.read()
+        # Commands on stdin, one per line; each answers one JSON line on stdout.
+        #   fund <ua>   mine one block paying its coinbase to <ua>, under the miner's lock
+        #               (a concurrent `generate` would make one of the two blocks stale)
+        for line in sys.stdin:
+            parts = line.split()
+            if len(parts) == 2 and parts[0] == "fund":
+                try:
+                    with R.mine_lock:
+                        h = R.zrpc("generatetoaddress", [1, parts[1]])
+                    print(json.dumps({"ok": True, "blocks": h}), flush=True)
+                except Exception as e:
+                    print(json.dumps({"ok": False, "error": str(e)}), flush=True)
+            else:
+                print(json.dumps({"ok": False, "error": f"unknown command {line.strip()!r}"}), flush=True)
     finally:
         R.stop_miner.set()
         R.stop_near()

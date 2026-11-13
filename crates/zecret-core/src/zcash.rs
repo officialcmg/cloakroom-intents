@@ -72,10 +72,11 @@ pub fn grpc_web_decode(body: &[u8], header_status: Option<&str>) -> Result<Vec<V
         }
         let flag = body[i];
         let len = u32::from_be_bytes(body[i + 1..i + 5].try_into().unwrap()) as usize;
-        let end = i + 5 + len;
-        if body.len() < end {
-            bail!("truncated gRPC-web frame");
-        }
+        // `len` comes from the server; on wasm32 the sum can overflow usize (review 2, H3).
+        let end = match (i + 5).checked_add(len) {
+            Some(end) if end <= body.len() => end,
+            _ => bail!("truncated gRPC-web frame"),
+        };
         let payload = &body[i + 5..end];
         if flag & 0x80 != 0 {
             for line in String::from_utf8_lossy(payload).split("\r\n") {
@@ -193,5 +194,15 @@ mod tests {
         // trailers-only responses carry the status in the HTTP headers
         assert!(grpc_web_decode(&[], Some("0")).unwrap().is_empty());
         assert!(grpc_web_decode(&[1, 0, 0], None).is_err());
+    }
+
+    #[test]
+    fn huge_frame_length_is_an_error_not_a_panic() {
+        // A frame header that claims u32::MAX bytes after a valid frame: on wasm32,
+        // i + 5 + len overflows usize (review 2, H3).
+        let mut body = frame(0, b"x");
+        body.extend_from_slice(&[0, 0xff, 0xff, 0xff, 0xff, 1, 2, 3]);
+        let e = grpc_web_decode(&body, Some("0")).unwrap_err().to_string();
+        assert!(e.contains("truncated"), "{e}");
     }
 }

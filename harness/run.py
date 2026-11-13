@@ -177,7 +177,9 @@ def build():
     log("building the escrow wasm and the zecret binary")
     env = {k: v for k, v in os.environ.items() if k not in ("LD_PRELOAD", "CARGO_TARGET_DIR")}
     sh("cargo", "build", "--target", "wasm32-unknown-unknown", "--release", cwd=ESCROW_DIR, env=env)
-    sh("cargo", "build", "-p", "zecret-node", cwd=CRATES, env=env)
+    # The scenarios play dishonest parties with the test-only `misbehave` setting, which
+    # only a build with the `misbehave` feature accepts (security review 2, H5).
+    sh("cargo", "build", "-p", "zecret-node", "--features", "misbehave", cwd=CRATES, env=env)
 
 
 def start_zebra(nu7):
