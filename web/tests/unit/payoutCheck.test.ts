@@ -64,11 +64,18 @@ class Core {
   chain: PayoutFacts = facts(PRICE, '0');
   walletZats = 95_000_000;
   leftoverTx?: string;
+  /** Sends the node refuses; a refused send leaves the notes reserved in that taker, as the wallet does. */
+  refuse = 0;
+  takers = 0;
   module(): WasmModule {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const core = this;
     const swap = () => JSON.stringify({ rfq_id: SWAP, stage: core.stage, zats: 4_959_000, near_sk: '00', taker_account: TAKER, quote: { price: PRICE, premium: 1000, stipend: '1' }, escrow_id: ESCROW_ID, log: [] });
     class FakeTaker implements WasmTaker {
+      reserved = false;
+      constructor() {
+        core.takers++;
+      }
       ua = () => UA;
       setMaxPremium() {}
       dirty = () => '[]';
@@ -89,13 +96,20 @@ class Core {
       }
       reconcile = () => false;
       swap = () => swap();
-      facts = () => JSON.stringify({ balance: core.leftoverTx ? 0 : core.walletZats, height: 10, fundHeight: 5, sweepHeight: null });
+      facts = () => JSON.stringify({ balance: core.leftoverTx || this.reserved ? 0 : core.walletZats, height: 10, fundHeight: 5, sweepHeight: null });
       sync = () => 10;
       txHeight = (txid: string) => (txid === core.leftoverTx ? 11 : undefined);
       escrowState = () => core.chain.escrowState;
       intentsBalance = () => core.chain.verifierBalance;
       tokenBalance = () => '0';
-      returnLeftover = () => (core.leftoverTx = 'leftovertx');
+      returnLeftover = () => {
+        if (core.refuse > 0) {
+          core.refuse--;
+          this.reserved = true;
+          throw new Error('transaction refused: unknown anchor');
+        }
+        return (core.leftoverTx = 'leftovertx');
+      };
       free() {}
     }
     return {
@@ -258,6 +272,19 @@ describe('a reload at done before the leftover was sent', () => {
     core.stage = 'Completed';
     const { engine } = await start(core, stored('done', { coreDone: true }));
     await vi.advanceTimersByTimeAsync(10_000);
+    expect(core.leftoverTx).toBe('leftovertx');
+    expect((await engine.getState())!.leftover?.toAddress).toBe(UA);
+  });
+});
+
+describe('a refused leftover send', () => {
+  it('opens the swap again (the refused send no longer reserves the notes) and sends again', async () => {
+    const core = new Core();
+    core.stage = 'Completed';
+    core.refuse = 1;
+    const { engine } = await start(core, stored('done', { coreDone: true }));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(core.takers).toBe(2);
     expect(core.leftoverTx).toBe('leftovertx');
     expect((await engine.getState())!.leftover?.toAddress).toBe(UA);
   });

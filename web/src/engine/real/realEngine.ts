@@ -1165,7 +1165,7 @@ export class RealEngine implements EngineBackend {
       txid = taker.returnLeftover(to);
     } catch (e) {
       log(`refund failed: ${(e as Error).message}`);
-      await this.activity(null);
+      await this.releaseFailedSend();
       return 10_000;
     }
     timing('proof_refund', now() - t);
@@ -1173,6 +1173,23 @@ export class RealEngine implements EngineBackend {
     await this.persist();
     await this.stage('refunding', { refund: { amountZats: String(bal - fee), toAddress: to }, addTxs: [this.zcashTx('refund', 'ZEC back to your return address', txid)] });
     return 3_000;
+  }
+
+  /**
+   * After a refund or leftover send failed. The wallet reserves the notes of every
+   * transaction it builds until that transaction is mined or expires (about 40 blocks), also
+   * when the node refused it, and the balance leaves reserved notes out. The refund and
+   * leftover steps would then read a balance of 0 and end with nothing sent. The engine
+   * therefore opens the swap again from storage: the reservations are not stored, so the
+   * notes count again after the rescan. A send that did reach the network still wins: the
+   * notes it spends are seen as spent, and a second send of them is refused.
+   */
+  private async releaseFailedSend(): Promise<void> {
+    // The activity write also runs the version check (another tab) before the read below.
+    await this.activity(null);
+    const records = (await this.store.all()).filter(([k]) => !k.startsWith('web/'));
+    this.openTaker(records);
+    await this.persistCore();
   }
 
   private async leftoverStep(): Promise<number | null> {
@@ -1204,14 +1221,13 @@ export class RealEngine implements EngineBackend {
     try {
       txid = taker.returnLeftover(to);
     } catch (e) {
-      // For example a send of the same notes from before a restore, not yet mined: the
-      // node refuses this one, and the balance reads 0 once the earlier send is mined.
       log(`leftover failed: ${(e as Error).message}`);
-      await this.activity(null);
+      await this.releaseFailedSend();
       return 10_000;
     }
     m.leftoverTxid = txid;
     await this.persist();
+    log(`leftover of ${bal - fee} zats sent to the return address in tx ${txid}`);
     await this.stage('done', { leftover: { amountZats: String(bal - fee), toAddress: to }, needs: null, addTxs: [this.zcashTx('leftover', 'Leftover ZEC to your return address', txid)] });
     return 3_000;
   }
