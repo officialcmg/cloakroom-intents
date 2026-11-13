@@ -189,6 +189,11 @@ function StartFailure({ failure }: { failure: AppState['failure'] }) {
             <Icon name="refresh" /> Try again
           </button>
         )}
+        {copy.cause === 'config_refused' && (
+          <a className="btn btn-primary btn-block" href="/swap">
+            Open the swap app with its own settings <Icon name="arrow" />
+          </a>
+        )}
         {copy.detail && <TechDetail text={copy.detail} />}
       </section>
     </div>

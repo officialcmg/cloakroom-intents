@@ -37,7 +37,9 @@ test('a second tab shows that the swap is open in another tab, runs no engine, a
 
 test('a production build refuses network settings from a link', async ({ page }) => {
   await open(page, 'config=https://attacker.example/c.json');
-  await expect(page.getByRole('heading', { name: 'The network settings did not load' })).toBeVisible();
-  await expect(page.getByText(/loads only its own network settings/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'This link asks for network settings this site does not use' })).toBeVisible();
+  await expect(page.getByTestId('failure-detail')).toContainText(/loads only its own network settings/);
+  // Trying again cannot help: the page offers no "Try again".
+  await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0);
   await expect(page.getByTestId('config-warning')).toHaveCount(0);
 });

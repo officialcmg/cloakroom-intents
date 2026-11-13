@@ -5,8 +5,15 @@
 import type { MakerTerms } from './directory';
 import { mulDiv, ZEC_DECIMALS } from './units';
 
-/** Shielded sends that the swap's temporary wallet makes on the normal path: request, acceptance, funding. */
-export const SENDS_PER_SWAP = 3n;
+/**
+ * Zcash fee units that a swap reserves from the payment, as the engine does
+ * (`required_deposit` in crates/zecret-core/src/taker.rs): three sends of the temporary
+ * wallet (request, acceptance, funding), and the fee to spend the note at the shared
+ * address, which the funding carries on top of the ZEC that is sold. The engine sells
+ * `payment - FEE_UNITS_PER_SWAP x fee - premium`; the page must show the same number, or
+ * the engine's minimum is above what the maker quotes and the swap stops.
+ */
+export const FEE_UNITS_PER_SWAP = 4n;
 /** How far the maker's firm quote may fall below the indicative rate before the swap stops. */
 export const DEFAULT_MAKER_TOLERANCE_BPS = 100n;
 
@@ -21,7 +28,7 @@ export type ZecSideError =
 export interface ZecSide {
   /** What the user pays into the temporary wallet. */
   payZats: bigint;
-  /** Zcash network fees for the three sends. */
+  /** Zcash network fees: three sends and the spend from the shared address. */
   networkFeeZats: bigint;
   /** Paid to the maker with the acceptance memo. */
   premiumZats: bigint;
@@ -47,7 +54,7 @@ export function computeZecSide(
   if (terms.status !== 'online') return { ok: false, error: { kind: 'maker_paused' } };
   if (payZats < terms.minZats) return { ok: false, error: { kind: 'below_min', minZats: terms.minZats } };
   if (payZats > terms.maxZats) return { ok: false, error: { kind: 'above_max', maxZats: terms.maxZats } };
-  const networkFeeZats = terms.feePerSendZats * SENDS_PER_SWAP;
+  const networkFeeZats = terms.feePerSendZats * FEE_UNITS_PER_SWAP;
   const premiumZats = premiumFor(payZats, terms);
   const swapZats = payZats - networkFeeZats - premiumZats;
   if (swapZats <= 0n) return { ok: false, error: { kind: 'fees_exceed_amount', costZats: networkFeeZats + premiumZats } };

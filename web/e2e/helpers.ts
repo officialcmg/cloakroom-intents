@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
 import { mockOneClick, type MockOptions } from './oneclick-mock';
 
 export const EVM_ADDRESS = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed';
@@ -55,3 +55,16 @@ export async function pay(page: Page) {
 export async function nowTitle(page: Page) {
   return page.getByTestId('now-title');
 }
+
+/** NEAR testnet RPC that does not know the maker's key: the real engine's maker check fails as on the hosted site. */
+export async function nearWithoutMakerKey(context: BrowserContext) {
+  await context.route('https://rpc.testnet.fastnear.com/**', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 'zecret', error: { name: 'HANDLER_ERROR', cause: { name: 'UNKNOWN_ACCESS_KEY', info: {} }, code: -32000, message: 'Server error' } }),
+    }),
+  );
+}
+

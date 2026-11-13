@@ -59,7 +59,7 @@ const STAGE_LABEL: Record<Stage, string> = {
   request_sent: 'Request sent to the maker',
   quote_received: 'Firm price received',
   accepted: 'Price accepted, premium paid',
-  escrow_open: 'USDC locked, NEAR fee money received',
+  escrow_open: 'USDC locked, 0.03 NEAR for gas received',
   funding_sent: 'ZEC sent to the shared address',
   funding_confirming: 'Zcash confirmations',
   ready: 'Maker set the escrow to Ready',
@@ -133,7 +133,7 @@ export function nowCopy(s: SwapState): NowCopy {
     case 'deposit_confirmed':
       return {
         title: 'Writing to the maker',
-        body: 'This browser builds a private Zcash transaction with your request in an encrypted memo. The proof takes about 25 seconds of computing. The page stays usable.',
+        body: 'This browser builds a private Zcash transaction with your request in an encrypted memo. The proof takes about 30 seconds of computing. The page stays usable.',
         safety: 'safe',
         safetyText: SAFE_CLOSE,
       };

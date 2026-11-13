@@ -324,3 +324,51 @@ networks. Hosts, settings, secrets and how a push to `main` redeploys:
   204 with `access-control-allow-origin: *`; `POST` with `{}` returns 400.
 - `zecret maker --relay` with `chains.network` `main` stops with "--relay is for the local
   network and testnet only" (run on the build machine with the same code).
+
+### Hosted swap (2026-11-13, 11:33 to 11:42 UTC)
+
+One swap through the hosted site in headless Chromium, run by `testnet/hosted/run.mjs`.
+The payer was the native testnet taker wallet. Result file: `testnet/hosted/result.json`.
+
+| Item | Value |
+|---|---|
+| Site | `https://zecret-chrismgs-projects.vercel.app` (commit `908f763`) |
+| Paid | 0.05 TAZ (5,000,000 zats) |
+| Received | 1.4877 test USDC on NEAR testnet, account `zecret-3f109eea1e.testnet` |
+| Time from payment to done | 493 s |
+| Taker's NEAR account | `aa30f22c8cb6c2361984ffb2d9094fcc6c967e2956a786f340ec27b1fb5a843e` (new key, gas from the maker's stipend) |
+
+| Step | Chain | Transaction |
+|---|---|---|
+| Payment to the page's wallet | Zcash | `721caf712d80630c1f22982791f3329fccb1a141ae2ea851f1638bc7c02d2aef` |
+| Request memo | Zcash | `e05eb06125cdb72fa25d039e2ee7a86ac9dc7149e8ac5ced65f3ce3115d6321c` |
+| Acceptance and premium | Zcash | `28f6474119d0fb310601bbc723a3ba8f9cf328ffcca2eede54f0d7a103db65e8` |
+| Funding of the shared address | Zcash | `2c7df41c91e56dadfd6723e5e670168d489ed2d2269f9d82616246e9fdfccd30` |
+| `commit_claim` | NEAR | `8uh57oHrWRxcLDRHHDGnzXs9ayPNuyoP3DfX1TqR4Rti` |
+| `claim` | NEAR | `D4gdMsdEYku88YMyHa9j5DKTVT9wHGo77mnM1CEEswA6` |
+| Signed exit, sent by the maker's relay | NEAR | `DAKZAsvRKaN9hb6JJTUhLThtVgxpx1PbCccrLsDiXxvT` |
+
+Checked after the run, not taken from the page:
+
+- NEAR RPC: `commit_claim` and `claim` were signed by the taker's account and succeeded.
+  `execute_intents` was signed by the maker account with the hosted maker's key and
+  succeeded.
+- `zecret-testnet-audit`: the four Zcash transactions are version 6 with no transparent
+  inputs or outputs and no Sapling or Orchard parts; each txid was recomputed from the
+  raw bytes.
+- The page reported no Content-Security-Policy violation.
+
+In the browser: key build 20 s; proofs 29 s, 40 s and 31 s; the relay answered in 4 s.
+
+### Hosted swap that refunded (11:26 to 11:32 UTC)
+
+A first run with 0.01 TAZ stopped with `QUOTE_BELOW_MINIMUM` and the ZEC went back to the
+return address (refund txid
+`2aaebd8f9245a3ee60f21a0a9baba48ecfbd529c1161d73a15a6c7ae30c1b087`). Result file:
+`testnet/hosted/result-refund-0.01.json`.
+
+Cause: the website's price estimate subtracted three network fees
+(`web/src/lib/price.ts`), and the engine reserves four (`required_deposit` in
+`crates/zecret-core/src/taker.rs`). For 1,000,000 zats the site set a minimum of 287,793
+micro-USDC and the maker's correct quote was 287,700. The difference is larger than the
+1% tolerance for amounts below about 1,050,000 zats.

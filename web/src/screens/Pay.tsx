@@ -211,7 +211,7 @@ export function PayScreen({ swap }: { swap: SwapState }) {
           <span className="pulse" aria-hidden="true" />
           <div>
             <p className="waiting-title">Waiting for your payment</p>
-            <p className="hint">It shows here a minute or two after you send. You can close this tab and come back; the swap waits for you.</p>
+            <p className="hint">It shows here a minute or two after you send. You can close this tab: the swap waits for you.</p>
           </div>
         </div>
 

@@ -203,7 +203,7 @@ export function Landing() {
               back. It is not encrypted: keep it private, and delete it when the swap is done.
             </Faq>
             <Faq q="What does it cost?">
-              You pay three Zcash network fees and the maker’s premium. The maker’s rate and the NEAR Intents step set how much you receive. The swap form shows each amount before
+              You pay four Zcash network fees (three sends from the temporary wallet, and one spend from the shared address) and the maker’s premium. The maker’s rate and the NEAR Intents step set how much you receive. The swap form shows each amount before
               you pay. The maker’s stipend pays your gas on NEAR.
             </Faq>
             <Faq q="Do I need a NEAR account?">
@@ -214,9 +214,9 @@ export function Landing() {
 
         <section className="landing-final" aria-labelledby="final-title">
           <h2 id="final-title" className="h2">
-            Ready to try it?
+            Try it on testnet
           </h2>
-          <p className="hint">The engine loads when you open the app: an engine of about 9 MB, then about 20 s of key preparation in your browser.</p>
+          <p className="hint">Opening the app downloads the swap engine (about 9 MB). Your browser then prepares its keys for about 20 s.</p>
           <div className="landing-ctas">
             <AppLink className="btn btn-primary btn-lg">
               {resume ? 'Open your swap' : 'Start a swap'} <Icon name="arrow" />

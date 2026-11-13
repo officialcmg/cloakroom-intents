@@ -1,7 +1,8 @@
 // Takes screenshots of the key screens in both themes, on a desktop and a phone viewport.
 // Run: npm run screenshots. Output: web/screenshots/<name>-<theme>-<device>.png
 import { expect, test, type Page } from '@playwright/test';
-import { createAndSave, fillForm, open, openDemoControls, pay, RETURN_ADDRESS } from './helpers';
+import { createAndSave, fillForm, nearWithoutMakerKey, open, openDemoControls, pay, RETURN_ADDRESS } from './helpers';
+import { mockOneClick } from './oneclick-mock';
 
 const DIR = 'screenshots';
 const PHONE = { width: 412, height: 915 };
@@ -29,6 +30,21 @@ async function skip(page: Page) {
 }
 
 test.describe.configure({ mode: 'parallel' });
+
+test('landing page', async ({ page }) => {
+  await mockOneClick(page);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await shot(page, '00-landing');
+});
+
+test('maker check failed (testnet)', async ({ page, context }) => {
+  await nearWithoutMakerKey(context);
+  await mockOneClick(page);
+  await page.goto('/swap?config=testnet');
+  await expect(page.getByRole('heading', { name: 'The maker could not be verified' })).toBeVisible({ timeout: 60_000 });
+  await shot(page, '18-maker-check-failed');
+});
 
 test('form, price and token picker', async ({ page }) => {
   await open(page);

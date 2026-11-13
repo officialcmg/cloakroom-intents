@@ -30,7 +30,8 @@ export default defineConfig({
     },
     {
       name: 'phone',
-      testIgnore: /screenshots\.spec/,
+      // responsive.spec sets its own narrow viewports, so it runs once, in the desktop project.
+      testIgnore: /screenshots\.spec|responsive\.spec/,
       use: { ...devices['Pixel 7'] },
     },
     {

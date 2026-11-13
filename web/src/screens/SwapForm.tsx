@@ -202,9 +202,9 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
                 <span className="text-danger">This is not a NEAR account id: lower-case letters, digits, and - _ . between them.</span>
               ) : (
                 <>
-                  NEAR Intents has no 1Click on {network.network === 'testnet' ? 'testnet' : 'this network'}. The engine sends the {payTokenLabel()} it receives to this NEAR
-                  account instead of to {token?.symbol ?? 'the token'} on {token ? chainName(token.blockchain) : 'another chain'}. The account must be registered with the token
-                  contract {network.near.token}.
+                  {network.network === 'testnet' ? 'Testnet' : 'This network'} has no 1Click. The {payTokenLabel()} goes to this NEAR account, not to{' '}
+                  {token?.symbol ?? 'the token'} on {token ? chainName(token.blockchain) : 'another chain'}. Register the account with the token contract{' '}
+                  <span className="mono">{network.near.token}</span> first.
                 </>
               )}
             </p>
@@ -357,8 +357,8 @@ function PriceCard({ price, token, payZats, zecUsd }: { price: ReturnType<typeof
         <>
           {app.network?.exit.mode === 'direct' && (
             <p className="hint" data-testid="preview-note">
-              <strong>Mainnet preview.</strong> The line below is the live NEAR Intents price on mainnet for {token.symbol} on {chain}. On this network the swap pays{' '}
-              {payTokenLabel()} and sends it to your NEAR account; no {token.symbol} is delivered.
+              <strong>Mainnet preview.</strong> The line below is the live mainnet price of NEAR Intents for {token.symbol} on {chain}. On this network you receive{' '}
+              {payTokenLabel()} in your NEAR account, not {token.symbol}.
             </p>
           )}
           <p className="price-line" data-testid="price-line">
@@ -390,7 +390,10 @@ function PriceCard({ price, token, payZats, zecUsd }: { price: ReturnType<typeof
             </summary>
             <dl className="rows">
               <div className="row">
-                <dt>Zcash network fees, 3 transactions</dt>
+                <dt>
+                  Zcash network fees
+                  <span className="row-note">Your 3 sends, and the spend from the shared address</span>
+                </dt>
                 <dd>{formatZec(shown.networkFeeZats)} ZEC</dd>
               </div>
               <div className="row">
@@ -431,7 +434,7 @@ function PriceCard({ price, token, payZats, zecUsd }: { price: ReturnType<typeof
                   <span className="row-note">
                     {quote?.feeBps !== undefined ? `NEAR Intents fee in this quote: ${formatBps(quote.feeBps)}. ` : ''}
                     {shown.exitCostBps !== undefined ? `All costs of this step together: about ${formatBps(shown.exitCostBps)}, included. ` : ''}
-                    The minimum allows the 1% price margin of NEAR Intents. A fresh firm price is taken at delivery; below your minimum, nothing is signed until you choose.
+                    The minimum allows for the 1% price margin of NEAR Intents. The engine gets a firm price at delivery. Below your minimum, it signs nothing until you choose.
                   </span>
                 </dt>
                 <dd>about {fmtDest(shown.destExpected)}</dd>
@@ -440,9 +443,9 @@ function PriceCard({ price, token, payZats, zecUsd }: { price: ReturnType<typeof
                 <dt>
                   Your minimum
                   <span className="row-note" data-testid="minimum-note">
-                    What the engine enforces: it accepts no maker price below {formatUsdc(shown.usdcMin)} {payTokenLabel()} (the swap stops and your ZEC comes back), and it
-                    signs no delivery whose firm minimum is below this amount unless you accept a lower one. NEAR Intents then delivers at least the signed minimum, or returns the{' '}
-                    {payTokenLabel()} to your key. Delivery itself is not guaranteed.
+                    The engine accepts no maker price below {formatUsdc(shown.usdcMin)} {payTokenLabel()} (the swap stops and your ZEC comes back). It signs no delivery below
+                    this amount unless you accept a lower one. NEAR Intents then delivers at least the signed minimum, or returns the {payTokenLabel()} to your key. Delivery is not
+                    guaranteed.
                   </span>
                 </dt>
                 <dd>{fmtDest(shown.destMin)}</dd>
@@ -473,7 +476,6 @@ function exitErrorText(e: { kind: string; message: string; minAmountIn?: bigint 
   if (e.kind === 'busy') return `NEAR Intents has no price for ${token.symbol} at this moment. This usually clears within 20 seconds; the page asks again by itself.`;
   if (e.kind === 'network') return `${e.message} The page asks again in 20 seconds.`;
   if (e.kind === 'no_liquidity') return `NEAR Intents has no liquidity for ${token.symbol} right now. Choose another token or try later.`;
-  if (e.kind === 'network') return e.message;
   return `NEAR Intents answered: ${e.message}`;
 }
 

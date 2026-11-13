@@ -555,6 +555,9 @@ export class SimEngine implements EngineBackend {
         });
       case 'escrow_open':
         return taker(TYPICAL_MS.escrow_open!, () => {
+          // The funding carries the ZEC that is sold plus the fee to spend it from the shared
+          // address: payment less three send fees and the premium (as the real engine, see
+          // FEE_UNITS_PER_SWAP in src/lib/price.ts).
           const swapZats = BigInt(s.params.amountZats) - BigInt(s.params.shown.premiumZats) - fee * 3n;
           const now = this.now();
           const finalAt = now + d(ZCASH_BLOCK_MS) * FUNDING_CONFIRMATIONS;

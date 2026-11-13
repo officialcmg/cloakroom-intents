@@ -74,13 +74,27 @@ describe('price math', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const z = r.value;
-    expect(z.networkFeeZats).toBe(30_000n); // 3 sends x 0.0001
+    expect(z.networkFeeZats).toBe(40_000n); // 3 sends and the shared-address spend, x 0.0001
     expect(z.premiumZats).toBe(200_000n); // 0.2% of 1 ZEC
-    expect(z.swapZats).toBe(100_000_000n - 30_000n - 200_000n);
-    // 0.9977 ZEC x 940 USDC = 937.838 USDC
-    expect(z.usdcExpected).toBe(937_838_000n);
-    expect(z.usdcMin).toBe(928_459_620n); // 1% below
+    expect(z.swapZats).toBe(100_000_000n - 40_000n - 200_000n);
+    // 0.9976 ZEC x 940 USDC = 937.744 USDC
+    expect(z.usdcExpected).toBe(937_744_000n);
+    expect(z.usdcMin).toBe(928_366_560n); // 1% below
     expect(z.networkFeeZats + z.premiumZats + z.swapZats).toBe(z.payZats);
+  });
+  it('sells what the engine sells: the payment less 4 fee units and the premium (hosted testnet swap, QUOTE_BELOW_MINIMUM)', () => {
+    // The hosted testnet maker: 30 USDC per ZEC, fee 10,000 zats, flat premium 1,000 zats.
+    const testnet = parseDirectory(JSON.parse(readFileSync(new URL('../../public/config/testnet-directory.json', import.meta.url), 'utf8'))).terms;
+    const r = computeZecSide(1_000_000n, testnet);
+    if (!r.ok) throw new Error('no');
+    // crates/zecret-core/src/taker.rs required_deposit: zip317_fee(1,1) + 3 x zip317_fee(1,2) + premium = 40,000 + premium.
+    expect(r.value.networkFeeZats).toBe(40_000n);
+    expect(r.value.swapZats).toBe(1_000_000n - (40_000n + 1_000n));
+    expect(r.value.swapZats).toBe(959_000n);
+    // The maker quoted 287,700 for 959,000 zats in the real swap; the page now expects exactly that.
+    expect(r.value.usdcExpected).toBe(287_700n);
+    expect(r.value.usdcMin < 287_700n).toBe(true);
+    expect(quoteMeetsMinimum(287_700n, r.value.usdcMin)).toBe(true);
   });
   it('uses the minimum premium for small amounts', () => {
     expect(premiumFor(1_000_000n, terms)).toBe(20_000n);
@@ -91,13 +105,13 @@ describe('price math', () => {
     expect(computeZecSide(200_000_001n, terms)).toEqual({ ok: false, error: { kind: 'above_max', maxZats: 200_000_000n } });
     expect(computeZecSide(100_000_000n, { ...terms, status: 'paused' })).toEqual({ ok: false, error: { kind: 'maker_paused' } });
     const expensive = { ...terms, minZats: 1n, premiumMinZats: 50_000n };
-    expect(computeZecSide(60_000n, expensive)).toEqual({ ok: false, error: { kind: 'fees_exceed_amount', costZats: 80_000n } });
+    expect(computeZecSide(60_000n, expensive)).toEqual({ ok: false, error: { kind: 'fees_exceed_amount', costZats: 90_000n } });
   });
   it('combines with a 1Click quote; the minimum is scaled to the lowest acceptable USDC', () => {
     const r = computeZecSide(100_000_000n, terms);
     if (!r.ok) throw new Error('no');
-    // Quote for 937.838 USDC -> SOL: 11.6 SOL, min 11.484 SOL (9 decimals)
-    const p = combine(r.value, { amountIn: 937_838_000n, amountOut: 11_600_000_000n, minAmountOut: 11_484_000_000n, amountInUsd: 937.36, amountOutUsd: 932.6 });
+    // Quote for 937.744 USDC -> SOL: 11.6 SOL, min 11.484 SOL (9 decimals)
+    const p = combine(r.value, { amountIn: 937_744_000n, amountOut: 11_600_000_000n, minAmountOut: 11_484_000_000n, amountInUsd: 937.36, amountOutUsd: 932.6 });
     expect(p.destExpected).toBe(11_600_000_000n);
     // 11.484 x 0.99 = 11.36916
     expect(p.destMin).toBe(11_369_160_000n);
@@ -107,7 +121,7 @@ describe('price math', () => {
   it('scales a quote fetched for a different USDC amount', () => {
     const r = computeZecSide(100_000_000n, terms);
     if (!r.ok) throw new Error('no');
-    const p = combine(r.value, { amountIn: 468_919_000n, amountOut: 5_800_000_000n, minAmountOut: 5_742_000_000n });
+    const p = combine(r.value, { amountIn: 468_872_000n, amountOut: 5_800_000_000n, minAmountOut: 5_742_000_000n });
     expect(p.destExpected).toBe(11_600_000_000n);
   });
   it('compares the maker rate with the market and formats percentages', () => {

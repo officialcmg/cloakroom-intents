@@ -59,7 +59,7 @@ export function EngineWarnings({ warnings, restartedAt }: { warnings: EngineErro
 export function NetworkBanner({ network }: { network?: NetworkConfig }) {
   if (!network || network.network === 'mainnet') return null;
   return (
-    <Banner testId="network-banner" lead={<><strong>{network.network === 'testnet' ? 'Testnet.' : 'Local test network.'}</strong> Test money with no value.</>}>
+    <Banner testId="network-banner" lead={<><strong>{network.network === 'testnet' ? 'Testnet.' : 'Local test network.'}</strong> Test money only.</>}>
       <ul className="plain-list">
         <li>{network.label}. Real transactions, test money with no value.</li>
         {(network.honesty ?? []).map((l) => (
@@ -75,7 +75,7 @@ export function DemoBanner({ settings, init, swap }: { settings: PageSettings; i
   const speed = settings.sim.speed;
   const fail = FAILURES.find((f) => f.id === settings.sim.fail);
   return (
-    <Banner testId="demo-banner" tone="demo" lead={<><strong>Demo.</strong> Simulated. No real money moves.</>}>
+    <Banner testId="demo-banner" tone="demo" lead={<><strong>Demo.</strong> No real money moves.</>}>
       <ul className="plain-list">
         <li>The swap engine is simulated: no chains, no funds. Prices on the form are live from NEAR Intents.</li>
         <li>
@@ -125,7 +125,7 @@ export function DevPanel({ settings, swap }: { settings: PageSettings; swap: Swa
           </button>
         </div>
         <div className="devpanel-body">
-          <p className="hint">These change the simulated engine only. Speed and failure apply after the page reloads; a failure is fixed when a swap starts.</p>
+          <p className="hint">These change the simulated engine only. A new speed or failure reloads the page. A swap keeps the failure it started with.</p>
           <label className="label" htmlFor="dev-speed">
             Speed
           </label>
