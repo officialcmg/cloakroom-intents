@@ -140,8 +140,9 @@ and three proofs in the browser (about 30 s each).
 
 ### 3. Run the swap on local chains
 
-All steps start from a clean clone. They need Linux x86-64, Rust (1.97.0 was used),
-Docker, Python 3, Node 22, `gcc` and `curl`. Run them from the repository root.
+All steps start from a clean clone. They need Linux x86-64, rustup, Docker, Python 3,
+Node 22, `gcc` and `curl`. `rust-toolchain.toml` makes rustup install and use Rust
+1.97.0 with the WebAssembly targets. Run the steps from the repository root.
 
 Set up the environment:
 
@@ -150,7 +151,8 @@ Set up the environment:
 source .tools/env.sh
 ```
 
-The script adds the Rust WebAssembly targets, downloads the NEAR sandbox 2.14.1 into
+The script stops on a host that is not Linux x86-64 and names missing tools. It adds the
+Rust WebAssembly targets, downloads the NEAR sandbox 2.14.1 into
 `.tools/`, builds a small open-file shim if the machine needs one, downloads the live
 `intents.near` and `wrap.near` code from mainnet into `.tools/wasm/`, and pulls the
 Zebra 7.0.0-rc.0 image. You can run it again. It ends with:
@@ -165,7 +167,8 @@ other machines it is empty, and `LD_PRELOAD=` does nothing.
 
 The scenario runner starts Zebra regtest in Docker and a NEAR sandbox with the escrow, the
 live `wrap.near` code (as the token) and the live `intents.near` code. The maker and the
-taker are separate processes. They talk only through encrypted memos and the escrow.
+taker are separate processes. They negotiate only through encrypted memos and the escrow;
+the maker also sends the stipend and relays the taker's signed exit.
 
 Run the happy path:
 
@@ -189,7 +192,7 @@ It ends with (amounts are in the stand-in token's base units):
 Above these lines the runner prints the earlier checks: the taker reached `Completed`, the
 maker reached `Swept`, the escrow is `Claimed` at a final block, the taker's NEAR account
 is the hex of its key and the stipend created it, and the taker sent `commit_claim` and
-`claim` itself. The scenario took 79 s; the first run also compiles.
+`claim` itself. The scenario took 79 s on the build machine; the first run also compiles.
 
 Run all 21 scenarios:
 
@@ -198,17 +201,10 @@ python3 -I harness/run.py
 ```
 
 The last line is `SUMMARY:` with `PASS` for each scenario. The runner writes
-`harness/RESULTS.md`; its table says what each scenario tests. The last full run
-(2026-11-13 10:10 UTC) passed all 21. A full run of the earlier 19 scenarios took 23 min;
-`s12` is slow because it waits for cover traffic.
-
-Notes:
-
-- The runner builds the escrow and the `zecret` binary first, with the test-only
-  `misbehave` feature that the scenarios use to play dishonest parties.
-- It uses ports 18232 (Zebra), 3030 and 24667 (NEAR sandbox). The browser runner in
-  `harness/browser/` uses 24667 too, so do not run both at once.
-- It overwrites `harness/RESULTS.md` and `harness/evidence/`.
+`harness/RESULTS.md` (what each scenario tests) and overwrites `harness/evidence/`. The
+last full run (2026-11-13 10:10 UTC) passed all 21. It builds the escrow and `zecret`
+with the test-only `misbehave` feature, and uses ports 18232, 3030 and 24667; the browser
+runner uses 24667 too, so do not run both at once.
 
 The five browser scenarios run with `node harness/browser/run.mjs`
 ([`web/README.md`](web/README.md), "Against the local network").
@@ -248,31 +244,12 @@ cargo build -p zecret-deploy
 cd ..
 ```
 
-It ends with `ALL CHECKS PASSED`. The full output is in
-[`docs/DEPLOY.md`](docs/DEPLOY.md), "How to check a deployment".
+On success it ends with `ALL CHECKS PASSED`; a failed build or RPC call stops it before
+that line. The full output is in [`docs/DEPLOY.md`](docs/DEPLOY.md), "How to check a
+deployment".
 
-**The recorded native swap** (2026-11-13; full record in [`docs/TESTNET.md`](docs/TESTNET.md)
-and [`testnet/EVIDENCE.json`](testnet/EVIDENCE.json)):
-
-| Step | Signer | NEAR testnet transaction |
-|---|---|---|
-| `open` (3 tUSDC into the escrow) | maker | [`DnGg8B2p…`](https://testnet.nearblocks.io/txns/DnGg8B2paHKMUcXAhzC2hfYQkTitqv3qVzKT5euZVe8x) |
-| Stipend 0.03 NEAR to the taker key | maker | [`CTza5f9X…`](https://testnet.nearblocks.io/txns/CTza5f9XvaCXYuXSoGsjSgiA3k3RGRxjNehfp76TXHbf) |
-| `set_ready` | maker | [`9kn4hxVU…`](https://testnet.nearblocks.io/txns/9kn4hxVUxMqd16AzvkwaWQUouYhDrVeoJdyPp4cUXqix) |
-| `commit_claim` | taker key | [`8fdBEHbF…`](https://testnet.nearblocks.io/txns/8fdBEHbFBN4p64YFuNyHCX8v2TApKSyQaZjiAxaUVrds) |
-| `claim` (publishes `a`) | taker key | [`DGShdiHZ…`](https://testnet.nearblocks.io/txns/DGShdiHZfLWRyUyWX69dDCt14JV86FFHJq1Twowmk3Dz) |
-| `withdraw` (two-step payout into the Verifier) | maker | [`DodbZPET…`](https://testnet.nearblocks.io/txns/DodbZPEToNesVSF5G9yQUogm1zN9FqF3hdTdwEGPepL6) |
-| Exit: `execute_intents` with one `ft_withdraw` signed by the taker key | maker (relay) | [`D2eRTKBN…`](https://testnet.nearblocks.io/txns/D2eRTKBNsJtbasRARwyjGPfjqQ9zYAQQG9LKCiJFic3z) |
-
-Accounts: escrow
-[`escrow2.zecret-3f109eea1e.testnet`](https://testnet.nearblocks.io/address/escrow2.zecret-3f109eea1e.testnet),
-taker key
-[`15968c4a…a9067`](https://testnet.nearblocks.io/address/15968c4ae680388e6c4b4511de8cfaab2a71a8eb0023f2f787ccdc085a2a9067),
-maker
-[`maker.zecret-3f109eea1e.testnet`](https://testnet.nearblocks.io/address/maker.zecret-3f109eea1e.testnet).
-Each of the seven hashes was read again through the NEAR testnet archival RPC: all are
-final and succeeded. The six Zcash testnet transactions of the swap are listed in
-`docs/TESTNET.md`; they were read through the light-wallet server only.
+The transactions of every recorded swap, with explorer links and how each was checked,
+are in [`docs/TESTNET.md`](docs/TESTNET.md) and [`testnet/EVIDENCE.json`](testnet/EVIDENCE.json).
 
 ### 5. Run the other test suites
 
@@ -287,10 +264,12 @@ LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test usdc -- --test-threads 1
 cd ../..
 ```
 
-Expect `57 passed`, then `6 passed`, then `8 passed` (about 25 s, 70 s and 6 min).
-`fetch-usdc-wasm.sh` reads Circle's USDC code from mainnet and keeps it only if its code
-hash is `DVJx7F3dHEHJYwpYPwXHu8K9Uo7h4kXFcALucY5oNX8q`. Without that file, each USDC test
-prints `SKIPPED` and returns.
+Expect `57 passed`, then `6 passed`, then `8 passed` (about 25 s, 70 s and 6 min on the
+build machine). `fetch-usdc-wasm.sh` reads Circle's USDC code from mainnet and keeps it
+only if its code hash is `DVJx7F3dHEHJYwpYPwXHu8K9Uo7h4kXFcALucY5oNX8q`. Without that
+file each USDC test fails with a message that names the script. `ZECRET_SKIP_USDC=1`
+skips them on purpose: each then prints `SKIPPED` (visible with `-- --nocapture`) and
+counts as passed, so count the USDC suite as run only if no `SKIPPED` line appears.
 
 The Intents library:
 
@@ -306,15 +285,23 @@ exit against answers recorded from the live 1Click API, and run every refusal of
 before signing on real payloads. The sandbox tests deposit a token for a key with no NEAR
 account and move it with a signed intent.
 
-The website:
+The website, from a clean clone (Node 22, `web/.nvmrc`). Five of the browser tests load
+the real engine, which is not in git; without it they fail with a message that names
+`crates/zecret-wasm/build.sh`. The build needs `wasm-bindgen-cli` 0.2.129 and `clang`
+([`web/README.md`](web/README.md), "The real engine").
 
 ```sh
 cd web
-npm install
-npm test          # unit tests (vitest): 88
-npm run e2e       # browser tests, desktop and phone (Playwright; builds the site first): 74
+npm ci
+npx playwright install chromium       # skip if Chromium for Playwright 1.63.0 is installed
+../crates/zecret-wasm/build.sh        # the engine, into web/public/engine/
+npm test                              # unit tests (vitest): UNITCOUNT
+npm run e2e                           # browser tests, desktop and phone (Playwright; builds the site first): E2ECOUNT
 cd ..
 ```
+
+`ZECRET_BROWSERS=all npm run e2e` adds Firefox and WebKit projects (install them first
+with `npx playwright install firefox webkit`). They have not been run.
 
 ## How one swap runs
 
