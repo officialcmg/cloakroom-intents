@@ -1,0 +1,19 @@
+
+===== start maker --exit-after 1 =====
+[maker 1794544840] up: UA uregtest1889ufxqc8gyaj4cfn2kt7x6t8me99lt784rrfkwqexezn36f6fvpx5ten6hxyd7y6zt0et4rq5u2j6e70egjm4hcwrmn92n58cl86jha NEAR maker.test.near key ed25519:Bd5vFWVt4UEqbcrWuomQKcGWxrT2LpBFDibLPq6Mr9EL
+[maker 1794544851] 92b05770 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794544851] 92b05770 stage Quoting
+[maker 1794544851] {"type":"zcash_tx","swap":"92b057707e451aec8643d17552d401ec","what":"quote","txid":"bfabbe259042ec3ce81ab43344a34aaa812a7e43655f335d76a1eceb98cb18a5"}
+[maker 1794544851] 92b05770 encrypted QUOTE sent in tx bfabbe259042ec3ce81ab43344a34aaa812a7e43655f335d76a1eceb98cb18a5
+[maker 1794544851] 92b05770 stage Quoted
+[maker 1794544859] 92b05770 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id 4b28eccc
+[maker 1794544859] 92b05770 stage Opening
+[maker 1794544859] 92b05770 added 100000000000000000000000 yoctoNEAR of storage funds to the escrow, tx y5FkyTamw7hkt1n6QfCAu7SrJeL5hCt21Dv8eYwKTos
+[maker 1794544864] {"type":"near_tx","swap":"92b057707e451aec8643d17552d401ec","what":"open","hash":"DuG33zGKNht25T3TsyY4qxe4oXWkhYkbXJGupe56F14m"}
+[maker 1794544864] 92b05770 escrow OPEN id 4b28eccc36a0a772cf045782f97c1ddaa690af87d5b294c2ff8a2825f885a53b amount 30000000000000000000000000 t0=1794544977 t1=1794545037 t2=1794545097 W=45, tx DuG33zGKNht25T3TsyY4qxe4oXWkhYkbXJGupe56F14m
+[maker 1794544864] {"type":"near_tx","swap":"92b057707e451aec8643d17552d401ec","what":"stipend","hash":"3YkJgvpaMxYsXLALMx51RxCbxVHiB1AqNcEeNcz4QUHa"}
+[maker 1794544864] 92b05770 STIPEND of 30000000000000000000000 yoctoNEAR sent to 32712a87bdf90a5c2a9dfa38edf4908e958924e4cdd178049d1717e7100717ed, tx 3YkJgvpaMxYsXLALMx51RxCbxVHiB1AqNcEeNcz4QUHa
+[maker 1794544864] 92b05770 stage Opened
+[maker 1794544874] {"type":"near_tx","swap":"92b057707e451aec8643d17552d401ec","what":"set_ready","hash":"HAutJ5aeYNginRTfBTE7oFU2rT4FEeuTvQk7qUGksGNu"}
+[maker 1794544874] 92b05770 joint note 100010000 zats with 2 confirmations (k_Z = 2); READY, tx HAutJ5aeYNginRTfBTE7oFU2rT4FEeuTvQk7qUGksGNu
+[maker 1794544874] 92b05770 stage Ready

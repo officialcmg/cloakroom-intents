@@ -1,0 +1,41 @@
+
+===== start taker --zats 100000000 =====
+[taker 1794544840] new swap 92b05770 for 100000000 zats; NEAR account 32712a87bdf90a5c2a9dfa38edf4908e958924e4cdd178049d1717e7100717ed; wallet uregtest1uw7zsnthgla6y7s2yxs8n493un2me8vz3dcddqt5u2g76cnu2cfnx6vyapqetgxgeqah5tuw08pl5zrexkpqhznuc8nlv42y8ceypz2r
+[taker 1794544840] 92b05770 stage WaitingDeposit
+[taker 1794544840] balance 208333333 zats
+[taker 1794544840] {"type":"activity","swap":"92b057707e451aec8643d17552d401ec","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794544845] balance 0 zats
+[taker 1794544845] {"type":"zcash_tx","swap":"92b057707e451aec8643d17552d401ec","what":"rfq","txid":"3af3f65f5ade48110212c85ad2fbf78aa5017ff61b563492f0598dd7428c7e0f"}
+[taker 1794544845] 92b05770 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 3af3f65f5ade48110212c85ad2fbf78aa5017ff61b563492f0598dd7428c7e0f
+[taker 1794544845] 92b05770 stage RfqSent
+[taker 1794544847] balance 208323333 zats
+[taker 1794544853] 92b05770 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+[taker 1794544853] {"type":"quote","swap":"92b057707e451aec8643d17552d401ec","price":"30000000000000000000000000","premium":50000,"stipend":"30000000000000000000000","joint_address":"uregtest1wcqxl60ugf2h5rf39vzcpk9yyp5udl5kjlkcsnv3ygs50hunw89rhq7tm4z3sfkcf07584kxrt9lgn3qw0gyrgy0k3pxyl8emv0he0kr"}
+[taker 1794544853] {"type":"activity","swap":"92b057707e451aec8643d17552d401ec","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794544855] balance 0 zats
+[taker 1794544855] {"type":"zcash_tx","swap":"92b057707e451aec8643d17552d401ec","what":"accept","txid":"09aed0bd5fe28cdcf9c8884f5ca1aa5bc8b990d6a97caa2bddd903550a2a17bc"}
+[taker 1794544855] 92b05770 encrypted ACCEPT with 50000 zats premium sent in tx 09aed0bd5fe28cdcf9c8884f5ca1aa5bc8b990d6a97caa2bddd903550a2a17bc; joint address uregtest1wcqxl60ugf2h5rf39vzcpk9yyp5udl5kjlkcsnv3ygs50hunw89rhq7tm4z3sfkcf07584kxrt9lgn3qw0gyrgy0k3pxyl8emv0he0kr
+[taker 1794544855] 92b05770 stage Accepted
+[taker 1794544857] balance 208263333 zats
+[taker 1794544863] 92b05770 escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+[taker 1794544865] 92b05770 escrow 4b28eccc verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544865] {"type":"escrow_verified","swap":"92b057707e451aec8643d17552d401ec","escrow_id":"4b28eccc36a0a772cf045782f97c1ddaa690af87d5b294c2ff8a2825f885a53b","t0":1794544977,"t1":1794545037,"t2":1794545097}
+[taker 1794544865] {"type":"activity","swap":"92b057707e451aec8643d17552d401ec","kind":"proving","label":"Building the proof for the payment to the shared address","estimated_secs":25}
+[taker 1794544867] 92b05770 escrow 4b28eccc verified (10 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+[taker 1794544867] {"type":"escrow_verified","swap":"92b057707e451aec8643d17552d401ec","escrow_id":"4b28eccc36a0a772cf045782f97c1ddaa690af87d5b294c2ff8a2825f885a53b","t0":1794544977,"t1":1794545037,"t2":1794545097}
+[taker 1794544867] balance 0 zats
+[taker 1794544867] {"type":"zcash_tx","swap":"92b057707e451aec8643d17552d401ec","what":"fund","txid":"a1acfd54ce38a3b96ba80925ca53c67c6e14274be00cf56674db09fcf711c008"}
+[taker 1794544867] 92b05770 FUNDED the joint address in fully shielded tx a1acfd54ce38a3b96ba80925ca53c67c6e14274be00cf56674db09fcf711c008
+[taker 1794544867] 92b05770 stage Funded
+[taker 1794544869] balance 108243333 zats
+[taker 1794544878] {"type":"near_tx","swap":"92b057707e451aec8643d17552d401ec","what":"commit_claim","hash":"BSSxKSaqV3NaukBnhGyEtQ2C6DQBmYnuJwkHCZmMsbys"}
+[taker 1794544878] 92b05770 escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx BSSxKSaqV3NaukBnhGyEtQ2C6DQBmYnuJwkHCZmMsbys
+[taker 1794544878] 92b05770 stage Committed
+[taker 1794544880] 92b05770 lock final (block 123); revealing a before the deadline 1794544922
+[taker 1794544880] 92b05770 stage Revealed
+[taker 1794544882] {"type":"near_tx","swap":"92b057707e451aec8643d17552d401ec","what":"claim","hash":"76W9W943nkbxSEfv2L5qo3U4Sjuh5nQAbGSRmMZPjjyH"}
+[taker 1794544882] 92b05770 REVEALED a with claim, tx 76W9W943nkbxSEfv2L5qo3U4Sjuh5nQAbGSRmMZPjjyH; waiting for the claim to be final
+[taker 1794544884] 92b05770 claim is final (block 130)
+[taker 1794544884] 92b05770 stage Claimed
+[taker 1794544884] 92b05770 the taker cannot send withdraw (send_tx 2eHq4B8hrck6ykJYbSDJzhc3zQzChAuYnykrBcHr9unM: NEAR RPC error HANDLER_ERROR / INVALID_TRANSACTION: {"TxExecutionError":{"InvalidTxError":{"NotEnoughBalance":{"balance":"28078015335620000000000","cost":"100919628919299500000000","signer_id":"32712a87bdf90a5c2a9dfa38edf4908e958924e4cdd178049d1717e7100717ed"}}}}); waiting for the maker to withdraw
+[taker 1794544884] 92b05770 claim final; waiting for the payout (credit 30000000000000000000000000, in intents 0)
