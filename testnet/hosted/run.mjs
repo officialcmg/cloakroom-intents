@@ -121,7 +121,16 @@ try {
   const zats = Number(st0.deposit.expectedZats);
   check('the page shows a testnet deposit address and amount', st0.deposit.address.startsWith('utest1') && zats > 0, `${zats} zats`);
   result.facts.deposit = { expectedZats: zats };
-  const payTx = execFileSync(bin, ['pay', '--dir', payer, '--to', st0.deposit.address, '--zats', String(zats)], { encoding: 'utf8' }).trim().split('\n').pop();
+  // ZECRET_PAY=faucet: no wallet pays. The Fauzec testnet faucet pays the page's address
+  // (a fixed 1 TAZ; the page sends the surplus to the return address at the end).
+  let payTx;
+  if (process.env.ZECRET_PAY === 'faucet') {
+    const out = execFileSync('curl', ['-sS', '-X', 'POST', 'https://fauzec.com/api/v1/claim', '-H', 'content-type: application/json', '-d', JSON.stringify({ network: 'testnet', address: st0.deposit.address })], { encoding: 'utf8' });
+    result.facts.faucet = JSON.parse(out);
+    payTx = `faucet:${out.slice(0, 300)}`;
+  } else {
+    payTx = execFileSync(bin, ['pay', '--dir', payer, '--to', st0.deposit.address, '--zats', String(zats)], { encoding: 'utf8' }).trim().split('\n').pop();
+  }
   result.facts.payTx = payTx;
   log(`paid ${zats} zats in ${payTx}`);
   const st = await waitState(page, (s) => ['done', 'refunded', 'exit_retry', 'failed'].includes(s.stage), 45 * 60_000, 'a final stage');
