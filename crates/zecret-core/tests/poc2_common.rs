@@ -16,9 +16,12 @@ use zecret_core::{
     wallet::{empty_memo, Received},
 };
 
+/// Answers one JSON-RPC call: (method, params) -> result.
+pub type Handler = Box<dyn Fn(&str, &Value) -> Value>;
+
 /// A JSON-RPC transport that answers from a closure and records every request.
 pub struct Mock {
-    pub handler: Box<dyn Fn(&str, &Value) -> Value>,
+    pub handler: Handler,
     pub calls: RefCell<Vec<(String, Value)>>,
 }
 
