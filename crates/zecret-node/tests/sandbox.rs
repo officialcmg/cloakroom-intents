@@ -113,7 +113,7 @@ fn open_ready_commit_claim_withdraw_and_refund() {
     let root: serde_json::Value = serde_json::from_slice(&std::fs::read(sb.home.join("validator_key.json")).unwrap()).unwrap();
     let wasm_dir = PathBuf::from(std::env::var("ZECRET_WASM_DIR").expect("ZECRET_WASM_DIR"));
     let maker_key = NearKey::generate();
-    let net = devnet::Setup {
+    let setup = devnet::Setup {
         rpc: &rpc,
         root: Signer::new(root["account_id"].as_str().unwrap(), NearKey::from_secret_str(root["secret_key"].as_str().unwrap()).unwrap()),
         wrap_wasm: std::fs::read(wasm_dir.join("wrap.near.wasm")).unwrap(),
@@ -121,9 +121,24 @@ fn open_ready_commit_claim_withdraw_and_refund() {
         escrow_wasm: escrow_wasm(),
         maker_key: maker_key.clone(),
         maker_wnear: 100 * ONE_NEAR,
-    }
-    .run()
-    .unwrap();
+    };
+    let net = setup.run().unwrap();
+
+    // The taker's escrow checks (security review 1, NV-01): the deployed escrow runs the
+    // expected code, has no access keys, and pays into the expected Intents account.
+    let fin = At::Final;
+    std::thread::sleep(Duration::from_secs(2));
+    escrow::check_escrow(&rpc, &net.escrow, &net.escrow_code_hash, &net.intents, &fin).unwrap();
+    let e1 = escrow::check_escrow(&rpc, &net.escrow, &zecret_core::near::tx::code_hash(b"other"), &net.intents, &fin).unwrap_err();
+    assert!(format!("{e1:#}").contains("runs code"), "{e1:#}");
+    let e2 = escrow::check_escrow(&rpc, &net.escrow, &net.escrow_code_hash, "evil.test.near", &fin).unwrap_err();
+    assert!(format!("{e2:#}").contains("pays takers into"), "{e2:#}");
+    // the same code in an account that keeps a key is refused
+    let keyed = setup.create("escrow2", 10 * ONE_NEAR, &setup.root.key, Some(&setup.escrow_wasm)).unwrap();
+    rpc.transact(&Signer::new(&keyed, setup.root.key.clone()), &keyed, vec![Action::call("new", &json!({"intents_account": net.intents}), 30 * zecret_core::near::TGAS, 0)]).unwrap().ok().unwrap();
+    std::thread::sleep(Duration::from_secs(2));
+    let e3 = escrow::check_escrow(&rpc, &keyed, &net.escrow_code_hash, &net.intents, &fin).unwrap_err();
+    assert!(format!("{e3:#}").contains("access key"), "{e3:#}");
     let maker = Signer::new(&net.maker, maker_key);
     let e = Escrow { rpc: &rpc, escrow: net.escrow.clone(), token: net.token.clone(), intents: net.intents.clone() };
     let (to, actions) = e.add_storage_funds(ONE_NEAR / 10);

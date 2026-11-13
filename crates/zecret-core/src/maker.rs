@@ -594,7 +594,13 @@ impl Maker {
         let id = s.id_bytes()?;
         let salt = keys::unhex32(s.salt.as_deref().ok_or_else(|| anyhow!("no salt"))?)?;
         if let Some(v) = self.esc().get_swap(&id, &At::Optimistic)? {
-            // Opened earlier (a retry after a restart): continue with the stipend.
+            // A swap at our id: ours from an earlier try (a restart), or a look-alike that
+            // someone else put there. Only our own gets a stipend (security review 1, H1).
+            if let Some(what) = self.not_ours(s, &v)? {
+                self.log(s, format!("ABORT: the swap at id {} is not the one this maker opens ({what} differs); no stipend sent", short(&hex::encode(id))));
+                self.set_stage(s, MakerStage::Aborted(format!("swap id taken by a foreign swap ({what})")));
+                return Ok(Next::Done);
+            }
             s.t0 = Some(v.t0);
             s.t1 = Some(v.t1);
             s.t2 = Some(v.t2);
@@ -634,6 +640,11 @@ impl Maker {
             bail!("open failed: {f}");
         }
         let v = self.esc().get_swap(&id, &At::Optimistic)?.ok_or_else(|| anyhow!("open executed but the escrow has no swap {}", hex::encode(id)))?;
+        if let Some(what) = self.not_ours(s, &v)? {
+            self.log(s, format!("ABORT: after open, the swap at id {} is not ours ({what} differs); no stipend sent", short(&hex::encode(id))));
+            self.set_stage(s, MakerStage::Aborted(format!("swap id taken by a foreign swap ({what})")));
+            return Ok(Next::Done);
+        }
         s.open_tx = Some(out.hash.clone());
         s.t0 = Some(v.t0);
         s.t1 = Some(v.t1);
@@ -641,6 +652,28 @@ impl Maker {
         self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "open".into(), hash: out.hash.clone() });
         self.log(s, format!("escrow OPEN id {} amount {amount} t0={t0} t1={t1} t2={t2} W={}, tx {}", hex::encode(id), w.reveal_secs, out.hash));
         self.send_stipend(s, now)
+    }
+
+    /// Compares a swap in the escrow with what this maker opens for `s`. `Some(field)`
+    /// names the first field that differs.
+    fn not_ours(&self, s: &MakerSwap, v: &SwapView) -> Result<Option<&'static str>> {
+        let a_pub = keys::point_from_hex(&s.a_pub)?;
+        let b_pub = keys::g() * keys::scalar_from_hex(&s.b)?;
+        let (ap, bp) = if s.negated { (-a_pub, -b_pub) } else { (a_pub, b_pub) };
+        let mut price: u128 = s.price.parse()?;
+        if self.cfg.misbehave == Some(Misbehave::ShortOpen) {
+            price -= 1;
+        }
+        let checks = [
+            ("maker", v.maker == self.cfg.near_account),
+            ("token", v.token == self.cfg.chains.token),
+            ("amount", v.amount == price),
+            ("taker key", v.taker_pk == s.taker_pk),
+            ("A", v.a_pub == hex::encode(ap.to_bytes())),
+            ("B", v.b_pub == hex::encode(bp.to_bytes())),
+            ("reveal window", v.reveal_window == s.windows.reveal_secs as u64),
+        ];
+        Ok(checks.iter().find(|(_, ok)| !ok).map(|(what, _)| *what))
     }
 
     fn send_stipend(&mut self, s: &mut MakerSwap, now: u64) -> Result<Next> {

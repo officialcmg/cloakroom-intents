@@ -539,9 +539,13 @@ fn swap_ids_are_maker_scoped() {
 }
 
 /// `ft_on_transfer` trusts the calling token for `sender_id`. A fake token that names the
-/// maker cannot spend the maker's storage funds for the real token, and so cannot open
-/// swaps (or take swap ids) in the maker's name. (On chain the failed call is reverted;
-/// the mock does not revert, so this test only checks the panic and the funds.)
+/// maker cannot spend the maker's storage funds for the real token. This alone does not
+/// stop a fake token from taking the maker's swap id: a third party could fund
+/// (maker, fake token) for it. That is review-1 F-01, and it is stopped only because
+/// `add_storage_funds` adds funds for the caller alone (see
+/// `poc_f01_third_party_cannot_take_the_makers_swap_id` and
+/// `add_storage_funds_only_for_the_caller`). (On chain the failed call is reverted; the
+/// mock does not revert, so this test only checks the panic and the funds.)
 #[test]
 fn fake_token_cannot_spend_maker_storage_funds() {
     let mut c = setup();
@@ -1327,4 +1331,102 @@ fn hex_inputs_parse_strictly() {
         serde_json::to_string(&Hex32([1; 32])).unwrap(),
         format!("\"{}\"", "01".repeat(32))
     );
+}
+
+// ================================================================ review-1 F-01
+//
+// Proof of concept from docs/security/poc/f01_swap_id_squat.rs, kept as a regression test.
+
+/// Runs one call as a transaction: if it panics, the contract storage and the in-memory
+/// contract go back to their state before the call, as on chain. (The unit-test mock
+/// keeps the writes of a call that panics; the existing tests note this.)
+fn poc_tx<F: FnOnce(&mut Escrow)>(c: &mut Escrow, f: F) -> bool {
+    use near_sdk::mock::with_mocked_blockchain;
+    let snapshot = with_mocked_blockchain(|b| b.take_storage());
+    let restore = |s: std::collections::HashMap<Vec<u8>, Vec<u8>>| {
+        near_sdk::env::set_blockchain_interface(near_sdk::MockedBlockchain::new(
+            ctx(&maker(), NOW).build(),
+            near_sdk::test_vm_config(),
+            RuntimeFeesConfig::test(),
+            vec![],
+            s,
+            Default::default(),
+            None,
+        ));
+    };
+    restore(snapshot.clone());
+    // The caller sets the context inside `f`; storage carries over through testing_env!.
+    let ok = catch_unwind(AssertUnwindSafe(|| f(c))).is_ok();
+    if !ok {
+        with_mocked_blockchain(|b| drop(b.take_storage()));
+        restore(snapshot);
+        // A fresh view over the restored storage drops the maps' cached writes. Every
+        // test in this file flushes its maps before a panic can matter, so the state
+        // that `setup()` left is in storage (storage_funds is flushed below).
+        *c = Escrow::new(intents());
+    }
+    ok
+}
+
+/// F-01: only the maker, through the real token, can create the swap at
+/// `swap_id(maker, salt)`.
+#[test]
+fn poc_f01_third_party_cannot_take_the_makers_swap_id() {
+    let mut c = setup();
+    c.storage_funds.flush();
+    let attacker = acc("attacker.near");
+    let fake = acc("fake-token.near");
+    let salt = [1u8; 32];
+    let id = compute_swap_id(&maker(), &salt);
+
+    // 1. The attacker deposits storage funds in the maker's name for the fake token.
+    let funded = poc_tx(&mut c, |c| {
+        at_with_deposit(&attacker, NOW, ONE_NEAR / 10);
+        c.add_storage_funds(fake.clone(), Some(maker()));
+        c.storage_funds.flush();
+    });
+    // 2. The fake token calls ft_on_transfer and names the maker as sender, with the
+    //    salt it read from the maker's pending ft_transfer_call (`terms(1)`).
+    let squatted = poc_tx(&mut c, |c| {
+        at(&fake, NOW);
+        c.ft_on_transfer(maker(), U128(1), terms(1).to_string());
+        c.storage_funds.flush();
+    });
+    if let Some(v) = c.get_swap(Hex32(id)) {
+        // On the reviewed code this branch runs: the maker's id now holds a swap in the
+        // fake token that names the maker.
+        assert_ne!(
+            v.token,
+            fake,
+            "F-01: a third party (funded={funded}, squatted={squatted}) created swap {} \
+             under the maker's id with token {}",
+            hex::encode(id),
+            v.token
+        );
+    }
+    // 3. The maker's real open with the same salt must succeed.
+    assert_eq!(open_with(&mut c, terms(1), AMT), U128(0));
+    assert_eq!(c.get_swap(Hex32(id)).unwrap().token, token());
+}
+
+/// F-01: `add_storage_funds` adds funds only for the caller. Naming another account is
+/// refused; naming the caller itself is the same as naming no account.
+#[test]
+fn add_storage_funds_only_for_the_caller() {
+    let mut c = setup();
+    let attacker = acc("attacker.near");
+    let fake = acc("fake-token.near");
+    at_with_deposit(&attacker, NOW, ONE_NEAR / 10);
+    assert_err("BadParams", || {
+        c.add_storage_funds(fake.clone(), Some(maker()));
+    });
+    at_with_deposit(&attacker, NOW, ONE_NEAR / 10);
+    assert_err("BadParams", || {
+        c.add_storage_funds(token(), Some(maker()));
+    });
+    at_with_deposit(&attacker, NOW, ONE_NEAR / 10);
+    let own = c.add_storage_funds(fake.clone(), Some(attacker.clone()));
+    assert!(own.0 > 0);
+    assert_eq!(c.get_storage_funds(attacker.clone(), fake.clone()), own);
+    assert_eq!(c.get_storage_funds(maker(), fake), U128(0));
 }

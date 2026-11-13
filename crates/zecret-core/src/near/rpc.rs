@@ -74,6 +74,8 @@ impl BlockInfo {
 pub struct AccountInfo {
     pub amount: u128,
     pub storage_usage: u64,
+    /// base58 sha256 of the deployed code; `11111111111111111111111111111111` if none.
+    pub code_hash: String,
 }
 
 #[derive(Clone, Debug)]
@@ -259,6 +261,7 @@ impl NearRpc {
             Ok(v) => Ok(Some(AccountInfo {
                 amount: v["amount"].as_str().ok_or_else(|| anyhow!("account without amount"))?.parse()?,
                 storage_usage: v["storage_usage"].as_u64().unwrap_or(0),
+                code_hash: v["code_hash"].as_str().unwrap_or_default().to_string(),
             })),
             Err(e) if rpc_cause(&e) == Some("UNKNOWN_ACCOUNT") || missing(&e) => Ok(None),
             Err(e) => Err(e),
@@ -279,6 +282,15 @@ impl NearRpc {
             Err(e) if matches!(rpc_cause(&e), Some("UNKNOWN_ACCOUNT") | Some("UNKNOWN_ACCESS_KEY")) || missing(&e) => Ok(None),
             Err(e) => Err(e),
         }
+    }
+
+    /// The public keys of every access key of `account` (`view_access_key_list`).
+    pub fn access_keys(&self, account: &str, at: &At) -> Result<Vec<String>> {
+        let mut p = at.params();
+        p["request_type"] = json!("view_access_key_list");
+        p["account_id"] = json!(account);
+        let v = self.call("query", p)?;
+        Ok(v["keys"].as_array().ok_or_else(|| anyhow!("view_access_key_list: no keys field"))?.iter().filter_map(|k| k["public_key"].as_str().map(str::to_string)).collect())
     }
 
     /// Builds and signs a transaction with the next nonce of `signer`'s key and a recent

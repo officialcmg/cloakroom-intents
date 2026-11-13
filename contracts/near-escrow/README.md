@@ -39,16 +39,59 @@ All byte strings in arguments and views are hex, 64 characters for 32 bytes, wit
 
 ### Init
 
-`new(intents_account: AccountId)`. `intents_account` is the NEAR Intents verifier
-(`intents.near` on mainnet). The contract has no owner and no upgrade method.
+`new(intents_account: AccountId)`, private. `intents_account` is the NEAR Intents
+verifier (`intents.near` on mainnet). Only the escrow account itself can call `new`.
+Another account that calls it gets `Method new is private`, so nobody else can initialise
+a deployed escrow with their own `intents_account`.
+
+The contract has no owner and no upgrade method. That is a property of the code. The
+escrow is immutable only if its account also has no access keys. See
+[Deployment](#deployment).
+
+### Deployment
+
+The escrow must end with the reviewed code, its state from `new`, and no access keys.
+Whoever holds a key of the escrow account can deploy other code, for example after
+`claim` has published `a`, and keep both the ZEC and the tokens.
+
+1. Create the escrow account with one temporary full-access key. Use a named account
+   (for example `escrow.<owner>.near`), not an implicit hex account: the commit message
+   tells networks apart only by the escrow account id, and an implicit account has the
+   same id on testnet and mainnet.
+2. Sign one transaction with that key, from the escrow account to itself, with these
+   actions in this order:
+   1. `DeployContract` with the reviewed wasm;
+   2. `FunctionCall` `new({"intents_account": "intents.near"})`;
+   3. `DeleteKey` of the key that signs the transaction.
+
+   The actions run together or not at all. `new` must be in the same transaction as
+   `DeleteKey`, and it is private, so it must be called by the escrow account itself. A
+   transaction from the parent account cannot call `new`.
+3. Check the result with the three checks below. Publish the code hash.
+
+`deploy_escrow` in `tests/sandbox.rs` deploys the escrow this way, and
+`new_is_private_and_deployment_leaves_no_keys` checks it.
+
+Before the taker funds the shared Zcash address, she checks the escrow at a final block:
+
+- `view_access_key_list` of the escrow account is empty;
+- the code hash (`view_account`, `code_hash`) equals the hash of the reviewed wasm
+  (sha256 of the wasm file, base58);
+- `get_intents_account()` returns the Intents account she expects (`intents.near` on
+  mainnet).
+
+If one check fails, she does not fund.
 
 ### Storage funds
 
 Each new swap uses contract storage (742 bytes measured, 0.00742 NEAR, when both credit
 entries are new). The maker pays for it in advance, per token:
 
-- `add_storage_funds(token, account_id?)`, payable. Adds the attached NEAR to the funds of
-  `account_id` (default: the caller) for swaps in `token`. Returns the new balance.
+- `add_storage_funds(token, account_id?)`, payable. Adds the attached NEAR to the
+  caller's funds for swaps in `token`. Returns the new balance. `account_id` is optional;
+  if it is given and is not the caller, the call fails with `BadParams`. Nobody can add
+  funds for another account: such funds would let a fake token open a swap in that
+  account's name and take its swap id (review-1 F-01).
 - `withdraw_storage_funds(token, amount?)`, exactly 1 yoctoNEAR attached. Sends unused
   funds back to the caller.
 - `get_storage_funds(account_id, token)`, view.
@@ -114,10 +157,29 @@ of the call), callback 10 Tgas. Attach 100 Tgas to `withdraw`. With too little g
 whole call fails and the credit is unchanged.
 
 One assumption: a failed `ft_transfer_call` result means nothing was delivered. That
-holds for tokens built on the standard NEP-141 code (`wrap.near`, USDC), because the
-token reserves fixed gas for its own `ft_resolve_transfer`. A token whose resolve step
-can fail after the transfer could be paid twice. The taker checks the token of a swap
-before she sends ZEC.
+holds for tokens built on the standard NEP-141 code (`wrap.near`, tested in the
+sandbox), because the token reserves fixed gas for its own `ft_resolve_transfer` and no
+caller can make it fail. A token whose resolve step can fail after the receiver kept the
+tokens is paid twice: the credit is restored, and a second `withdraw` pays again from
+the tokens of other swaps in the same token. The taker checks the token of a swap before
+she sends ZEC.
+
+**Warning: not checked for USDC (review-1 NV-02).** The product token is Circle's USDC
+on NEAR (`17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`). Its source
+is not in this repository, and the assumption above has not been checked for it. Before
+mainnet, read its source and check that:
+
+- `ft_resolve_transfer` cannot panic once the receiver's `ft_on_transfer` has run: no
+  pause, blocklist, freeze or role check in it, and no other check that can fail;
+- it reserves fixed gas for `ft_resolve_transfer`, and 60 Tgas (`GAS_FT_TRANSFER_CALL`)
+  for `ft_transfer_call` is enough for its `ft_transfer_call` into `intents.near`;
+- the result of `ft_transfer_call` is the JSON string of the amount used;
+- a pause or blocklist of the escrow, of `intents.near` or of the taker between the
+  transfer and the resolve step cannot cause a failed result after a delivery.
+
+Then run `failed_withdraw_restores_credit` with the USDC wasm as the token, with a case
+that pauses or blocklists between `ft_on_transfer` and `ft_resolve_transfer`. Do not
+deploy to mainnet with USDC until this is done.
 
 ### Views
 
@@ -186,7 +248,7 @@ curve, and that the `A_SEC/AX/AY` and `B_SEC/BX/BY` vectors from
 | Shares only in events | Shares also stored in the swap (`a`, `b`) | Clients read them with a view call at a final block. |
 | One credit per (token, owner) | One credit per (token, owner, route) | Maker credits go out by `ft_transfer`, taker credits into Intents. A maker that is an implicit account could also be a taker; the routes stay apart. |
 | `withdraw` reverts if the transfer fails | Async transfer and callback that restores the credit | NEAR cross-contract calls are asynchronous. |
-| No storage payment | Maker prepays storage per token | `ft_on_transfer` has no attached NEAR. Without it, anyone could fill the escrow's storage and block later calls. Funds are keyed by token because `ft_on_transfer` trusts the calling token for `sender_id`; a fake token cannot spend a maker's funds for a real token, so it cannot open swaps or take swap ids in that maker's name. |
+| No storage payment | Maker prepays storage per token | `ft_on_transfer` has no attached NEAR. Without it, anyone could fill the escrow's storage and block later calls. Funds are keyed by token because `ft_on_transfer` trusts the calling token for `sender_id`; a fake token cannot spend a maker's funds for a real token. Only the owner can add funds for itself, so a fake token has no funds in a maker's name and cannot open swaps or take swap ids in that name. Before this rule (review-1 F-01), a third party could fund (maker, fake token) and take the maker's swap id. |
 | Unknown id: `setReady` → `NotMaker`, `refund` → `TooEarly` | Unknown id → `BadState` everywhere | Clearer. Behaviour on known swaps is unchanged, including `refund` on Claimed/Refunded → `TooEarly`. |
 | `payout != 0` | `taker_pk` not all zero | Same intent. |
 
@@ -261,7 +323,8 @@ Unit tests (`src/tests.rs`): every transition in the table above; every rejectio
 state, too early, too late, not the maker, wrong share, commitment mismatch, bad
 signature, signature for another swap, another escrow or another commitment, non-canonical
 scalar, zero scalar, invalid and non-canonical points, identity, duplicate swap id, each
-`open` parameter); the punish path from Open and from Ready; each of the three refund
+`open` parameter); storage funds added for another account; the review-1 F-01
+proof of concept (a third party cannot take a maker's swap id); the punish path from Open and from Ready; each of the three refund
 windows and their edges; the late commit signature replayed at `t2`; a grid over times
 and paths that checks exactly one exit; storage funds; withdraw receipts, arguments and
 every callback outcome; G and the encodings against `reddsa` and the Solidity vectors.
@@ -275,5 +338,8 @@ Sandbox tests (`tests/sandbox.rs`), with the live `wrap.near` and `intents.near`
   fast-forward, then the maker's withdraw;
 - withdraw failures restore the credit: maker unregistered on the token; Intents account
   unregistered; Intents account without code (unused amount returned);
-- bad opens are refunded by the token; a fake token cannot open in a maker's name;
+- bad opens are refunded by the token; nobody can add storage funds for another
+  account; a fake token cannot open in a maker's name;
+- `new` is private; the documented deployment leaves the reviewed code, no access keys
+  and the configured Intents account;
 - the stipend measurement above.

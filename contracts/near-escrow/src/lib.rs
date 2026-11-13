@@ -180,7 +180,9 @@ pub struct CreditKey {
 
 /// Storage funds are kept per (owner, token). `ft_on_transfer` trusts the calling token
 /// for `sender_id`, so a fake token could name any maker. Keying the funds by token means a
-/// fake token can only spend funds deposited for that fake token.
+/// fake token can only spend funds deposited for that fake token, and only the owner can
+/// deposit funds for itself. A maker never funds a fake token, so a fake token cannot open
+/// a swap in a maker's name or take its swap id.
 #[near(serializers = [borsh])]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FundsKey {
@@ -289,7 +291,13 @@ fn storage_cost(before: u64, after: u64) -> u128 {
 #[near]
 impl Escrow {
     /// `intents_account` is the NEAR Intents verifier contract (`intents.near` on mainnet).
+    ///
+    /// Private: only the escrow account itself can call it, so nobody else can initialise
+    /// a deployed escrow with their own `intents_account`. Deploy the code, call `new` and
+    /// delete the account's access key in one transaction that the escrow account sends to
+    /// itself (see the README, "Deployment").
     #[init]
+    #[private]
     pub fn new(intents_account: AccountId) -> Self {
         Self {
             intents_account,
@@ -301,15 +309,23 @@ impl Escrow {
 
     // ------------------------------------------------------------------ storage funds
 
-    /// Adds the attached NEAR to the storage funds of `account_id` (default: the caller)
-    /// for swaps in `token`. `open` takes the storage cost of each new swap from the
-    /// maker's funds for the token of that swap. Returns the new balance.
+    /// Adds the attached NEAR to the caller's storage funds for swaps in `token`. `open`
+    /// takes the storage cost of each new swap from the maker's funds for the token of
+    /// that swap. Returns the new balance.
+    ///
+    /// `account_id` is optional and, if given, must be the caller. Funds added for another
+    /// account would let a fake token open a swap in that account's name and take its
+    /// swap id (review-1 F-01).
     #[payable]
     pub fn add_storage_funds(&mut self, token: AccountId, account_id: Option<AccountId>) -> U128 {
-        let key = FundsKey {
-            owner: account_id.unwrap_or_else(env::predecessor_account_id),
-            token,
-        };
+        let owner = env::predecessor_account_id();
+        if account_id.is_some_and(|a| a != owner) {
+            fail(
+                ERR_BAD_PARAMS,
+                "storage funds can only be added for the caller",
+            );
+        }
+        let key = FundsKey { owner, token };
         let deposit = env::attached_deposit().as_yoctonear();
         let before = env::storage_usage();
         let balance = self.storage_funds.get(&key).copied().unwrap_or(0);

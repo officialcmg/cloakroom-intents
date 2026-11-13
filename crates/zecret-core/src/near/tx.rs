@@ -96,6 +96,12 @@ pub fn sha256(b: &[u8]) -> [u8; 32] {
     Sha256::digest(b).into()
 }
 
+/// A contract's code hash as NEAR reports it (`view_account.code_hash`): base58 of
+/// sha256 of the wasm.
+pub fn code_hash(wasm: &[u8]) -> String {
+    bs58::encode(sha256(wasm)).into_string()
+}
+
 /// The actions Zecret sends.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
@@ -105,6 +111,7 @@ pub enum Action {
     Transfer { deposit: u128 },
     /// Adds a full-access key.
     AddFullAccessKey { public_key: [u8; 32] },
+    DeleteKey { public_key: [u8; 32] },
 }
 
 impl Action {
@@ -206,6 +213,10 @@ impl Transaction {
                     w.u64(0); // AccessKey.nonce
                     w.u8(1); // AccessKeyPermission::FullAccess
                 }
+                Action::DeleteKey { public_key } => {
+                    w.u8(6);
+                    w.ed25519(public_key);
+                }
             }
         }
         w.0
@@ -289,12 +300,13 @@ mod tests {
                 Action::AddFullAccessKey { public_key: [2u8; 32] },
                 Action::CreateAccount,
                 Action::DeployContract { code: vec![0, 97, 115, 109] },
+                Action::DeleteKey { public_key: [3u8; 32] },
             ],
         };
         let b = tx.borsh();
         let head = 4 + 1 + 1 + 32 + 8 + 4 + 1 + 32;
         let mut a = vec![];
-        a.extend_from_slice(&4u32.to_le_bytes());
+        a.extend_from_slice(&5u32.to_le_bytes());
         a.push(2);
         a.extend_from_slice(&1u32.to_le_bytes());
         a.push(b'm');
@@ -311,6 +323,9 @@ mod tests {
         a.push(1);
         a.extend_from_slice(&4u32.to_le_bytes());
         a.extend_from_slice(&[0, 97, 115, 109]);
+        a.push(6);
+        a.push(0);
+        a.extend_from_slice(&[3u8; 32]);
         assert_eq!(&b[head..], &a[..]);
     }
 

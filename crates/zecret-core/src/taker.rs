@@ -676,6 +676,11 @@ impl Taker {
         }
         let fin = self.near.block(&At::Final)?;
         let tnow = fin.secs();
+        // The escrow must not be able to change under us, and must pay into the expected
+        // Intents account (security review 1, NV-01).
+        if let Err(e) = escrow::check_escrow(&self.near, &self.cfg.chains.escrow, &self.cfg.escrow_code_hash, &self.cfg.chains.intents, &At::Block(fin.hash.clone())) {
+            return self.abort(s, format!("escrow contract check failed: {e:#}; nothing funded"), now);
+        }
         if v.t2 > tnow + self.cfg.max_horizon_secs {
             return self.abort(s, format!("escrow t2 {} is beyond the taker's horizon; nothing funded", v.t2), now);
         }
@@ -1044,6 +1049,7 @@ mod tests {
             },
             timing: Timing { inclusion_secs: 30, finality_secs: 10, reorg_budget: 2, margin_secs: 0, fund_secs: 120, k_z: 2 },
             maker: MakerEntry { ua, epoch: 1, rfq_pub, near_account: "maker.near".into(), near_pk: maker_key.public_key_str(), sig: hex::encode(maker_key.sign(&digest)) },
+            escrow_code_hash: "unused".into(),
             min_price: 1000,
             max_premium: 50_000,
             min_stipend: 3 * crate::near::ONE_NEAR / 100,

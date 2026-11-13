@@ -55,6 +55,26 @@ pub fn commit_message(escrow: &str, id: &[u8; 32], commitment: &[u8; 32]) -> Vec
     b
 }
 
+/// Checks that the escrow cannot change under the taker and pays out where it should: at
+/// block `at`, the escrow account runs exactly the code with hash `code_hash` (base58),
+/// has no access keys (so nobody can redeploy it), and its configured Intents account is
+/// `intents`. A taker runs this before it sends ZEC (security review 1, NV-01).
+pub fn check_escrow(rpc: &NearRpc, escrow: &str, code_hash: &str, intents: &str, at: &At) -> Result<()> {
+    let acct = rpc.account(escrow, at)?.ok_or_else(|| anyhow!("escrow account {escrow} does not exist"))?;
+    if acct.code_hash != code_hash {
+        anyhow::bail!("escrow {escrow} runs code {}, expected {code_hash}", acct.code_hash);
+    }
+    let keys = rpc.access_keys(escrow, at)?;
+    if !keys.is_empty() {
+        anyhow::bail!("escrow {escrow} has {} access key(s) ({}); its code could be replaced", keys.len(), keys.join(", "));
+    }
+    let v = rpc.view(escrow, "get_intents_account", &json!({}), at)?;
+    if v.as_str() != Some(intents) {
+        anyhow::bail!("escrow {escrow} pays takers into {v}, expected {intents}");
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, serde::Serialize)]
 pub enum SwapState {
     Open,

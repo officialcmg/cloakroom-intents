@@ -194,6 +194,10 @@ pub struct TakerConfig {
     pub chains: Chains,
     pub timing: Timing,
     pub maker: MakerEntry,
+    /// The code hash (base58 sha256 of the wasm, as `view_account` shows it) of the
+    /// reviewed escrow build. Before funding, the taker checks that the escrow runs this
+    /// code, has no access keys, and pays into `chains.intents`.
+    pub escrow_code_hash: String,
     /// Smallest price (token base units) the taker accepts for the requested amount.
     #[serde(default, with = "u128_str")]
     pub min_price: u128,

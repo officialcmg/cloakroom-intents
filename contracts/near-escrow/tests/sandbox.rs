@@ -15,6 +15,7 @@
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey};
 use near_workspaces::network::Sandbox;
+use near_workspaces::operations::Function;
 use near_workspaces::result::ExecutionFinalResult;
 use near_workspaces::types::{Gas, NearToken, SecretKey};
 use near_workspaces::{Account, AccountId, Contract, Worker};
@@ -125,17 +126,28 @@ struct Env {
     maker: Account,
 }
 
+/// Deploys the escrow as the README says. The escrow account sends one transaction to
+/// itself: deploy the code, call `new` (private, so only the account itself can call it)
+/// and delete its only access key. After it, the escrow has no keys and nobody can change
+/// its code or state except through its methods.
 async fn deploy_escrow(worker: &Worker<Sandbox>, intents: &AccountId) -> R<Contract> {
-    let escrow = worker.dev_deploy(escrow_wasm()).await?;
+    let account = worker.dev_create_account().await?;
+    let key = account.secret_key().public_key();
     ok(
-        "escrow.new",
-        escrow
-            .call("new")
-            .args_json(json!({ "intents_account": intents }))
+        "escrow deploy + new + delete key (one transaction)",
+        account
+            .batch(account.id())
+            .deploy(escrow_wasm())
+            .call(Function::new("new").args_json(json!({ "intents_account": intents })))
+            .delete_key(key)
             .transact()
             .await?,
     );
-    Ok(escrow)
+    Ok(Contract::from_secret_key(
+        account.id().clone(),
+        account.secret_key().clone(),
+        worker,
+    ))
 }
 
 async fn storage_deposit(payer: &Account, token: &Contract, who: &AccountId) -> R<()> {
@@ -846,8 +858,17 @@ async fn bad_open_is_refunded_by_the_token() -> R<()> {
     assert!(get_swap(&env.escrow, &id).await?.is_null());
 
     // A fake "token" calls ft_on_transfer directly and names the maker as sender. It
-    // cannot spend the maker's storage funds for the real token, so no swap is stored.
+    // cannot spend the maker's storage funds for the real token, and nobody can add
+    // storage funds for the maker in the fake token (review-1 F-01), so no swap is stored.
     let fake = env.worker.dev_create_account().await?;
+    let o = fake
+        .call(env.escrow.id(), "add_storage_funds")
+        .args_json(json!({ "token": fake.id(), "account_id": env.maker.id() }))
+        .deposit(NearToken::from_millinear(100))
+        .transact()
+        .await?;
+    report("add_storage_funds for another account (rejected)", &o);
+    assert!(format!("{:?}", o.into_result().err()).contains("BadParams"));
     let terms = json!({
         "salt": hex::encode([2u8; 32]),
         "taker_pk": t.id,
@@ -1003,5 +1024,63 @@ async fn stipend_needed_for_taker_commit_and_claim() -> R<()> {
         .as_yoctonear();
     println!("taker NEAR left of the 0.03 NEAR stipend after refunds: {left} yoctoNEAR");
     assert_eq!(get_swap(&env.escrow, &id).await?["state"], "Claimed");
+    Ok(())
+}
+
+// ============================================================================ deployment
+
+/// Review-1 NV-01. `new` is private: once the code is deployed, no other account can
+/// initialise the escrow with its own `intents_account`. The documented deployment (one
+/// transaction: deploy, `new`, delete the key) leaves an escrow with the reviewed code, no
+/// access keys and the configured Intents account, which is what a taker checks.
+#[tokio::test]
+async fn new_is_private_and_deployment_leaves_no_keys() -> R<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let intents = worker.dev_create_account().await?;
+    let attacker = worker.dev_create_account().await?;
+
+    // Code deployed, `new` not yet called (two separate transactions).
+    let escrow = worker.dev_deploy(escrow_wasm()).await?;
+    let o = attacker
+        .call(escrow.id(), "new")
+        .args_json(json!({ "intents_account": attacker.id() }))
+        .transact()
+        .await?;
+    report("escrow.new by another account (rejected)", &o);
+    let e = format!("{:?}", o.into_result().err());
+    assert!(
+        e.contains("is private"),
+        "expected a private-method error, got {e}"
+    );
+    ok(
+        "escrow.new by the escrow account",
+        escrow
+            .call("new")
+            .args_json(json!({ "intents_account": intents.id() }))
+            .transact()
+            .await?,
+    );
+    let got: AccountId = escrow.view("get_intents_account").await?.json()?;
+    assert_eq!(&got, intents.id());
+
+    // The documented deployment.
+    let escrow = deploy_escrow(&worker, intents.id()).await?;
+    let keys = escrow.view_access_keys().await?;
+    assert!(
+        keys.is_empty(),
+        "escrow still has access keys: {}",
+        keys.len()
+    );
+    assert_eq!(escrow.view_code().await?, escrow_wasm());
+    let got: AccountId = escrow.view("get_intents_account").await?.json()?;
+    assert_eq!(&got, intents.id());
+    // Nobody can initialise it again.
+    let o = attacker
+        .call(escrow.id(), "new")
+        .args_json(json!({ "intents_account": attacker.id() }))
+        .transact()
+        .await?;
+    report("escrow.new again (rejected)", &o);
+    assert!(o.is_failure());
     Ok(())
 }
