@@ -11,7 +11,9 @@ keys_dir = "../.keys/testnet"
 deployment_file = "../deployment.testnet.json"
 
 [escrow]
-sub_account = "escrow"
+# A deployed escrow cannot change. escrow.<owner> holds the build before the NV-02 fix
+# (docs/security/fixes-2.md) and stays as it is; the current build is escrow2.<owner>.
+sub_account = "escrow2"
 wasm = "../../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm"
 margin_near = "0.2"
 

@@ -1,0 +1,763 @@
+[
+ {
+  "verdict": "rejected",
+  "fingerprint": "supply-chain/pinned-prerelease-zcash-crates",
+  "title": "Pinned pre-release Zcash crates or unpinned sources",
+  "description": "Checked Cargo.lock sources, pins and build scripts of zecret-core and zecret-node.",
+  "claimed_root_cause": "A mutable or third-party source could replace wallet code.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/Cargo.toml",
+    "line": 27,
+    "scope": "dependencies",
+    "description": "pczt, zcash_primitives, zcash_protocol, zcash_address and zcash_client_backend are pinned with '=' to -pre versions."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/Cargo.lock",
+    "line": 1605,
+    "description": "All packages come from crates.io with checksums; no git sources, no [patch], no build.rs in the workspace crates."
+   }
+  ],
+  "reason": "Exact pins plus checksummed lock entries from the upstream librustzcash and orchard repositories; nothing lower-trust can change resolution. The owner should still confirm the crates.io publishers of the -pre versions."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-core/keys/rogue-key-on-b",
+  "title": "A maker quotes a rogue B = b'G - A",
+  "description": "Checked whether the maker can choose B so that it alone knows log(A + B).",
+  "claimed_root_cause": "The proof of knowledge might not bind the session or role.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 727,
+    "scope": "Taker::reject_quote",
+    "description": "pok_verify(B, pok_b, rfq_id, \"maker\") before any use of B."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/keys.rs",
+    "line": 242,
+    "description": "The challenge hashes sid, role, X and R."
+   }
+  ],
+  "reason": "The Schnorr challenge binds the request id, the role and the point, and the taker verifies it before deriving the joint key; a rogue B needs log A. The existing test pok_rejects_rogue_and_replay covers it."
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "zecret-core/maker/premium-does-not-cover-stipend",
+  "title": "Nothing ties the premium to the stipend and open costs; with the documented values an accept-and-walk-away taker may profit",
+  "description": "The maker sends the stipend (0.03 NEAR) to the taker's own implicit account right after open, before any funding, and pays open gas, storage and a later refund. The taker's only cost is the premium plus two Zcash fees, and it keeps the stipend (its key controls that account). The maker checks paid >= premium (maker.rs:490) but no rule relates premium_zats to the stipend and gas. Testnet uses premium_zats 1000 (crates/zecret-node/config/testnet-maker.json) and deploy/maker/README.md shows 20000. Whether the premium is worth more than the stipend plus costs depends on the ZEC and NEAR prices at deployment.",
+  "claimed_root_cause": "The premium amount is configuration only, with no check against the stipend and gas the maker spends after the acceptance.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 490,
+    "scope": "Maker::on_accept",
+    "description": "The premium paid must be at least premium_zats."
+   },
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 706,
+    "scope": "Maker::send_stipend",
+    "description": "The stipend goes to the taker's account before any funding."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "deploy/maker/README.md",
+    "line": 69,
+    "description": "premium_zats: 20000 in the documented maker config."
+   },
+   {
+    "file": "docs/DESIGN.md",
+    "line": 176,
+    "description": "Design: 'The stipend costs the maker 0.03 NEAR for each opened swap. The premium covers it.'"
+   }
+  ],
+  "blockers": [
+   "The mainnet premium, stipend and the ZEC/NEAR prices at launch are not in the repository."
+  ],
+  "validation_plan": {
+   "deployment": "Before mainnet, compute premium value >= stipend + open gas + refund gas + storage at current prices with a margin, and add a startup check in Maker::open that refuses a config where premium_zats * zec_price < stipend + gas (with the prices given in the config)."
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "zecret-core/maker/unpaid-requests-unbounded-per-tick-work",
+  "title": "Unpaid requests add permanent per-tick work to the single-threaded maker loop and can delay R3d refunds past t2 - B_R",
+  "description": "Anyone can send the maker request memos to its public address; each valid one becomes a swap in stage Quoting before any premium is paid (on_rfq). Quoting and Quoted swaps never expire. Every maker tick visits every non-terminal swap in rfq_id order (the requester chooses the id). A Quoting swap whose quote cannot be built (the maker's notes are reserved by earlier quotes, or its ZEC for quote fees is used up) costs one Zcash RPC round trip in build_pay (sync), an O(n) scan in reply_address and an O(n) note selection, every tick, for ever. Measured with a mock RPC: 100, 400 and 1600 stuck requests cost 101, 401 and 1601 RPC round trips per tick and 0.09 s, 0.56 s and 4.2 s of CPU per tick, and they are all still Quoting 30 days later. The maker refunds an Open or Ready swap after t1 only from a tick, and must send the refund in a later tick before t2 - B_R (R3d, L_M). With testnet windows (t2 - t1 = 900 s, B_R = 110 s) a tick longer than about 400 s makes the maker miss L_M; an attacker who also opened a real swap (premium paid, never funded) then commits through the punish path from t2 and claims the escrowed USDC (Proposition 1). Accept memos for unknown request ids are also never marked seen and are retried with a warning every tick.",
+  "root_cause": "Work driven by unauthenticated, unpaid memos is unbounded per tick and never expires (maker.rs:285-299, 565, 574-583, wallet.rs:676), and it runs in the same loop and before the deadline-bearing swaps (the attacker chooses the sort order).",
+  "intended_behavior": "The premium is the defence against requests that cost the maker; the maker's deadline duties (R3d, R3l, L_M) must not depend on how many unpaid requests exist.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 260,
+    "scope": "Maker::step",
+    "description": "Every received memo is decoded; a request goes to on_rfq."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 466,
+    "scope": "Maker::on_rfq",
+    "description": "A Quoting swap is stored for any valid request: no premium, no cap, no expiry."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 287,
+    "scope": "Maker::step",
+    "description": "Every tick advances every non-terminal swap in rfq_id order."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 581,
+    "scope": "Maker::send_quote",
+    "description": "build_pay is tried again every tick."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/wallet.rs",
+    "line": 676,
+    "scope": "Wallet::build_pay",
+    "description": "sync() is one RPC round trip before the note selection fails with 'insufficient funds'."
+   },
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 793,
+    "scope": "Maker::watch_escrow",
+    "description": "R3d: if the next visit is too close to t2 the maker logs 'L_M violated' and does not refund; the taker may claim from t2."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 472,
+    "description": "ACCEPT for an unknown request returns Err, so the memo is never marked seen and is retried every tick (maker.rs:269-271)."
+   },
+   {
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 889,
+    "description": "The maker's own log line for the punish path: 'lost the escrowed tokens'."
+   },
+   {
+    "file": "docs/security/poc2/maker_pocs.rs",
+    "line": 91,
+    "description": "poc_f2_04: RPC round trips and CPU per tick grow with the number of stuck requests; none expire."
+   },
+   {
+    "file": "crates/zecret-node/config/testnet-maker.json",
+    "line": 18,
+    "description": "Testnet windows: t1_secs 600, t2_secs 900, B_R 110 s."
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "data_state",
+    "description": "Requests stay in Quoting only while the maker cannot pay quote fees (notes reserved by unmined quotes, or ZEC used up by earlier quotes the same requests caused). Each successful quote instead costs a proof (seconds of CPU) in the same loop."
+   },
+   {
+    "kind": "environmental_dependency",
+    "description": "The delay per tick is n x the light-wallet round trip plus O(n^2) CPU. At 100 ms per round trip about 4 000 requests (about 0.2 ZEC of attacker fees, built offline, sent once) exceed 400 s per tick. The round-trip time of the deployed endpoint was not measured."
+   },
+   {
+    "kind": "timing_dependency",
+    "description": "The attacker needs an accepted swap of its own whose [t1, t2 - B_R) falls inside the slow period; the slow period lasts as long as the requests stay stuck."
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "Anyone with a Zcash wallet and the maker's public directory entry; for the token loss, also a taker of one real swap that pays the premium and never funds.",
+   "payloads": [
+    "n request memos (valid PoK not required for the stuck state; each a separate note to the maker's UA, any rfq_id), loaded as Quoting swaps with a wallet that has no spendable ZEC"
+   ],
+   "instructions": [
+    "Copy docs/security/poc2/common.rs to crates/zecret-core/tests/poc2_common.rs.",
+    "Copy the PoC file to crates/zecret-core/tests/ and replace `use super::common::*;` with `#[path = \"poc2_common.rs\"] mod common; use common::*;`.",
+    "cd crates && cargo test -p zecret-core --test poc2_maker -- --nocapture"
+   ],
+   "observed_result": "On the reviewed code: 'n = 100: 101 Zcash RPC round trips and 85.7ms of CPU in one tick; 100 still Quoting 30 days later', 'n = 400: 401 ... 559ms', 'n = 1600: 1601 ... 4.22s', and the assertion fails."
+  },
+  "remediation": {
+   "strategy": "Bound the work that unpaid requests can cause per tick and in total, expire it, and do deadline work first.",
+   "code_changes": [
+    {
+     "file_name": "crates/zecret-core/src/maker.rs",
+     "fixed_code": "// MakerConfig: max_pending_quotes (e.g. 32), quote_ttl_secs (e.g. 2 x the taker's quote timeout), max_quotes_per_tick (e.g. 1)\n// on_rfq: refuse when Quoting + Quoted >= max_pending_quotes\n// store rfq time (created_at) in MakerSwap; in advance():\nMakerStage::Quoting | MakerStage::Quoted if now > s.created_at + self.cfg.quote_ttl_secs => {\n    self.set_stage(s, MakerStage::Aborted(\"request expired\".into()));\n    Ok(Next::Done)\n}\n// send_quote: skip without any RPC when self.wallet.spendable(\"wallet\") < wallet::zip317_fee(1, 2),\n// and build at most max_quotes_per_tick quotes per tick\n// step: advance swaps in Opening..Sweeping before Quoting/Quoted\n// step: an ACCEPT for an unknown request is handled (marked seen), not retried"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "Needs thousands of prepared requests, a real swap of its own timed into the slow period, and an endpoint round-trip time that was not measured; the attacker's cost is small (about 0.2 ZEC plus one premium)."
+   },
+   "impact": {
+    "score": "high",
+    "reason": "The maker loses the escrowed tokens of every attacker swap whose refund it misses; honest swaps are also delayed (late Ready, refunds)."
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "medium",
+   "reason": "The unbounded, non-expiring per-tick work is reproduced locally. The step from slow ticks to a missed refund is reasoned from the source with the testnet windows, not run end to end."
+  }
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-core/msg/key-and-nonce-separation",
+  "title": "Memo AEAD key or nonce reuse across message types or directions",
+  "description": "Checked the sealed memo construction for key reuse between request, quote and acceptance.",
+  "claimed_root_cause": "Zero nonces with keys reused across messages.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/msg.rs",
+    "line": 311,
+    "scope": "session_key",
+    "description": "BLAKE2b(label, DH point, both public keys)."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 707,
+    "description": "Accept uses label 'accept'; the quote uses 'quote'; the request 'rfq' under the maker's epoch key."
+   }
+  ],
+  "reason": "Each (label, key pair) encrypts one plaintext. A rebuilt request re-encrypts a different plaintext under the same key (fresh PoK nonce), but both copies are only visible to the maker, who has the key; listed as a hardening note."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-core/msg/parser-panics",
+  "title": "Malformed memos panic the parser or allocate without bound",
+  "description": "Fed truncated, oversized and unknown-type memos through Envelope::decode and the payload codecs (by reading).",
+  "claimed_root_cause": "Unchecked slicing or lengths in memo decoding.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/msg.rs",
+    "line": 140,
+    "scope": "Envelope::decode",
+    "description": "take_ct checks off + 2 + n <= 505."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/msg.rs",
+    "line": 174,
+    "description": "Rd::take returns an error instead of panicking; Rfq and Accept have fixed lengths."
+   }
+  ],
+  "reason": "All lengths are bounded by the 512-byte memo; no allocation depends on attacker input beyond 505 bytes; no panicking index."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-core/near/rpc-timeout-treated-as-success",
+  "title": "An RPC timeout is taken as a successful commit, claim or set_ready",
+  "description": "Checked callers of wait_executed when the result is None.",
+  "claimed_root_cause": "A timed-out transaction might be treated as executed.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 975,
+    "scope": "Taker::on_committed",
+    "description": "If the lock is not on chain, the taker goes back to Funded and commits again."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 834,
+    "description": "A timed-out set_ready leaves the maker in Ready with the escrow Open; it then refunds after t1 (R3d). Liveness only."
+   }
+  ],
+  "reason": "Every caller re-reads the escrow state at a final block on the next tick, so a timeout never skips a safety check; at worst a swap refunds instead of completing."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-core/near/tx-serialization",
+  "title": "NEAR transaction serialization, nonce or signing errors",
+  "description": "Compared the hand-written borsh with nearcore's Transaction::V0 and checked nonce and block-hash handling.",
+  "claimed_root_cause": "Wrong layout or nonce reuse could make a share-revealing transaction fail or be replayed.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/near/tx.rs",
+    "line": 184,
+    "scope": "Transaction::borsh",
+    "description": "Layout matches V0; the signature is ed25519 over sha256(borsh)."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/near/rpc.rs",
+    "line": 303,
+    "description": "Nonce = max(on-chain nonce, last used) + 1; block hash from a final block."
+   }
+  ],
+  "reason": "A re-sent claim is a new transaction with a new nonce and fails harmlessly once the first lands. The layout is tested against a 2.14.1 sandbox."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-core/taker/early-refund-or-no-ready",
+  "title": "A maker refunds early or never sets Ready and the taker loses ZEC",
+  "description": "Checked R4 handling of a refund that races the funding.",
+  "claimed_root_cause": "An early refund might make the taker erase `a` while the funding is unmined.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 1076,
+    "scope": "Taker::recover",
+    "description": "With no joint note visible, `a` is kept until the funding is mined or expired by k_Z blocks."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 871,
+    "description": "Funded sees Refunded and recovers with b from the escrow, checked against B."
+   }
+  ],
+  "reason": "With a single funding the taker keeps `a` until it can sweep, and loses at most the premium and fees. The multi-note case is F2-01."
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-core/taker/look-alike-swap",
+  "title": "A maker opens a look-alike swap to make the taker fund",
+  "description": "Checked whether the taker can be pointed at a swap other than the one it agreed.",
+  "claimed_root_cause": "The taker might read a swap id the maker chooses.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 596,
+    "scope": "Taker::adopt_quote",
+    "description": "The escrow id is computed by the taker from the maker account and the salt of both seeds."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 775,
+    "description": "R1 compares maker, token, amount, taker key, A, B, windows and state; check_escrow adds code hash, no keys and Intents account."
+   }
+  ],
+  "reason": "The taker derives the id itself and checks every field (except the window comparison in F2-03); a swap at another id is never read."
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "zecret-core/taker/r2r-not-checked-at-claim-handoff",
+  "title": "The first claim(a) is broadcast without re-checking R2r, so a late hand-off publishes `a` after the reveal window",
+  "description": "`on_committed` checks R2r (now + B_R < lockedAt + W) and stores stage Revealed; the claim goes out in the next tick. In that tick `on_revealed` sends claim(a) whenever the escrow is Locked and `claim_at` is None, with no deadline check at all. The hand-off can be much later than the decision: every tick starts with a Zcash light-wallet sync (`step`, taker.rs:353) and a sync error aborts the tick before any NEAR work, so a light-wallet outage holds the claim back; a browser tab closed between the two ticks does the same. If the window has closed, the claim reverts but `a` is public in its arguments. The maker then refunds the lock (R3l; b becomes public) and, knowing a + b, can race the taker to sweep the joint note: the maker keeps the tokens and takes the ZEC. The maker's refund path does re-check its rule at hand-off (maker.rs:787-797); the taker's claim path does not.",
+  "root_cause": "R2r is evaluated at decision time (taker.rs:958-968), not at the hand-off (taker.rs:1001-1002), and the hand-off is gated on an unrelated Zcash sync (taker.rs:353).",
+  "intended_behavior": "Paper Table 2, R2r: reveal a only once the lock is final and \u03c4 + B_R < lockedAt + W, with \u03c4 the hand-off time.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 960,
+    "scope": "Taker::on_committed",
+    "description": "R2r holds at the decision; stage Revealed is stored; the claim is left for the next tick."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 353,
+    "scope": "Taker::step",
+    "description": "The next tick first syncs the Zcash wallet; an error returns before advance(), and the tick is retried every 5 s."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 1001,
+    "scope": "Taker::on_revealed",
+    "description": "Locked and claim_at None: no deadline test."
+   },
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 941,
+    "scope": "Taker::send_claim",
+    "description": "claim(a) is signed and broadcast; `a` is in the transaction's arguments even if the escrow refuses it."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 781,
+    "description": "R3l: from a final block at or after lockedAt + W the maker refunds the lock, publishing b."
+   },
+   {
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 790,
+    "description": "The maker's R3d path re-checks in_time at the hand-off; the taker has no equivalent."
+   },
+   {
+    "file": "docs/security/poc2/taker_pocs.rs",
+    "line": 98,
+    "description": "poc_f2_02: Revealed, claim_at None, final block 50 s after lockedAt + W: the taker sends a transaction that contains `a`."
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "third_party_dependency",
+    "description": "The hand-off must be delayed past lockedAt + W - B_R: a light-wallet outage of a few minutes right after the decision, a tab closed between two ticks, or a light-wallet endpoint run by the maker that fails requests on purpose after it sees the lock become final."
+   },
+   {
+    "kind": "authorization_role",
+    "description": "Loss needs a maker that reads `a` from the reverted claim; an honest maker refunds and erases b, and the taker then recovers."
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "A maker that also runs (or can stall) the taker's gRPC-web light-wallet endpoint, or that waits for a natural outage.",
+   "payloads": [
+    "A TakerSwap record in stage Revealed with claim_at = None; NEAR mock: final block time lockedAt + W + 50, get_swap = Locked."
+   ],
+   "instructions": [
+    "Copy docs/security/poc2/common.rs to crates/zecret-core/tests/poc2_common.rs.",
+    "Copy the PoC file to crates/zecret-core/tests/ and replace `use super::common::*;` with `#[path = \"poc2_common.rs\"] mod common; use common::*;`.",
+    "cd crates && cargo test -p zecret-core --test poc2_taker poc_f2_02"
+   ],
+   "observed_result": "The test fails on the reviewed code: 'F2-02: the taker broadcast claim(a) 50s after lockedAt + W; a is now public in a reverted transaction'."
+  },
+  "remediation": {
+   "strategy": "Check R2r again at the hand-off, make the first broadcast two-phase so that `claim_at == None` really means nothing left the engine, and do not let a Zcash sync error block the NEAR-only stages.",
+   "code_changes": [
+    {
+     "file_name": "crates/zecret-core/src/taker.rs",
+     "fixed_code": "// on_revealed\nSwapState::Locked if s.claim_at.is_none() => {\n    let deadline = v.locked_at.unwrap_or(0).saturating_add(v.reveal_window);\n    if !self.cfg.timing.in_time(tnow, deadline) {\n        self.log(s, format!(\"R2r: hand-off at {tnow} is too late for {deadline}; NOT revealing a\"));\n        self.set_stage(s, TakerStage::Committed, now);\n        return Ok(Next::At(now + POLL_SECS));\n    }\n    // sign, store the signed claim (claim_tx, claim_at, raw bytes) and return Next::At(0);\n    // broadcast the stored bytes in the next tick and re-broadcast them while tnow < deadline\n    ...\n}\n\n// step\nif let Err(e) = self.wallet.sync() {\n    let near_only = matches!(self.swap.as_ref().map(|s| &s.stage), Some(TakerStage::Funded | TakerStage::Committed | TakerStage::Revealed | TakerStage::Claimed));\n    if !near_only { return Err(e.context(\"Zcash sync\")); }\n    self.ev.push(Event::Warning { swap: String::new(), message: format!(\"Zcash sync: {e:#}\") });\n}"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "Needs a malicious maker plus a hand-off delay of more than the slack (W - B_R minus the time to the decision); the delay is cheap only for a maker that runs the light-wallet endpoint."
+   },
+   "impact": {
+    "score": "high",
+    "reason": "The taker can lose the ZEC while the maker keeps the tokens."
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "The broadcast after the deadline is reproduced by a unit test; the outage and the maker's sweep race are reasoned."
+  }
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "zecret-core/taker/recovery-erases-a-with-joint-note-unspent",
+  "title": "After a refund the taker sweeps one joint note, then erases `a` while its funding note is still unspent",
+  "description": "When the escrow is Refunded, `recover` sweeps the first unspent note at the joint address, whatever its value or origin. `on_recovering` moves to Recovered once that one sweep has k_Z confirmations, and `step` then erases `a`, the seeds and the joint key. It never checks that no other joint note is left. The maker learns the joint address when it accepts, so it can send a small note (more than the 10 000-zat sweep fee) to that address so that it is mined just before the taker's funding. If the maker then refunds (in Open before t0, or after t1), the taker sweeps the maker's small note and erases `a`; her funding note stays at the joint address, where nobody can spend it (the maker has b but not a). A second funding (for example after a restore) has the same effect.",
+  "root_cause": "The recovery path picks `unspent(rfq_id).first()` (taker.rs:1073) and the R4 erasure condition in `on_recovering` (taker.rs:1114-1118) is 'the last sweep has k_Z confirmations', not 'no note that the taker funded is left at the joint address'.",
+  "intended_behavior": "Paper Table 2, R4: per-request secrets are erased only once nothing can still need them; a taker who broadcast a funding keeps `a` until that funding is swept or has expired unmined by k_Z blocks.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 871,
+    "scope": "Taker::on_funded",
+    "description": "A final block shows the escrow Refunded (the maker refunded; b is public); the taker calls recover."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 1073,
+    "scope": "Taker::recover",
+    "description": "The first unspent note at the joint address is chosen: the maker's small note if it was mined first."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 1103,
+    "scope": "Taker::recover",
+    "description": "build_sweep spends only that note with a + b."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 1115,
+    "scope": "Taker::on_recovering",
+    "description": "Once that sweep has k_Z confirmations the stage becomes Recovered; other joint notes are not looked at."
+   },
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 368,
+    "scope": "Taker::step",
+    "description": "In a terminal stage `a`, `s_t`, `e_t` and the joint viewing key are erased and the record is stored."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/maker.rs",
+    "line": 508,
+    "description": "The maker watches the joint key from the acceptance on, so it knows the joint address before the taker funds."
+   },
+   {
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 822,
+    "description": "on_open skips the funding if a joint note is already mined when it checks; a maker note broadcast at the same time as the stipend is still in the mempool then, so the taker funds."
+   },
+   {
+    "file": "crates/zecret-core/src/wallet.rs",
+    "line": 533,
+    "description": "unspent() returns notes in scan (chain) order."
+   },
+   {
+    "file": "docs/security/poc2/taker_pocs.rs",
+    "line": 131,
+    "description": "poc_f2_01: Recovering with the sweep confirmed and a 1 ZEC funding note unspent ends Recovered with `a` erased."
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authorization_role",
+    "description": "The attacker is the maker (the operator's backend), against an honest taker. It gains nothing; the taker's ZEC is destroyed."
+   },
+   {
+    "kind": "timing_dependency",
+    "description": "The maker's note must be ordered before the funding in the taker's scan: mined in an earlier block or earlier in the same block, but not mined yet when the taker checks the joint address before it builds the funding (taker.rs:822). Broadcasting it with the stipend, with a higher fee, gives that order with good probability; this was reasoned, not run on a chain."
+   },
+   {
+    "kind": "data_state",
+    "description": "The maker's note must exceed the sweep fee (10 000 zats) so that build_sweep accepts it; cost to the maker: that note, one Zcash fee, the stipend and the escrow gas."
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "A maker that wants to hurt a taker: it accepts the request, sends 20 000 zats to the joint address, opens the escrow and then refunds instead of setting Ready.",
+   "payloads": [
+    "A TakerSwap record in stage Recovering with sweep_height = 90, wallet tip 100, k_Z = 2, and a 100 010 000-zat note labelled with the swap id and unspent (the taker's funding)."
+   ],
+   "instructions": [
+    "Copy docs/security/poc2/common.rs to crates/zecret-core/tests/poc2_common.rs.",
+    "Copy the PoC file to crates/zecret-core/tests/ and replace `use super::common::*;` with `#[path = \"poc2_common.rs\"] mod common; use common::*;`.",
+    "cd crates && cargo test -p zecret-core --test poc2_taker poc_f2_01"
+   ],
+   "observed_result": "The test fails on the reviewed code: 'F2-01: stage Recovered, a erased, but 100010000 zats of the taker's funding are still unspent at the joint address (now unspendable)'."
+  },
+  "remediation": {
+   "strategy": "Sweep every joint note above the fee, starting with the funding note, and leave Recovered only when no such note is left and the funding is either mined (and swept) or expired by k_Z blocks.",
+   "code_changes": [
+    {
+     "file_name": "crates/zecret-core/src/taker.rs",
+     "fixed_code": "// in recover(): prefer the taker's own funding note, ignore notes below the fee\nlet fee = wallet::zip317_fee(1, 1);\nlet notes: Vec<_> = self.wallet.unspent(&s.rfq_id).into_iter().filter(|n| n.note.value().inner() > fee).collect();\nlet Some(n) = notes.iter().find(|n| s.fund_txid.as_deref() == Some(n.txid.as_str())).or(notes.first()).cloned() else { /* existing R4 branch */ };\n\n// in on_recovering(), before set_stage(Recovered):\nif self.wallet.unspent(&s.rfq_id).iter().any(|n| n.note.value().inner() > wallet::zip317_fee(1, 1)) {\n    s.sweep_height = None;\n    s.sweep_txid = None;\n    let v = self.esc().get_swap(&s.id_bytes()?, &At::Final)?.ok_or_else(|| anyhow!(\"escrow vanished\"))?;\n    return self.recover(s, &v, now); // sweep the next note\n}\nif let (Some(txid), Some(exp)) = (s.fund_txid.as_deref(), s.fund_expiry) {\n    if self.wallet.mined_height(txid).is_none() && tip <= exp + k_z {\n        return Ok(Next::At(now + POLL_SECS)); // R4: the funding may still be mined\n    }\n}"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "Needs a maker that is willing to destroy a user's ZEC for no gain, and a note ordering it can arrange but not guarantee."
+   },
+   "impact": {
+    "score": "high",
+    "reason": "The taker loses the whole funded amount and gets no tokens: Definition 1 (taker safety) fails."
+   },
+   "overall_severity": "medium"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "The erasure with a funded note unspent is reproduced by a unit test through the public tick API; only the on-chain ordering is reasoned."
+  }
+ },
+ {
+  "verdict": "needs_validation",
+  "fingerprint": "zecret-core/taker/single-near-rpc-is-a-trust-anchor",
+  "title": "The taker's safety rests on one NEAR RPC endpoint; that endpoint together with the maker can take the ZEC",
+  "description": "Every decision of the taker reads NEAR state from the configured RPC with no proof: the escrow at open (R1, code hash, keys, Intents account), final-block time (R1b, R2c, R2r), Ready and Locked, and it hands the signed claim(a) to the same endpoint. An RPC that lies can show a matching Open escrow that does not exist, then Ready, then a final Lock: the taker funds, and gives `a` to the RPC. Together with the maker (who holds b and both seeds) that is enough to sweep the joint note, and no tokens were ever escrowed. An RPC alone can only delay or stall (it lacks b and the seeds). Docs (DESIGN.md, ENGINE.md) do not state this trust assumption. Who runs the RPC that the website gives to takers is not in the repository (deploy files name rpc.mainnet.fastnear.com for the deploy tool; web/src/engine/api.ts takes nearRpcUrl as an option).",
+  "claimed_root_cause": "The taker has no light-client or multi-endpoint check for the NEAR state it acts on, and it submits the share-revealing transaction through the same endpoint.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 761,
+    "scope": "Taker::on_open",
+    "description": "get_swap at 'final', as the RPC says."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 794,
+    "scope": "Taker::on_open",
+    "description": "check_escrow reads code hash, keys and intents account from the same RPC."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 951,
+    "scope": "Taker::on_committed",
+    "description": "The final Lock is read from the same RPC."
+   },
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 941,
+    "scope": "Taker::send_claim",
+    "description": "The claim carrying `a` is handed to the same RPC."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "crates/zecret-core/src/near/rpc.rs",
+    "line": 204,
+    "description": "NearRpc::call trusts the JSON result; no proof or second source."
+   },
+   {
+    "file": "web/src/engine/api.ts",
+    "line": 127,
+    "description": "The website passes nearRpcUrl to the engine."
+   }
+  ],
+  "blockers": [
+   "Which NEAR RPC (and gRPC-web light-wallet) endpoint the production website gives to takers, who operates it, and whether that operator can be the maker, is a deployment fact not in the repository."
+  ],
+  "validation_plan": {
+   "local": "With the mock transport in docs/security/poc2/common.rs, answer get_swap with an Open swap that matches the record, view_account with the expected code hash, an empty key list and the expected intents account: the taker emits EscrowVerified and builds the funding although no escrow exists.",
+   "deployment": "The owner states which endpoints the website ships, who runs them, and whether a user can choose their own; then either documents the assumption in DESIGN.md (the RPC operator must not collude with the maker) or adds a second independent RPC check for the open, the Ready and the Lock before the taker funds or reveals."
+  }
+ },
+ {
+  "verdict": "rejected",
+  "fingerprint": "zecret-core/taker/time-units",
+  "title": "Seconds, milliseconds or nanoseconds mixed between escrow and client",
+  "description": "Checked every deadline comparison for unit mismatches.",
+  "claimed_root_cause": "The escrow might store nanoseconds while the client compares seconds.",
+  "trace": [
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/near/rpc.rs",
+    "line": 68,
+    "scope": "BlockInfo::secs",
+    "description": "timestamp_ns / 1e9."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 285,
+    "description": "The escrow's now() is block_timestamp / 1e9; windows are u32 seconds in the quote."
+   }
+  ],
+  "reason": "Both sides use whole seconds of NEAR block time; the wall-clock `now` passed to tick is used only for timeouts and cover delays."
+ },
+ {
+  "verdict": "confirmed",
+  "fingerprint": "zecret-core/taker/unbounded-escrow-windows-and-u64-overflow",
+  "title": "The taker accepts any escrow window at least as long as quoted; a maker-chosen reveal window of u64::MAX overflows and freezes both legs",
+  "description": "R1 in `on_open` compares the escrow's windows with the quote using >= (taker.rs:782-784), so the maker can open with a larger reveal window than it quoted; the escrow refuses only 0. With reveal_window = u64::MAX the taker funds, commits after Ready, and then computes `locked_at + reveal_window` in u64 (taker.rs:958, 1012). A debug build (the native reference taker) panics in tick; a release or wasm build wraps to a small number, so R2r never passes and the taker never reveals. The escrow computes the same sum in u128 and never allows the maker's lock refund, so the swap stays Locked: the taker's ZEC and the maker's tokens are frozen until the taker runs a client without the overflow (`a` is kept, so recovery is possible). The same pattern (v.t0 + t1_secs, v.t1 + t2_secs at taker.rs:782-783) panics in debug builds for a t0 near u64::MAX; in release the horizon check at taker.rs:797 stops that case.",
+  "root_cause": "R1 uses >= instead of equality for the windows, and the deadline arithmetic on maker-chosen u64 values is unchecked.",
+  "intended_behavior": "Paper Table 2, R1: fund only after every stored parameter equals the quote. Arithmetic on values from the chain must not panic or wrap.",
+  "trace": [
+   {
+    "kind": "entrypoint",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 761,
+    "scope": "Taker::on_open",
+    "description": "get_swap at a final block returns the maker's open with reveal_window = u64::MAX."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 784,
+    "scope": "Taker::on_open",
+    "description": "('reveal window', v.reveal_window >= w.reveal_secs) passes."
+   },
+   {
+    "kind": "propagation",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 844,
+    "scope": "Taker::on_open",
+    "description": "The taker funds the joint address."
+   },
+   {
+    "kind": "sink",
+    "file": "crates/zecret-core/src/taker.rs",
+    "line": 958,
+    "scope": "Taker::on_committed",
+    "description": "deadline = locked_at + reveal_window overflows: panic (debug) or wrap and never reveal (release)."
+   }
+  ],
+  "evidence": [
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 462,
+    "description": "The escrow refuses only reveal_window == 0."
+   },
+   {
+    "file": "contracts/near-escrow/src/lib.rs",
+    "line": 656,
+    "description": "The lock refund needs now >= locked_at + W in u128, never true for W = u64::MAX."
+   },
+   {
+    "file": "docs/security/poc2/taker_pocs.rs",
+    "line": 158,
+    "description": "poc_f2_03_r1_*: the taker emits EscrowVerified for W = u64::MAX (quoted 600 s)."
+   },
+   {
+    "file": "docs/security/poc2/taker_pocs.rs",
+    "line": 189,
+    "description": "poc_f2_03_huge_*: tick panics at taker.rs:958 with 'attempt to add with overflow' in the test profile."
+   }
+  ],
+  "conditions": [
+   {
+    "kind": "authorization_role",
+    "description": "The maker opens the escrow with a window different from its quote."
+   },
+   {
+    "kind": "system_configuration",
+    "description": "Debug builds panic; release and wasm builds (overflow checks off) wrap and stall."
+   }
+  ],
+  "execution": {
+   "attacker_perspective": "A maker that wants to freeze a taker's funds (its own tokens are frozen too).",
+   "payloads": [
+    "escrow open terms with reveal_window = 18446744073709551615"
+   ],
+   "instructions": [
+    "Copy docs/security/poc2/common.rs to crates/zecret-core/tests/poc2_common.rs.",
+    "Copy the PoC file to crates/zecret-core/tests/ and replace `use super::common::*;` with `#[path = \"poc2_common.rs\"] mod common; use common::*;`.",
+    "cd crates && cargo test -p zecret-core --test poc2_taker poc_f2_03"
+   ],
+   "observed_result": "Both tests fail on the reviewed code: the taker verifies the escrow (EscrowVerified event), and the Committed tick panics at taker.rs:958:32 (integer overflow)."
+  },
+  "remediation": {
+   "strategy": "Require the escrow's windows to equal the quote, and use saturating or checked arithmetic for every deadline built from escrow values.",
+   "code_changes": [
+    {
+     "file_name": "crates/zecret-core/src/taker.rs",
+     "fixed_code": "(\"claim window\", v.t1.checked_sub(v.t0) == Some(w.t1_secs as u64)),\n(\"punish window\", v.t2.checked_sub(v.t1) == Some(w.t2_secs as u64)),\n(\"reveal window\", v.reveal_window == w.reveal_secs as u64),\n// on_committed and on_revealed\nlet deadline = v.locked_at.unwrap_or(0).saturating_add(v.reveal_window);"
+    }
+   ]
+  },
+  "severity": {
+   "likelihood": {
+    "score": "low",
+    "reason": "Only a maker can set the window, and it freezes its own tokens too."
+   },
+   "impact": {
+    "score": "low",
+    "reason": "Funds are frozen, not lost: the escrow keeps the claim open for ever and the record keeps `a`, so a fixed client can claim."
+   },
+   "overall_severity": "low"
+  },
+  "confidence": {
+   "score": "high",
+   "reason": "Both halves are reproduced by unit tests through the public API."
+  }
+ }
+]

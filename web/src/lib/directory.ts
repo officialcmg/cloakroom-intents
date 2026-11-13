@@ -19,6 +19,10 @@ export interface MakerDirectory {
     nearAccount: string;
     /** NEAR account of the escrow contract. */
     escrowContract: string;
+    /** The maker's NEAR key (`ed25519:...`) that signs the directory entry and the quotes. The real engine needs it. */
+    nearPublicKey?: string;
+    /** Version of the request key. The real engine needs it. */
+    epoch?: number;
   };
   rate: {
     /** Indicative price: USDC the maker pays for 1 ZEC, as a decimal string. */
@@ -31,7 +35,12 @@ export interface MakerDirectory {
   premium: { bps: number; minZec: string };
   /** Zcash network fee for one shielded send by the swap's temporary wallet. */
   zcashFeePerSendZec: string;
-  /** Signature by the maker over the file without this field (hex). Checked by the engine, not the page. */
+  /**
+   * The maker's ed25519 signature (hex, 64 bytes) by `maker.nearPublicKey` over the
+   * directory digest of (zcashAddress, epoch, requestKey, nearAccount), as `zecret
+   * directory` prints it. Checked by the real engine, which also checks that the key is a
+   * full-access key of `maker.nearAccount` on NEAR. Not read by the page.
+   */
   signature?: string;
 }
 
@@ -105,6 +114,8 @@ export function parseDirectory(json: unknown): { directory: MakerDirectory; term
   const premiumMin = amount(premium.minZec, 'premium.minZec', ZEC_DECIMALS);
   const fee = amount(d.zcashFeePerSendZec, 'zcashFeePerSendZec', ZEC_DECIMALS);
   if (d.signature !== undefined && typeof d.signature !== 'string') throw new DirectoryError('signature must be a string');
+  if (maker.nearPublicKey !== undefined && (typeof maker.nearPublicKey !== 'string' || !maker.nearPublicKey.startsWith('ed25519:'))) throw new DirectoryError('maker.nearPublicKey must be an ed25519: key');
+  if (maker.epoch !== undefined && (typeof maker.epoch !== 'number' || !Number.isInteger(maker.epoch) || maker.epoch < 0)) throw new DirectoryError('maker.epoch must be a non-negative integer');
   return {
     directory: json as MakerDirectory,
     terms: {

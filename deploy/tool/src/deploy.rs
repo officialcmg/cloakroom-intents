@@ -8,7 +8,9 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 
 use crate::Res;
-use crate::chain::{BYTE_COST, Chain, ContractRec, EscrowRec, MakerRec, NO_CODE, code_hash};
+use crate::chain::{
+    BYTE_COST, Chain, ContractRec, EscrowRec, MakerRec, NO_CODE, RetiredEscrow, code_hash,
+};
 use crate::config::{Config, Network, ONE_NEAR, fmt_near, parse_near, resolve};
 use crate::keys::KeyStore;
 
@@ -487,6 +489,20 @@ async fn ensure_escrow(ctx: &mut Ctx, id: &str, intents: &str) -> Res<()> {
         .rpc
         .view_ok(id, "get_intents_account", &json!({}))
         .await?;
+    // A new escrow account (a new sub_account): keep the old record.
+    if let Some(old) = ctx.chain.record.escrow.take()
+        && old.account_id != id
+    {
+        println!(
+            "escrow {} (code {}) is kept as a retired escrow; {id} replaces it",
+            old.account_id, old.code_hash
+        );
+        ctx.chain.record.retired_escrows.push(RetiredEscrow {
+            escrow: old,
+            retired_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            replaced_by: id.into(),
+        });
+    }
     ctx.chain.record.escrow = Some(EscrowRec {
         account_id: id.into(),
         code_hash: want,

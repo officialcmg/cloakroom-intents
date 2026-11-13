@@ -255,7 +255,9 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
             maker
                 .call(&escrow_id, "withdraw")
                 .args_json(json!({ "token": ids.token, "owner": taker_id }))
-                .gas(Gas::from_tgas(100))
+                // The Intents route deposits into the escrow's own Verifier account and
+                // then calls mt_transfer: it needs at least 110 Tgas (escrow README, "Gas").
+                .gas(Gas::from_tgas(200))
                 .transact_async(),
         )
         .await?
@@ -282,6 +284,19 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
         "taker holds {AMOUNT} {token_mt} inside the Verifier {}",
         ids.intents
     );
+    // The deposit went through the escrow's own Verifier account; nothing stays there.
+    let escrow_held = ctx
+        .chain
+        .rpc
+        .view_ok(
+            &ids.intents,
+            "mt_balance_of",
+            &json!({ "account_id": ids.escrow, "token_id": token_mt }),
+        )
+        .await?;
+    if escrow_held != json!("0") {
+        return Err(format!("the escrow holds {escrow_held} in the Verifier, expected 0").into());
+    }
 
     // The exit: one ft_withdraw signed by the taker key, built by zecret-intents.
     let destination = ctx.owner.id().to_string();

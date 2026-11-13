@@ -145,6 +145,18 @@ pub struct EscrowRec {
     pub access_keys: usize,
 }
 
+/// An escrow that this deployment used before. A deployed escrow has no keys and cannot
+/// change, so a new escrow build goes to a new account and the old one stays as it is.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct RetiredEscrow {
+    #[serde(flatten)]
+    pub escrow: EscrowRec,
+    /// When the tool replaced it in this record (UTC, RFC 3339).
+    pub retired_at: String,
+    /// The escrow account that replaced it.
+    pub replaced_by: String,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MakerRec {
     pub account_id: String,
@@ -163,6 +175,9 @@ pub struct Deployment {
     pub owner: String,
     #[serde(default)]
     pub escrow: Option<EscrowRec>,
+    /// Earlier escrows of this deployment, oldest first. They keep their code and state.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired_escrows: Vec<RetiredEscrow>,
     #[serde(default)]
     pub token: Option<ContractRec>,
     #[serde(default)]

@@ -3405,6 +3405,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "zecret-intents"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "bs58",
+ "chrono",
+ "ed25519-dalek",
+ "getrandom 0.3.4",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "zeroize",
+]
+
+[[package]]
 name = "zecret-node"
 version = "0.1.0"
 dependencies = [
@@ -3418,6 +3434,24 @@ dependencies = [
  "serde_json",
  "zcash_primitives",
  "zecret-core",
+]
+
+[[package]]
+name = "zecret-wasm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "getrandom 0.3.4",
+ "hex",
+ "js-sys",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "web-sys",
+ "zecret-core",
+ "zecret-intents",
+ "zecret-node",
 ]
 
 [[package]]

@@ -3,12 +3,15 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { createEngine, type EngineClient, type EngineErrorData, type InitStatus, type SwapState } from '../engine';
 import { reduceSwap } from '../engine/reducer';
-import { fetchDirectory, type MakerDirectory, type MakerTerms } from '../lib/directory';
+import { directoryUrl, fetchDirectory, type MakerDirectory, type MakerTerms } from '../lib/directory';
+import { configUrl, fetchNetworkConfig, type NetworkConfig } from '../lib/netconfig';
 import { readSettings, type PageSettings } from './settings';
 
 export interface AppState {
   phase: 'loading' | 'ready' | 'failed';
-  failure?: { kind: 'directory' | 'engine'; message: string };
+  failure?: { kind: 'directory' | 'engine' | 'config'; message: string };
+  /** The real engine's network, when the page runs one (undefined in the demo). */
+  network?: NetworkConfig;
   directory?: MakerDirectory;
   terms?: MakerTerms;
   init?: InitStatus;
@@ -53,14 +56,25 @@ class Store {
   private async run(): Promise<void> {
     let directory: MakerDirectory;
     let terms: MakerTerms;
+    let network: NetworkConfig | undefined;
+    const cfgUrl = configUrl();
+    if (cfgUrl) {
+      try {
+        network = await fetchNetworkConfig(cfgUrl);
+      } catch (e) {
+        this.set({ phase: 'failed', failure: { kind: 'config', message: (e as Error).message } });
+        return;
+      }
+    }
     try {
-      ({ directory, terms } = await fetchDirectory());
+      const fromQuery = new URLSearchParams(location.search).get('directory');
+      ({ directory, terms } = await fetchDirectory(network && !fromQuery ? network.directoryUrl : directoryUrl()));
     } catch (e) {
       this.set({ phase: 'failed', failure: { kind: 'directory', message: (e as Error).message } });
       return;
     }
-    this.set({ directory, terms });
-    const engine = createEngine();
+    this.set({ directory, terms, network });
+    const engine = createEngine(network ? 'real' : 'simulated');
     this.engine = engine;
     engine.subscribe((ev) => {
       if (ev.type === 'init') this.set({ init: ev.init });
@@ -69,7 +83,7 @@ class Store {
       if (swap !== this.state.swap) this.set({ swap });
     });
     try {
-      const init = await engine.init({ network: terms.network, directory, sim: this.state.settings.sim });
+      const init = await engine.init({ network: terms.network, directory, sim: network ? undefined : this.state.settings.sim, real: network });
       this.set({ init });
       const swap = await engine.resume();
       this.set({ swap, phase: 'ready' });

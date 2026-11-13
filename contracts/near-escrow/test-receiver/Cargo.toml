@@ -1,0 +1,24 @@
+[package]
+name = "restricting-receiver"
+version = "0.1.0"
+edition = "2021"
+description = "Test only: a stand-in for the Intents Verifier that applies a USDC restriction between its ft_on_transfer and the token's resolve step"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+near-sdk = "5.30"
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
+
+# A standalone crate, not a member of any parent workspace.
+[workspace]

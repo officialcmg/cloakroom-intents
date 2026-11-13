@@ -521,6 +521,15 @@ impl Wallet {
         self.received.iter().find(|r| r.label == label).and_then(|r| self.spent.get(&r.nf).cloned())
     }
 
+    /// The mined transactions that spent notes received under `label`, with their heights,
+    /// oldest first. For a wallet that only one engine spends from, these are its own sends.
+    pub fn sends(&self, label: &str) -> Vec<(String, u64)> {
+        let mut v: Vec<(String, u64)> = self.received.iter().filter(|r| r.label == label).filter_map(|r| self.spent.get(&r.nf).cloned()).collect();
+        v.sort_by(|a, b| (a.1, &a.0).cmp(&(b.1, &b.0)));
+        v.dedup();
+        v
+    }
+
     pub fn unspent(&self, label: &str) -> Vec<Received> {
         self.received.iter().filter(|r| r.label == label && r.spent_in.is_none()).cloned().collect()
     }

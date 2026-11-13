@@ -9,6 +9,7 @@ their checks.
 
 | Package | Result |
 |---|---|
+| S2. Security review 2 (core, native client) | Done. 4 bugs: F2-01 medium (taker erases its key half after a refund while its funding is still at the shared address), F2-02 medium (first claim sent without re-checking the reveal deadline), F2-04 medium (unpaid requests slow the maker without limit), F2-03 low (an oversized reveal window freezes both sides). 2 open questions: one NEAR RPC endpoint is trusted; the premium is not tied to the stipend. Report and proofs: `docs/security/review-2.md`, `poc2/`. The taker-side fixes (F2-01, F2-02, F2-03) wait until package E finishes, because E is editing `taker.rs`. |
 | CD. Shared core, NEAR adapter, native maker and taker | PASS. The agent ran 19 two-party scenarios (maker and taker as separate programs, Zebra regtest plus NEAR sandbox with the real escrow and the live `intents.near` code); the main session reran s1 (happy path), s3 (maker refund) and s4 (punish path) and the 25 core unit tests, all passing. `crates/zecret-core` has no I/O and builds for WebAssembly. The binary is `zecret` in `crates/zecret-node`. Reorganization scenarios s13 and s14 were dropped: NEAR final blocks cannot be reorganized. Not verified: a swap on public test networks. See `harness/RESULTS.md`, `docs/ENGINE.md`. |
 | NV-02. Real USDC check | Done: the risk is real. USDC's resolve step fails when USDC is paused or an account is blocklisted between delivery and resolve. The escrow then restores a credit that was already paid, and a second withdraw pays twice. Reproduced in the sandbox with the USDC code from mainnet. Only Circle can trigger it. A fix is designed and in progress. See `docs/security/nv02-usdc.md`. `docs/INTENTS.md` is in line with the security fixes. |
 | I1. Deployment tooling, live on NEAR testnet | Done. Escrow `escrow.zecret-3f109eea1e.testnet`, test USDC, stand-in verifier and a funded maker are deployed (`deploy/deployment.testnet.json`). The main session checked by RPC: the escrow has 0 access keys, its code hash equals the local build, and its Intents account is the stand-in verifier. Two full contract-level swaps ran on testnet (hashes in `deploy/e2e.testnet.json`). The tool's own tests were not rerun by the main session. Keys are in `deploy/.keys/` (untracked); losing this machine loses them, and the deployment must then be redone. Mainnet estimate: about 6 NEAR. See `docs/DEPLOY.md`. |
@@ -25,7 +26,7 @@ their checks.
 | Package | Started (UTC) | Where the work is |
 |---|---|---|
 | E. Taker engine in the browser, wired into the website | 04:44 | `crates/zecret-wasm/`, `web/`, `harness/` |
-| S2. Security review of the core and the native client | 04:55 | `docs/security/` |
+| S2-fix (maker side). Fixes for review 2 that are outside `taker.rs` | 05:30 | `crates/zecret-core` (not `taker.rs`), `crates/zecret-node` |
 | NV-02 fix. Make the Intents payout safe against a USDC pause or blocklist; redeploy on testnet | 04:50 | `contracts/near-escrow/`, `deploy/` |
 
 ## Next

@@ -8,7 +8,7 @@
 //!   zecret pay       --dir D --to UA --zats N     fully shielded payment
 //!   zecret near-key  --dir D                      create D/near_key.json, print the key
 //!   zecret directory --dir D                      maker: print the signed directory entry
-//!   zecret maker     --dir D [--exit-after N] [--vanish-at STAGE]
+//!   zecret maker     --dir D [--exit-after N] [--vanish-at STAGE] [--relay HOST:PORT]
 //!   zecret taker     --dir D --zats N [--vanish-at STAGE]
 //!   zecret check     --dir D                      read both chains with D's settings: NEAR final
 //!                                                 block, the escrow checks, the Zcash tip
@@ -158,6 +158,23 @@ fn run_maker(dir: &Path, store: &mut FileStore, args: &[String]) -> Result<()> {
     let cfg: MakerConfig = serde_json::from_value(read_config(dir)?)?;
     let exit_after: Option<usize> = arg(args, "--exit-after").map(|s| s.parse()).transpose()?;
     let vanish_at = arg(args, "--vanish-at");
+    if let Some(addr) = arg(args, "--relay") {
+        // The direct exit's relay (local network and testnet): see src/relay.rs.
+        let key = NearKey::from_secret_str(std::str::from_utf8(&store.get(maker::KEY_NEAR)?.ok_or_else(|| anyhow!("no NEAR key in the store"))?)?)?;
+        let relay = zecret_node::relay::Relay {
+            near_rpc: cfg.chains.near_rpc.clone(),
+            verifier: cfg.chains.intents.clone(),
+            maker_account: cfg.near_account.clone(),
+            key,
+            store_dir: dir.to_path_buf(),
+        };
+        println!("[maker {}] relay for direct exits on http://{addr}/execute-intents", now());
+        std::thread::spawn(move || {
+            if let Err(e) = relay.serve(&addr) {
+                eprintln!("relay stopped: {e:#}");
+            }
+        });
+    }
     let mut m = Maker::open(cfg, transport()?, store)?;
     println!("[maker {}] up: UA {} NEAR {} key {}", now(), m.ua(), m.cfg.near_account, m.signer.key.public_key_str());
     loop {

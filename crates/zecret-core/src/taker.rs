@@ -571,16 +571,115 @@ impl Taker {
         Ok(self.pend(s, "rfq", &tx, TakerStage::RfqSent))
     }
 
-    fn on_quote(&mut self, s: &mut TakerSwap, now: u64) -> Result<Next> {
+    /// The maker's quote for this swap among the received memos: the quote, its plaintext,
+    /// the maker's ephemeral key and the height it was mined at.
+    fn find_quote(&self, s: &TakerSwap) -> Result<Option<(Quote, Vec<u8>, [u8; 32], u64)>> {
         let rfq_id = s.rfq_bytes()?;
         let e_t = keys::scalar_from_bytes(&keys::unhex32(&s.e_t)?)?;
         let e_t_pub = keys::unhex32(&s.e_t_pub)?;
-        let found = self.wallet.received.iter().filter(|r| r.label == "wallet").find_map(|r| match Envelope::decode(&r.memo) {
+        Ok(self.wallet.received.iter().filter(|r| r.label == "wallet").find_map(|r| match Envelope::decode(&r.memo) {
             Ok(Some(Envelope::Quote { rfq_id: id, eph, ct })) if id == rfq_id => {
                 msg::open(b"quote", &e_t, &eph, &e_t_pub, &eph, &ct).ok().and_then(|b| Quote::from_bytes(&b).ok().map(|q| (q, b, eph, r.height)))
             }
             _ => None,
+        }))
+    }
+
+    /// Takes a verified quote into the record: the joint key, the escrow id and the quote
+    /// itself, and watches the joint address.
+    fn adopt_quote(&mut self, s: &mut TakerSwap, q: &Quote, e_m_pub: [u8; 32], quote_height: u64) -> Result<()> {
+        let rfq_id = s.rfq_bytes()?;
+        let a = s.a_scalar()?;
+        let s_t = keys::unhex32(&s.s_t)?;
+        let joint = keys::joint(&rfq_id, keys::g() * a, keys::point_from_bytes(&q.b_pub)?, &s_t, &q.s_m)?;
+        let salt = keys::escrow_salt(&rfq_id, &s_t, &q.s_m);
+        s.escrow_id = Some(hex::encode(escrow::swap_id(&self.cfg.maker.near_account, &salt)));
+        s.negated = joint.negated;
+        s.joint_fvk = Some(hex::encode(joint.fvk.to_bytes()));
+        s.joint_address = Some(wallet::encode_ua(&joint.fvk.address_at(0u32, Scope::External)));
+        s.quote = Some(QuoteRec {
+            price: q.price.to_string(),
+            premium: q.premium,
+            stipend: q.stipend.to_string(),
+            b_pub: hex::encode(q.b_pub),
+            e_m_pub: hex::encode(e_m_pub),
+            windows: Windows { t0_secs: q.t0_secs, t1_secs: q.t1_secs, t2_secs: q.t2_secs, reveal_secs: q.reveal_secs },
+            height: quote_height,
         });
+        self.watch_joint(s)?;
+        self.log(s, format!("QUOTE decrypted and verified (price {}, premium {} zats, stipend {} yocto, maker key valid)", q.price, q.premium, q.stipend));
+        self.ev.push(Event::Quote {
+            swap: s.rfq_id.clone(),
+            price: q.price.to_string(),
+            premium: q.premium,
+            stipend: q.stipend.to_string(),
+            joint_address: s.joint_address.clone().unwrap_or_default(),
+        });
+        Ok(())
+    }
+
+    /// For a swap restored from a recovery file into a fresh store: moves the record forward
+    /// to what the chains show, so that no message and no payment is sent twice. A recovery
+    /// file is usually saved before the swap starts, so its record says `WaitingDeposit`
+    /// while the request, the acceptance or the funding may already be on chain.
+    ///
+    /// Only this engine spends from the temporary wallet, so its mined sends are, in order:
+    /// the request, the acceptance (the first send at or after the quote's height) and the
+    /// funding (also visible as a note at the joint address). A quote that fails the checks
+    /// is left for `tick`, which rejects it. From `Funded` on, `tick` reads the escrow and
+    /// needs no help. A transaction still in the mempool is not visible here: the host
+    /// should call this again until a few new blocks are mined before it calls `tick`.
+    /// Returns true if the record changed (it is then stored).
+    pub fn reconcile(&mut self, now: u64, store: &mut dyn Store) -> Result<bool> {
+        let Some(mut s) = self.swap.clone() else { return Ok(false) };
+        if s.stage.is_terminal() || s.pending.is_some() {
+            return Ok(false);
+        }
+        self.wallet.sync().context("Zcash sync")?;
+        let before = s.clone();
+        let sends = self.wallet.sends("wallet");
+        if s.stage == TakerStage::WaitingDeposit
+            && let Some((txid, h)) = sends.first().cloned()
+        {
+            s.rfq_txid = Some(txid.clone());
+            self.log(&mut s, format!("restored: the request was already sent in tx {txid} (height {h})"));
+            self.set_stage(&mut s, TakerStage::RfqSent, now);
+        }
+        if s.stage == TakerStage::RfqSent
+            && let Some((q, _body, e_m_pub, qh)) = self.find_quote(&s)?
+            && self.reject_quote(&q, &s.rfq_bytes()?, s.min_price).is_none()
+            && let Some((txid, h)) = sends.iter().find(|(_, h)| *h >= qh).cloned()
+        {
+            if s.joint_fvk.is_none() {
+                self.adopt_quote(&mut s, &q, e_m_pub, qh)?;
+                // The joint key is new to the wallet: scan again to find a funding note.
+                self.wallet.sync().context("Zcash sync")?;
+            }
+            s.accept_txid = Some(txid.clone());
+            self.log(&mut s, format!("restored: the acceptance was already sent in tx {txid} (height {h})"));
+            self.set_stage(&mut s, TakerStage::Accepted, now);
+        }
+        if s.stage == TakerStage::Accepted
+            && let Some(n) = self.wallet.received.iter().find(|r| r.label == s.rfq_id).cloned()
+        {
+            s.fund_txid = Some(n.txid.clone());
+            self.wallet.track(&n.txid);
+            self.log(&mut s, format!("restored: the joint address was already funded in tx {} (height {})", n.txid, n.height));
+            self.set_stage(&mut s, TakerStage::Funded, now);
+        }
+        if s == before {
+            return Ok(false);
+        }
+        put_json(store, &format!("{PREFIX_SWAP}{}", s.rfq_id), &s)?;
+        self.swap = Some(s);
+        Ok(true)
+    }
+
+    fn on_quote(&mut self, s: &mut TakerSwap, now: u64) -> Result<Next> {
+        let rfq_id = s.rfq_bytes()?;
+        let e_t = keys::scalar_from_bytes(&keys::unhex32(&s.e_t)?)?;
+        let e_t_pub = keys::unhex32(&s.e_t_pub)?;
+        let found = self.find_quote(s)?;
         let Some((q, body, e_m_pub, quote_height)) = found else {
             if now > s.stage_at + self.cfg.quote_timeout_secs {
                 return self.abort(s, "no quote before the timeout; nothing funded".into(), now);
@@ -597,32 +696,7 @@ impl Taker {
         // Joint key and the acceptance. Data from the quote is kept before the acceptance
         // goes out (the record is stored with the pending transaction).
         if s.joint_fvk.is_none() {
-            let a = s.a_scalar()?;
-            let s_t = keys::unhex32(&s.s_t)?;
-            let joint = keys::joint(&rfq_id, keys::g() * a, keys::point_from_bytes(&q.b_pub)?, &s_t, &q.s_m)?;
-            let salt = keys::escrow_salt(&rfq_id, &s_t, &q.s_m);
-            s.escrow_id = Some(hex::encode(escrow::swap_id(&self.cfg.maker.near_account, &salt)));
-            s.negated = joint.negated;
-            s.joint_fvk = Some(hex::encode(joint.fvk.to_bytes()));
-            s.joint_address = Some(wallet::encode_ua(&joint.fvk.address_at(0u32, Scope::External)));
-            s.quote = Some(QuoteRec {
-                price: q.price.to_string(),
-                premium: q.premium,
-                stipend: q.stipend.to_string(),
-                b_pub: hex::encode(q.b_pub),
-                e_m_pub: hex::encode(e_m_pub),
-                windows: Windows { t0_secs: q.t0_secs, t1_secs: q.t1_secs, t2_secs: q.t2_secs, reveal_secs: q.reveal_secs },
-                height: quote_height,
-            });
-            self.watch_joint(s)?;
-            self.log(s, format!("QUOTE decrypted and verified (price {}, premium {} zats, stipend {} yocto, maker key valid)", q.price, q.premium, q.stipend));
-            self.ev.push(Event::Quote {
-                swap: s.rfq_id.clone(),
-                price: q.price.to_string(),
-                premium: q.premium,
-                stipend: q.stipend.to_string(),
-                joint_address: s.joint_address.clone().unwrap_or_default(),
-            });
+            self.adopt_quote(s, &q, e_m_pub, quote_height)?;
             return Ok(Next::At(0));
         }
         if !self.cover_ready(s, "ACCEPT", quote_height, None, now) {
@@ -739,6 +813,16 @@ impl Taker {
         }
         if self.cfg.misbehave == Some(Misbehave::FreeClaim) {
             self.log(s, "[MISBEHAVE free-claim] escrow verified; NOT funding; will try to claim after t0".into());
+            self.set_stage(s, TakerStage::Funded, now);
+            return Ok(Next::At(now));
+        }
+        // A note at the joint address means the funding is already out (a record restored
+        // from an early recovery file, or a funding mined after a refused rebroadcast).
+        // Never fund twice.
+        if let Some(n) = self.wallet.received.iter().find(|r| r.label == s.rfq_id).cloned() {
+            s.fund_txid = Some(n.txid.clone());
+            self.wallet.track(&n.txid);
+            self.log(s, format!("the joint address already holds the funding (tx {})", n.txid));
             self.set_stage(s, TakerStage::Funded, now);
             return Ok(Next::At(now));
         }

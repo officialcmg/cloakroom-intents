@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["zecret-core", "zecret-node"]
+members = ["zecret-core", "zecret-node", "zecret-wasm"]
+# A standalone crate with its own workspace (used by zecret-wasm as a path dependency).
+exclude = ["zecret-intents"]
 
 [workspace.package]
 edition = "2024"

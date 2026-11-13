@@ -326,11 +326,16 @@ async fn open(
     Ok((id, o))
 }
 
+/// Gas attached to `withdraw`. The Intents route needs at least 110 Tgas (measured in
+/// tests/usdc.rs, `withdraw_gas_needed`); 200 Tgas also covers a direct and an Intents
+/// credit of the same owner in one call.
+const WITHDRAW_GAS: u64 = 200;
+
 async fn withdraw(caller: &Account, env: &Env, owner: &str) -> R<ExecutionFinalResult> {
     Ok(caller
         .call(env.escrow.id(), "withdraw")
         .args_json(json!({ "token": env.token.id(), "owner": owner }))
-        .gas(Gas::from_tgas(100))
+        .gas(Gas::from_tgas(WITHDRAW_GAS))
         .transact()
         .await?)
 }
@@ -343,14 +348,14 @@ async fn happy_path_claim_into_intents_then_signed_exit() -> R<()> {
     let t = taker(7);
 
     // Step 11 of the design: the maker's stipend creates the taker's implicit account.
-    // In this test the taker also sends withdraw (100 Tgas) and execute_intents (50 Tgas)
+    // In this test the taker also sends withdraw (200 Tgas) and execute_intents (50 Tgas)
     // herself. A signer must hold the attached gas at a pessimistic price before NEAR
     // accepts the transaction (see stipend_needed_for_taker_commit_and_claim), so this
-    // test sends 0.2 NEAR.
+    // test sends 0.4 NEAR.
     ok(
-        "maker -> taker stipend 0.2 NEAR",
+        "maker -> taker stipend 0.4 NEAR",
         env.maker
-            .transfer_near(&t.id.parse()?, NearToken::from_millinear(200))
+            .transfer_near(&t.id.parse()?, NearToken::from_millinear(400))
             .await?,
     );
     let taker_acc = taker_account(&t, &env.worker)?;
@@ -472,6 +477,11 @@ async fn happy_path_claim_into_intents_then_signed_exit() -> R<()> {
         "0"
     );
     assert_eq!(ft_balance(&env.token, env.escrow.id()).await?, 0);
+    // The deposit went to the escrow's own Intents account and mt_transfer moved it on.
+    assert_eq!(
+        intents_balance(&env.intents, &env.token, env.escrow.id().as_str()).await?,
+        0
+    );
     let held = intents_balance(&env.intents, &env.token, &t.id).await?;
     println!("taker {} holds {held} inside Intents", t.id);
     assert_eq!(held, AMOUNT);

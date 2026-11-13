@@ -23,7 +23,7 @@ zecret pay       --dir D --to UA --zats N   # fully shielded payment
 zecret near-key  --dir D                    # create D/near_key.json, print the public key
 zecret directory --dir D                    # maker: print the signed directory entry (JSON)
 zecret check     --dir D                    # read both chains with D's settings (see below)
-zecret maker     --dir D [--exit-after N] [--vanish-at STAGE]
+zecret maker     --dir D [--exit-after N] [--vanish-at STAGE] [--relay HOST:PORT]
 zecret taker     --dir D --zats N [--vanish-at STAGE]
 zecret devnet    --rpc URL --root-key validator_key.json --wasm-dir DIR \
                  --escrow-wasm near_escrow.wasm --maker-dir D [--maker-wnear N]

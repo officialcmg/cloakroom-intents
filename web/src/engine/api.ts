@@ -8,6 +8,10 @@
 //
 // All amounts are strings of integer base units (zats for ZEC, micro-USDC for USDC, the
 // token's own base unit for the destination). All times are Unix milliseconds.
+//
+// On a network where a stand-in token replaces USDC (local: wNEAR with 24 decimals), the
+// "micro-USDC" amounts are that token's amounts scaled to 6 decimals; the engine converts.
+import type { NetworkConfig } from '../lib/netconfig';
 
 export type Network = 'mainnet' | 'testnet' | 'regtest';
 export type EngineKind = 'simulated' | 'wasm';
@@ -62,6 +66,7 @@ export const ERROR_CODES = [
   'QUOTE_BELOW_MINIMUM', // the maker's firm quote was below params.minUsdc
   'MAKER_TIMEOUT', // the maker did not answer the request in time
   'MAKER_REFUNDED', // the maker refunded the escrow instead of setting it ready
+  'MAKER_CHECK_FAILED', // the maker's quote or escrow failed the engine's safety checks; nothing was funded
   'EXIT_FAILED', // 1Click reported FAILED or REFUNDED; the USDC is back under the user's key
   'EXIT_BELOW_MINIMUM', // the firm exit quote's minAmountOut is below the approved minimum
   'EXIT_NO_QUOTE', // 1Click answered "Quoting for this pair is not available"; the engine retries by itself (transient)
@@ -122,6 +127,8 @@ export interface EngineConfig {
   nearRpcUrl?: string;
   /** Only read by the simulated engine. */
   sim?: SimOptions;
+  /** The real engine's network: endpoints, escrow, token, Verifier, exit (src/lib/netconfig.ts). */
+  real?: NetworkConfig;
 }
 
 export type InitPhase = 'starting' | 'building_keys' | 'ready' | 'failed';
@@ -161,6 +168,11 @@ export interface CreateSwapParams {
   minUsdc: string;
   /** The exit does not run below this without the user's consent (destination base units). */
   minDestinationAmount: string;
+  /**
+   * Networks without 1Click (local, testnet): the NEAR account that receives the stand-in
+   * token from the Verifier. `destination` then only names the live mainnet preview.
+   */
+  directExit?: { nearAccount: string };
   /** For display: what the page showed when the user agreed. */
   shown: { usdcExpected: string; destinationExpected: string; premiumZats: string; networkFeeZats: string };
 }
@@ -222,8 +234,13 @@ export interface SwapState {
     timeEstimateS?: number;
     /** Fee in the quote (1Click appFees), in basis points. */
     feeBps?: number;
-    /** Set after submit-intent. */
+    /** Set after submit-intent (direct exit: the hash of the signed Verifier intent). */
     intentHash?: string;
+    /**
+     * A direct exit (no 1Click): the Verifier sends `token` to the NEAR account `nearAccount`.
+     * amountIn, amountOut, minAmountOut and deliveredAmount are then in that token's units.
+     */
+    direct?: { nearAccount: string; token: string; symbol: string; decimals: number };
     /** A firm quote below the approved minimum, offered to the user. */
     offered?: { amountOut: string; minAmountOut: string };
     deliveredAmount?: string;
