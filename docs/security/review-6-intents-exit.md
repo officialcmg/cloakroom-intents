@@ -325,6 +325,12 @@ every re-signed quote is refused at the signature.
   `rescue({ to })`. Until then the command-line rescue is the path.
 - **X-2.** A partner key, if 1Click starts to require it for `submit-intent`, must live in
   a backend that forwards the two calls; a key in the browser is public.
+  **Narrowed 2026-11-14:** the website project has that backend, a same-origin Vercel
+  function per 1Click call (`web/api/oneclick/v0/`, `docs/ONECLICK_PROXY.md`). It adds
+  the key from `ONECLICK_JWT` and forwards with no key without it. The engine treats it as
+  untrusted transport; `crates/zecret-wasm/tests/oneclick_proxy.rs` shows that edited
+  quotes, payloads and statuses are refused before anything is signed. Open: it has not
+  run on Vercel, no key is set, and the configurations still call 1Click directly.
 - **X-3.** A signed exit stays valid for about 72 hours. The engine never signs more than
   the key holds, so two signed exits cannot both run, but an earlier signed payload can
   still run later and move the USDC to its deposit address. The Verifier has no gasless

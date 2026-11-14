@@ -26,7 +26,11 @@ const cfg = JSON.parse(readFileSync(path.join(WEB, 'public/config/mainnet.json')
 const LWD = cfg.zcash.lightwalletd;
 // near.rpc is one URL or an ordered list (incident 2026-11-14).
 const RPCS = [cfg.near.rpc].flat();
-const ONECLICK = cfg.exit.oneClickUrl;
+// oneClickUrl may be a path on the site (the proxy, docs/ONECLICK_PROXY.md). This local
+// server has no proxy, so the check then asks 1Click itself, as the page does without one.
+const ONECLICK_SET = cfg.oneClickUrl ?? cfg.exit.oneClickUrl ?? 'https://1click.chaindefuser.com';
+const ONECLICK = ONECLICK_SET.startsWith('/') ? 'https://1click.chaindefuser.com' : ONECLICK_SET;
+if (ONECLICK !== ONECLICK_SET) console.log(`note: the configuration names ${ONECLICK_SET} on the site; this check asks ${ONECLICK} directly (check the proxy with the curl in docs/ONECLICK_PROXY.md)`);
 if (!existsSync(path.join(DIST, 'engine/zecret_wasm.js'))) {
   console.log(`FAIL no engine in ${DIST}/engine: build the engine and the site first`);
   process.exit(1);

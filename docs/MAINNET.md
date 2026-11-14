@@ -451,6 +451,12 @@ The rate (`890`) must be `price_per_zec / 10^6`.
 | `VITE_MAINNET_ESCROW` | `escrow.<owner>` |
 | `VITE_MAINNET_ESCROW_CODE_HASH` | `ESCROW_HASH` |
 
+- Optional, the 1Click partner key (lower 1Click fee, `docs/ONECLICK_PROXY.md`): add
+  `ONECLICK_JWT` (Production, Secret) to this project too. After the first deployment,
+  run the curl of `docs/ONECLICK_PROXY.md` ("Turn it on", step 4) against
+  `https://mainnet.zecret.chrismg.dev`; when it shows `x-oneclick-auth: key`, set
+  `"oneClickUrl": "/api/oneclick"` in `web/public/config/mainnet.json` and push. Without
+  the key, leave `oneClickUrl` at `https://1click.chaindefuser.com`.
 - Domains: add `mainnet.zecret.chrismg.dev` (a CNAME at your DNS host, as Vercel shows).
 
 The build stops at once if a variable or `mainnet-directory.json` is missing

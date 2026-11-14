@@ -58,7 +58,7 @@ const PRICE = '2000000';
 const DEPOSIT = 'd1'.repeat(32);
 const testnet = parseNetworkConfig(JSON.parse(readFileSync(new URL('../../public/config/testnet.json', import.meta.url), 'utf8')));
 /** The testnet file with the 1Click exit, as mainnet runs it. */
-const cfg: NetworkConfig = { ...testnet, exit: { mode: 'oneclick', oneClickUrl: 'https://1click.chaindefuser.com' } };
+const cfg: NetworkConfig = { ...testnet, oneClickUrl: 'https://1click.chaindefuser.com', exit: { mode: 'oneclick' } };
 const directory = {
   format: 'zecret-maker-directory',
   version: 1,

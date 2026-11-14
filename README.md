@@ -523,7 +523,15 @@ signing internals, the TLA+ model against the code, and the Railway start script
   timing analysis). Cover delays exist in the code and in one scenario (`s12`), but are
   off in the testnet configs and the website.
 - **Network observers.** The light-wallet server, the NEAR RPC, 1Click and, on testnet,
-  the maker's relay see the user's IP address unless the user uses Tor or a VPN.
+  the maker's relay see the user's IP address unless the user uses Tor or a VPN. When the
+  site uses its 1Click proxy (`docs/ONECLICK_PROXY.md`), Vercel sees the 1Click calls and
+  1Click sees Vercel's address instead.
+- **The 1Click partner key.** It is never in the browser. A same-origin Vercel function
+  adds it to the site's five 1Click calls (`docs/ONECLICK_PROXY.md`). The engine treats
+  that function as untrusted transport and checks 1Click's signature and the payload as
+  before. Anyone can call the function with curl and so use the key's quota; a Vercel WAF
+  rate limit can bound that. Built and tested locally; not yet run on Vercel, and no key
+  is set.
 - **Third parties on the exit.** 1Click and its solvers deliver the destination token.
   The check before signing proves what was signed, not that 1Click delivers.
 

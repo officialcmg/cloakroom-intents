@@ -54,7 +54,9 @@ ESCROW_WASM="${ESCROW_WASM:-$ROOT/contracts/near-escrow/target/wasm32-unknown-un
 LWD="$(jq -r .zcash.lightwalletd "$ROOT/web/public/config/mainnet.json")"
 # near.rpc is one URL or an ordered list (incident 2026-11-14).
 RPCS="$(jq -r '[.near.rpc] | flatten | .[]' "$ROOT/web/public/config/mainnet.json")"
-ONECLICK="$(jq -r .exit.oneClickUrl "$ROOT/web/public/config/mainnet.json")"
+# oneClickUrl is 1Click itself or a path on the site (the proxy, docs/ONECLICK_PROXY.md).
+ONECLICK="$(jq -r '.oneClickUrl // .exit.oneClickUrl // "https://1click.chaindefuser.com"' "$ROOT/web/public/config/mainnet.json")"
+case "$ONECLICK" in /*) ONECLICK="$SITE_ORIGIN$ONECLICK" ;; esac
 echo "== Zecret mainnet preflight $(date -u +%Y-%m-%dT%H:%M:%SZ) (nothing is sent)"
 
 # 1. Tools.

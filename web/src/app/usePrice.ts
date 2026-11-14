@@ -11,30 +11,36 @@ export const BUSY_RETRY_MS = 20_000;
 
 // ---------------------------------------------------------------- tokens
 
-let tokenCache: Promise<TokenList> | undefined;
+/** One token list per 1Click base URL, for the page's lifetime. */
+const tokenCache = new Map<string, Promise<TokenList>>();
 
-export function useTokens(): { list?: TokenList; error?: string; retry: () => void } {
+/** `base`: the absolute 1Click base URL (netconfig.ts oneClickBase). */
+export function useTokens(base: string): { list?: TokenList; error?: string; retry: () => void } {
   const [list, setList] = useState<TokenList>();
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let live = true;
-    tokenCache ??= fetchTokens();
-    tokenCache.then(
+    let pending = tokenCache.get(base);
+    if (!pending) {
+      pending = fetchTokens(base);
+      tokenCache.set(base, pending);
+    }
+    pending.then(
       (l) => {
         if (!live) return;
         setList(l);
         setError(undefined);
       },
       (e: Error) => {
-        tokenCache = undefined;
+        tokenCache.delete(base);
         if (live) setError(e.message);
       },
     );
     return () => {
       live = false;
     };
-  }, [attempt]);
+  }, [attempt, base]);
   return { list, error, retry: () => setAttempt((a) => a + 1) };
 }
 
@@ -49,7 +55,7 @@ export type PriceState =
 
 type Result = { key: string } & ({ ok: true; price: CombinedPrice; quote: ExitQuote; recipientChecked: boolean } | { ok: false; error: OneClickError });
 
-export function usePrice(payZats: bigint | undefined, token: Token | undefined, address: string, terms: MakerTerms | undefined): PriceState & { refresh: () => void } {
+export function usePrice(payZats: bigint | undefined, token: Token | undefined, address: string, terms: MakerTerms | undefined, base: string): PriceState & { refresh: () => void } {
   const [tick, setTick] = useState(0);
   const [result, setResult] = useState<Result>();
   const [lastOk, setLastOk] = useState<CombinedPrice>();
@@ -57,7 +63,7 @@ export function usePrice(payZats: bigint | undefined, token: Token | undefined, 
   const addressOk = token ? validateDestinationAddress(token.blockchain, address).ok : false;
   const recipient = token ? (addressOk ? address.trim() : quoteSampleAddress(token.blockchain)) : undefined;
   const zec = useMemo(() => (terms && payZats !== undefined ? computeZecSide(payZats, terms) : undefined), [terms, payZats]);
-  const key = zec?.ok && token && recipient ? `${zec.value.payZats}|${token.assetId}|${recipient}|${tick}` : undefined;
+  const key = zec?.ok && token && recipient ? `${base}|${zec.value.payZats}|${token.assetId}|${recipient}|${tick}` : undefined;
 
   useEffect(() => {
     if (!key || !zec?.ok || !token || !recipient) return;
@@ -66,7 +72,7 @@ export function usePrice(payZats: bigint | undefined, token: Token | undefined, 
     const zecSide = zec.value;
     const checked = addressOk;
     const timer = setTimeout(() => {
-      fetchExitQuote({ amountIn: zecSide.usdcExpected, destinationAsset: token.assetId, recipient, refundTo: DRY_REFUND_ACCOUNT, dry: true }, ctrl.signal).then(
+      fetchExitQuote(base, { amountIn: zecSide.usdcExpected, destinationAsset: token.assetId, recipient, refundTo: DRY_REFUND_ACCOUNT, dry: true }, ctrl.signal).then(
         (quote) => {
           const price = combine(zecSide, quote);
           setLastOk(price);

@@ -4,6 +4,7 @@ import { appStore, useApp, usePref } from '../app/useZecret';
 import { usePrice, useTokens } from '../app/usePrice';
 import { chainInfo, validateDestinationAddress } from '../lib/address/chains';
 import { validateZcashReturnAddress } from '../lib/address/zcash';
+import { oneClickBase } from '../lib/netconfig';
 import type { Token } from '../lib/oneclick';
 import { formatBps, makerMarginBps, type CombinedPrice } from '../lib/price';
 import { formatUnits, formatUsdc, formatZec, parseUnits, toDecimalString, ZEC_DECIMALS } from '../lib/units';
@@ -25,7 +26,8 @@ function amountError(input: string): string | undefined {
 export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRestore: () => void }) {
   const app = useApp();
   const terms = app.terms!;
-  const tokens = useTokens();
+  const oneClick = oneClickBase(app.network);
+  const tokens = useTokens(oneClick);
   const [amount, setAmount] = useState('');
   const [tokenId, setTokenId] = usePref<string>('token', DEFAULT_TOKEN);
   const [address, setAddress] = useState('');
@@ -47,7 +49,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
 
   const parsed = parseUnits(amount, ZEC_DECIMALS);
   const payZats = parsed.ok && parsed.value > 0n ? parsed.value : undefined;
-  const price = usePrice(payZats, token, address, terms);
+  const price = usePrice(payZats, token, address, terms, oneClick);
 
   const addrCheck = token ? (direct ? { ok: true as const, address: '', note: undefined } : validateDestinationAddress(token.blockchain, address)) : undefined;
   const nearOk = /^(?=.{2,64}$)[a-z0-9]+([-_][a-z0-9]+)*(\.[a-z0-9]+([-_][a-z0-9]+)*)*$/.test(nearAccount.trim());

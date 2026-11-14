@@ -15,7 +15,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['e2e/**/*.ts', '*.config.ts'],
+    files: ['e2e/**/*.ts', '*.config.ts', 'api/**/*.ts', 'server/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
 );
