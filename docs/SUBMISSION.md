@@ -36,7 +36,7 @@ not guess, generate or fill in any OWNER value.
 | Contact email (`email`) | valid, at most 160 characters; at most 2 submissions per email | OWNER |
 | Team size (`size`) | one of `1`, `2 - 4`, `4 - 6`, `6 - 8`, `8+`, exactly as written | OWNER |
 | Tracks (`tracks`) | ids from the Tracks table, each once | Proposed: `["defi", "privacy"]` (reasons below) |
-| NEAR mainnet account for the payout (`nearAddress`) | a named account such as `team.near`, or a 64-character implicit account; lowercase | OWNER. The owner creates it in a NEAR wallet. Nobody creates one for the owner. |
+| NEAR mainnet account for the payout (`nearAddress`) | a named account such as `team.near`, or a 64-character implicit account; lowercase | `chrismgg.near`, given by the owner on 2026-11-14. It exists on mainnet (`view_account`, block 224570385). |
 | Repository link (`projectUrl`) | public http(s) URL, at most 300 characters, submitted once | Proposed: `https://github.com/officialcmg/cloakroom-intents` (the repository `officialcmg/zecret` after the owner renames it on GitHub; GitHub redirects the old name). It must be public first. |
 | Demo post link (`demoUrl`) | public http(s) URL, at most 300 characters | OWNER, after the post is published |
 | What they built (`idea`) | 20-2000 characters: the problem, the product, how NEAR fits in | Proposed texts below |
@@ -57,7 +57,7 @@ not guess, generate or fill in any OWNER value.
 Cloakroom Intents swaps shielded ZEC for tokens on other chains with no custodian. A maker locks USDC in an escrow on NEAR; the user's ZEC goes to a shielded address whose key is split between user and maker. Claiming the USDC reveals the user's key half; a refund reveals the maker's. The USDC lands in NEAR Intents under the user's own key, and one checked signature sends it to another chain.
 ```
 
-### "What they built": long version (1,701 characters)
+### "What they built": long version (1,755 characters)
 
 Update the "Status" paragraph if `STATUS.md` changes before submission.
 
@@ -68,11 +68,10 @@ Cloakroom Intents swaps shielded ZEC for a token on another chain with no custod
 
 How NEAR fits in: the escrow is a Rust contract on NEAR with no access keys. Each swap uses a new ed25519 implicit account that the maker funds with a 0.06 NEAR stipend, so the user sends her own claim with no relayer and no gas payment that links her to the swap. NEAR's fast finality shrinks the protocol's safety windows from hours (on Base) to minutes. The USDC is paid into NEAR Intents under the user's key, and one signature, checked before signing, sends it to a token on another chain through 1Click.
 
-Status: the native maker and taker pass 21 two-party scenarios on local chains. The website runs the taker in the browser as WebAssembly; five browser scenarios pass on local chains. The website and a maker are hosted on Zcash testnet and NEAR testnet at https://cloakroom.chrismg.dev; a swap through it turned 0.05 testnet ZEC into 1.4877 test USDC in 493 s. Nothing is deployed on mainnet, and the exit with real funds has not run. Cloakroom Intents is my earlier Cloakroom protocol (ZECATHON, Base) rebuilt on NEAR with NEAR Intents as the exit, disclosed as baseline commit 2f8e2f7 (branch pre-hackathon-baseline). The project was named Zecret until 2026-11-14.
+Status: the native maker and taker pass 25 two-party scenarios on local chains. The website runs the taker in the browser as WebAssembly; six browser scenarios pass on local chains. The website and a maker are hosted on Zcash testnet and NEAR testnet at https://cloakroom.chrismg.dev; 38 swaps have completed there, 37 of them through the website, most in 6 to 9 minutes. Nothing is deployed on mainnet, and the exit with real funds has not run. Cloakroom Intents is my earlier Cloakroom protocol (ZECATHON, Base) rebuilt on NEAR with NEAR Intents as the exit, disclosed as baseline commit 2f8e2f7 (branch pre-hackathon-baseline). The project was named Zecret until 2026-11-14.
 ```
 
-Sources for each statement: the problem sentence is from the abstract of
-`Cloakroom_Yellow_Paper.pdf`; the rest is in `README.md`, `docs/DESIGN.md`,
+Sources for each statement: the problem sentence is in `README.md` ("The problem"); the rest is in `README.md`, `docs/DESIGN.md`,
 `docs/TESTNET.md`, `harness/RESULTS.md` and `STATUS.md`.
 
 ## 3. The payload
@@ -89,7 +88,7 @@ placeholder that must be replaced; `OWNER` values come only from the owner.
   "email": "<OWNER: contact email>",
   "size": "<OWNER: one of 1 | 2 - 4 | 4 - 6 | 6 - 8 | 8+>",
   "tracks": ["defi", "privacy"],
-  "nearAddress": "<OWNER: mainnet account, for example name.near>",
+  "nearAddress": "chrismgg.near",
   "projectUrl": "https://github.com/officialcmg/cloakroom-intents",
   "demoUrl": "<OWNER: link to the published X post>",
   "idea": "<the short or the long text above, as a JSON string>",
