@@ -2,24 +2,12 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Token } from '../lib/oneclick';
 import { chainInfo } from '../lib/address/chains';
 import { Icon } from './Icon';
+import { TokenAvatar } from './TokenAvatar';
+
+export { TokenBadge } from './TokenAvatar';
 
 export function chainName(id: string): string {
   return chainInfo(id)?.name ?? id;
-}
-
-function hue(s: string): number {
-  let h = 0;
-  for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return h;
-}
-
-/** A coloured initial instead of a token logo, so the page loads no images from third parties. */
-export function TokenBadge({ symbol, size = 28 }: { symbol: string; size?: number }) {
-  return (
-    <span className="token-badge" style={{ width: size, height: size, ['--h' as string]: hue(symbol) }} aria-hidden="true">
-      {symbol.replace(/[^A-Za-z0-9]/g, '').slice(0, 1).toUpperCase()}
-    </span>
-  );
 }
 
 export function TokenPicker({
@@ -103,7 +91,7 @@ export function TokenPicker({
       <button type="button" id={id} className="token-select" onClick={open} disabled={disabled} aria-haspopup="dialog">
         {value ? (
           <>
-            <TokenBadge symbol={value.symbol} />
+            <TokenAvatar symbol={value.symbol} blockchain={value.blockchain} />
             <span className="token-select-text">
               <span className="token-symbol">{value.symbol}</span>
               <span className="token-chain">on {chainName(value.blockchain)}</span>
@@ -160,7 +148,7 @@ export function TokenPicker({
               onMouseMove={() => setActive(i)}
               onClick={() => pick(t)}
             >
-              <TokenBadge symbol={t.symbol} size={32} />
+              <TokenAvatar symbol={t.symbol} blockchain={t.blockchain} size={32} />
               <span className="token-option-text">
                 <span className="token-symbol">{t.symbol}</span>
                 <span className="token-chain">{chainName(t.blockchain)}</span>

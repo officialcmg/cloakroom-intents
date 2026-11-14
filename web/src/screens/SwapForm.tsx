@@ -13,7 +13,8 @@ import { formatUnits, formatUsdc, formatZec, parseUnits, toDecimalString, ZEC_DE
 import { Icon } from '../ui/Icon';
 import { Notice, Spinner, useNow } from '../ui/bits';
 import { payTokenLabel } from '../app/stageCopy';
-import { chainName, TokenBadge, TokenPicker } from '../ui/TokenPicker';
+import { chainName, TokenPicker } from '../ui/TokenPicker';
+import { TokenAvatar } from '../ui/TokenAvatar';
 
 const DEFAULT_TOKEN = 'nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near';
 
@@ -150,7 +151,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
               aria-describedby={`${ids.amount}-hint`}
             />
             <span className="amount-unit">
-              <TokenBadge symbol="ZEC" size={26} />
+              <TokenAvatar symbol="ZEC" blockchain="zec" size={26} />
               ZEC
             </span>
           </div>
