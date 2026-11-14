@@ -2943,7 +2943,9 @@ a.hash {
   margin-bottom: 8px;
 }
 
-.float-a {
+.float-a,
+.float-b,
+.float-c {
   align-items: center;
   gap: 12px;
 }
@@ -2981,13 +2983,16 @@ a.hash {
     left: calc(50% - 400px);
   }
   .float-b {
+    display: flex;
     top: 40px;
     left: calc(50% + 190px);
-    width: 196px;
+    width: 236px;
   }
   .float-c {
+    display: flex;
     top: 290px;
     left: calc(50% - 410px);
+    width: 250px;
   }
   .float-d {
     top: 250px;

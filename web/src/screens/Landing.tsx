@@ -472,13 +472,22 @@ function HeroVisual() {
         </div>
       </div>
       <div className="float-card float-b appear-float">
-        <p className="tag">Key halves</p>
-        <p className="float-big">2</p>
-        <p className="float-text">One half alone cannot spend</p>
+        <span className="icon-tile icon-tile-sm">
+          <Icon name="key" size={16} />
+        </span>
+        <div>
+          <p className="float-title">No custodian</p>
+          <p className="float-text">You keep half of the key to your ZEC</p>
+        </div>
       </div>
       <div className="float-card float-c appear-float">
-        <p className="tag">Escrow on NEAR</p>
-        <p className="float-title">No owner, no upgrade</p>
+        <span className="icon-tile icon-tile-sm">
+          <Icon name="lock" size={16} />
+        </span>
+        <div>
+          <p className="float-title">The maker pays first</p>
+          <p className="float-text">USDC is locked on NEAR before your ZEC moves</p>
+        </div>
       </div>
       <div className="float-card float-d appear-float">
         <p className="tag">Destinations</p>
