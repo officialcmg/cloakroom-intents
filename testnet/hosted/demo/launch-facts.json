@@ -12,7 +12,7 @@
     "nearAccount": "zecret-3f109eea1e.testnet",
     "banner": "Testnet. Test money only. Details",
     "preview": "You pay 0.01 ZEC. You receive at least 0.2795 USDC on Base.",
-    "payTx": "e59cfe9b8af532414530ba053c8c6b2c21f0357760c34cb9775dedb615bfe986",
+    "payTx": "0a427988af9691de4b0bafd1f75df5ab3fdfab5c1d46f10fc19e78f3c2974acd",
     "finalStage": "done",
     "doneTitle": "You received 0.2877 test USDC on NEAR",
     "txs": [
@@ -20,81 +20,81 @@
         "id": "request",
         "chain": "zcash",
         "label": "Request to the maker (encrypted memo)",
-        "hash": "2315385bf0345d4771884604851ac3ac7366072e044e03b91e7aac5342a8d428",
-        "url": "https://testnet.zcashexplorer.app/transactions/2315385bf0345d4771884604851ac3ac7366072e044e03b91e7aac5342a8d428",
-        "at": 1794673148813
+        "hash": "d54d4adc8031f59ca9fdb2373148f374d7706085d82e1c6b129a8811c28516ca",
+        "url": "https://testnet.zcashexplorer.app/transactions/d54d4adc8031f59ca9fdb2373148f374d7706085d82e1c6b129a8811c28516ca",
+        "at": 1794679523291
       },
       {
         "id": "accept",
         "chain": "zcash",
         "label": "Acceptance and premium to the maker",
-        "hash": "ec49ecbf114fc0bbe406bf3bad23287e49f8b0d7810939badefbba583b146d2a",
-        "url": "https://testnet.zcashexplorer.app/transactions/ec49ecbf114fc0bbe406bf3bad23287e49f8b0d7810939badefbba583b146d2a",
-        "at": 1794673296853
+        "hash": "af81bcc30b11d58476e57f47a8b13b316810a8493e5dd0f262cbf5ce2603d380",
+        "url": "https://testnet.zcashexplorer.app/transactions/af81bcc30b11d58476e57f47a8b13b316810a8493e5dd0f262cbf5ce2603d380",
+        "at": 1794679659215
       },
       {
         "id": "funding",
         "chain": "zcash",
         "label": "Your ZEC to the shared address",
-        "hash": "3f2cb75801690b4f4f47812532a69555d2cfa525c9012bf7e68cec8eb45f350f",
-        "url": "https://testnet.zcashexplorer.app/transactions/3f2cb75801690b4f4f47812532a69555d2cfa525c9012bf7e68cec8eb45f350f",
-        "at": 1794673449390
+        "hash": "06955259481abbb84f4370fe8cc6c663266a431b52124f5722d8805662363732",
+        "url": "https://testnet.zcashexplorer.app/transactions/06955259481abbb84f4370fe8cc6c663266a431b52124f5722d8805662363732",
+        "at": 1794679789108
       },
       {
         "id": "commit",
         "chain": "near",
         "label": "Claim commitment (reveals nothing)",
-        "hash": "E9dCogm2HnYipyG6NKFf4MU4XkrZr7K7Ch6PyStzJKkY",
-        "url": "https://testnet.nearblocks.io/txns/E9dCogm2HnYipyG6NKFf4MU4XkrZr7K7Ch6PyStzJKkY",
-        "at": 1794673584714
+        "hash": "ArUufTaofztnFdYXpXiFQyF9PwVTQkuLdrtTdiVwYJNf",
+        "url": "https://testnet.nearblocks.io/txns/ArUufTaofztnFdYXpXiFQyF9PwVTQkuLdrtTdiVwYJNf",
+        "at": 1794679837326
       },
       {
         "id": "claim",
         "chain": "near",
         "label": "Claim with your key half",
-        "hash": "FEwcuGLM6mxLZA5VVtYuEXCMEN7gXjEN7et3zwEigZS5",
-        "url": "https://testnet.nearblocks.io/txns/FEwcuGLM6mxLZA5VVtYuEXCMEN7gXjEN7et3zwEigZS5",
-        "at": 1794673591535
+        "hash": "5dTciPqdGSP2d845u8BeLTVASFMvDjAJcsSZ4UQyeVeW",
+        "url": "https://testnet.nearblocks.io/txns/5dTciPqdGSP2d845u8BeLTVASFMvDjAJcsSZ4UQyeVeW",
+        "at": 1794679841581
       },
       {
         "id": "withdraw",
         "chain": "near",
         "label": "Payout into NEAR Intents (withdraw, sent by your key)",
-        "hash": "ASUjkUEMwLfXaPeAgpnkgCdXewgDMKb5GrPLkRnpozV3",
-        "url": "https://testnet.nearblocks.io/txns/ASUjkUEMwLfXaPeAgpnkgCdXewgDMKb5GrPLkRnpozV3",
-        "at": 1794673599391
+        "hash": "DUa1fekJbjnAFkEyxQtR2Q2wnfzvCgTfhNno8i8WRhnL",
+        "url": "https://testnet.nearblocks.io/txns/DUa1fekJbjnAFkEyxQtR2Q2wnfzvCgTfhNno8i8WRhnL",
+        "at": 1794679850304
       },
       {
         "id": "exit-1",
         "chain": "near",
         "label": "Exit intent executed (ft_withdraw from NEAR Intents)",
-        "hash": "sMGRpLJP6PEiWL7kq36fEfS3Vue321R7oo4ijn9dGZK",
-        "url": "https://testnet.nearblocks.io/txns/sMGRpLJP6PEiWL7kq36fEfS3Vue321R7oo4ijn9dGZK",
-        "at": 1794673609831
+        "hash": "A7VUB3qzsUhSogCA1uv7V1jJQyAXaiyjC3bfMw963toV",
+        "url": "https://testnet.nearblocks.io/txns/A7VUB3qzsUhSogCA1uv7V1jJQyAXaiyjC3bfMw963toV",
+        "at": 1794679860636
       },
       {
         "id": "delivery",
         "chain": "near",
         "label": "test USDC sent to zecret-3f109eea1e.testnet",
-        "hash": "sMGRpLJP6PEiWL7kq36fEfS3Vue321R7oo4ijn9dGZK",
-        "url": "https://testnet.nearblocks.io/txns/sMGRpLJP6PEiWL7kq36fEfS3Vue321R7oo4ijn9dGZK",
-        "at": 1794673613540
+        "hash": "A7VUB3qzsUhSogCA1uv7V1jJQyAXaiyjC3bfMw963toV",
+        "url": "https://testnet.nearblocks.io/txns/A7VUB3qzsUhSogCA1uv7V1jJQyAXaiyjC3bfMw963toV",
+        "at": 1794679864311
       }
     ],
     "escrow": {
       "contract": "escrow3.zecret-3f109eea1e.testnet",
-      "swapId": "ec8f09bd903211607e5f792b552ef1aaf25340b1e34eddef609cd379ddde86f6",
-      "takerAccount": "cd1b5803a1d65c295ecaccb5eb40cc23c69d281a4e355635fb3912be01366f71",
+      "swapId": "a15cbfc6afebb1df31c093294c77d147c9ea791e2497b4ffee12ea24cc0f1122",
+      "takerAccount": "962c39acc2ea19c9ecc742f12c3a905b616763a29514c29561e12dbfa7fd1101",
       "stipendYocto": "60000000000000000000000"
     },
     "payout": {
       "usdc": "287700",
-      "intentsAccount": "cd1b5803a1d65c295ecaccb5eb40cc23c69d281a4e355635fb3912be01366f71"
+      "intentsAccount": "962c39acc2ea19c9ecc742f12c3a905b616763a29514c29561e12dbfa7fd1101"
     },
     "exit": {
       "phase": "done",
       "deliveredAmount": "287700",
-      "intentHash": "2Th4LmsoyCsRrNvL9o5j9mVuuDagM4bCsmzU4g7y8nDU",
+      "intentHash": "7uFgDkzj2keQYiJi865Fp7PBP3bWzzdXEY56SHQffhBe",
       "direct": {
         "nearAccount": "zecret-3f109eea1e.testnet",
         "token": "usdc.zecret-3f109eea1e.testnet",
@@ -106,158 +106,158 @@
     "history": [
       {
         "stage": "awaiting_deposit",
-        "at": "2026-11-14T16:16:00.297Z",
-        "atEpoch": 1794672960.297,
-        "secs": 134.1
+        "at": "2026-11-14T18:02:36.458Z",
+        "atEpoch": 1794679356.458,
+        "secs": 113.9
       },
       {
         "stage": "deposit_seen",
-        "at": "2026-11-14T16:18:14.363Z",
-        "atEpoch": 1794673094.363,
+        "at": "2026-11-14T18:04:30.397Z",
+        "atEpoch": 1794679470.397,
         "secs": 0
       },
       {
         "stage": "deposit_confirmed",
-        "at": "2026-11-14T16:18:14.365Z",
-        "atEpoch": 1794673094.365,
-        "secs": 54.4
+        "at": "2026-11-14T18:04:30.399Z",
+        "atEpoch": 1794679470.399,
+        "secs": 52.9
       },
       {
         "stage": "request_sent",
-        "at": "2026-11-14T16:19:08.814Z",
-        "atEpoch": 1794673148.814,
-        "secs": 88
+        "at": "2026-11-14T18:05:23.291Z",
+        "atEpoch": 1794679523.291,
+        "secs": 99.1
       },
       {
         "stage": "quote_received",
-        "at": "2026-11-14T16:20:36.781Z",
-        "atEpoch": 1794673236.781,
-        "secs": 60.1
+        "at": "2026-11-14T18:07:02.413Z",
+        "atEpoch": 1794679622.413,
+        "secs": 36.8
       },
       {
         "stage": "accepted",
-        "at": "2026-11-14T16:21:36.854Z",
-        "atEpoch": 1794673296.854,
-        "secs": 72
+        "at": "2026-11-14T18:07:39.215Z",
+        "atEpoch": 1794679659.215,
+        "secs": 76.1
       },
       {
         "stage": "escrow_open",
-        "at": "2026-11-14T16:22:48.865Z",
-        "atEpoch": 1794673368.865,
-        "secs": 80.5
+        "at": "2026-11-14T18:08:55.298Z",
+        "atEpoch": 1794679735.298,
+        "secs": 53.8
       },
       {
         "stage": "funding_sent",
-        "at": "2026-11-14T16:24:09.391Z",
-        "atEpoch": 1794673449.391,
-        "secs": 66.3
+        "at": "2026-11-14T18:09:49.108Z",
+        "atEpoch": 1794679789.108,
+        "secs": 19.6
       },
       {
         "stage": "funding_confirming",
-        "at": "2026-11-14T16:25:15.695Z",
-        "atEpoch": 1794673515.695,
-        "secs": 64.9
+        "at": "2026-11-14T18:10:08.708Z",
+        "atEpoch": 1794679808.708,
+        "secs": 23.8
       },
       {
         "stage": "ready",
-        "at": "2026-11-14T16:26:20.606Z",
-        "atEpoch": 1794673580.606,
-        "secs": 4.1
+        "at": "2026-11-14T18:10:32.546Z",
+        "atEpoch": 1794679832.546,
+        "secs": 4.8
       },
       {
         "stage": "committing",
-        "at": "2026-11-14T16:26:24.714Z",
-        "atEpoch": 1794673584.714,
-        "secs": 3.7
+        "at": "2026-11-14T18:10:37.327Z",
+        "atEpoch": 1794679837.327,
+        "secs": 0.9
       },
       {
         "stage": "claiming",
-        "at": "2026-11-14T16:26:28.424Z",
-        "atEpoch": 1794673588.424,
-        "secs": 7
+        "at": "2026-11-14T18:10:38.207Z",
+        "atEpoch": 1794679838.207,
+        "secs": 7.3
       },
       {
         "stage": "claimed",
-        "at": "2026-11-14T16:26:35.431Z",
-        "atEpoch": 1794673595.431,
-        "secs": 8.2
+        "at": "2026-11-14T18:10:45.496Z",
+        "atEpoch": 1794679845.496,
+        "secs": 9.2
       },
       {
         "stage": "paid_out",
-        "at": "2026-11-14T16:26:43.630Z",
-        "atEpoch": 1794673603.63,
+        "at": "2026-11-14T18:10:54.659Z",
+        "atEpoch": 1794679854.659,
         "secs": 0.5
       },
       {
         "stage": "exiting",
-        "at": "2026-11-14T16:26:44.160Z",
-        "atEpoch": 1794673604.16,
-        "secs": 9.4
+        "at": "2026-11-14T18:10:55.164Z",
+        "atEpoch": 1794679855.164,
+        "secs": 9.1
       },
       {
         "stage": "done",
-        "at": "2026-11-14T16:26:53.540Z",
-        "atEpoch": 1794673613.54,
+        "at": "2026-11-14T18:11:04.311Z",
+        "atEpoch": 1794679864.311,
         "secs": null
       }
     ],
-    "startedAt": "2026-11-14T16:14:38.513Z",
-    "finishedAt": "2026-11-14T16:27:07.042Z"
+    "startedAt": "2026-11-14T18:01:31.534Z",
+    "finishedAt": "2026-11-14T18:11:17.947Z"
   },
   "realDuration": {
-    "paymentToDoneSecs": 608.0
+    "paymentToDoneSecs": 470.6
   },
   "edit": {
     "footageStartsAtFilmSecs": 26.7,
     "segments": [
       {
-        "sourceFromSecs": 13.7,
-        "sourceToSecs": 28.2,
+        "sourceFromSecs": 12.9,
+        "sourceToSecs": 24.94,
         "speed": 5.0,
         "kind": "form",
         "filmFromSecs": 26.7
       },
       {
-        "sourceFromSecs": 27.99,
-        "sourceToSecs": 31.1,
+        "sourceFromSecs": 24.72,
+        "sourceToSecs": 27.8,
         "speed": 1.0,
         "kind": "price",
-        "filmFromSecs": 29.6
+        "filmFromSecs": 29.1
       },
       {
-        "sourceFromSecs": 69.52,
-        "sourceToSecs": 73.22,
+        "sourceFromSecs": 55.83,
+        "sourceToSecs": 59.53,
         "speed": 1.0,
         "kind": "pay",
-        "filmFromSecs": 32.7
+        "filmFromSecs": 32.17
       },
       {
-        "sourceFromSecs": 73.22,
-        "sourceToSecs": 103.86,
-        "speed": 25.53,
+        "sourceFromSecs": 59.53,
+        "sourceToSecs": 82.23,
+        "speed": 18.91,
         "kind": "paying",
-        "filmFromSecs": 36.4
+        "filmFromSecs": 35.87
       },
       {
-        "sourceFromSecs": 103.86,
-        "sourceToSecs": 677.3,
-        "speed": 96.0,
+        "sourceFromSecs": 82.23,
+        "sourceToSecs": 519.84,
+        "speed": 73.0,
         "kind": "progress",
-        "filmFromSecs": 37.6
+        "filmFromSecs": 37.07
       },
       {
-        "sourceFromSecs": 677.3,
-        "sourceToSecs": 713.16,
+        "sourceFromSecs": 519.84,
+        "sourceToSecs": 554.41,
         "speed": 8.0,
         "kind": "claim",
-        "filmFromSecs": 43.57
+        "filmFromSecs": 43.07
       },
       {
-        "sourceFromSecs": 713.16,
-        "sourceToSecs": 718.36,
+        "sourceFromSecs": 554.41,
+        "sourceToSecs": 559.61,
         "speed": 1.0,
         "kind": "done",
-        "filmFromSecs": 48.03
+        "filmFromSecs": 47.4
       }
     ],
     "note": "speed is source seconds per film second. The clock in the film shows the true time since the payment on every frame after it."
@@ -329,7 +329,7 @@
       "source": "footage: \"You received 0.2877 test USDC on NEAR\""
     },
     {
-      "text": "Real time: 10 min 8 s from payment to done",
+      "text": "Real time: 7 min 51 s from payment to done",
       "when": "scene 4",
       "source": "this recording, marks.json (pay_sent to stage done)"
     },

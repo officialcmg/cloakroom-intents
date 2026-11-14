@@ -29,7 +29,7 @@
   const DURATION = 70.0;
 
   // ---------- brand ----------
-  for (const id of ['s1mark', 's6mark']) $(id).innerHTML = BRAND.MARK_SVG;
+  for (const id of ['s1mark', 's6mark']) $(id).innerHTML = BRAND.MARK_SVG.replace(/bm/g, id + 'x'); // unique ids: a mask in a hidden copy would blank the other
   for (const id of ['s1word', 's6word']) $(id).innerHTML = `<span class="wp" style="display:inline-block">${BRAND.word1}</span><span class="wp serif" style="display:inline-block;font-size:1.12em;letter-spacing:0;margin-left:0.22em">${BRAND.word2}</span>`;
   $('s6url').innerHTML = `${BRAND.url} ${svg('M5 12h14M13 6l6 6-6 6', 40, 2.2)}`;
 
