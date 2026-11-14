@@ -78,17 +78,16 @@ test('demo: a fixed, labelled liquidity from the simulated directory, and no NEA
   expect(near.filter((u) => !u.includes('1click'))).toEqual([]);
 });
 
-test('network switch: testnet is the current page, mainnet is off with its reason; no query is carried', async ({ page }) => {
-  await page.goto('/?foo=bar');
+test('network switch: only in the app; testnet is the current page, mainnet is off with its reason', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('navigation', { name: 'Network' })).toHaveCount(0);
+
+  await open(page, 'demo=1');
   const sw = page.getByRole('navigation', { name: 'Network' });
   const current = sw.getByRole('link', { name: 'Testnet' });
   await expect(current).toHaveAttribute('aria-current', 'page');
-  await expect(current).toHaveAttribute('href', '/');
+  await expect(current).toHaveAttribute('href', '/swap');
   await expect(sw.getByRole('link', { name: /Mainnet/ })).toHaveCount(0);
   await expect(page.getByTestId('net-mainnet-off')).toHaveAttribute('title', 'Mainnet is not deployed yet');
   await expect(page.getByTestId('net-mainnet-off')).toContainText('Mainnet is not deployed yet');
-
-  await open(page, 'demo=1');
-  const app = page.getByRole('navigation', { name: 'Network' });
-  await expect(app.getByRole('link', { name: 'Testnet' })).toHaveAttribute('href', '/swap');
 });

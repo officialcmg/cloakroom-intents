@@ -63,7 +63,5 @@ test('the mainnet landing page says real money and has no faucet hint', async ({
   await expect(page.getByRole('link', { name: 'Fauzec faucet' })).toHaveCount(0);
   await expect(page.getByText('Testnet · test money only')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Try it on mainnet' })).toBeVisible();
-  const sw = page.getByRole('navigation', { name: 'Network' });
-  await expect(sw.getByRole('link', { name: 'Mainnet' })).toHaveAttribute('aria-current', 'page');
-  await expect(sw.getByRole('link', { name: /^Testnet/ })).toHaveAttribute('href', 'https://testnet.example.org/');
+  await expect(page.getByRole('navigation', { name: 'Network' })).toHaveCount(0);
 });

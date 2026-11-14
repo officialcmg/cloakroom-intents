@@ -103,7 +103,8 @@ export function Header({ init, network, sections, children }: { init?: InitStatu
           </nav>
         )}
         <div className="topbar-right">
-          {current ? (
+          {/* The switch belongs to the app. The landing page is the same for both networks' visitors. */}
+          {current && !sections ? (
             <NetworkSwitch current={current} path={path} />
           ) : (
             network && (
