@@ -9,8 +9,8 @@ video/src/footage.js, which the film loads: per frame the image, the true time s
 payment, the speed, and where the parts of the page were at that moment.
 
 Edit: the form plays sped up (the typing), the price and the payment screen play at real
-speed, the wallet's work on the payment is squeezed, and everything from the payment to
-the end of the swap plays at one speed factor, so the true time is easy to read off the
+speed, the wallet's work on the payment is squeezed, and the time from the payment to the claim plays at one
+speed factor and the claim and delivery at a slower one, so the true time is easy to read off the
 clock in the film.
 """
 import json
@@ -24,7 +24,8 @@ FR.mkdir(parents=True, exist_ok=True)
 for f in FR.glob('*.jpg'):
     f.unlink()
 FPS = 30
-PROGRESS_SECS = 9.6  # film seconds for the time from payment to the end of the swap
+PROGRESS_SECS = 6.0  # film seconds for the time from payment to the claim's start
+CLAIM_SPEED = 8.0    # the claim and the delivery, about 30 s of real time
 
 marks = json.load(open(RAW / 'marks.json'))
 facts = json.load(open(RAW / 'facts.json'))
@@ -41,15 +42,17 @@ def m(name):
 start = float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=start_time', '-of', 'csv=p=0', str(RAW / 'raw.mkv')], text=True))
 pay_sent = m('pay_sent')
 final = m('final_screen')
-progress_factor = round((final - pay_sent) / PROGRESS_SECS)
+claim_from = m('stage:ready') - 1.5
+progress_factor = round((claim_from - pay_sent) / PROGRESS_SECS)
 
 # (source from, source to, speed, kind)
 segs = [
-    (m('form_ready') + 0.2, m('paste_return') + 0.5, 4.0, 'form'),
-    (m('price_wait_end') - 0.3, m('price_shown') + 1.6, 1.0, 'price'),
-    (m('pay_screen') - 0.2, m('pay_start') + 0.6, 1.0, 'pay'),
+    (m('form_ready') + 0.2, m('paste_return') + 0.5, 5.0, 'form'),
+    (m('price_wait_end') - 0.3, m('price_shown') + 0.7, 1.0, 'price'),
+    (m('pay_screen') + 0.4, m('pay_start') + 0.6, 1.0, 'pay'),
     (m('pay_start') + 0.6, pay_sent, max(1.0, (pay_sent - m('pay_start') - 0.6) / 1.2), 'paying'),
-    (pay_sent, final, float(progress_factor), 'progress'),
+    (pay_sent, claim_from, float(progress_factor), 'progress'),
+    (claim_from, final, CLAIM_SPEED, 'claim'),
     (final, final + 5.2, 1.0, 'done'),
 ]
 
@@ -96,7 +99,7 @@ stage_t = {x['name'][6:]: film_t(x['t']) for x in marks if x['name'].startswith(
 real_secs = (m('stage:' + facts.get('finalStage', 'done')) if any(x['name'] == 'stage:' + str(facts.get('finalStage')) for x in marks) else final) - pay_sent
 host = facts['site'].replace('https://', '').rstrip('/')
 data = {
-    'dir': 'file://' + str(FR.resolve()) + '/',
+    'dir': 'footage/',
     'host': host,
     'frames': frames,
     'boxes': [{k2: v for k2, v in e.items() if k2 != 't'} for e in boxes],
@@ -106,6 +109,10 @@ data = {
     'progressFactor': progress_factor,
     'doneText': facts.get('doneTitle', ''),
 }
+link = HERE / 'src' / 'footage'  # a git-ignored link to the frames folder
+if link.is_symlink() or link.exists():
+    link.unlink()
+link.symlink_to(FR.resolve())
 (HERE / 'src' / 'footage.js').write_text('// Written by cut_footage.py. Do not edit.\nwindow.FOOTAGE = ' + json.dumps(data) + ';\n')
 json.dump({'segments': [{'sourceFromSecs': round(a - start, 2), 'sourceToSecs': round(b - start, 2), 'speed': round(s, 2), 'kind': kd} for a, b, s, kd in segs],
            'progressFactor': progress_factor, 'paymentToFinalSecs': round(real_secs, 1), 'filmEvents': events, 'stageFilmTimes': stage_t},

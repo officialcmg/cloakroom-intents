@@ -1,0 +1,372 @@
+{
+  "film": {
+    "file": "cloakroom-intents-launch.mp4",
+    "seconds": 70,
+    "size": "1920x1080",
+    "fps": 30,
+    "audio": "silent AAC"
+  },
+  "swap": {
+    "site": "https://cloakroom.chrismg.dev",
+    "amountZec": "0.01",
+    "nearAccount": "zecret-3f109eea1e.testnet",
+    "banner": "Testnet. Test money only. Details",
+    "preview": "You pay 0.01 ZEC. You receive at least 0.2795 USDC on Base.",
+    "payTx": "e59cfe9b8af532414530ba053c8c6b2c21f0357760c34cb9775dedb615bfe986",
+    "finalStage": "done",
+    "doneTitle": "You received 0.2877 test USDC on NEAR",
+    "txs": [
+      {
+        "id": "request",
+        "chain": "zcash",
+        "label": "Request to the maker (encrypted memo)",
+        "hash": "2315385bf0345d4771884604851ac3ac7366072e044e03b91e7aac5342a8d428",
+        "url": "https://testnet.zcashexplorer.app/transactions/2315385bf0345d4771884604851ac3ac7366072e044e03b91e7aac5342a8d428",
+        "at": 1794673148813
+      },
+      {
+        "id": "accept",
+        "chain": "zcash",
+        "label": "Acceptance and premium to the maker",
+        "hash": "ec49ecbf114fc0bbe406bf3bad23287e49f8b0d7810939badefbba583b146d2a",
+        "url": "https://testnet.zcashexplorer.app/transactions/ec49ecbf114fc0bbe406bf3bad23287e49f8b0d7810939badefbba583b146d2a",
+        "at": 1794673296853
+      },
+      {
+        "id": "funding",
+        "chain": "zcash",
+        "label": "Your ZEC to the shared address",
+        "hash": "3f2cb75801690b4f4f47812532a69555d2cfa525c9012bf7e68cec8eb45f350f",
+        "url": "https://testnet.zcashexplorer.app/transactions/3f2cb75801690b4f4f47812532a69555d2cfa525c9012bf7e68cec8eb45f350f",
+        "at": 1794673449390
+      },
+      {
+        "id": "commit",
+        "chain": "near",
+        "label": "Claim commitment (reveals nothing)",
+        "hash": "E9dCogm2HnYipyG6NKFf4MU4XkrZr7K7Ch6PyStzJKkY",
+        "url": "https://testnet.nearblocks.io/txns/E9dCogm2HnYipyG6NKFf4MU4XkrZr7K7Ch6PyStzJKkY",
+        "at": 1794673584714
+      },
+      {
+        "id": "claim",
+        "chain": "near",
+        "label": "Claim with your key half",
+        "hash": "FEwcuGLM6mxLZA5VVtYuEXCMEN7gXjEN7et3zwEigZS5",
+        "url": "https://testnet.nearblocks.io/txns/FEwcuGLM6mxLZA5VVtYuEXCMEN7gXjEN7et3zwEigZS5",
+        "at": 1794673591535
+      },
+      {
+        "id": "withdraw",
+        "chain": "near",
+        "label": "Payout into NEAR Intents (withdraw, sent by your key)",
+        "hash": "ASUjkUEMwLfXaPeAgpnkgCdXewgDMKb5GrPLkRnpozV3",
+        "url": "https://testnet.nearblocks.io/txns/ASUjkUEMwLfXaPeAgpnkgCdXewgDMKb5GrPLkRnpozV3",
+        "at": 1794673599391
+      },
+      {
+        "id": "exit-1",
+        "chain": "near",
+        "label": "Exit intent executed (ft_withdraw from NEAR Intents)",
+        "hash": "sMGRpLJP6PEiWL7kq36fEfS3Vue321R7oo4ijn9dGZK",
+        "url": "https://testnet.nearblocks.io/txns/sMGRpLJP6PEiWL7kq36fEfS3Vue321R7oo4ijn9dGZK",
+        "at": 1794673609831
+      },
+      {
+        "id": "delivery",
+        "chain": "near",
+        "label": "test USDC sent to zecret-3f109eea1e.testnet",
+        "hash": "sMGRpLJP6PEiWL7kq36fEfS3Vue321R7oo4ijn9dGZK",
+        "url": "https://testnet.nearblocks.io/txns/sMGRpLJP6PEiWL7kq36fEfS3Vue321R7oo4ijn9dGZK",
+        "at": 1794673613540
+      }
+    ],
+    "escrow": {
+      "contract": "escrow3.zecret-3f109eea1e.testnet",
+      "swapId": "ec8f09bd903211607e5f792b552ef1aaf25340b1e34eddef609cd379ddde86f6",
+      "takerAccount": "cd1b5803a1d65c295ecaccb5eb40cc23c69d281a4e355635fb3912be01366f71",
+      "stipendYocto": "60000000000000000000000"
+    },
+    "payout": {
+      "usdc": "287700",
+      "intentsAccount": "cd1b5803a1d65c295ecaccb5eb40cc23c69d281a4e355635fb3912be01366f71"
+    },
+    "exit": {
+      "phase": "done",
+      "deliveredAmount": "287700",
+      "intentHash": "2Th4LmsoyCsRrNvL9o5j9mVuuDagM4bCsmzU4g7y8nDU",
+      "direct": {
+        "nearAccount": "zecret-3f109eea1e.testnet",
+        "token": "usdc.zecret-3f109eea1e.testnet",
+        "symbol": "test USDC",
+        "decimals": 6
+      }
+    },
+    "lastError": null,
+    "history": [
+      {
+        "stage": "awaiting_deposit",
+        "at": "2026-11-14T16:16:00.297Z",
+        "atEpoch": 1794672960.297,
+        "secs": 134.1
+      },
+      {
+        "stage": "deposit_seen",
+        "at": "2026-11-14T16:18:14.363Z",
+        "atEpoch": 1794673094.363,
+        "secs": 0
+      },
+      {
+        "stage": "deposit_confirmed",
+        "at": "2026-11-14T16:18:14.365Z",
+        "atEpoch": 1794673094.365,
+        "secs": 54.4
+      },
+      {
+        "stage": "request_sent",
+        "at": "2026-11-14T16:19:08.814Z",
+        "atEpoch": 1794673148.814,
+        "secs": 88
+      },
+      {
+        "stage": "quote_received",
+        "at": "2026-11-14T16:20:36.781Z",
+        "atEpoch": 1794673236.781,
+        "secs": 60.1
+      },
+      {
+        "stage": "accepted",
+        "at": "2026-11-14T16:21:36.854Z",
+        "atEpoch": 1794673296.854,
+        "secs": 72
+      },
+      {
+        "stage": "escrow_open",
+        "at": "2026-11-14T16:22:48.865Z",
+        "atEpoch": 1794673368.865,
+        "secs": 80.5
+      },
+      {
+        "stage": "funding_sent",
+        "at": "2026-11-14T16:24:09.391Z",
+        "atEpoch": 1794673449.391,
+        "secs": 66.3
+      },
+      {
+        "stage": "funding_confirming",
+        "at": "2026-11-14T16:25:15.695Z",
+        "atEpoch": 1794673515.695,
+        "secs": 64.9
+      },
+      {
+        "stage": "ready",
+        "at": "2026-11-14T16:26:20.606Z",
+        "atEpoch": 1794673580.606,
+        "secs": 4.1
+      },
+      {
+        "stage": "committing",
+        "at": "2026-11-14T16:26:24.714Z",
+        "atEpoch": 1794673584.714,
+        "secs": 3.7
+      },
+      {
+        "stage": "claiming",
+        "at": "2026-11-14T16:26:28.424Z",
+        "atEpoch": 1794673588.424,
+        "secs": 7
+      },
+      {
+        "stage": "claimed",
+        "at": "2026-11-14T16:26:35.431Z",
+        "atEpoch": 1794673595.431,
+        "secs": 8.2
+      },
+      {
+        "stage": "paid_out",
+        "at": "2026-11-14T16:26:43.630Z",
+        "atEpoch": 1794673603.63,
+        "secs": 0.5
+      },
+      {
+        "stage": "exiting",
+        "at": "2026-11-14T16:26:44.160Z",
+        "atEpoch": 1794673604.16,
+        "secs": 9.4
+      },
+      {
+        "stage": "done",
+        "at": "2026-11-14T16:26:53.540Z",
+        "atEpoch": 1794673613.54,
+        "secs": null
+      }
+    ],
+    "startedAt": "2026-11-14T16:14:38.513Z",
+    "finishedAt": "2026-11-14T16:27:07.042Z"
+  },
+  "realDuration": {
+    "paymentToDoneSecs": 608.0
+  },
+  "edit": {
+    "footageStartsAtFilmSecs": 26.7,
+    "segments": [
+      {
+        "sourceFromSecs": 13.7,
+        "sourceToSecs": 28.2,
+        "speed": 5.0,
+        "kind": "form",
+        "filmFromSecs": 26.7
+      },
+      {
+        "sourceFromSecs": 27.99,
+        "sourceToSecs": 31.1,
+        "speed": 1.0,
+        "kind": "price",
+        "filmFromSecs": 29.6
+      },
+      {
+        "sourceFromSecs": 69.52,
+        "sourceToSecs": 73.22,
+        "speed": 1.0,
+        "kind": "pay",
+        "filmFromSecs": 32.7
+      },
+      {
+        "sourceFromSecs": 73.22,
+        "sourceToSecs": 103.86,
+        "speed": 25.53,
+        "kind": "paying",
+        "filmFromSecs": 36.4
+      },
+      {
+        "sourceFromSecs": 103.86,
+        "sourceToSecs": 677.3,
+        "speed": 96.0,
+        "kind": "progress",
+        "filmFromSecs": 37.6
+      },
+      {
+        "sourceFromSecs": 677.3,
+        "sourceToSecs": 713.16,
+        "speed": 8.0,
+        "kind": "claim",
+        "filmFromSecs": 43.57
+      },
+      {
+        "sourceFromSecs": 713.16,
+        "sourceToSecs": 718.36,
+        "speed": 1.0,
+        "kind": "done",
+        "filmFromSecs": 48.03
+      }
+    ],
+    "note": "speed is source seconds per film second. The clock in the film shows the true time since the payment on every frame after it."
+  },
+  "claims": [
+    {
+      "text": "Shielded ZEC → 30+ chains",
+      "when": "0–4 s",
+      "source": "README.md (top): \"swapping shielded ZEC for tokens on 30+ chains\"; web/src/lib/chainNames.ts lists 35 destination chains"
+    },
+    {
+      "text": "Swapping ZEC today means unshielding it first. NEAR Intents can already swap ZEC. But that ZEC is a bridged token: it left the shielded pool for a transparent address first.",
+      "when": "6–14 s",
+      "source": "README.md \"The problem\": inside NEAR Intents ZEC is the NEP-141 token nep141:zec.omft.near (1Click token list, 2026-11-13), not shielded ZEC; Cloakroom paper quote on routes through a transparent address"
+    },
+    {
+      "text": "The ZEC stays shielded the whole way.",
+      "when": "14–26 s",
+      "source": "README.md \"The problem\": \"Zecret keeps the ZEC in the shielded pool for the whole swap\"; web Landing.tsx privacy section"
+    },
+    {
+      "text": "The ZEC goes to a shielded address. Its key is split in two halves. (Your browser / The maker)",
+      "when": "15–26 s",
+      "source": "README.md top: spending key split in two halves, the user holds one, the maker the other"
+    },
+    {
+      "text": "An escrow on NEAR releases the USDC to whoever reveals the right half. The maker locks USDC first.",
+      "when": "18–26 s",
+      "source": "README.md top and Terms (\"Escrow\": claim(a) / refund(b)); Landing.tsx FlowDiagram \"Locks USDC first\""
+    },
+    {
+      "text": "The USDC lands in NEAR Intents under a key made in your browser (gas from the maker). One signature sends it on.",
+      "when": "22–26 s",
+      "source": "README.md top; Terms \"Stipend\" (0.06 NEAR from the maker to the taker's new NEAR key)"
+    },
+    {
+      "text": "35 chains in the swap form (chain names as text)",
+      "when": "24–26 s",
+      "source": "web/src/lib/chainNames.ts (35 entries)"
+    },
+    {
+      "text": "Live on Zcash testnet and NEAR testnet · test money",
+      "when": "26–52 s (badge)",
+      "source": "README.md Status; visible in footage (site banner and network tag)"
+    },
+    {
+      "text": "Runs in your browser. No install, no account.",
+      "when": "scene 4",
+      "source": "README.md Terms (\"Taker ... runs in the user's browser\"); Landing.tsx; the footage shows no sign-in or install"
+    },
+    {
+      "text": "Pay once from any shielded wallet",
+      "when": "scene 4",
+      "source": "Landing.tsx step 2; footage: one payment to the shown address (paid here by the command-line testnet wallet, as in testnet/hosted/record-demo.mjs)"
+    },
+    {
+      "text": "The maker locks USDC first",
+      "when": "scene 4",
+      "source": "footage: the step \"The maker locks the USDC\" completes before \"Your ZEC goes to the shared address\""
+    },
+    {
+      "text": "Claimed with a key made here",
+      "when": "scene 4",
+      "source": "footage: step \"You claim the USDC\"; README.md Terms (\"Key half\", \"Stipend\")"
+    },
+    {
+      "text": "Delivered",
+      "when": "scene 4",
+      "source": "footage: \"You received 0.2877 test USDC on NEAR\""
+    },
+    {
+      "text": "Real time: 10 min 8 s from payment to done",
+      "when": "scene 4",
+      "source": "this recording, marks.json (pay_sent to stage done)"
+    },
+    {
+      "text": "Real swaps on public test networks. 32 real swaps completed; 26 of them in one overnight soak test",
+      "when": "52–62 s",
+      "source": "README.md Status (\"32 completed, 26 of them in a soak test on 2026-11-14\"); docs/TESTNET.md \"Soak test\". Counts as of 2026-11-14, before this recording."
+    },
+    {
+      "text": "6–9 minutes per swap, mostly waiting for Zcash blocks",
+      "when": "52–62 s",
+      "source": "docs/TESTNET.md soak: 12 back-to-back swaps took 364 to 574 s; README.md hosted runs 314–493 s"
+    },
+    {
+      "text": "0 bridges or custodians holding the ZEC",
+      "when": "52–62 s",
+      "source": "README.md top: the ZEC goes to a shielded address spent only with both key halves"
+    },
+    {
+      "text": "Exit to other chains: built. The live mainnet contract accepts its signed message in a read-only simulation. Not yet run with funds.",
+      "when": "56–62 s",
+      "source": "README.md Status, \"Exit through NEAR Intents on mainnet\" and the brief's fact list; docs/INTENTS.md"
+    },
+    {
+      "text": "Shielded ZEC to 30+ chains. No bridge holds your coins.",
+      "when": "62–70 s",
+      "source": "as above"
+    },
+    {
+      "text": "cloakroom.chrismg.dev",
+      "when": "62–70 s",
+      "source": "the live site, which showed \"Cloakroom Intents\" at the recording"
+    },
+    {
+      "text": "Testnet today · Built on Cloakroom · NEAR HACKATHON 2026",
+      "when": "62–70 s",
+      "source": "README.md: testnet only, mainnet not deployed; built on Cloakroom (commit 2f8e2f7); NEAR HACKATHON 2026-11-01 to 2026-11-14"
+    }
+  ]
+}

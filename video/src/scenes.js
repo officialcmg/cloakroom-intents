@@ -261,7 +261,7 @@
   const STATS = [
     { n: 32, txt: 'real swaps completed on public test networks' },
     { n: 26, txt: 'of them in one overnight soak test' },
-    { n: '6–9', txt: 'minutes per swap, mostly waiting for Zcash blocks' },
+    { n: '6–9', txt: 'minutes for a typical swap, mostly waiting for Zcash blocks' },
     { n: 0, txt: 'bridges or custodians holding the ZEC' },
   ];
   $('s5stats').innerHTML = STATS.map((s, i) => `<div class="stat" id="s5s${i}" style="left:${144 + (i % 2) * 848}px;top:${336 + Math.floor(i / 2) * 264}px">

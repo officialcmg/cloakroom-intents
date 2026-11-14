@@ -35,7 +35,7 @@
   // Camera keys: [footage time, centre x, centre y, zoom], in the recording's CSS pixels.
   const key = (t, c, z) => (c ? [t, c[0], c[1], z] : null);
   const formC = centre(boxAt(ev.form + 0.3).payAmount || boxAt(ev.form + 0.3).form) || [640, 400];
-  const priceC = centre(boxAt(ev.price + 0.6).price) || formC;
+  const priceC = centre(boxAt(ev.pay - 0.1).price) || formC;
   const qrB = boxAt(ev.pay + 0.5).qr;
   const qrC = qrB ? [qrB[0] + qrB[2] / 2 + 150, qrB[1] + qrB[3] / 2] : [640, 400];
   const progC = [640, 430];
@@ -45,7 +45,7 @@
   const doneC = centre(boxAt(ev.done + 0.8).done) || [640, 300];
   const KEYS = [
     key(0, formC, 1.5),
-    key(ev.price, [priceC[0], priceC[1] - 40], 1.75),
+    key(ev.price + 0.3, [priceC[0], priceC[1] + 20], 1.6),
     key(ev.pay, qrC, 1.6),
     key(ev.progress + 0.4, progC, 1.17),
     key(Math.max(ev.progress + 2.2, (tLocked ?? ev.progress + 3) - 1.4), stepsC, 1.55),
@@ -73,11 +73,11 @@
 
   // Callouts: text, footage time window, target, where the pill sits relative to the target.
   const CALLOUTS = [
-    { n: '01', text: 'Runs in your browser. No install, no account.', a: 0.5, b: ev.pay - 0.4, tgt: (bx) => { const c = bx.payAmount || bx.form; return c ? [c[0] + 30, c[1] + c[3] / 2] : null; }, dx: -60, dy: -150, align: 'right' },
+    { n: '01', text: 'Runs in your browser. No install, no account.', a: 0.5, b: ev.price + 0.2, tgt: (bx) => { const c = bx.payAmount || bx.form; return c ? [c[0] + 30, c[1] + c[3] / 2] : null; }, dx: -60, dy: -150, align: 'right' },
     { n: '02', text: 'Pay once from any shielded wallet', a: ev.pay + 0.5, b: ev.progress, tgt: (bx) => (bx.qr ? [bx.qr[0] + bx.qr[2] - 10, bx.qr[1] + bx.qr[3] * 0.3] : null), dx: 120, dy: -170, align: 'left' },
     tLocked != null && { n: '03', text: 'The maker locks USDC first', a: tLocked - 0.6, b: tLocked + 2.6, tgt: stepDot(lockRe), dx: -90, dy: -140, align: 'right' },
-    tClaim != null && { n: '04', text: 'Claimed with a key made here', a: tClaim - 0.2, b: ev.done - 0.1, tgt: stepDot(claimRe), dx: -90, dy: 130, align: 'right' },
-    { n: '05', text: 'Delivered', a: ev.done + 0.5, b: 99, tgt: (bx) => (bx.done ? [bx.done[0] + bx.done[2] + 6, bx.done[1] + bx.done[3] / 2] : null), dx: 110, dy: -130, align: 'left' },
+    tClaim != null && { n: '04', text: 'Claimed with a key made here', a: tClaim - 0.2, b: ev.done - 0.7, tgt: stepDot(claimRe), dx: -90, dy: 130, align: 'right' },
+    { n: '05', text: 'Delivered', a: ev.done + 0.5, b: 99, tgt: (bx) => (bx.done ? [bx.done[0] + bx.done[2] + 22, bx.done[1] + bx.done[3] / 2] : null), dx: 110, dy: -130, align: 'left' },
   ].filter(Boolean);
   $('s4callouts').innerHTML = CALLOUTS.map((c, i) => `<div class="callout" id="s4c${i}"><span class="n">${c.n}</span>${c.text}</div>`).join('') +
     `<div class="callout" id="s4real" style="background:#fff;color:var(--ink);font-size:44px;padding:22px 36px;left:50%;top:930px"><span class="n" style="color:var(--brand)">REAL TIME</span>${Math.floor(F.realSecs / 60)} min ${Math.round(F.realSecs % 60)} s from payment to done</div>`;
@@ -123,7 +123,7 @@
     // The readout: speed before the payment; the true time since the payment after it.
     const ro = $('s4readout');
     appear(ro, prog(t, 1.1, 0.8, ease.outQuint), { dy: 16 });
-    const paid = fr.kind === 'paying' || fr.kind === 'progress' || fr.kind === 'done';
+    const paid = fr.kind === 'paying' || fr.kind === 'progress' || fr.kind === 'claim' || fr.kind === 'done';
     ro.querySelector('.lbl').textContent = paid ? 'Real time since payment' : fr.spd > 1 ? 'Sped up' : 'Real speed';
     $('s4clk').textContent = paid ? fmtClock(fr.e) : `${fr.spd}×`;
     $('s4clk').style.display = paid || fr.spd > 1 ? '' : 'none';
@@ -139,6 +139,7 @@
       const raw = c.tgt(bx);
       if (!raw || p <= 0.001) { el.style.opacity = '0'; g.style.opacity = '0'; return; }
       const [tx, ty] = toScreen(cam, raw);
+      if (tx < V.x + 8 || tx > V.x + V.w - 8 || ty < V.y + 8 || ty > V.y + V.h - 8) { el.style.opacity = '0'; g.style.opacity = '0'; return; }
       const w = el.offsetWidth, h = el.offsetHeight;
       let px = c.align === 'right' ? tx + c.dx - w : tx + c.dx;
       let py = ty + c.dy - h / 2;

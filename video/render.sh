@@ -29,6 +29,7 @@ ffmpeg -v error -y -framerate 30 -start_number 0 -i "$WORK/frames/f%05d.jpg" \
   "$OUT/cloakroom-intents-launch.mp4"
 
 # The poster: a frame of the product scene (the finished swap) by default.
-POSTER_T="${POSTER_T:-49.5}"
+POSTER_T="${POSTER_T:-49.3}"
 ffmpeg -v error -y -ss "$POSTER_T" -i "$OUT/cloakroom-intents-launch.mp4" -frames:v 1 -q:v 2 "$OUT/cloakroom-intents-launch-poster.jpg"
+python3 "$HERE/make_facts.py" "$RAW"
 ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height,r_frame_rate,pix_fmt -of compact "$OUT/cloakroom-intents-launch.mp4"
