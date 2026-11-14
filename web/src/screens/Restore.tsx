@@ -16,7 +16,7 @@ export function RestoreScreen({ onCancel, onRestored }: { onCancel: () => void; 
     if (!file) return;
     setError(undefined);
     if (file.size > MAX_BYTES) {
-      setError({ title: 'This file is too large', text: 'A recovery file is a few kilobytes. Choose the file named cloakroom-intents-recovery-….json or, for an older swap, zecret-recovery-….json.' });
+      setError({ title: 'This file is too large', text: 'A recovery file is a few kilobytes. Choose the file named cloakroom-intents-recovery-….json.' });
       return;
     }
     setBusy(true);
@@ -65,7 +65,7 @@ export function RestoreScreen({ onCancel, onRestored }: { onCancel: () => void; 
           <input ref={input} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void load(e.target.files?.[0])} data-testid="recovery-input" />
           {busy ? <Spinner label="Reading the file" /> : <Icon name="upload" size={26} />}
           <span className="dropzone-title">{busy ? 'Reading the file…' : 'Choose the recovery file'}</span>
-          <span className="hint">or drop it here. It is named cloakroom-intents-recovery-….json, or zecret-recovery-….json for an older swap</span>
+          <span className="hint">or drop it here. It is named cloakroom-intents-recovery-….json</span>
         </label>
         {error && (
           <Notice tone="danger" title={error.title} role="alert">
