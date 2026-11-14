@@ -29,6 +29,7 @@ no open swap when it restarts (step 3).
 | `web/public/config/testnet.json` | `near.escrow` = `escrow3…`, `near.escrowCodeHash` = `AqzB7mtM…`; `minStipend` stays 0.03 NEAR |
 | `web/public/config/testnet-directory.json` | `maker.escrowContract` = `escrow3…`, **`status` = `paused`**; signature unchanged |
 | `deploy/maker/RELEASE` | one new line: this makes Railway rebuild the maker |
+| `deploy/maker/railway/start.sh` | mainnet mode only: refuses a stipend below 0.06 NEAR. The testnet mode is unchanged (`test-start.sh`, 19 cases pass) |
 | `deploy/web/directory-from-entry.mjs` | default testnet escrow `escrow3…` |
 | `deploy/deployment.testnet.json`, `deploy/configs/testnet.toml` | `escrow3` is current; `escrow2` under `retired_escrows` |
 | code | the light-payout engine, maker and site (everything since `main` in this branch) |
