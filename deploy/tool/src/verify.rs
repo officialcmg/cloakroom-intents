@@ -221,7 +221,8 @@ pub async fn verify(chain: &Chain, cfg: &Config, base: &Path, ids: &Ids) -> Res<
                 .unwrap_or(0);
             let vt: u128 = cfg.maker.verifier_target.parse()?;
             if vt > 0 {
-                r.check(vb >= vt, format!("maker Verifier balance {vb} (target {vt})"));
+                // Swaps spend it, so after the deployment it is only expected to be above 0.
+                r.check(vb > 0, format!("maker Verifier balance {vb} (deploy target {vt})"));
             } else {
                 r.info(format!("maker Verifier balance {vb}"));
             }
