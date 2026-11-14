@@ -9,7 +9,7 @@
     "explorer": "https://testnet.zcashexplorer.app/transactions/{txid}"
   },
   "near": {
-    "rpc": "https://rpc.testnet.fastnear.com",
+    "rpc": ["https://rpc.testnet.fastnear.com", "https://near-testnet.drpc.org", "https://testnet-rpc.intea.rs"],
     "escrow": "escrow3.zecret-3f109eea1e.testnet",
     "escrowCodeHash": "AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536",
     "token": "usdc.zecret-3f109eea1e.testnet",

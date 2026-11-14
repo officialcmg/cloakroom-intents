@@ -1,0 +1,19 @@
+
+===== start taker --zats 100000000 --vanish-at Accepted =====
+[taker 1794645679] new swap 68449868 for 100000000 zats; NEAR account b169a8f2ecab8c9deb819b32888166385d130515593696b2daa1e5747530218f; wallet uregtest10q66yfw3hacwxxj9acfq3lkn58j0fmlskgeukq06j3r4f40ju25quy55u6xcq2zw49xg4qzkvm396axr48a9el69qk5wkj3g0st5yj9v
+[taker 1794645679] 68449868 stage WaitingDeposit
+[taker 1794645680] balance 208333333 zats
+[taker 1794645680] {"type":"activity","swap":"68449868b73d2e724da9a0a326d64d7f","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794645685] balance 0 zats
+[taker 1794645685] {"type":"zcash_tx","swap":"68449868b73d2e724da9a0a326d64d7f","what":"rfq","txid":"bf15e2674e364f15098feccbdba1f682d81abc758be0d80934533833ea2d3760"}
+[taker 1794645685] 68449868 encrypted RFQ for 100000000 zats sent to the maker in shielded tx bf15e2674e364f15098feccbdba1f682d81abc758be0d80934533833ea2d3760
+[taker 1794645685] 68449868 stage RfqSent
+[taker 1794645687] balance 208323333 zats
+[taker 1794645691] 68449868 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
+[taker 1794645691] {"type":"quote","swap":"68449868b73d2e724da9a0a326d64d7f","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1fsake2s58ugzpdxrcgtz4u2lpmwlscu7ctvl7xdpp9ef7tfsdqdduex3q7cm7kefhaxjl83n8rzgvf3dapcupq69uc3cnqd96gdvzm3a"}
+[taker 1794645692] {"type":"activity","swap":"68449868b73d2e724da9a0a326d64d7f","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794645694] balance 0 zats
+[taker 1794645694] {"type":"zcash_tx","swap":"68449868b73d2e724da9a0a326d64d7f","what":"accept","txid":"b91c18b982347a2a2775f8e9d15603682a36db7cac484b14b99659054ac9e179"}
+[taker 1794645694] 68449868 encrypted ACCEPT with 50000 zats premium sent in tx b91c18b982347a2a2775f8e9d15603682a36db7cac484b14b99659054ac9e179; joint address uregtest1fsake2s58ugzpdxrcgtz4u2lpmwlscu7ctvl7xdpp9ef7tfsdqdduex3q7cm7kefhaxjl83n8rzgvf3dapcupq69uc3cnqd96gdvzm3a
+[taker 1794645694] 68449868 stage Accepted
+[taker 1794645694] VANISH at stage Accepted (process exits; state is stored)

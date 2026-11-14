@@ -1,0 +1,31 @@
+
+===== start maker --exit-after 1 =====
+[maker 1794648487] up: UA uregtest13rf7e6gaw834d5nq3zejk3xhz7alhtmhz7sa6d6ezay8dd7q0aexrf4stnfeqq8aujrk45j3t8pchccgvyd46pdh3xpea06mzy3gn9f5 NEAR maker.test.near key ed25519:jVUWXdVG4TUbc46GQCjYEgYG2hFY76pJ8H8Qv3EEmNM
+[maker 1794648487] NEAR endpoints: http://127.0.0.1:3131, http://127.0.0.1:3132
+[maker 1794648498] 66486655 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto)
+[maker 1794648498] 66486655 stage Quoting
+[maker 1794648498] {"type":"zcash_tx","swap":"66486655e2d4357e20de2c6310d7071d","what":"quote","txid":"a3775aee732943851e308d3eb1f4459782975f1352c7e6b33546326eceef73eb"}
+[maker 1794648498] 66486655 encrypted QUOTE sent in tx a3775aee732943851e308d3eb1f4459782975f1352c7e6b33546326eceef73eb
+[maker 1794648498] 66486655 stage Quoted
+[maker 1794648504] 66486655 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 7f66261a
+[maker 1794648504] 66486655 stage Opening
+[maker 1794648509] {"type":"near_tx","swap":"66486655e2d4357e20de2c6310d7071d","what":"open","hash":"J1fMYcVY2tm4xQSiNmPzgKiXNfiXf24pYRkL6XE36Aja"}
+[maker 1794648509] 66486655 escrow OPEN id 7f66261ae12ef4e63232857cc2a7fe3cc40bcfa784aaac93cbb5d53b24622004 amount 30000000000000000000000000 t0=1794648868 t1=1794648928 t2=1794648988 W=45, tx J1fMYcVY2tm4xQSiNmPzgKiXNfiXf24pYRkL6XE36Aja
+[maker 1794648509] {"type":"near_tx","swap":"66486655e2d4357e20de2c6310d7071d","what":"stipend","hash":"FVoy4q18RTjiGdEsHmVz8vLzW5ar3UwuvoTmRcYQRuXC"}
+[maker 1794648509] 66486655 STIPEND of 60000000000000000000000 yoctoNEAR sent to 1a2f1d7b0687601e03e071289f1e4d505970dbe2687c5eb039b7b2d0e73be9cd, tx FVoy4q18RTjiGdEsHmVz8vLzW5ar3UwuvoTmRcYQRuXC
+[maker 1794648509] 66486655 stage Opened
+[maker 1794648511] 66486655 transient: NEAR RPC block: NEAR RPC unavailable: http://127.0.0.1:3131: HTTP 429 {"jsonrpc": "2.0", "id": "x", "error": {"code": -429, "message": "Rate limits exceeded (harness proxy)"}}; http://127.0.0.1:3132: HTTP 429 {"jsonrpc": "2.0", "id": "x", "error": {"code": -429, "message": "Rate limits exceeded (harness proxy)"}}
+[maker 1794648513] 66486655 transient: NEAR RPC block: NEAR RPC unavailable: http://127.0.0.1:3131: HTTP 429 {"jsonrpc": "2.0", "id": "x", "error": {"code": -429, "message": "Rate limits exceeded (harness proxy)"}}
+[maker 1794648519] 66486655 transient: NEAR RPC block: NEAR RPC unavailable: http://127.0.0.1:3131 backs off for 5s after: HTTP 429 {"jsonrpc": "2.0", "id": "x", "error": {"code": -429, "message": "Rate limits exceeded (harness proxy)"}}; http://127.0.0.1:3132 backs off for 1s after: HTTP 429 {"jsonrpc": "2.0", "id": "x", "error": {"code": -429, "message": "Rate limits exceeded (harness proxy)"}}
+[maker 1794648531] {"type":"alert","swap":"66486655e2d4357e20de2c6310d7071d","message":"the NEAR reads (Opened) has failed for 20s; next deadline: funding window ends (R3e refund may start) in 63s: NEAR RPC block: NEAR RPC unavailable: http://127.0.0.1:3131 backs off for 10s after: HTTP 429 {\"jsonrpc\": \"2.0\", \"id\": \"x\", \"error\": {\"code\": -429, \"message\": \"Rate limits exceeded (harness proxy)\"}}; http://127.0.0.1:3132 backs off for 15s after: HTTP 429 {\"jsonrpc\": \"2.0\", \"id\": \"x\", \"error\": {\"code\": -429, \"message\": \"Rate limits exceeded (harness proxy)\"}}"}
+[maker 1794648531] 66486655 ALERT: the NEAR reads (Opened) has failed for 20s; next deadline: funding window ends (R3e refund may start) in 63s: NEAR RPC block: NEAR RPC unavailable: http://127.0.0.1:3131 backs off for 10s after: HTTP 429 {"jsonrpc": "2.0", "id": "x", "error": {"code": -429, "message": "Rate limits exceeded (harness proxy)"}}; http://127.0.0.1:3132 backs off for 15s after: HTTP 429 {"jsonrpc": "2.0", "id": "x", "error": {"code": -429, "message": "Rate limits exceeded (harness proxy)"}}
+[maker 1794648534] {"type":"alert","swap":"66486655e2d4357e20de2c6310d7071d","message":"t1 1794648928 is near (NEAR time 1794648947) and the escrow is Open"}
+[maker 1794648534] 66486655 ALERT: t1 1794648928 is near (NEAR time 1794648947) and the escrow is Open
+[maker 1794648534] 66486655 final block 861 (t=1794648947) is past t1 with state Open; refunding
+[maker 1794648534] 66486655 stage RefundSent
+[maker 1794648537] {"type":"near_tx","swap":"66486655e2d4357e20de2c6310d7071d","what":"refund","hash":"6kLshE5utKki93uUpUhv4oHnSJHwsMoL1tsCf8fGM6n8"}
+[maker 1794648537] 66486655 REFUND publishes b, tx 6kLshE5utKki93uUpUhv4oHnSJHwsMoL1tsCf8fGM6n8 (executed); waiting for it to be final
+[maker 1794648539] 66486655 refund is final (block <= 869); 30000000000000000000000000 paid back into the maker's Verifier account
+[maker 1794648539] 66486655 stage Refunded
+[maker 1794648539] 66486655 DONE Refunded
+[maker 1794648539] 1 swap(s) terminal; exiting

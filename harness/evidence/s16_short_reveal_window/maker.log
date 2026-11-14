@@ -1,8 +1,9 @@
 
 ===== start maker  =====
-[maker 1794634761] up: UA uregtest1t7vl0u9qfsv22rew24kjcwvz9alkhfntyjq3254g3s4gmphgqdjzcss8pg5wveer98vetavaz4x2xcctrhnghkwpde9jmafv7ur6pgqf NEAR maker.test.near key ed25519:2GTdyop5CtebbY9YoKwkg6AUVbfXAcvkdhUk11HyrNH9
-[maker 1794634771] 969df075 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto) [MISBEHAVE ShortReveal]
-[maker 1794634771] 969df075 stage Quoting
-[maker 1794634771] {"type":"zcash_tx","swap":"969df075d89b4ee0dadbaa2dfb1714b1","what":"quote","txid":"9be24cf7d7e433268e32c50417daa0b9164a630ff1b3743c586b5263c62a15e3"}
-[maker 1794634771] 969df075 encrypted QUOTE sent in tx 9be24cf7d7e433268e32c50417daa0b9164a630ff1b3743c586b5263c62a15e3
-[maker 1794634771] 969df075 stage Quoted
+[maker 1794644955] up: UA uregtest1gzyy3qv692220yzu7lp0lrd9h6ef3l9t72upgwycpy68z9rerwtwx44naa5rwk7nj3xcsjjhg6cusmyktx9g273h2dx0kg7ddg2h779a NEAR maker.test.near key ed25519:42QfdTSXfFrb5Lzsf2mknwYo31oqQGvArN9nPEfHihAa
+[maker 1794644955] NEAR endpoints: http://127.0.0.1:3030
+[maker 1794644967] dd0f883a RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto) [MISBEHAVE ShortReveal]
+[maker 1794644967] dd0f883a stage Quoting
+[maker 1794644967] {"type":"zcash_tx","swap":"dd0f883a4711cb3503b4a764ed43c8e2","what":"quote","txid":"957c98701a472b1f822f790a134711ecd725781e03f8225bdab3ffb186e8583b"}
+[maker 1794644967] dd0f883a encrypted QUOTE sent in tx 957c98701a472b1f822f790a134711ecd725781e03f8225bdab3ffb186e8583b
+[maker 1794644967] dd0f883a stage Quoted

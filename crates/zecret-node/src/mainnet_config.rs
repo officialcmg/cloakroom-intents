@@ -103,7 +103,8 @@ fn mainnet_templates_name_the_mainnet_contracts_and_hold_placeholders() {
         assert_eq!(c.network.as_deref(), Some("main"));
         assert_eq!(c.token, USDC_MAINNET);
         assert_eq!(c.intents, VERIFIER_MAINNET);
-        assert!(c.near_rpc.starts_with("https://") && c.near_rpc.contains("mainnet"));
+        assert!(c.near_rpc.all_https(), "{}", c.near_rpc);
+        assert!(c.near_rpc.as_slice().len() >= 2, "mainnet needs a second NEAR RPC endpoint (incident 2026-11-14): {}", c.near_rpc);
         let lwd = c.lightwalletd.as_deref().unwrap();
         assert!(lwd.starts_with("https://") && lwd.contains("mainnet"), "{lwd}");
         assert!(c.escrow.ends_with(".near"));
@@ -149,7 +150,8 @@ fn website_mainnet_config_matches_the_taker_template() {
     assert_eq!(web["near"]["token"], USDC_MAINNET);
     assert_eq!(web["near"]["verifier"], VERIFIER_MAINNET);
     assert_eq!(web["near"]["tokenDecimals"], 6);
-    assert_eq!(web["near"]["rpc"].as_str(), Some(t.chains.near_rpc.as_str()));
+    let web_rpc: zecret_core::config::RpcUrls = serde_json::from_value(web["near"]["rpc"].clone()).unwrap();
+    assert_eq!(web_rpc, t.chains.near_rpc, "web/public/config/mainnet.json near.rpc differs from mainnet-taker.json");
     assert_eq!(web["zcash"]["lightwalletd"].as_str(), t.chains.lightwalletd.as_deref());
     assert_eq!(web["exit"]["mode"], "oneclick");
     assert_eq!(web["minStipend"].as_str().unwrap().parse::<u128>().unwrap(), t.min_stipend);

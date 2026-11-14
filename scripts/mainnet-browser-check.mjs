@@ -24,7 +24,8 @@ const { chromium } = require('playwright');
 const DIST = process.env.DIST || path.join(WEB, 'dist');
 const cfg = JSON.parse(readFileSync(path.join(WEB, 'public/config/mainnet.json'), 'utf8'));
 const LWD = cfg.zcash.lightwalletd;
-const RPC = cfg.near.rpc;
+// near.rpc is one URL or an ordered list (incident 2026-11-14).
+const RPCS = [cfg.near.rpc].flat();
 const ONECLICK = cfg.exit.oneClickUrl;
 if (!existsSync(path.join(DIST, 'engine/zecret_wasm.js'))) {
   console.log(`FAIL no engine in ${DIST}/engine: build the engine and the site first`);
@@ -86,7 +87,7 @@ line(info.branch, 'the server reports consensus branch id 77190ad9 (NU7)');
 // 2. The engine reads the mainnet tip.
 const tip = await page.evaluate(async (cfg) => {
   const core = {
-    chains: { lightwalletd: cfg.zcash.lightwalletd, birthday: 1, network: 'main', near_rpc: cfg.near.rpc, escrow: 'escrow.check.near', token: cfg.near.token, intents: cfg.near.verifier },
+    chains: { lightwalletd: cfg.zcash.lightwalletd, birthday: 1, network: 'main', near_rpc: [cfg.near.rpc].flat(), escrow: 'escrow.check.near', token: cfg.near.token, intents: cfg.near.verifier },
     timing: cfg.timing,
     maker: { ua: 'u', epoch: 1, rfq_pub: '00', near_account: 'm', near_pk: 'ed25519:1', sig: '00' },
     escrow_code_hash: 'x',
@@ -105,12 +106,14 @@ const tip = await page.evaluate(async (cfg) => {
 line(tip.ok && tip.tip > 3_543_405, `engine zcashTip on mainnet: ${tip.ok ? tip.tip : tip.error}`);
 
 // 3. NEAR RPC and 1Click from the page.
-const near = await page.evaluate(async (rpc) => {
-  const r = await fetch(rpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'block', params: { finality: 'final' } }) });
-  const j = await r.json();
-  return { status: r.status, height: j.result?.header?.height, chain: j.result ? 'ok' : JSON.stringify(j.error) };
-}, RPC);
-line(near.status === 200 && near.height > 0, `${RPC} final block ${near.height} from the page`);
+for (const RPC of RPCS) {
+  const near = await page.evaluate(async (rpc) => {
+    const r = await fetch(rpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'block', params: { finality: 'final' } }) });
+    const j = await r.json();
+    return { status: r.status, height: j.result?.header?.height, chain: j.result ? 'ok' : JSON.stringify(j.error) };
+  }, RPC);
+  line(near.status === 200 && near.height > 0, `${RPC} final block ${near.height} from the page`);
+}
 const oc = await page.evaluate(async (u) => {
   const r = await fetch(`${u}/v0/tokens`);
   const j = await r.json();

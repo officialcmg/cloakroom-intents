@@ -81,6 +81,7 @@ fn relay(dir: &std::path::Path) -> Relay {
         maker_account: "maker.test".into(),
         key: NearKey::from_seed([9; 32]),
         store_dir: dir.to_path_buf(),
+        health: None,
     }
 }
 

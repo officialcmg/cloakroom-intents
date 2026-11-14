@@ -9,7 +9,7 @@
     "explorer": "https://mainnet.zcashexplorer.app/transactions/{txid}"
   },
   "near": {
-    "rpc": "https://rpc.mainnet.fastnear.com",
+    "rpc": ["https://rpc.mainnet.fastnear.com", "https://near.drpc.org", "https://rpc.intea.rs"],
     "escrow": "@build",
     "escrowCodeHash": "@build",
     "token": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
@@ -26,7 +26,7 @@
     "This is hackathon software. No security audit was done. Reviews by the project found and fixed bugs; others can remain.",
     "The escrow keeps the swap's USDC inside NEAR Intents (intents.near) from the open to the payout. The operators of NEAR Intents can move or freeze those tokens during the whole swap.",
     "The delivery to other chains through NEAR Intents 1Click had not run with real funds before this site went live.",
-    "Your browser trusts one NEAR RPC endpoint (rpc.mainnet.fastnear.com) to report the escrow's state.",
+    "Your browser trusts one NEAR RPC endpoint at a time to report the escrow's state: rpc.mainnet.fastnear.com, or near.drpc.org or rpc.intea.rs when the first fails. The other endpoints are a fallback, not a second opinion.",
     "The maker limits each swap to a small amount. Pay only what you can afford to lose."
   ]
 }

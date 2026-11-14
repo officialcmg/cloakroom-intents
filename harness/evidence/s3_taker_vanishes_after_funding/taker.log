@@ -1,45 +1,45 @@
 
 ===== start taker --zats 100000000 --vanish-at Funded =====
-[taker 1794632754] new swap 0e80e271 for 100000000 zats; NEAR account 54af5211fa4fb8db2ef254ca41f7ab6188a7a81d6211b7626ed20b9d3be94593; wallet uregtest1zcwhcvlteztehxfvlajzdup5fuzphc6ayklfa7h8uxalfmm6eu3qdmnl9p0aj8g3ulyp0vsuafpsgk0gkwhzds8mh44gfvufssc3fzhg
-[taker 1794632754] 0e80e271 stage WaitingDeposit
-[taker 1794632754] balance 208333333 zats
-[taker 1794632754] {"type":"activity","swap":"0e80e271563018f95326e16db90255db","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794632759] balance 0 zats
-[taker 1794632759] {"type":"zcash_tx","swap":"0e80e271563018f95326e16db90255db","what":"rfq","txid":"f420b06422477b074304f2a708c4f11f80b33b1ecb06688916226f60a548e6f4"}
-[taker 1794632759] 0e80e271 encrypted RFQ for 100000000 zats sent to the maker in shielded tx f420b06422477b074304f2a708c4f11f80b33b1ecb06688916226f60a548e6f4
-[taker 1794632759] 0e80e271 stage RfqSent
-[taker 1794632761] balance 208323333 zats
-[taker 1794632767] 0e80e271 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
-[taker 1794632767] {"type":"quote","swap":"0e80e271563018f95326e16db90255db","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1zl2vs5earvnu3zxw9tw7ctqtqy5l0lez2kvtf3wnes8z46s6r60xrc76kgwkc3xxxw6555nth30pv2ye9t9cacgj3q3quxnzcvszjafx"}
-[taker 1794632767] {"type":"activity","swap":"0e80e271563018f95326e16db90255db","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
-[taker 1794632770] balance 0 zats
-[taker 1794632770] {"type":"zcash_tx","swap":"0e80e271563018f95326e16db90255db","what":"accept","txid":"6b3137aa45a2ed83fab92aa79b0ee49bf22d88205229dca95a2ef64c8f3ab2c0"}
-[taker 1794632770] 0e80e271 encrypted ACCEPT with 50000 zats premium sent in tx 6b3137aa45a2ed83fab92aa79b0ee49bf22d88205229dca95a2ef64c8f3ab2c0; joint address uregtest1zl2vs5earvnu3zxw9tw7ctqtqy5l0lez2kvtf3wnes8z46s6r60xrc76kgwkc3xxxw6555nth30pv2ye9t9cacgj3q3quxnzcvszjafx
-[taker 1794632770] 0e80e271 stage Accepted
-[taker 1794632772] balance 208263333 zats
-[taker 1794632776] 0e80e271 escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)
-[taker 1794632778] 0e80e271 escrow 402e804e verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
-[taker 1794632778] {"type":"escrow_verified","swap":"0e80e271563018f95326e16db90255db","escrow_id":"402e804e65e6c0ede28fef93e6e09bb41f1790e39ce6d43082d67e7aa53a1d71","t0":1794632981,"t1":1794633041,"t2":1794633101}
-[taker 1794632778] {"type":"activity","swap":"0e80e271563018f95326e16db90255db","kind":"proving","label":"Building the proof for the payment to the shared address","estimated_secs":25}
-[taker 1794632780] 0e80e271 escrow 402e804e verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
-[taker 1794632780] {"type":"escrow_verified","swap":"0e80e271563018f95326e16db90255db","escrow_id":"402e804e65e6c0ede28fef93e6e09bb41f1790e39ce6d43082d67e7aa53a1d71","t0":1794632981,"t1":1794633041,"t2":1794633101}
-[taker 1794632780] balance 0 zats
-[taker 1794632780] {"type":"zcash_tx","swap":"0e80e271563018f95326e16db90255db","what":"fund","txid":"bbaa0b6d44ef27fe099cbe038e964fdfa65553549bf5e0aa640014202bf592dd"}
-[taker 1794632780] 0e80e271 FUNDED the joint address in fully shielded tx bbaa0b6d44ef27fe099cbe038e964fdfa65553549bf5e0aa640014202bf592dd
-[taker 1794632780] 0e80e271 stage Funded
-[taker 1794632780] VANISH at stage Funded (process exits; state is stored)
+[taker 1794648303] new swap a38960b4 for 100000000 zats; NEAR account 94b1fd3a8b55adbe0be015355b41261280956542c47c9e07fc0d4fcae2f7d8bf; wallet uregtest1alum5u24uqllp6r2qe47afxxhq52a7z2zhufkhpfjmdlzurfdhhpavcmtrktjkmcnyz80aq66ymggg45m05u9z7j5rx85rexvyer23zc
+[taker 1794648303] a38960b4 stage WaitingDeposit
+[taker 1794648303] balance 208333333 zats
+[taker 1794648303] {"type":"activity","swap":"a38960b450b8bd0e69f02ecafbdf9b59","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794648309] balance 0 zats
+[taker 1794648309] {"type":"zcash_tx","swap":"a38960b450b8bd0e69f02ecafbdf9b59","what":"rfq","txid":"9da20874380cc2cdd9dc33c1b11194f8a0a04cec61758e7e82b0afcc1aa7c856"}
+[taker 1794648309] a38960b4 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 9da20874380cc2cdd9dc33c1b11194f8a0a04cec61758e7e82b0afcc1aa7c856
+[taker 1794648309] a38960b4 stage RfqSent
+[taker 1794648310] balance 208323333 zats
+[taker 1794648316] a38960b4 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
+[taker 1794648316] {"type":"quote","swap":"a38960b450b8bd0e69f02ecafbdf9b59","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1tm32qg8w4tktprfl6zgzc8wh7cadceh5atu60ry0w99tzy7dnau8tuh76sjyaed9x7n9pfg7yqnuh2n0fvgx7r2k67t27hxkvq90uxg5"}
+[taker 1794648316] {"type":"activity","swap":"a38960b450b8bd0e69f02ecafbdf9b59","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794648318] balance 0 zats
+[taker 1794648318] {"type":"zcash_tx","swap":"a38960b450b8bd0e69f02ecafbdf9b59","what":"accept","txid":"43f7735a564922bfa5ab8311b2761e3e2a2a26d51b80215fadab47efdedf0696"}
+[taker 1794648318] a38960b4 encrypted ACCEPT with 50000 zats premium sent in tx 43f7735a564922bfa5ab8311b2761e3e2a2a26d51b80215fadab47efdedf0696; joint address uregtest1tm32qg8w4tktprfl6zgzc8wh7cadceh5atu60ry0w99tzy7dnau8tuh76sjyaed9x7n9pfg7yqnuh2n0fvgx7r2k67t27hxkvq90uxg5
+[taker 1794648318] a38960b4 stage Accepted
+[taker 1794648320] balance 208263333 zats
+[taker 1794648328] a38960b4 escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)
+[taker 1794648330] a38960b4 escrow 99803c10 verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
+[taker 1794648330] {"type":"escrow_verified","swap":"a38960b450b8bd0e69f02ecafbdf9b59","escrow_id":"99803c10b67f5d27f6b89b5b4aa359281c8d35e6eda723e9e848963433f041db","t0":1794648438,"t1":1794648498,"t2":1794648558}
+[taker 1794648330] {"type":"activity","swap":"a38960b450b8bd0e69f02ecafbdf9b59","kind":"proving","label":"Building the proof for the payment to the shared address","estimated_secs":25}
+[taker 1794648333] a38960b4 escrow 99803c10 verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
+[taker 1794648333] {"type":"escrow_verified","swap":"a38960b450b8bd0e69f02ecafbdf9b59","escrow_id":"99803c10b67f5d27f6b89b5b4aa359281c8d35e6eda723e9e848963433f041db","t0":1794648438,"t1":1794648498,"t2":1794648558}
+[taker 1794648333] balance 0 zats
+[taker 1794648333] {"type":"zcash_tx","swap":"a38960b450b8bd0e69f02ecafbdf9b59","what":"fund","txid":"99b8f48216170421384ce21e265fbef357bc96568658494ec5e8130e16ce3200"}
+[taker 1794648333] a38960b4 FUNDED the joint address in fully shielded tx 99b8f48216170421384ce21e265fbef357bc96568658494ec5e8130e16ce3200
+[taker 1794648333] a38960b4 stage Funded
+[taker 1794648333] VANISH at stage Funded (process exits; state is stored)
 
 ===== start taker  =====
-[taker 1794632795] resuming swap 0e80e271 at stage Funded
-[taker 1794632795] balance 108243333 zats
-[taker 1794632795] 0e80e271 R2c: claim window closed (NEAR time 1794633044, t1 1794633041, budget 15s); not committing; waiting for the maker's refund or for t2 1794633101
-[taker 1794632797] {"type":"activity","swap":"0e80e271563018f95326e16db90255db","kind":"proving","label":"Building the proof that takes the ZEC back from the shared address","estimated_secs":25}
-[taker 1794632802] 0e80e271 maker REFUNDED: read b from the escrow; sweeping the joint note of 100010000 zats from tx bbaa0b6d44ef27fe099cbe038e964fdfa65553549bf5e0aa640014202bf592dd
-[taker 1794632802] {"type":"zcash_tx","swap":"0e80e271563018f95326e16db90255db","what":"sweep","txid":"a25911f0438a8791249c2211a0b9cda63592ef8f716e288a261d6dcd2718f78c"}
-[taker 1794632802] 0e80e271 swept the joint note back with (a+b), tx a25911f0438a8791249c2211a0b9cda63592ef8f716e288a261d6dcd2718f78c; waiting for 2 confirmations
-[taker 1794632802] 0e80e271 stage Recovering
-[taker 1794632804] balance 208243333 zats
-[taker 1794632806] 0e80e271 recovery sweep a25911f0438a8791249c2211a0b9cda63592ef8f716e288a261d6dcd2718f78c has 2 confirmations (k_Z = 2); no joint note above the fee is left; done
-[taker 1794632806] 0e80e271 stage Recovered
-[taker 1794632806] 0e80e271 DONE Recovered
-[taker 1794632806] finished: Recovered
+[taker 1794648346] resuming swap a38960b4 at stage Funded
+[taker 1794648346] balance 108243333 zats
+[taker 1794648346] a38960b4 R2c: claim window closed (NEAR time 1794648499, t1 1794648498, budget 15s); not committing; waiting for the maker's refund or for t2 1794648558
+[taker 1794648350] {"type":"activity","swap":"a38960b450b8bd0e69f02ecafbdf9b59","kind":"proving","label":"Building the proof that takes the ZEC back from the shared address","estimated_secs":25}
+[taker 1794648355] a38960b4 maker REFUNDED: read b from the escrow; sweeping the joint note of 100010000 zats from tx 99b8f48216170421384ce21e265fbef357bc96568658494ec5e8130e16ce3200
+[taker 1794648355] {"type":"zcash_tx","swap":"a38960b450b8bd0e69f02ecafbdf9b59","what":"sweep","txid":"983c8f00c95eba6df7b90edd5ad95b5ab507b3bc67bbac90e9054a89440368c2"}
+[taker 1794648355] a38960b4 swept the joint note back with (a+b), tx 983c8f00c95eba6df7b90edd5ad95b5ab507b3bc67bbac90e9054a89440368c2; waiting for 2 confirmations
+[taker 1794648355] a38960b4 stage Recovering
+[taker 1794648357] balance 208243333 zats
+[taker 1794648359] a38960b4 recovery sweep 983c8f00c95eba6df7b90edd5ad95b5ab507b3bc67bbac90e9054a89440368c2 has 2 confirmations (k_Z = 2); no joint note above the fee is left; done
+[taker 1794648359] a38960b4 stage Recovered
+[taker 1794648359] a38960b4 DONE Recovered
+[taker 1794648359] finished: Recovered

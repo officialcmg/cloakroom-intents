@@ -376,6 +376,29 @@ Other differences:
   reports `PayoutPending` with the call (section 2.2).
 - Transactions are built, borsh-serialized and signed in `near::tx`, and sent with
   `send_tx` (`wait_until: EXECUTED`). Views use `finality: final` or a final block's hash.
+- NEAR RPC endpoints (incident 2026-11-14, `docs/incidents/2026-11-14-maker-missed-refund.md`).
+  `chains.near_rpc` is one URL or an ordered list. The client (`near::rpc::NearRpc`) sends
+  each request to the first endpoint that is not backing off. On HTTP 429, a JSON-RPC
+  rate-limit error (fastnear answers code -429), HTTP 5xx, a body that is not a JSON-RPC
+  answer, no response, or a node that is behind (`UNKNOWN_BLOCK` and similar), it sends
+  the same request to the next endpoint at once and the failed endpoint backs off: 2 s
+  after the first failure, doubling to 60 s, ±20 % jitter, longer if the endpoint sent
+  `Retry-After` (at most 300 s). An error from a node that answered (an unknown account, a
+  failed transaction, a view that panicked) is final and goes to no other endpoint. A
+  request tries each endpoint at most once and the client never sleeps: when every
+  endpoint backs off, a read fails at once with `Unavailable` (nothing sent) and the
+  engine tries again on a later tick. In critical mode (`NearRpc::critical`), a request
+  also tries the endpoints that back off, after the others: the maker uses it for a
+  refund, for set_ready of a funded swap and for the reads they need; the taker for its
+  stages from `Funded` on (commit_claim, claim, withdraw). One final block read serves
+  every view of a tick (`FINAL_CACHE_MS`, 2 s). Every answer is trusted as it comes: more
+  endpoints give availability, not a second opinion (the open item "the taker trusts one
+  NEAR RPC endpoint" in `docs/DESIGN.md` is unchanged). Reports and `/health` show the
+  URLs without query string or user name (an API key can be in them).
+- The website's configuration has the same field: `near.rpc` is one URL or an ordered
+  list; the engine gets the list, and the page's own payout check reads from the first
+  endpoint that answers. Every host must be in the CSP `connect-src` (`web/vercel.json`;
+  `web/tests/unit/csp.test.ts` derives the list from the shipped configurations).
 - The direct exit (`ft_withdraw` out of the Verifier) needs 40 Tgas attached (about
   0.041 NEAR held). What a 0.03 NEAR stipend leaves (0.0272 NEAR) cannot send it; what the
   0.06 NEAR stipend leaves (0.0572 NEAR) can (`crates/zecret-wasm/tests/sandbox.rs`). The
@@ -439,6 +462,42 @@ Maker settings for requests that nobody has paid for yet (all optional):
 | `max_quotes_per_tick` | 1 | Quotes built at most in one tick. No quote is built (and no RPC is made for one) while the wallet's spendable ZEC is below one quote fee. |
 | `max_refusals_per_hour` | 6 | Refusal replies at most in any hour; 0 turns them off. |
 | `premium_check` | none; required when `chains.network` is `main` | `{"yocto_near_per_zec": "<yoctoNEAR for 1 ZEC>", "costs_per_request_yocto": "<gas + storage per accepted request, default 0.015 NEAR>"}`. `Maker::open` fails if `premium_zats` is worth less than `stipend` + `costs_per_request_yocto`. |
+
+Request budget (incident 2026-11-14). The maker reads the escrow of an open swap on a
+plan, not at every tick (`MakerConfig::polling`, all optional, in seconds of wall clock):
+
+| Field | Default | Meaning |
+|---|---|---|
+| `fast_secs` | 3 | The shortest time between two reads of one swap; also the retry time of a failed deadline-critical step. |
+| `open_secs` | 30 | `Opened` with no confirmed funding in the wallet. Also the longest back-off of a failed read. |
+| `ready_secs` | 10 | `Ready`, `Locked`, `Sweeping`, a refund waiting for its payout. |
+| `settle_secs` | 5 | After a refund was sent, until a final block shows it. |
+| `stuck_secs` | 300 | Past t2 with the escrow still Open or Ready (at most W / 3, so a lock by the taker is seen well inside its reveal window). |
+| `alert_after_secs` | 60 | A NEAR step of an open swap that has failed this long raises an `alert` (once every `quiet_secs`, at most every 300 s). |
+| `quiet_secs` | 600 | The same alert is repeated at most once in this time (past t2: three times this). |
+
+Each read is planned for the earliest of: the stage's interval, or one second after the
+next deadline that matters (`t0 − ∆fund` where R3e may start, `t0 − D`, t0, t1,
+`t2 − B_R`, t2, `lockedAt + W`), and never sooner than `fast_secs`. NEAR time is estimated
+from the last read (block time plus the wall-clock time since). A confirmed funding note in
+the wallet triggers a read at once (set_ready). A failed read is tried again after
+`fast_secs` doubling to `open_secs` (or the endpoints' back-off), or after `fast_secs`
+when the step is deadline-critical. While a deadline-critical step fails in a tick, the
+tick does no other NEAR work (no new escrow is opened). Swaps whose next step is
+deadline-critical go first in each tick. With the defaults, one swap costs at most 2
+requests per read: about 4 a minute in `Opened`, 12 in `Ready`, under 1 past t2; an idle
+maker sends none. The same warning is printed at most once a minute (lines that differ
+only in numbers and hashes are the same), with a count of the ones held back.
+
+Health. `Maker::health(now)` is a JSON report for an operator: when NEAR and Zcash last
+answered, each NEAR endpoint (failures in a row, back-off, last error, requests, rate
+limits), open swaps by stage, the nearest deadline (named by the first 8 hex digits of the
+escrow id, which is public on NEAR) and the active alerts. No keys, addresses or amounts.
+`zecret maker` serves it as `GET /health` on the relay's listener (`--relay`, testnet and
+local) and on `--health HOST:PORT`, a listener that answers only that route (any
+network; the mainnet start script uses it). The answer is 200 when the maker loop updated
+the report in the last 120 s and no alert is active except `past_t2` (a swap past t2 with
+the escrow Open: it is listed, but the maker can do nothing about it), else 503.
 
 `misbehave` (test-only) is refused unless the binary is built with the cargo feature
 `misbehave`; `harness/run.py` builds it that way, release builds do not.

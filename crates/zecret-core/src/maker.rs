@@ -29,7 +29,7 @@ use crate::{
     engine::{self, drive_pending, short, Event, Next, PendingState, PendingZ, Tick},
     keys,
     msg::{self, Envelope, Quote, RefuseCode, Refusal, Rfq},
-    near::{escrow, tx::Action, At, Escrow, NearKey, NearRpc, Signer, SwapState, SwapView},
+    near::{escrow, rpc::unavailable, tx::Action, At, Escrow, NearKey, NearRpc, Signer, SwapState, SwapView},
     net::SharedTransport,
     store::{get_json, put_json, Store},
     wallet::{self, CoverWait, Received, Wallet},
@@ -38,6 +38,8 @@ use crate::{
 
 pub const POLL_SECS: u64 = 1;
 pub const RETRY_SECS: u64 = 5;
+/// The same warning is repeated at most once in this time (seconds).
+pub const WARN_QUIET_SECS: u64 = 60;
 
 pub const KEY_WALLET: &str = "wallet";
 pub const KEY_NEAR: &str = "near_key";
@@ -171,6 +173,53 @@ impl MakerSwap {
     }
 }
 
+/// The maker's NEAR reads of one open swap (in memory; after a restart every swap is
+/// read at once).
+#[derive(Clone, Debug, Default)]
+struct Poll {
+    /// Wall-clock time of the next read.
+    due: u64,
+    /// Failed steps in a row.
+    fails: u32,
+    /// What the last read showed.
+    seen: Option<Seen>,
+    /// Since when the swap's NEAR steps have failed without a break.
+    critical_fail_since: Option<u64>,
+    /// The confirmed funding was seen in the wallet (one immediate read for set_ready).
+    funded_seen: bool,
+}
+
+/// The escrow as one read showed it.
+#[derive(Clone, Copy, Debug)]
+struct Seen {
+    state: SwapState,
+    /// NEAR time of the final block read.
+    tnow: u64,
+    /// Wall-clock time of the read.
+    at: u64,
+    t0: u64,
+    t1: u64,
+    t2: u64,
+    /// lockedAt + W, when Locked.
+    reveal_end: Option<u64>,
+}
+
+impl Seen {
+    /// NEAR time now, estimated from the last read.
+    fn est(&self, now: u64) -> u64 {
+        self.tnow + now.saturating_sub(self.at)
+    }
+}
+
+/// An alert that is active for a swap (for `/health`).
+#[derive(Clone, Debug, Serialize)]
+pub struct ActiveAlert {
+    pub kind: String,
+    pub message: String,
+    pub since: u64,
+    pub last: u64,
+}
+
 #[derive(Serialize, Deserialize)]
 struct RfqKey {
     epoch: u32,
@@ -202,6 +251,18 @@ pub struct Maker {
     quote_funds_low: bool,
     /// Refusal replies of the last hour and the ones not sent yet.
     refusals: BTreeMap<String, MakerRefusal>,
+    /// NEAR reads of each open swap.
+    polls: HashMap<String, Poll>,
+    /// Repeated warnings and alerts held back.
+    quiet: engine::Quiet,
+    /// Active alerts by swap.
+    alerts: BTreeMap<String, ActiveAlert>,
+    /// True in a tick in which a deadline-critical NEAR step failed: other NEAR work waits.
+    near_trouble: bool,
+    /// Wall-clock time of the last Zcash sync that worked.
+    last_zcash_ok: Option<u64>,
+    /// Wall-clock time of the current tick.
+    wall_now: u64,
 }
 
 impl Maker {
@@ -234,7 +295,7 @@ impl Maker {
         };
         let mut wallet = engine::wallet_for(&cfg.chains, t.clone())?;
         wallet.watch("wallet", &me.fvk, &[Scope::External, Scope::Internal]);
-        let near = NearRpc::new(t, &cfg.chains.near_rpc);
+        let near = NearRpc::with_urls(t, &cfg.chains.near_rpc);
         let seen = get_json(store, KEY_SEEN)?.unwrap_or_default();
         let mut swaps = BTreeMap::new();
         for k in store.keys(PREFIX_SWAP)? {
@@ -247,7 +308,7 @@ impl Maker {
             let r: MakerRefusal = get_json(store, &k)?.ok_or_else(|| anyhow!("record {k} vanished"))?;
             refusals.insert(r.rfq_id.clone(), r);
         }
-        let mut m = Maker { epoch: rk.epoch, rfq_sk: keys::scalar_from_hex(&rk.sk)?, cfg, me, wallet, near, signer, seen, swaps, covers: HashMap::new(), covers_passed: BTreeSet::new(), ev: vec![], zcash_stale: false, quote_budget: 0, pending_quotes: 0, quote_funds_low: false, refusals };
+        let mut m = Maker { epoch: rk.epoch, rfq_sk: keys::scalar_from_hex(&rk.sk)?, cfg, me, wallet, near, signer, seen, swaps, covers: HashMap::new(), covers_passed: BTreeSet::new(), ev: vec![], zcash_stale: false, quote_budget: 0, pending_quotes: 0, quote_funds_low: false, refusals, polls: HashMap::new(), quiet: engine::Quiet::default(), alerts: BTreeMap::new(), near_trouble: false, last_zcash_ok: None, wall_now: 0 };
         for r in m.refusals.values() {
             if let Some(p) = &r.pending {
                 m.wallet.track(&p.txid);
@@ -303,6 +364,9 @@ impl Maker {
     }
 
     pub fn tick(&mut self, now: u64, store: &mut dyn Store) -> Tick {
+        self.near.set_time(now);
+        self.near_trouble = false;
+        self.wall_now = now;
         let next = match self.step(now, store) {
             Ok(n) => n,
             Err(e) => {
@@ -313,7 +377,14 @@ impl Maker {
         for line in self.wallet.take_notes() {
             self.ev.push(Event::Log { swap: String::new(), line: format!("Zcash wallet: {line}") });
         }
-        Tick { next, events: std::mem::take(&mut self.ev) }
+        // Never "at once" twice in a row without a pause when NEAR is failing.
+        let next = match next {
+            Next::At(t) if self.near_trouble => Next::At(t.max(now + 1)),
+            n => n,
+        };
+        let events = std::mem::take(&mut self.ev);
+        let events = self.quiet.filter(events, now, WARN_QUIET_SECS);
+        Tick { next, events }
     }
 
     /// One pass of the maker (security review 2, F2-04 and H2):
@@ -327,7 +398,10 @@ impl Maker {
     ///    quotes, none when the wallet cannot pay a quote fee.
     fn step(&mut self, now: u64, store: &mut dyn Store) -> Result<Next> {
         self.zcash_stale = match self.wallet.sync() {
-            Ok(()) => false,
+            Ok(()) => {
+                self.last_zcash_ok = Some(now);
+                false
+            }
             Err(e) => {
                 self.ev.push(Event::Warning { swap: String::new(), message: format!("Zcash sync: {e:#}; NEAR duties go on with the last synced view") });
                 true
@@ -336,7 +410,9 @@ impl Maker {
         let quoting = |s: &MakerSwap| matches!(s.stage, MakerStage::Quoting | MakerStage::Quoted);
         let mut next = now + POLL_SECS * 2;
         // Deadline work first.
-        let ids: Vec<String> = self.swaps.iter().filter(|(_, s)| !s.stage.is_terminal() && !quoting(s)).map(|(k, _)| k.clone()).collect();
+        let mut ids: Vec<String> = self.swaps.iter().filter(|(_, s)| !s.stage.is_terminal() && !quoting(s)).map(|(k, _)| k.clone()).collect();
+        // The swaps whose next step protects funds go first (their refund or set_ready).
+        ids.sort_by_key(|id| (!self.is_critical(&self.swaps[id], now), self.next_deadline(id, now).map(|(_, t)| t).unwrap_or(u64::MAX)));
         self.advance_all(ids, now, store, &mut next)?;
         // Incoming messages.
         self.pending_quotes = self.swaps.values().filter(|s| quoting(s)).count();
@@ -843,9 +919,9 @@ impl Maker {
         match s.stage.clone() {
             MakerStage::Quoting => self.send_quote(s, now),
             MakerStage::Quoted => Ok(Next::At(now + POLL_SECS * 2)),
+            MakerStage::Opening if self.near_trouble => Ok(Next::At(now + self.cfg.polling.fast_secs)),
             MakerStage::Opening => self.open_escrow(s, now),
-            MakerStage::Opened | MakerStage::Ready | MakerStage::RefundSent => self.watch_escrow(s, now),
-            MakerStage::Sweeping => self.on_sweeping(s, now),
+            MakerStage::Opened | MakerStage::Ready | MakerStage::RefundSent | MakerStage::Sweeping => self.near_step(s, now),
             MakerStage::Swept | MakerStage::Refunded | MakerStage::Aborted(_) => Ok(Next::Done),
         }
     }
@@ -1031,7 +1107,9 @@ impl Maker {
         }
         let again = s.refund_tx.is_some();
         if again && s.refund_at.map(|t| tnow < t + self.cfg.timing.inclusion_secs).unwrap_or(false) {
-            return Ok(Next::At(0)); // the previous refund may still be on its way
+            // The previous refund may still be on its way: read again later, not at once
+            // (incident 2026-11-14: "at once" made a tight loop of reads).
+            return Ok(Next::At(self.wall_now + self.cfg.polling.settle_secs));
         }
         let id = s.id_bytes()?;
         let b = keys::scalar_to_bytes(&s.b_norm()?);
@@ -1053,27 +1131,25 @@ impl Maker {
         let at = At::Block(fin.hash.clone());
         let v = self.esc().get_swap(&id, &at)?.ok_or_else(|| anyhow!("escrow swap {} not found at a final block", short(&hex::encode(id))))?;
         let t = self.cfg.timing.clone();
+        self.note_seen(s, &v, tnow, now);
         // H6: say so loudly when a swap of ours is near t1 or t2 and not settled. In
         // [t1, t2) the maker must refund an Open or Ready swap, or from t2 the taker can
-        // claim through the punish path.
+        // claim through the punish path. Each kind of alert is repeated at most once per
+        // `polling.quiet_secs` (incident 2026-11-14: once a second for hours).
         if matches!(v.state, SwapState::Open | SwapState::Ready) {
             let near_t2 = tnow + 2 * t.budget() >= v.t2;
             let near_t1 = tnow + 2 * t.budget() >= v.t1;
-            let msg = if tnow >= v.t2 {
-                Some(format!("past t2 {} with the escrow {:?}: only the taker can settle it now", v.t2, v.state))
+            if tnow >= v.t2 {
+                let every = self.cfg.polling.stuck_secs.min(v.reveal_window / 3).max(self.cfg.polling.fast_secs);
+                let m = format!(
+                    "past t2 {} with the escrow {:?}: the escrow allows no refund now. Only the taker's key can act (commit_claim); after a lock the maker refunds when the reveal window ends, or sweeps after a claim. The maker reads this escrow every {every}s",
+                    v.t2, v.state
+                );
+                self.alert(s, "past_t2", m, now, 3 * self.cfg.polling.quiet_secs);
             } else if near_t2 {
-                Some(format!("t2 {} is near (NEAR time {tnow}) and the escrow is {:?}: refund now", v.t2, v.state))
+                self.alert(s, "near_t2", format!("t2 {} is near (NEAR time {tnow}) and the escrow is {:?}: refund now", v.t2, v.state), now, self.cfg.polling.quiet_secs);
             } else if near_t1 && s.stage != MakerStage::Ready {
-                Some(format!("t1 {} is near (NEAR time {tnow}) and the escrow is {:?}", v.t1, v.state))
-            } else {
-                None
-            };
-            if let Some(m) = msg {
-                let line = format!("ALERT: {m}");
-                if s.log.last() != Some(&line) {
-                    self.ev.push(Event::Alert { swap: s.rfq_id.clone(), message: m });
-                    self.log(s, line);
-                }
+                self.alert(s, "near_t1", format!("t1 {} is near (NEAR time {tnow}) and the escrow is {:?}", v.t1, v.state), now, self.cfg.polling.quiet_secs);
             }
         }
         match v.state {
@@ -1094,7 +1170,8 @@ impl Maker {
                     return self.refund(s, tnow, "deadline refund");
                 }
                 if !t.in_time(tnow, v.t2) {
-                    self.log_once(s, format!("L_M violated: back online at {tnow}, too close to t2 {} to refund safely; the taker may now claim (the trade completes if she funded)", v.t2));
+                    let m = format!("L_M violated: back online at {tnow}, too close to t2 {} to refund safely; the taker may now claim (the trade completes if she funded)", v.t2);
+                    self.quiet_log(s, "lm", m, now, 3 * self.cfg.polling.quiet_secs);
                     return Ok(Next::At(now + POLL_SECS));
                 }
                 return self.refund(s, tnow, &format!("final block {} (t={tnow}) is past t1 with state {:?}", fin.height, v.state));
@@ -1159,6 +1236,263 @@ impl Maker {
             return self.refund(s, tnow, &why);
         }
         Ok(Next::At(now + POLL_SECS))
+    }
+
+    /// Emits an alert of this kind for the swap, at most once per `every` seconds, and
+    /// keeps it for `/health`.
+    fn alert(&mut self, s: &mut MakerSwap, kind: &str, message: String, now: u64, every: u64) {
+        let e = self.alerts.entry(s.rfq_id.clone()).or_insert_with(|| ActiveAlert { kind: kind.into(), message: message.clone(), since: now, last: now });
+        if e.kind != kind {
+            *e = ActiveAlert { kind: kind.into(), message: message.clone(), since: now, last: now };
+        }
+        e.message = message.clone();
+        e.last = now;
+        let mut held = 0;
+        if self.quiet.pass(&format!("alert:{}:{kind}", s.rfq_id), now, every, &mut held) {
+            let m = if held > 0 { format!("{message} (repeated {held} times since the last report)") } else { message };
+            self.ev.push(Event::Alert { swap: s.rfq_id.clone(), message: m.clone() });
+            self.log(s, format!("ALERT: {m}"));
+        }
+    }
+
+    /// A log line of this kind, at most once per `every` seconds.
+    fn quiet_log(&mut self, s: &mut MakerSwap, kind: &str, line: String, now: u64, every: u64) {
+        let mut held = 0;
+        if self.quiet.pass(&format!("log:{}:{kind}", s.rfq_id), now, every, &mut held) {
+            self.log(s, line);
+        }
+    }
+
+    fn note_seen(&mut self, s: &MakerSwap, v: &SwapView, tnow: u64, now: u64) {
+        let p = self.polls.entry(s.rfq_id.clone()).or_default();
+        p.seen = Some(Seen {
+            state: v.state,
+            tnow,
+            at: now,
+            t0: v.t0,
+            t1: v.t1,
+            t2: v.t2,
+            reveal_end: (v.state == SwapState::Locked).then(|| v.locked_at.unwrap_or(0).saturating_add(v.reveal_window)),
+        });
+    }
+
+    /// True when the confirmed joint note is in the wallet (the maker may set Ready).
+    fn funded_locally(&self, s: &MakerSwap) -> bool {
+        let need = s.zats + wallet::zip317_fee(1, 1);
+        let tip = self.wallet.height;
+        self.wallet.unspent(&s.rfq_id).into_iter().next().map(|n| n.note.value().inner() >= need && tip + 1 - n.height >= self.cfg.timing.k_z).unwrap_or(false)
+    }
+
+    /// The deadlines that matter for the swap in the state last seen (NEAR time).
+    fn points(&self, s: &MakerSwap, seen: &Seen) -> Vec<(&'static str, u64)> {
+        let t = &self.cfg.timing;
+        match seen.state {
+            SwapState::Open if s.stage == MakerStage::Opened => vec![
+                ("funding window ends (R3e refund may start)", seen.t0.saturating_sub(t.fund_secs)),
+                ("last moment for an early refund or set_ready (t0 - D)", seen.t0.saturating_sub(t.inclusion_secs)),
+                ("t0", seen.t0),
+                ("t1 (R3d refund window opens)", seen.t1),
+                ("t2 - B_R (last safe refund)", seen.t2.saturating_sub(t.budget())),
+                ("t2", seen.t2),
+            ],
+            SwapState::Open | SwapState::Ready => vec![
+                ("t0 - D", seen.t0.saturating_sub(t.inclusion_secs)),
+                ("t1 (R3d refund window opens)", seen.t1),
+                ("t2 - B_R (last safe refund)", seen.t2.saturating_sub(t.budget())),
+                ("t2", seen.t2),
+            ],
+            SwapState::Locked => seen.reveal_end.map(|e| vec![("reveal window ends (R3l refund)", e)]).unwrap_or_default(),
+            _ => vec![],
+        }
+    }
+
+    /// The next deadline of the swap after now: (what, wall-clock time).
+    pub fn next_deadline_of(&self, s: &MakerSwap, now: u64) -> Option<(&'static str, u64)> {
+        let seen = self.polls.get(&s.rfq_id)?.seen?;
+        let tn = seen.est(now);
+        self.points(s, &seen).into_iter().filter(|(_, p)| *p > tn).min_by_key(|(_, p)| *p).map(|(w, p)| (w, now + (p - tn)))
+    }
+
+    fn next_deadline(&self, id: &str, now: u64) -> Option<(&'static str, u64)> {
+        self.swaps.get(id).and_then(|s| self.next_deadline_of(s, now))
+    }
+
+    /// True when the swap's next NEAR step protects funds: a refund that is decided or
+    /// whose window is open or near, set_ready of a funded swap, or a swap not read yet
+    /// since the start.
+    fn is_critical(&self, s: &MakerSwap, now: u64) -> bool {
+        if !matches!(s.stage, MakerStage::Opened | MakerStage::Ready | MakerStage::RefundSent) {
+            return false;
+        }
+        if s.stage == MakerStage::RefundSent {
+            return true;
+        }
+        let Some(p) = self.polls.get(&s.rfq_id) else { return true };
+        let Some(seen) = p.seen else { return true };
+        if p.funded_seen && s.stage == MakerStage::Opened {
+            return true;
+        }
+        let tn = seen.est(now);
+        let soon = 60 + 2 * self.cfg.polling.fast_secs;
+        let t = &self.cfg.timing;
+        match seen.state {
+            SwapState::Open | SwapState::Ready if tn >= seen.t2 => false,
+            SwapState::Open if s.stage == MakerStage::Opened && tn + soon >= seen.t0.saturating_sub(t.fund_secs) && tn < seen.t0 => true,
+            SwapState::Open | SwapState::Ready => tn + soon >= seen.t1,
+            SwapState::Locked => seen.reveal_end.map(|e| tn + soon >= e).unwrap_or(true),
+            _ => false,
+        }
+    }
+
+    /// Seconds until the next read of the swap (see `Polling`).
+    fn poll_secs(&self, s: &MakerSwap, now: u64) -> u64 {
+        let pol = self.cfg.polling;
+        let Some(p) = self.polls.get(&s.rfq_id) else { return pol.fast_secs };
+        let Some(seen) = p.seen else { return pol.fast_secs };
+        let tn = seen.est(now);
+        let slow = match (seen.state, &s.stage) {
+            (SwapState::Open | SwapState::Ready, _) if tn >= seen.t2 => {
+                // Stuck: only the taker can act. Read often enough to see a lock well
+                // within its reveal window.
+                pol.stuck_secs.min(self.swap_reveal(s) / 3).max(pol.fast_secs)
+            }
+            // A refund that could not land before t0 can only go again from t1.
+            (SwapState::Open, MakerStage::RefundSent) if tn + self.cfg.timing.inclusion_secs >= seen.t0 && tn < seen.t1 => pol.open_secs,
+            (_, MakerStage::RefundSent) => pol.settle_secs,
+            (SwapState::Open, MakerStage::Opened) if p.funded_seen => pol.fast_secs,
+            (SwapState::Open, MakerStage::Opened) => pol.open_secs,
+            _ => pol.ready_secs,
+        };
+        let gap = self.points(s, &seen).into_iter().map(|(_, p)| p).filter(|p| *p > tn).map(|p| p - tn).min();
+        match gap {
+            Some(g) => (g + 1).clamp(pol.fast_secs.min(slow), slow),
+            None => slow,
+        }
+    }
+
+    fn swap_reveal(&self, s: &MakerSwap) -> u64 {
+        s.windows.reveal_secs as u64
+    }
+
+    /// One NEAR step of a swap in `Opened`, `Ready`, `RefundSent` or `Sweeping`, if one is
+    /// due: reads at the interval the deadlines call for (`Polling`), deadline-critical
+    /// steps in the client's critical mode, a back-off after a failure, and an alert when a
+    /// critical step has failed for `polling.alert_after_secs`.
+    fn near_step(&mut self, s: &mut MakerSwap, now: u64) -> Result<Next> {
+        let id = s.rfq_id.clone();
+        let pol = self.cfg.polling;
+        let p = self.polls.get(&id).cloned().unwrap_or_default();
+        let wake = s.stage == MakerStage::Opened && !p.funded_seen && !self.zcash_stale && self.funded_locally(s);
+        if now < p.due && !wake {
+            return Ok(Next::At(p.due));
+        }
+        let critical = self.is_critical(s, now) || wake;
+        if self.near_trouble && !critical {
+            // A deadline-critical step failed in this tick: leave the endpoints to it.
+            return Ok(Next::At(now + pol.fast_secs));
+        }
+        let prev = self.near.set_critical(critical);
+        let r = if s.stage == MakerStage::Sweeping { self.on_sweeping(s, now) } else { self.watch_escrow(s, now) };
+        self.near.set_critical(prev);
+        if wake {
+            self.polls.entry(id.clone()).or_default().funded_seen = true;
+        }
+        match r {
+            Ok(Next::Done) => {
+                self.polls.remove(&id);
+                self.alerts.remove(&id);
+                Ok(Next::Done)
+            }
+            Ok(Next::At(t)) => {
+                let iv = self.poll_secs(s, now);
+                let p = self.polls.entry(id.clone()).or_default();
+                if p.critical_fail_since.take().is_some() {
+                    self.quiet.reset(&format!("alert:{id}:near_failing"));
+                }
+                p.fails = 0;
+                // A step of several ticks (a refund decided, then sent) goes on at once;
+                // otherwise the next read waits for the plan.
+                p.due = if t <= now { now } else { t.max(now + iv) };
+                if self.alerts.get(&id).map(|a| a.kind == "near_failing").unwrap_or(false) {
+                    self.alerts.remove(&id);
+                }
+                Ok(Next::At(if t <= now { t } else { p.due }))
+            }
+            Err(e) => {
+                let p = self.polls.entry(id.clone()).or_default();
+                p.fails = p.fails.saturating_add(1);
+                let mut wait = if critical { pol.fast_secs } else { (pol.fast_secs << (p.fails - 1).min(5)).min(pol.open_secs) };
+                if let (false, Some(u)) = (critical, unavailable(&e)) {
+                    let until = u.retry_at_ms.div_ceil(1000);
+                    wait = wait.max(until.saturating_sub(now)).min(pol.open_secs);
+                }
+                p.due = now + wait.max(1);
+                let due = p.due;
+                self.ev.push(Event::Warning { swap: id.clone(), message: format!("{e:#}") });
+                if critical {
+                    self.near_trouble = true;
+                }
+                // Any NEAR step of an open swap that keeps failing is reported; a
+                // deadline-critical one is named so.
+                let since = *p.critical_fail_since.get_or_insert(now);
+                if now >= since + pol.alert_after_secs {
+                    let next = self.next_deadline_of(s, now).map(|(w, at)| format!("; next deadline: {w} in {}s", at.saturating_sub(now))).unwrap_or_default();
+                    let what = if critical { "a deadline-critical NEAR step" } else { "the NEAR reads" };
+                    let m = format!("{what} ({}) has failed for {}s{next}: {e:#}", s.stage.name(), now - since);
+                    self.alert(s, "near_failing", m, now, pol.quiet_secs.min(300));
+                }
+                Ok(Next::At(due))
+            }
+        }
+    }
+
+    /// The maker's state for an operator (`GET /health`): when NEAR and Zcash last
+    /// answered, the endpoints, open swaps by stage, the nearest deadline and the active
+    /// alerts. No keys, no addresses, no amounts; swaps are named by the first 8 hex
+    /// digits of their escrow id, which is public on NEAR.
+    pub fn health(&self, now: u64) -> serde_json::Value {
+        let mut stages: BTreeMap<&str, usize> = BTreeMap::new();
+        let mut nearest: Option<(u64, &'static str, String)> = None;
+        for s in self.swaps.values().filter(|s| !s.stage.is_terminal()) {
+            *stages.entry(s.stage.name()).or_insert(0) += 1;
+            if let Some((what, at)) = self.next_deadline_of(s, now)
+                && nearest.as_ref().map(|(t, _, _)| at < *t).unwrap_or(true)
+            {
+                nearest = Some((at, what, s.escrow_id.as_deref().map(short).unwrap_or_default()));
+            }
+        }
+        let name = |id: &str| self.swaps.get(id).and_then(|s| s.escrow_id.as_deref()).map(short).unwrap_or_default();
+        let alerts: Vec<serde_json::Value> = self
+            .alerts
+            .iter()
+            .map(|(id, a)| serde_json::json!({"escrow": name(id), "kind": a.kind, "message": a.message, "since": a.since, "last": a.last}))
+            .collect();
+        let endpoints: Vec<serde_json::Value> = self
+            .near
+            .health()
+            .into_iter()
+            .map(|e| serde_json::json!({
+                "url": crate::near::rpc::public_url(&e.url),
+                "fails_in_a_row": e.fails,
+                "backoff_until": e.backoff_until_ms / 1000,
+                "last_ok": e.last_ok_ms.map(|t| t / 1000),
+                "last_error": e.last_error.map(|m| m.chars().take(200).collect::<String>()),
+                "requests": e.requests,
+                "rate_limited": e.rate_limited,
+            }))
+            .collect();
+        // A swap past t2 with the escrow Open needs no action that the maker could take;
+        // it is listed but does not make the maker unhealthy.
+        let ok = self.alerts.values().all(|a| a.kind == "past_t2");
+        serde_json::json!({
+            "now": now,
+            "ok": ok,
+            "near": {"last_ok": self.near.last_ok_ms().map(|t| t / 1000), "requests": self.near.requests(), "endpoints": endpoints},
+            "zcash": {"last_ok": self.last_zcash_ok, "height": self.wallet.height},
+            "open_swaps": stages,
+            "nearest_deadline": nearest.map(|(at, what, escrow)| serde_json::json!({"escrow": escrow, "what": what, "at": at, "in_secs": at.saturating_sub(now)})),
+            "alerts": alerts,
+        })
     }
 
     fn on_refunded(&mut self, s: &mut MakerSwap, fin: &crate::near::rpc::BlockInfo, now: u64) -> Result<Next> {
@@ -1320,6 +1654,7 @@ mod tests {
             max_quotes_per_tick: 1,
             premium_check: None,
             max_refusals_per_hour: 6,
+            polling: Default::default(),
         };
         let mut store = MemStore::new();
         store.put(KEY_NEAR, NearKey::generate().secret_str().as_bytes()).unwrap();
@@ -1372,5 +1707,313 @@ mod tests {
         // with negated shares the escrow holds -A and -B
         s.negated = true;
         assert_eq!(m.not_ours(&s, &ours(&s)).unwrap(), Some("A"));
+    }
+
+    // ------------------------------------------------------------------ NEAR budget
+    // A fake NEAR chain behind two endpoints, a clock the test moves, and no Zcash
+    // server (the wallet's sync fails, as on a bad day; R3d and R3l need no Zcash data).
+
+    use std::cell::{Cell, RefCell};
+
+    const EP_A: &str = "https://a.example";
+    const EP_B: &str = "https://b.example";
+
+    struct Chain {
+        /// Wall clock (ms).
+        clock: Cell<u64>,
+        /// The swap as get_swap returns it.
+        swap: RefCell<serde_json::Value>,
+        /// The swap after the next send_tx (a refund).
+        after_send: RefCell<Option<serde_json::Value>>,
+        /// Endpoints that answer fastnear's -429.
+        limited: RefCell<Vec<&'static str>>,
+        /// (url, method) of every request.
+        log: RefCell<Vec<(String, String)>>,
+        /// (url, wall secs) of every send_tx that got through.
+        sends: RefCell<Vec<(String, u64)>>,
+    }
+
+    impl Chain {
+        fn now(&self) -> u64 {
+            self.clock.get() / 1000
+        }
+        fn requests(&self) -> usize {
+            self.log.borrow().len()
+        }
+        fn swap_state(&self, st: &str) {
+            self.swap.borrow_mut()["state"] = serde_json::json!(st);
+        }
+    }
+
+    impl Transport for Chain {
+        fn post(&self, url: &str, _: &[(&str, &str)], body: &[u8]) -> Result<Response> {
+            if url != EP_A && url != EP_B {
+                return Err(anyhow!("no Zcash server in this test"));
+            }
+            let req: serde_json::Value = serde_json::from_slice(body).unwrap();
+            let method = req["method"].as_str().unwrap().to_string();
+            self.log.borrow_mut().push((url.to_string(), method.clone()));
+            let ok = |v: serde_json::Value| Ok(Response { status: 200, body: serde_json::json!({"jsonrpc": "2.0", "id": "zecret", "result": v}).to_string().into_bytes(), headers: vec![] });
+            if self.limited.borrow().contains(&url) {
+                let e = serde_json::json!({"jsonrpc": "2.0", "id": "zecret", "error": {"code": -429, "message": "Rate limits exceeded"}});
+                return Ok(Response { status: 200, body: e.to_string().into_bytes(), headers: vec![] });
+            }
+            let p = &req["params"];
+            match method.as_str() {
+                "block" => {
+                    // Final blocks lag the wall clock by 2 s.
+                    let secs = self.now() - 2;
+                    ok(serde_json::json!({"header": {"height": secs, "hash": bs58::encode([7u8; 32]).into_string(), "timestamp": secs * 1_000_000_000}}))
+                }
+                "query" => match p["request_type"].as_str().unwrap() {
+                    "call_function" => {
+                        let bytes: Vec<u8> = self.swap.borrow().to_string().into_bytes();
+                        ok(serde_json::json!({"result": bytes, "logs": []}))
+                    }
+                    "view_access_key" => ok(serde_json::json!({"nonce": 5, "permission": "FullAccess"})),
+                    other => panic!("unexpected query {other}"),
+                },
+                "send_tx" | "tx" => {
+                    if method == "send_tx" {
+                        self.sends.borrow_mut().push((url.to_string(), self.now()));
+                        if let Some(v) = self.after_send.borrow_mut().take() {
+                            *self.swap.borrow_mut() = v;
+                        }
+                    }
+                    ok(serde_json::json!({"final_execution_status": "FINAL", "status": {"SuccessValue": ""}, "transaction_outcome": {"outcome": {"logs": [], "status": {"SuccessReceiptId": "x"}, "executor_id": "maker.near"}}, "receipts_outcome": []}))
+                }
+                other => panic!("unexpected method {other}"),
+            }
+        }
+        fn now_ms(&self) -> Option<u64> {
+            Some(self.clock.get())
+        }
+    }
+
+    const T0_SECS: u64 = 900;
+    const T1_SECS: u64 = 600;
+    const T2_SECS: u64 = 900;
+    const W_SECS: u64 = 600;
+
+    /// A maker with one swap in `stage`, opened at wall time `opened` (t0 = opened + 900,
+    /// t1 = t0 + 600, t2 = t1 + 900, W = 600, as the testnet maker quotes).
+    fn budget_maker(chain: &Rc<Chain>, stage: &str, opened: u64, polling: Option<crate::config::Polling>) -> (Maker, MemStore, String) {
+        let (t0, t1) = (opened + T0_SECS, opened + T0_SECS + T1_SECS);
+        let t2 = t1 + T2_SECS;
+        let b = keys::random_scalar();
+        let a = keys::random_scalar();
+        let escrow_id = hex::encode([0x5eu8; 32]);
+        let taker_pk = hex::encode([5u8; 32]);
+        let rec = serde_json::json!({
+            "rfq_id": "c2b9fa5067b8d2aded520570a2d1fe18", "stage": stage, "zats": 959000, "price": "287700", "premium": 1000, "stipend": "1",
+            "taker_pk": taker_pk, "taker_account": taker_pk, "a_pub": hex::encode((keys::g() * a).to_bytes()),
+            "commit_s_t": "", "b": hex::encode(keys::scalar_to_bytes(&b)), "s_m": "", "e_m": "", "e_t_pub": "",
+            "quote_memo": "", "quote_hash": "", "windows": {"t0_secs": T0_SECS, "t1_secs": T1_SECS, "t2_secs": T2_SECS, "reveal_secs": W_SECS},
+            "rfq_height": 0, "accept_height": 1, "negated": false, "joint_fvk": null, "salt": hex::encode([1u8; 32]), "escrow_id": escrow_id,
+            "t0": t0, "t1": t1, "t2": t2, "pending_then": null, "pending": null, "quote_txid": null, "open_tx": "x",
+            "stipend_tx": "x", "ready_tx": null, "refund_tx": if stage == "RefundSent" { serde_json::json!("old") } else { serde_json::Value::Null },
+            "refund_at": if stage == "RefundSent" { serde_json::json!(t0 - 40) } else { serde_json::Value::Null },
+            "sweep_txid": null, "sweep_height": null, "taker_withdraw_at": null, "log": [], "created_at": opened
+        });
+        *chain.swap.borrow_mut() = serde_json::json!({
+            "id": escrow_id, "maker": "maker.near", "token": "usdc.near", "amount": "287700",
+            "taker_pk": taker_pk, "taker_account": taker_pk, "a_pub": rec["a_pub"], "b_pub": hex::encode((keys::g() * b).to_bytes()),
+            "t0": t0, "t1": t1, "t2": t2, "reveal_window": W_SECS, "state": if stage == "Ready" { "Ready" } else { "Open" },
+            "locked_at": null, "commitment": null, "a": null, "b": null, "payout": "none", "recipient": null
+        });
+        let mut cfg = maker().cfg;
+        cfg.chains.near_rpc = crate::config::RpcUrls::new(vec![EP_A.into(), EP_B.into()]).unwrap();
+        cfg.timing = Timing { inclusion_secs: 30, finality_secs: 10, reorg_budget: 2, margin_secs: 0, fund_secs: 600, k_z: 3 };
+        cfg.windows = Windows { t0_secs: T0_SECS as u32, t1_secs: T1_SECS as u32, t2_secs: T2_SECS as u32, reveal_secs: W_SECS as u32 };
+        if let Some(p) = polling {
+            cfg.polling = p;
+        }
+        let mut store = MemStore::new();
+        store.put(KEY_NEAR, NearKey::generate().secret_str().as_bytes()).unwrap();
+        put_json(&mut store, &format!("{PREFIX_SWAP}{}", rec["rfq_id"].as_str().unwrap()), &rec).unwrap();
+        let m = Maker::open(cfg, chain.clone(), &mut store).unwrap();
+        (m, store, rec["rfq_id"].as_str().unwrap().to_string())
+    }
+
+    fn chain_at(wall: u64) -> Rc<Chain> {
+        Rc::new(Chain { clock: Cell::new(wall * 1000), swap: RefCell::new(serde_json::Value::Null), after_send: RefCell::new(None), limited: RefCell::new(vec![]), log: RefCell::new(vec![]), sends: RefCell::new(vec![]) })
+    }
+
+    /// Runs the maker's loop as `zecret maker` does (tick, then sleep until next, at most
+    /// 3 s) from the chain's clock until `until`. Returns the requests sent in each tick
+    /// and every event.
+    fn run(m: &mut Maker, store: &mut MemStore, chain: &Chain, until: u64) -> (Vec<(u64, usize)>, Vec<Event>) {
+        let mut per_tick = vec![];
+        let mut events = vec![];
+        while chain.now() < until {
+            let now = chain.now();
+            let before = chain.requests();
+            let t = m.tick(now, store);
+            per_tick.push((now, chain.requests() - before));
+            events.extend(t.events);
+            let wait = match t.next {
+                Next::At(x) if x > now => (x - now).min(3),
+                // "At once": the real loop goes on without a pause; the test moves 0.2 s.
+                _ => 0,
+            };
+            chain.clock.set(chain.clock.get() + if wait == 0 { 200 } else { wait * 1000 });
+        }
+        (per_tick, events)
+    }
+
+    fn max_per_window(per_tick: &[(u64, usize)], secs: u64) -> usize {
+        per_tick.iter().map(|(t0, _)| per_tick.iter().filter(|(t, _)| *t >= *t0 && *t < t0 + secs).map(|(_, n)| n).sum()).max().unwrap_or(0)
+    }
+
+    #[test]
+    fn budget_opened_far_from_deadlines() {
+        // Incident 2026-11-14: about 2 requests a second for one Opened swap.
+        let start = 1_794_638_343;
+        let chain = chain_at(start + 10);
+        let (mut m, mut store, _) = budget_maker(&chain, "Opened", start, None);
+        let (per_tick, _) = run(&mut m, &mut store, &chain, start + 10 + 300);
+        let total: usize = per_tick.iter().map(|(_, n)| n).sum();
+        assert!(per_tick.iter().all(|(_, n)| *n <= 2), "at most one final block and one get_swap per tick: {per_tick:?}");
+        assert!(max_per_window(&per_tick, 60) <= 6, "at most 6 requests a minute, got {}", max_per_window(&per_tick, 60));
+        assert!(total <= 24, "{total} requests in 5 minutes");
+    }
+
+    #[test]
+    fn budget_ready_waiting_for_the_taker() {
+        let start = 1_794_638_343;
+        let chain = chain_at(start + 100);
+        let (mut m, mut store, _) = budget_maker(&chain, "Ready", start, None);
+        let (per_tick, _) = run(&mut m, &mut store, &chain, start + 100 + 300);
+        assert!(per_tick.iter().all(|(_, n)| *n <= 2));
+        assert!(max_per_window(&per_tick, 60) <= 14, "{}", max_per_window(&per_tick, 60));
+    }
+
+    #[test]
+    fn opened_reads_just_after_the_funding_window_closes() {
+        // The no-funding refund (R3e) may start at t0 - fund_secs: the maker reads then,
+        // not up to 30 s later. Here the Zcash server is down (H2: no R3e on an old
+        // view), so the test checks the read times.
+        let start = 1_794_638_343;
+        let chain = chain_at(start + 5);
+        let (mut m, mut store, _) = budget_maker(&chain, "Opened", start, None);
+        let window = start + T0_SECS - 600; // t0 - fund_secs
+        let (per_tick, _) = run(&mut m, &mut store, &chain, window + 30);
+        let reads: Vec<u64> = per_tick.iter().filter(|(_, n)| *n > 0).map(|(t, _)| *t).collect();
+        assert!(reads.iter().any(|t| *t >= window && *t <= window + 2 + 3), "reads at {reads:?}, window opens at {window}");
+    }
+
+    #[test]
+    fn budget_and_alerts_past_t2_with_the_escrow_open() {
+        // The state of swap c2b9fa50 since 07:18:51: RefundSent, the escrow Open, past t2.
+        let start = 1_794_638_343;
+        let t2 = start + T0_SECS + T1_SECS + T2_SECS;
+        let chain = chain_at(t2 + 60);
+        let (mut m, mut store, id) = budget_maker(&chain, "RefundSent", start, None);
+        let (per_tick, events) = run(&mut m, &mut store, &chain, t2 + 60 + 1800);
+        let total: usize = per_tick.iter().map(|(_, n)| n).sum();
+        // Every W/3 = 200 s at most: 2 requests each, 9 reads in 30 minutes plus the first.
+        assert!(total <= 2 * 10, "{total} requests in 30 minutes past t2");
+        let alerts: Vec<&Event> = events.iter().filter(|e| matches!(e, Event::Alert { .. })).collect();
+        assert_eq!(alerts.len(), 1, "one alert, repeated only every 30 minutes: {alerts:?}");
+        assert!(chain.sends.borrow().is_empty(), "no refund after t2: the escrow refuses it");
+        // The Zcash server of this test is down: its warning comes once a minute. NEAR
+        // gives no warning at all.
+        let warnings: Vec<&String> = events.iter().filter_map(|e| match e { Event::Warning { message, .. } => Some(message), _ => None }).collect();
+        assert!(warnings.iter().all(|w| w.starts_with("Zcash sync")), "{warnings:?}");
+        assert!(warnings.len() <= 31, "{} warnings in 30 minutes", warnings.len());
+        // The record does not grow every tick.
+        let s = &m.swaps[&id];
+        assert!(s.log.len() <= 3, "{:?}", s.log);
+        // Health shows the stuck swap and its alert.
+        let h = m.health(chain.now());
+        assert_eq!(h["open_swaps"]["RefundSent"], 1);
+        assert_eq!(h["alerts"][0]["kind"], "past_t2");
+        assert_eq!(h["ok"], true, "a stuck swap is reported, but nothing can be done: the maker is healthy");
+    }
+
+    #[test]
+    fn stuck_swap_refunds_once_the_taker_locks_and_the_reveal_window_ends() {
+        // C: past t2 the maker can act again only after the taker's key locks (punish
+        // path). If she does not reveal, R3l refunds at lockedAt + W.
+        let start = 1_794_638_343;
+        let t2 = start + T0_SECS + T1_SECS + T2_SECS;
+        let chain = chain_at(t2 + 60);
+        let (mut m, mut store, id) = budget_maker(&chain, "RefundSent", start, None);
+        run(&mut m, &mut store, &chain, t2 + 100);
+        let locked_at = chain.now() - 2;
+        chain.swap_state("Locked");
+        chain.swap.borrow_mut()["locked_at"] = serde_json::json!(locked_at);
+        let mut refunded = chain.swap.borrow().clone();
+        refunded["state"] = serde_json::json!("Refunded");
+        refunded["payout"] = serde_json::json!("paid");
+        *chain.after_send.borrow_mut() = Some(refunded);
+        run(&mut m, &mut store, &chain, locked_at + W_SECS + 60);
+        let sends = chain.sends.borrow().clone();
+        assert_eq!(sends.len(), 1, "{sends:?}");
+        assert!(sends[0].1 >= locked_at + W_SECS && sends[0].1 <= locked_at + W_SECS + 20, "refund at {} for W end {}", sends[0].1, locked_at + W_SECS);
+        assert_eq!(m.swaps[&id].stage, MakerStage::Refunded);
+    }
+
+    fn r3d_maker(chain: &Rc<Chain>) -> (Maker, MemStore, String, u64, u64) {
+        // NEAR time just before t1, the escrow Open, the maker in Opened (R3e missed).
+        let t1_wall = 1_794_639_831;
+        let start = t1_wall - T0_SECS - T1_SECS;
+        chain.clock.set((t1_wall - 20) * 1000);
+        let (m, store, id) = budget_maker(chain, "Opened", start, None);
+        let mut refunded = chain.swap.borrow().clone();
+        refunded["state"] = serde_json::json!("Refunded");
+        refunded["payout"] = serde_json::json!("paid");
+        *chain.after_send.borrow_mut() = Some(refunded);
+        (m, store, id, t1_wall, t1_wall + T2_SECS)
+    }
+
+    #[test]
+    fn refund_goes_out_through_the_second_endpoint_while_the_first_is_rate_limited() {
+        let chain = chain_at(0);
+        let (mut m, mut store, id, t1, t2) = r3d_maker(&chain);
+        chain.limited.borrow_mut().push(EP_A);
+        let (per_tick, _) = run(&mut m, &mut store, &chain, t1 + 60);
+        let sends = chain.sends.borrow().clone();
+        assert_eq!(sends.len(), 1, "{sends:?}");
+        assert_eq!(sends[0].0, EP_B);
+        assert!(sends[0].1 <= t1 + 2 + 3 + 3, "refund sent at {} (t1 {t1})", sends[0].1);
+        assert!(sends[0].1 + 15 < t2);
+        assert_eq!(m.swaps[&id].stage, MakerStage::Refunded);
+        // The rate-limited endpoint was not hammered: its back-off holds.
+        let to_a = chain.log.borrow().iter().filter(|(u, _)| u == EP_A).count();
+        assert!(to_a <= 6, "{to_a} requests to the rate-limited endpoint");
+        assert!(per_tick.iter().all(|(_, n)| *n <= 7), "{per_tick:?}");
+    }
+
+    #[test]
+    fn with_both_endpoints_down_the_refund_goes_out_as_soon_as_one_returns() {
+        let chain = chain_at(0);
+        let (mut m, mut store, id, t1, t2) = r3d_maker(&chain);
+        // One read before t1, then both endpoints down until t1 + 90.
+        run(&mut m, &mut store, &chain, t1 - 15);
+        chain.limited.borrow_mut().extend([EP_A, EP_B]);
+        let (per_tick, events) = run(&mut m, &mut store, &chain, t1 + 90);
+        assert!(chain.sends.borrow().is_empty());
+        // No tight loop: at most one attempt (two endpoints) every fast_secs = 3 s.
+        assert!(max_per_window(&per_tick, 60) <= 2 * 21, "{}", max_per_window(&per_tick, 60));
+        let alert = events.iter().find_map(|e| match e {
+            Event::Alert { message, .. } if message.contains("deadline-critical") => Some(message.clone()),
+            _ => None,
+        });
+        let alert = alert.expect("an alert after 60 s of failing critical work");
+        assert!(alert.contains("t2 - B_R"), "{alert}");
+        assert_eq!(m.health(chain.now())["alerts"][0]["kind"], "near_failing");
+        assert_eq!(m.health(chain.now())["ok"], false);
+        // B comes back.
+        let back = chain.now();
+        chain.limited.borrow_mut().retain(|u| *u != EP_B);
+        run(&mut m, &mut store, &chain, back + 30);
+        let sends = chain.sends.borrow().clone();
+        assert_eq!(sends.len(), 1, "{sends:?}");
+        assert_eq!(sends[0].0, EP_B);
+        assert!(sends[0].1 <= back + 3 + 3, "refund at {} after the endpoint came back at {back}", sends[0].1);
+        assert!(sends[0].1 + 15 < t2);
+        assert_eq!(m.swaps[&id].stage, MakerStage::Refunded);
+        assert!(m.health(chain.now())["alerts"].as_array().unwrap().is_empty());
     }
 }

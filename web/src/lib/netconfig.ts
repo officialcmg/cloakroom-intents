@@ -98,7 +98,14 @@ export interface NetworkConfig {
     explorer?: string;
   };
   near: {
+    /**
+     * The first NEAR RPC endpoint. The file may give one URL or an ordered list; the
+     * engine uses the first that answers and moves to the next on a rate limit, a server
+     * error or a timeout. A second endpoint is a fallback, not a second opinion.
+     */
     rpc: string;
+    /** Every NEAR RPC endpoint, in order (set by `parseNetworkConfig`; `rpc` is the first). */
+    rpcs?: string[];
     escrow: string;
     /** base58 sha256 of the reviewed escrow wasm, as view_account reports it. */
     escrowCodeHash: string;
@@ -130,6 +137,11 @@ export interface NetworkConfig {
 }
 
 export class NetConfigError extends Error {}
+
+/** Every NEAR RPC endpoint of a configuration, in order. */
+export function nearRpcs(c: Pick<NetworkConfig, 'near'>): string[] {
+  return c.near.rpcs && c.near.rpcs.length > 0 ? c.near.rpcs : [c.near.rpc];
+}
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown, p: string): string => {
@@ -181,7 +193,11 @@ function parseFile(json: unknown, anchors: MainnetAnchors): NetworkConfig {
   if (!isObj(json.zcash) || (!json.zcash.zebraRpc && !json.zcash.lightwalletd)) throw new NetConfigError('zcash needs zebraRpc or lightwalletd');
   if (json.zcash.lightwalletd && network === 'regtest') throw new NetConfigError('regtest uses zebraRpc');
   if (!isObj(json.near)) throw new NetConfigError('near is missing');
-  for (const k of ['rpc', 'escrow', 'escrowCodeHash', 'token', 'tokenSymbol', 'verifier']) str(json.near[k], `near.${k}`);
+  const rpcs: unknown[] = Array.isArray(json.near.rpc) ? json.near.rpc : [json.near.rpc];
+  if (rpcs.length === 0) throw new NetConfigError('near.rpc must name at least one URL');
+  rpcs.forEach((u, i) => str(u, `near.rpc[${i}]`));
+  if (new Set(rpcs).size !== rpcs.length) throw new NetConfigError('near.rpc names a URL twice');
+  for (const k of ['escrow', 'escrowCodeHash', 'token', 'tokenSymbol', 'verifier']) str(json.near[k], `near.${k}`);
   const dec = json.near.tokenDecimals;
   if (typeof dec !== 'number' || !Number.isInteger(dec) || dec < 6 || dec > 30) throw new NetConfigError('near.tokenDecimals must be an integer from 6 to 30');
   if (!isObj(json.timing)) throw new NetConfigError('timing is missing');
@@ -198,18 +214,23 @@ function parseFile(json: unknown, anchors: MainnetAnchors): NetworkConfig {
   for (const [k, v] of [['zcash.explorer', json.zcash.explorer], ['near.explorer', json.near.explorer]] as const) {
     if (v !== undefined && !isHttps(v)) throw new NetConfigError(`${k} must be an https: URL`);
   }
-  for (const [k, v] of [['near.rpc', json.near.rpc], ['zcash.zebraRpc', json.zcash.zebraRpc], ['zcash.lightwalletd', json.zcash.lightwalletd], ['exit.relayUrl', json.exit.relayUrl], ['exit.oneClickUrl', json.exit.oneClickUrl]] as const) {
+  rpcs.forEach((u, i) => {
+    if (!isHttp(u)) throw new NetConfigError(`near.rpc[${i}] must be an http: or https: URL`);
+  });
+  for (const [k, v] of [['zcash.zebraRpc', json.zcash.zebraRpc], ['zcash.lightwalletd', json.zcash.lightwalletd], ['exit.relayUrl', json.exit.relayUrl], ['exit.oneClickUrl', json.exit.oneClickUrl]] as const) {
     if (v !== undefined && !isHttp(v)) throw new NetConfigError(`${k} must be an http: or https: URL`);
   }
-  if (network === 'mainnet') checkMainnet(json as unknown as NetworkConfig, anchors);
-  return json as unknown as NetworkConfig;
+  // A copy with the endpoint list in `rpcs` and the first one in `rpc`.
+  const parsed = { ...json, near: { ...json.near, rpc: rpcs[0], rpcs } } as unknown as NetworkConfig;
+  if (network === 'mainnet') checkMainnet(parsed, anchors);
+  return parsed;
 }
 
 /** Mainnet: https everywhere, and exactly the contracts compiled into the bundle (review 3, NV3-01). */
 function checkMainnet(c: NetworkConfig, anchors: MainnetAnchors): void {
   if (c.zcash.zebraRpc) throw new NetConfigError('mainnet uses lightwalletd, not zebraRpc');
   const urls: [string, unknown][] = [
-    ['near.rpc', c.near.rpc],
+    ...nearRpcs(c).map((u, i): [string, unknown] => [`near.rpc[${i}]`, u]),
     ['zcash.lightwalletd', c.zcash.lightwalletd],
     ['exit.oneClickUrl', c.exit.mode === 'oneclick' ? c.exit.oneClickUrl : undefined],
   ];

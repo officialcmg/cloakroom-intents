@@ -19,7 +19,9 @@ pub struct Http {
 
 impl Http {
     pub fn new() -> Result<Http> {
-        Ok(Http { client: reqwest::blocking::Client::builder().timeout(Duration::from_secs(120)).build()? })
+        // A server that does not accept the connection within 10 s is treated as down, so
+        // the NEAR RPC client moves on to its next endpoint (incident 2026-11-14).
+        Ok(Http { client: reqwest::blocking::Client::builder().connect_timeout(Duration::from_secs(10)).timeout(Duration::from_secs(120)).build()? })
     }
 }
 
@@ -33,6 +35,10 @@ impl Transport for Http {
         let status = resp.status().as_u16();
         let headers = resp.headers().iter().map(|(k, v)| (k.as_str().to_ascii_lowercase(), v.to_str().unwrap_or_default().to_string())).collect();
         Ok(Response { status, headers, body: resp.bytes()?.to_vec() })
+    }
+
+    fn now_ms(&self) -> Option<u64> {
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).ok().map(|d| d.as_millis() as u64)
     }
 }
 

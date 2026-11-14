@@ -152,7 +152,7 @@ fn relay(w: &World, takers: &[&str]) -> String {
         std::fs::write(dir.join(format!("swap/{i:02}.json")), rec.to_string()).unwrap();
     }
     let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-    let r = zecret_node::relay::Relay { near_rpc: w.rpc.url.clone(), verifier: w.intents.clone(), token: w.wrap.clone(), maker_account: w.root.account_id.clone(), key: w.root.key.clone(), store_dir: dir };
+    let r = zecret_node::relay::Relay { near_rpc: w.rpc.url.as_str().into(), health: None, verifier: w.intents.clone(), token: w.wrap.clone(), maker_account: w.root.account_id.clone(), key: w.root.key.clone(), store_dir: dir };
     let addr = format!("127.0.0.1:{port}");
     let a = addr.clone();
     std::thread::spawn(move || r.serve(&a).unwrap());

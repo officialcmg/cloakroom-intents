@@ -60,7 +60,8 @@ window values are examples; choose them from `docs/DESIGN.md` §7 and the measur
     "network": "test",
     "lightwalletd": "https://zcash-testnet.chainsafe.dev",
     "birthday": 0,
-    "near_rpc": "https://rpc.testnet.fastnear.com",
+    "near_rpc": ["https://rpc.testnet.fastnear.com", "https://near-testnet.drpc.org",
+                 "https://testnet-rpc.intea.rs"],
     "escrow": "escrow3.zecret-3f109eea1e.testnet",
     "token": "usdc.zecret-3f109eea1e.testnet",
     "intents": "intents.zecret-3f109eea1e.testnet"

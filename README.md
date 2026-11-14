@@ -496,7 +496,17 @@ signing internals, the TLA+ model against the code, and the Railway start script
   it acts on from one RPC endpoint, without proofs. An endpoint that colludes with the
   maker can show an escrow that does not exist and take the taker's ZEC. Options
   (several endpoints, light-client proofs) are in `docs/security/fixes-2-core.md` §4. Not
-  built.
+  built. The configs list two or more endpoints since 2026-11-14, for availability only:
+  the engine trusts the one that answers.
+- **The maker's liveness (L_M) includes NEAR RPC availability.** The maker must refund an
+  unfinished swap before t2. If no NEAR RPC endpoint takes its refund in time, a taker who
+  never paid can claim the USDC after t2. This happened once on testnet: a public
+  endpoint rate-limited every refund of the hosted maker for 35 minutes
+  (`docs/incidents/2026-11-14-maker-missed-refund.md`). The maker now uses a list of
+  endpoints with back-off, reads far below the free limits and reports its state on
+  `GET /health`. The loss is limited to one swap's USDC per missed refund
+  (`max_zats`). On mainnet a paid or self-hosted endpoint is advised
+  (`docs/MAINNET.md`, gap G14).
 - **NEAR Intents operators.** They can pause transfers in the Verifier or lock the
   escrow's account there. Then no payout and no refund moves until they stop; the payout
   stays due and is paid once later. The taker's USDC in NEAR Intents already depends on

@@ -16,6 +16,7 @@ harness/RESULTS.md. The sandbox time is moved forward with `sandbox_fast_forward
 scenario needs a deadline to pass; Zcash blocks are mined in real time.
 """
 import base64
+import http.server
 import json
 import os
 import re
@@ -50,6 +51,11 @@ COVER_K = 4
 TIMING = {"inclusion_secs": 3, "finality_secs": 3, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 30, "k_z": 2}
 BUDGET = 3 * 3 + 2 * 3            # B_R = (R+1)D + RF
 WINDOWS = {"t0_secs": 120, "t1_secs": 60, "t2_secs": 60, "reveal_secs": 45}
+
+# The maker reads the escrow at its deadlines (docs/ENGINE.md, request budget). The
+# scenarios move NEAR time forward in jumps (warp_to), which a wall-clock read plan does
+# not expect, so the scenario maker reads every 1-2 s. s27 measures the default plan.
+HARNESS_POLLING = {"fast_secs": 1, "open_secs": 2, "ready_secs": 2, "settle_secs": 2, "stuck_secs": 5, "alert_after_secs": 20, "quiet_secs": 60}
 
 state = {"nu7": None, "net": None, "branch": None}
 zebra_proc = None
@@ -272,6 +278,66 @@ def stop_near():
         near_proc = None
 
 
+# ---------------------------------------------------------------- RPC proxy
+
+class RpcProxy:
+    """A NEAR RPC endpoint in front of the sandbox that counts requests and can answer
+    like a rate-limited public endpoint (fastnear's JSON-RPC error -429, HTTP 429)."""
+
+    def __init__(self, port):
+        self.port, self.url = port, f"http://127.0.0.1:{port}"
+        self.limited = False
+        self.log = []          # (time, method, answered)
+        self.lock = threading.Lock()
+        proxy = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_POST(self):
+                body = self.rfile.read(int(self.headers.get("content-length", 0)))
+                try:
+                    req = json.loads(body)
+                    method = req.get("method", "?")
+                    if method == "query":
+                        method += "/" + str(req.get("params", {}).get("request_type", "?"))
+                except Exception:
+                    method = "?"
+                if proxy.limited:
+                    with proxy.lock:
+                        proxy.log.append((time.time(), method, 429))
+                    out = json.dumps({"jsonrpc": "2.0", "id": "x", "error": {"code": -429, "message": "Rate limits exceeded (harness proxy)"}}).encode()
+                    self.send_response(429)
+                else:
+                    with proxy.lock:
+                        proxy.log.append((time.time(), method, 200))
+                    r = urllib.request.Request(NEAR, data=body, headers={"content-type": "application/json"})
+                    try:
+                        with urllib.request.urlopen(r, timeout=60) as resp:
+                            out = resp.read()
+                        self.send_response(200)
+                    except Exception as e:
+                        out = str(e).encode()
+                        self.send_response(502)
+                self.send_header("content-type", "application/json")
+                self.send_header("content-length", str(len(out)))
+                self.end_headers()
+                self.wfile.write(out)
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def count(self, since=0.0, until=None, method=None, answered=None):
+        with self.lock:
+            return sum(1 for (t, m, a) in self.log if t >= since and (until is None or t < until)
+                       and (method is None or m == method) and (answered is None or a == answered))
+
+    def stop(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+
 # ---------------------------------------------------------------- parties
 
 def chains():
@@ -356,7 +422,8 @@ def abort_reason(sw):
 def parties(scen, maker_extra=None, taker_extra=None):
     os.makedirs(os.path.join(EVID, scen), exist_ok=True)
     mcfg = {"chains": chains(), "timing": TIMING, "near_account": state["net"]["maker"], "price_per_zec": str(PRICE_PER_ZEC),
-            "min_zats": 1000, "max_zats": 5 * LOT, "premium_zats": PREMIUM, "stipend": str(STIPEND), "windows": WINDOWS}
+            "min_zats": 1000, "max_zats": 5 * LOT, "premium_zats": PREMIUM, "stipend": str(STIPEND), "windows": WINDOWS,
+            "polling": HARNESS_POLLING}
     mcfg.update(maker_extra or {})
     maker = Party(scen, "maker", mcfg)
     shutil.copy(state["maker_key"], os.path.join(maker.dir, "near_key.json"))
@@ -805,6 +872,144 @@ def s11_maker_liveness_violated():
     return c.save(maker, taker)
 
 
+def s26_rpc_rate_limited_during_refund_window():
+    scen = "s26_rpc_rate_limited_during_refund_window"
+    p1, p2 = RpcProxy(3131), RpcProxy(3132)
+    try:
+        return _s26(scen, p1, p2)
+    finally:
+        p1.stop()
+        p2.stop()
+
+
+def _s26(scen, p1, p2):
+    c = Checks(scen, "Incident 2026-11-14: the maker's first NEAR RPC endpoint is rate-limited (429) in the refund window: the maker refunds in time through the second endpoint. Then, with BOTH endpoints down, it refunds as soon as one returns, before the window closes")
+    ch = dict(chains(), near_rpc=[p1.url, p2.url])
+    # Part 1: the first endpoint answers 429 from the open on; the no-funding refund (R3e) goes through the second.
+    maker, taker = parties(scen, maker_extra={"chains": ch})
+    before = snapshot(maker, taker)
+    maker.start("--exit-after", "1")
+    taker.start("--zats", str(LOT), "--vanish-at", "Accepted")
+    taker.wait(300)
+    maker.wait_log("STIPEND", 200)
+    t_limit = time.time()
+    p1.limited = True
+    m = maker.swap()
+    warp_to(m["t0"] - TIMING["fund_secs"] // 2)
+    maker.wait(200)
+    m = maker.swap()
+    after = snapshot(maker, taker)
+    final_t = near_now()
+    c.facts.update(part1={"escrow_id": m["escrow_id"], "t0": m["t0"],
+                          "endpoint1": {"answered_429": p1.count(t_limit, answered=429), "send_tx": p1.count(t_limit, method="send_tx")},
+                          "endpoint2": {"answered": p2.count(t_limit, answered=200), "send_tx": p2.count(t_limit, method="send_tx")}})
+    c.ok("part 1: the first endpoint answered 429 to the maker", p1.count(t_limit, answered=429) > 0, p1.count(t_limit, answered=429))
+    c.ok("part 1: the maker refunded early (R3e) although its first endpoint was rate-limited", stage_name(m) == "Refunded" and any("no funding before t0" in l for l in m["log"]), stage_name(m))
+    c.ok("part 1: the refund went out through the second endpoint", p2.count(t_limit, method="send_tx") >= 1 and p1.count(t_limit, method="send_tx", answered=200) == 0, c.facts["part1"])
+    c.ok("part 1: escrow Refunded", escrow_state(m["escrow_id"]) == "Refunded")
+    c.ok("part 1: maker tokens fully restored", after["maker_wnear"] == before["maker_wnear"], after["maker_wnear"] - before["maker_wnear"])
+    # The 429s were not answered by a tight loop: at most one try of each endpoint per
+    # back-off step (2 s, 4 s, ... while it backs off; a critical step may try it once).
+    secs = max(1.0, time.time() - t_limit)
+    c.ok("part 1: no tight loop against the rate-limited endpoint (at most 1 request a second on average)", p1.count(t_limit) / secs <= 1.0, f"{p1.count(t_limit)} requests in {secs:.0f}s")
+    p1.limited = False
+    # Part 2: BOTH endpoints answer 429 from before t1 until t1 + 15 s (window [t1, t2 - B_R) is 45 s); the
+    # maker must refund (R3d) as soon as one comes back, before t2 - B_R.
+    scen2 = scen + "_both_down"
+    maker2, taker2 = parties(scen2, maker_extra={"chains": ch})
+    maker2.start("--exit-after", "1")
+    taker2.start("--zats", str(LOT), "--vanish-at", "Accepted")
+    taker2.wait(300)
+    maker2.wait_log("STIPEND", 200)
+    m2 = maker2.swap()
+    t_down = time.time()
+    p1.limited = p2.limited = True
+    # No early refund can pass (R3e window under the outage), then t1.
+    warp_to(m2["t1"] + 1)
+    time.sleep(15)
+    t_back = time.time()
+    p2.limited = False
+    log(f"  endpoint 2 back at NEAR time {near_now()} (t1 {m2['t1']}, t2 {m2['t2']}, last safe refund before {m2['t2'] - BUDGET})")
+    maker2.wait(200)
+    m2 = maker2.swap()
+    sw = get_swap(m2["escrow_id"])
+    refund_tx = m2.get("refund_tx")
+    landed = None
+    if refund_tx:
+        try:
+            r = nrpc("tx", {"tx_hash": refund_tx, "sender_account_id": state["net"]["maker"], "wait_until": "FINAL"})
+            bh = r["receipts_outcome"][0]["block_hash"]
+            landed = nrpc("block", {"block_id": bh})["header"]["timestamp"] // 10 ** 9
+        except Exception as e:
+            log(f"  could not read the refund's block: {e}")
+    c.facts.update(part2={"escrow_id": m2["escrow_id"], "t1": m2["t1"], "t2": m2["t2"], "refund_landed_near_time": landed,
+                          "429_while_down": p1.count(t_down, t_back, answered=429) + p2.count(t_down, t_back, answered=429),
+                          "seconds_down": round(t_back - t_down), "send_tx_after_back": p2.count(t_back, method="send_tx")})
+    c.ok("part 2: both endpoints answered 429 while down", c.facts["part2"]["429_while_down"] > 0, c.facts["part2"]["429_while_down"])
+    c.ok("part 2: no tight loop while both were down (at most 2 requests a second on average)", c.facts["part2"]["429_while_down"] / max(1.0, t_back - t_down) <= 2.0, c.facts["part2"])
+    c.ok("part 2: the maker refunded after one endpoint came back", stage_name(m2) == "Refunded" and sw["state"] == "Refunded", (stage_name(m2), sw["state"]))
+    c.ok("part 2: the refund landed before t2 - B_R", landed is not None and landed + BUDGET < m2["t2"] + 1 and landed < m2["t2"], (landed, m2["t2"]))
+    # The scenario jumps NEAR time (warp_to) while every endpoint is down, so the maker
+    # cannot know that t1 passed: its alert says "the NEAR reads" have failed.
+    c.ok("part 2: the maker raised an alert after 20 s of failing NEAR steps", "has failed for" in maker2.logtext(), "")
+    # Warnings that differ only in numbers and hashes are printed at most once a minute;
+    # the outage gives three such lines (one endpoint failed, both failed, both backing off).
+    warns = [l for l in maker2.logtext().splitlines() if "transient:" in l and "harness proxy" in l]
+    c.ok("part 2: the 429 warning is not repeated every tick (at most 6 lines in the outage)", len(warns) <= 6, len(warns))
+    shutil.copy(maker2.logpath, os.path.join(EVID, scen, "maker_both_down.log"))
+    return c.save(maker, taker)
+
+
+def s27_rpc_budget():
+    """Measures the maker's NEAR requests per minute with its default read plan: idle,
+    Opened (the taker vanished), and past t2 with the escrow Open. Run it with
+    ZECRET_BIN=<older build> to measure that build (its config takes one URL)."""
+    scen = "s27_rpc_budget"
+    px = RpcProxy(3133)
+    try:
+        c = Checks(scen, "Request budget (incident 2026-11-14): NEAR requests a minute of the maker with its default read plan, idle, with one swap Opened and the taker gone, and past t2 with the escrow Open")
+        ch = dict(chains(), near_rpc=px.url)
+        maker, taker = parties(scen, maker_extra={"chains": ch})
+        cfg = maker.config()
+        cfg.pop("polling", None)
+        maker.write_config(cfg)
+        maker.start()
+        maker.wait_log("up:", 60)
+        time.sleep(5)
+        t = time.time()
+        time.sleep(60)
+        idle = px.count(t)
+        taker.start("--zats", str(LOT), "--vanish-at", "Accepted")
+        taker.wait(300)
+        maker.wait_log("STIPEND", 200)
+        t = time.time()
+        time.sleep(60)
+        opened = px.count(t)
+        by_method = {m: px.count(t, method=m) for m in ("block", "query/call_function", "query/view_access_key", "send_tx", "tx")}
+        maker.kill()
+        m = maker.swap()
+        warp_to(m["t2"] + 1)
+        maker.start()
+        time.sleep(10)
+        t = time.time()
+        n_alerts = maker.logtext().count("past t2")
+        time.sleep(120)
+        stuck = px.count(t) / 2
+        alerts = maker.logtext().count("past t2") - n_alerts
+        c.facts.update(requests_per_minute={"idle": idle, "opened": opened, "opened_by_method": by_method, "past_t2_escrow_open": stuck},
+                       past_t2_alert_lines_in_2_minutes=alerts, binary=BIN)
+        log(f"  requests a minute: idle {idle}, Opened {opened} {by_method}, past t2 {stuck}; past-t2 alert lines in 2 min: {alerts}")
+        c.ok("idle: no NEAR request", idle == 0, idle)
+        c.ok("Opened, taker gone: at most 12 NEAR requests a minute", opened <= 12, opened)
+        c.ok("past t2 with the escrow Open: at most 12 NEAR requests a minute", stuck <= 12, stuck)
+        c.ok("past t2: the alert is not repeated every tick (at most 2 lines in 2 minutes)", alerts <= 2, alerts)
+        c.ok("R4: not checked here: the swap stays open past t2 on purpose (a measurement)", True)
+        maker.kill()
+        return c.save(maker, taker)
+    finally:
+        px.stop()
+
+
 def lookalikes_between(lo, hi):
     """Fully shielded, Ironwood-only, 2-action txs in blocks lo < h < hi (independent count)."""
     n = 0
@@ -1121,7 +1326,8 @@ SCENARIOS = {"s1": s1_happy, "s2": s2_taker_vanishes_before_funding, "s3": s3_ta
              "s16": s16_short_reveal_window, "s17": s17_far_horizon, "s18": s18_late_funding,
              "s19": s19_no_stipend, "s20": s20_short_open, "s21": s21_unexpected_escrow_code,
              "s22": s22_maker_refuses, "s23": s23_refund_with_two_joint_notes,
-             "s24": s24_reorg_under_a_running_maker, "s25": s25_maker_vanishes_after_claim}
+             "s24": s24_reorg_under_a_running_maker, "s25": s25_maker_vanishes_after_claim,
+             "s26": s26_rpc_rate_limited_during_refund_window, "s27": s27_rpc_budget}
 
 
 def write_report():

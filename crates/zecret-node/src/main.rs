@@ -10,6 +10,7 @@
 //!   zecret near-key  --dir D                      create D/near_key.json, print the key
 //!   zecret directory --dir D                      maker: print the signed directory entry
 //!   zecret maker     --dir D [--exit-after N] [--vanish-at STAGE] [--relay HOST:PORT]
+//!                    [--health HOST:PORT]         GET /health only (the relay serves it too)
 //!   zecret taker     --dir D --zats N [--vanish-at STAGE]
 //!   zecret check     --dir D                      read both chains with D's settings: NEAR final
 //!                                                 block, the escrow checks, the Zcash tip
@@ -179,6 +180,18 @@ fn run_maker(dir: &Path, store: &mut FileStore, args: &[String]) -> Result<()> {
     let cfg: MakerConfig = serde_json::from_value(read_config(dir)?)?;
     let exit_after: Option<usize> = arg(args, "--exit-after").map(|s| s.parse()).transpose()?;
     let vanish_at = arg(args, "--vanish-at");
+    // The maker's health (GET /health on the relay, or on --health where the relay is off).
+    let board: zecret_node::relay::HealthBoard = std::sync::Arc::new(std::sync::Mutex::new(serde_json::json!({"ok": false, "starting": true})));
+    if let Some(addr) = arg(args, "--health") {
+        let listener = std::net::TcpListener::bind(&addr).with_context(|| format!("health: bind {addr}"))?;
+        println!("[maker {}] health on http://{addr}/health", now());
+        let b = board.clone();
+        std::thread::spawn(move || {
+            if let Err(e) = zecret_node::relay::serve_health(listener, b) {
+                eprintln!("health listener stopped: {e:#}");
+            }
+        });
+    }
     if let Some(addr) = arg(args, "--relay") {
         // The direct exit's relay (local network and testnet): see src/relay.rs. Mainnet
         // exits through 1Click; a relay there would only spend the maker's NEAR.
@@ -188,6 +201,7 @@ fn run_maker(dir: &Path, store: &mut FileStore, args: &[String]) -> Result<()> {
         let key = NearKey::from_secret_str(std::str::from_utf8(&store.get(maker::KEY_NEAR)?.ok_or_else(|| anyhow!("no NEAR key in the store"))?)?)?;
         let relay = zecret_node::relay::Relay {
             near_rpc: cfg.chains.near_rpc.clone(),
+            health: Some(board.clone()),
             verifier: cfg.chains.intents.clone(),
             token: cfg.chains.token.clone(),
             maker_account: cfg.near_account.clone(),
@@ -203,9 +217,13 @@ fn run_maker(dir: &Path, store: &mut FileStore, args: &[String]) -> Result<()> {
     }
     let mut m = Maker::open(cfg, transport()?, store)?;
     println!("[maker {}] up: UA {} NEAR {} key {}", now(), m.ua(), m.cfg.near_account, m.signer.key.public_key_str());
+    println!("[maker {}] NEAR endpoints: {}", now(), m.cfg.chains.near_rpc.as_slice().iter().map(|u| zecret_core::near::rpc::public_url(u)).collect::<Vec<_>>().join(", "));
     loop {
         let t = m.tick(now(), store);
         print_events("maker", &t.events);
+        if let Ok(mut b) = board.lock() {
+            *b = m.health(now());
+        }
         if let Some(v) = &vanish_at
             && m.swaps().any(|s| s.stage.name().eq_ignore_ascii_case(v)) {
                 println!("[maker {}] VANISH at stage {v} (process exits; state is stored)", now());
@@ -260,9 +278,15 @@ fn run_check(dir: &Path) -> Result<()> {
     let cfg = read_config(dir)?;
     let chains: Chains = serde_json::from_value(cfg["chains"].clone())?;
     let t = transport()?;
-    let rpc = NearRpc::new(t.clone(), &chains.near_rpc);
+    // Each endpoint on its own first, so that an operator sees which ones answer.
+    for u in chains.near_rpc.as_slice() {
+        match NearRpc::new(t.clone(), u).block(&At::Final) {
+            Ok(b) => println!("NEAR {}: final block {} at {}", zecret_core::near::rpc::public_url(u), b.height, b.secs()),
+            Err(e) => println!("NEAR {}: NOT ANSWERING: {e:#}", zecret_core::near::rpc::public_url(u)),
+        }
+    }
+    let rpc = NearRpc::with_urls(t.clone(), &chains.near_rpc);
     let fin = rpc.block(&At::Final)?;
-    println!("NEAR {}: final block {} at {}", chains.near_rpc, fin.height, fin.secs());
     match cfg["escrow_code_hash"].as_str() {
         Some(h) => {
             zecret_core::near::escrow::check_escrow(&rpc, &chains.escrow, h, &chains.intents, &At::Block(fin.hash.clone()))?;

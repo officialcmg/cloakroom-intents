@@ -147,7 +147,142 @@ pub fn wallet_for(chains: &Chains, t: SharedTransport) -> Result<Wallet> {
     }
 }
 
+/// Holds back repeated warnings and alerts, so that a failing endpoint or a stuck swap
+/// does not fill the log (incident 2026-11-14: the same alert once a second for hours).
+///
+/// Two lines are "the same" when they differ only in numbers and long hashes. A line
+/// passes when no same line passed in the last `every` seconds; when it passes again it
+/// says how many were held back.
+#[derive(Default)]
+pub struct Quiet {
+    seen: std::collections::HashMap<String, (u64, u64)>,
+}
+
+/// A line with its numbers and long hashes replaced, for [`Quiet`].
+pub fn line_key(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut word = String::new();
+    let flush = |w: &mut String, out: &mut String| {
+        if w.len() >= 16 {
+            out.push('#');
+        } else {
+            // "15s" and "7s" are the same line.
+            let mut digits = false;
+            for c in w.chars() {
+                if c.is_ascii_digit() {
+                    if !digits {
+                        out.push('#');
+                    }
+                    digits = true;
+                } else {
+                    out.push(c);
+                    digits = false;
+                }
+            }
+        }
+        w.clear();
+    };
+    for c in s.chars() {
+        if c.is_ascii_alphanumeric() {
+            word.push(c);
+        } else {
+            flush(&mut word, &mut out);
+            out.push(c);
+        }
+    }
+    flush(&mut word, &mut out);
+    out
+}
+
+impl Quiet {
+    /// True when the line with this key may be emitted now. `held` is set to the number of
+    /// same lines held back since it last passed.
+    pub fn pass(&mut self, key: &str, now: u64, every: u64, held: &mut u64) -> bool {
+        match self.seen.get_mut(key) {
+            Some((last, n)) if now < last.saturating_add(every) => {
+                *n += 1;
+                false
+            }
+            Some((last, n)) => {
+                *held = *n;
+                *last = now;
+                *n = 0;
+                true
+            }
+            None => {
+                *held = 0;
+                self.seen.insert(key.to_string(), (now, 0));
+                true
+            }
+        }
+    }
+
+    /// Forgets a key, so its next line passes at once (the problem went away).
+    pub fn reset(&mut self, key: &str) {
+        self.seen.remove(key);
+    }
+
+    /// Filters a tick's events: warnings and alerts that repeat within `every` seconds are
+    /// held back. Other events pass.
+    pub fn filter(&mut self, events: Vec<Event>, now: u64, every: u64) -> Vec<Event> {
+        let mut out = Vec::with_capacity(events.len());
+        for e in events {
+            let (kind, swap, msg) = match &e {
+                Event::Warning { swap, message } => ("w", swap, message),
+                Event::Alert { swap, message } => ("a", swap, message),
+                _ => {
+                    out.push(e);
+                    continue;
+                }
+            };
+            let key = format!("{kind}:{swap}:{}", line_key(msg));
+            let mut held = 0;
+            if self.pass(&key, now, every, &mut held) {
+                out.push(match (e, held) {
+                    (e, 0) => e,
+                    (Event::Warning { swap, message }, n) => Event::Warning { swap, message: format!("{message} (and {n} more like it since the last report)") },
+                    (Event::Alert { swap, message }, n) => Event::Alert { swap, message: format!("{message} (and {n} more like it since the last report)") },
+                    (e, _) => e,
+                });
+            }
+        }
+        // Forget keys not seen for a day.
+        self.seen.retain(|_, (last, _)| now < last.saturating_add(86_400));
+        out
+    }
+}
+
 /// Short form of a swap id for logs.
 pub fn short(id: &str) -> String {
     id.chars().take(8).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quiet_holds_back_repeats_and_counts_them() {
+        let mut q = Quiet::default();
+        let w = |m: &str| Event::Warning { swap: "s".into(), message: m.into() };
+        let a = q.filter(vec![w("send_tx DgSSGEXFk2Yo724QSDH6Yjw5ZAoQxTqA7KZUsWBysTtT: 429 at 1794639200")], 100, 60);
+        assert_eq!(a.len(), 1);
+        // the same line with another hash and time is held back
+        let b = q.filter(vec![w("send_tx 2a6wqgEfWAY13H4R4d4enzhLy5ZB5bvz9yeiDUZsAHDv: 429 at 1794640418")], 110, 60);
+        assert!(b.is_empty());
+        let b = q.filter(vec![w("send_tx 2a6wqgEfWAY13H4R4d4enzhLy5ZB5bvz9yeiDUZsAHDv: 429 at 1794640418")], 120, 60);
+        assert!(b.is_empty());
+        // another line passes
+        assert_eq!(q.filter(vec![w("view get_swap: 429")], 120, 60).len(), 1);
+        // numbers inside words do not make a new line
+        assert_eq!(line_key("a backs off for 15s after: HTTP 429"), line_key("a backs off for 7s after: HTTP 429"));
+        // after the quiet time it passes with the count
+        let c = q.filter(vec![w("send_tx FBMBa9SaSg2bGQkrbFK6cFoEjMDuZSgFnMLRHBPTzD93: 429 at 1794640555")], 161, 60);
+        match &c[..] {
+            [Event::Warning { message, .. }] => assert!(message.ends_with("(and 2 more like it since the last report)"), "{message}"),
+            other => panic!("{other:?}"),
+        }
+        // other events always pass
+        assert_eq!(q.filter(vec![Event::Balance { zats: 1 }, Event::Balance { zats: 1 }], 161, 60).len(), 2);
+    }
 }

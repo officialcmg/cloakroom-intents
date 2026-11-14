@@ -43,7 +43,7 @@ export function judgePayout(f: PayoutFacts): PayoutVerdict {
 }
 
 /** Reads the facts above. Implemented with NEAR JSON-RPC views in the browser. */
-export type PayoutReader = (q: { rpc: string; escrow: string; verifier: string; token: string; swapId: string; taker: string }) => Promise<PayoutFacts>;
+export type PayoutReader = (q: { rpc: string | string[]; escrow: string; verifier: string; token: string; swapId: string; taker: string }) => Promise<PayoutFacts>;
 
 async function rpcCall(rpc: string, method: string, params: unknown): Promise<unknown> {
   const res = await fetch(rpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 'zecret', method, params }) });
@@ -53,8 +53,25 @@ async function rpcCall(rpc: string, method: string, params: unknown): Promise<un
   return body.result;
 }
 
-/** Both views at one final block, so the answers describe the same moment. */
-export const readPayoutFacts: PayoutReader = async ({ rpc, escrow, verifier, token, swapId, taker }) => {
+/**
+ * Both views at one final block, so the answers describe the same moment. With several
+ * endpoints, the whole read goes to the first and, if that fails, to the next one: one
+ * try each, no loop (incident 2026-11-14).
+ */
+export const readPayoutFacts: PayoutReader = async ({ rpc, ...q }) => {
+  const urls = Array.isArray(rpc) ? rpc : [rpc];
+  let last: unknown = new Error('no NEAR RPC endpoint');
+  for (const url of urls) {
+    try {
+      return await readPayoutFactsAt({ rpc: url, ...q });
+    } catch (e) {
+      last = e;
+    }
+  }
+  throw last;
+};
+
+const readPayoutFactsAt = async ({ rpc, escrow, verifier, token, swapId, taker }: { rpc: string; escrow: string; verifier: string; token: string; swapId: string; taker: string }): Promise<PayoutFacts> => {
   const block = (await rpcCall(rpc, 'block', { finality: 'final' })) as { header: { hash: string } };
   const view = async (account: string, method: string, args: unknown): Promise<unknown> => {
     const r = (await rpcCall(rpc, 'query', {

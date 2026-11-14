@@ -62,14 +62,17 @@ token as a repository secret.
   repository's testnet maker settings (`crates/zecret-node/config/testnet-maker.json`) with
   `chains.birthday` set to 4,614,922.
 - The start script `deploy/maker/railway/start.sh` prepares the volume and then runs
-  `zecret maker --dir /data --relay 0.0.0.0:$PORT` as the unprivileged user `zecret`.
+  `zecret maker --dir /data --relay 0.0.0.0:$PORT` as the unprivileged user `zecret`
+  (mainnet: `--health 0.0.0.0:$PORT` instead of the relay).
 - The volume `zecret-maker-data` (1 GB) is mounted at `/data`. It holds the wallet key,
   the NEAR key, the request key, the swap records, the refusal records and the relay
   counters. A redeploy keeps it.
 - The start script never overwrites the wallet, the request key, the swap records or the
   relay counters. It replaces `config.json` with the image's settings only when no swap is
   open; with an open swap it keeps the old settings, because the maker uses them for that
-  swap's deadlines. An open swap is a file `swap/*.json` whose `stage` is a string other
+  swap's deadlines. One exception (since 2026-11-14): when only `chains.near_rpc` or
+  `polling` differ, it applies the new settings also with a swap open, because they do
+  not change a swap's terms and an open swap needs working endpoints most. An open swap is a file `swap/*.json` whose `stage` is a string other
   than `Swept` or `Refunded` (`Aborted` is stored as an object and does not count; a
   request in `Quoting` or `Quoted` counts until the maker drops it, at most
   `quote_ttl_secs`, 1 hour by default). The old settings are kept as
@@ -80,6 +83,24 @@ token as a repository secret.
   keeps its test USDC in its own account in the stand-in Verifier
   (`intents.zecret-3f109eea1e.testnet`) and deposits the difference from its plain
   balance before each open.
+- NEAR RPC endpoints (since 2026-11-14, incident
+  `docs/incidents/2026-11-14-maker-missed-refund.md`): `chains.near_rpc` lists
+  `https://rpc.testnet.fastnear.com`, `https://near-testnet.drpc.org` and
+  `https://testnet-rpc.intea.rs`, in that order; the website's `near.rpc` lists the same
+  three. Each answered `block`, a `get_swap` view and `tx` from the build machine on
+  2026-11-14, and each checked a signed `send_tx` from a key without an account up to
+  `SignerDoesNotExist` (so a real transaction would be processed). drpc refuses the
+  user agent `Python-urllib` (HTTP 403); the maker's client sends none.
+  `rpc.testnet.near.org` and `test.rpc.fastnear.com` are run by fastnear too (same
+  addresses), so they are not a second operator; `api.zan.top/near-testnet` answered a
+  `tx` read with "cu limit exceeded" at once; the lava endpoints are discontinued (HTTP
+  410). None of the free endpoints publishes its rate limit.
+- Health: `GET https://zecret-maker-production.up.railway.app/health` (the relay's port)
+  answers the maker's report as JSON: when NEAR and Zcash last answered, the NEAR
+  endpoints and their back-off, open swaps by stage, the nearest deadline and the active
+  alerts (`docs/ENGINE.md`, section 4). HTTP 200 with `"ok": true` when all is well, 503
+  otherwise. Swap `c2b9fa50` will stay in the list as `past_t2` (it does not make `ok`
+  false). It shows no key, address or amount.
 - The relay answers on Railway's HTTPS domain. Its CORS header is
   `Access-Control-Allow-Origin: *`. It refuses to start on mainnet
   (`crates/zecret-node/src/main.rs`, `run_maker`), and the start script refuses any

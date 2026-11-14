@@ -72,13 +72,17 @@ run main-refuses-no-birthday fail "chains.birthday" ZECRET_NETWORK=main ZECRET_A
   ZECRET_MAKER_CONFIG="$(fill '.price_per_zec = "900000000"' | base64 -w0)"
 run main-refuses-http fail "https" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \
   ZECRET_MAKER_CONFIG="$(fill "$FILLED | .chains.near_rpc = \"http://rpc.example\"" | base64 -w0)"
+run main-refuses-http-in-the-list fail "https" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \
+  ZECRET_MAKER_CONFIG="$(fill "$FILLED | .chains.near_rpc = [\"https://a.example\", \"http://rpc.example\"]" | base64 -w0)"
+run main-warns-on-one-endpoint ok "names one endpoint" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \
+  ZECRET_MAKER_CONFIG="$(fill "$FILLED | .chains.near_rpc = \"https://rpc.mainnet.fastnear.com\"" | base64 -w0)"
 run main-refuses-a-testnet-config fail "chains.network is 'test'" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \
   ZECRET_MAKER_CONFIG="$(base64 -w0 < "$T/image.json")"
 run main-refuses-bad-base64 fail "not JSON\|not base64" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 ZECRET_MAKER_CONFIG="!!!"
 run main-starts-without-relay ok "^--dir " ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \
   ZECRET_MAKER_CONFIG="$(fill "$FILLED" | base64 -w0)"
-# The maker's arguments on mainnet are exactly --dir D (no relay).
-if [ "$(cat "$T/main-starts-without-relay/maker-args")" = "--dir $T/main-starts-without-relay" ]; then echo "PASS main-args-have-no-relay"; else echo "FAIL main-args-have-no-relay"; fails=$((fails + 1)); fi
+# The maker's arguments on mainnet are exactly --dir D and the health listener (no relay).
+if [ "$(cat "$T/main-starts-without-relay/maker-args")" = "--dir $T/main-starts-without-relay --health 0.0.0.0:8080" ]; then echo "PASS main-args-have-no-relay"; else echo "FAIL main-args-have-no-relay"; fails=$((fails + 1)); fi
 # The NEAR key on the volume is the secret from the variable, owner-only, owned by uid 10001.
 k="$T/main-starts-without-relay/near_key.json"
 if [ "$(cat "$k")" = "$SECRET_KEY" ] && [ "$(stat -c '%a %u' "$k")" = "600 10001" ]; then echo "PASS main-key-on-volume-0600"; else echo "FAIL main-key-on-volume-0600"; fails=$((fails + 1)); fi
@@ -91,6 +95,14 @@ run main-keeps-settings-with-open-swap ok "1 swap(s) are open" ZECRET_NETWORK=ma
 PRESET='if [ "$name" = main-updates-settings-with-no-open-swap ]; then fill "$FILLED" > "$d/config.json"; fi'
 run main-updates-settings-with-no-open-swap ok "config.json updated" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \
   ZECRET_MAKER_CONFIG="$(fill "$FILLED | .max_zats = 1000000" | base64 -w0)"
+# Incident 2026-11-14: with a swap open, a change of the NEAR endpoints (and nothing else)
+# is applied, so a stuck swap gets the new endpoints.
+PRESET='if [ "$name" = testnet-updates-endpoints-with-open-swap ]; then mkdir -p "$d/swap"; jq ".chains.near_rpc = \"https://rpc.testnet.fastnear.com\"" "$T/image.json" > "$d/config.json"; echo "{\"stage\":\"RefundSent\"}" > "$d/swap/c2.json"; fi'
+run testnet-updates-endpoints-with-open-swap ok "only chains.near_rpc or polling changed"
+if jq -e '.chains.near_rpc | length == 3' "$T/testnet-updates-endpoints-with-open-swap/config.json" >/dev/null; then echo "PASS testnet-endpoints-applied"; else echo "FAIL testnet-endpoints-applied"; fails=$((fails + 1)); fi
+# Any other change still waits for the swap.
+PRESET='if [ "$name" = testnet-keeps-other-settings-with-open-swap ]; then mkdir -p "$d/swap"; jq ".chains.near_rpc = \"https://rpc.testnet.fastnear.com\" | .max_zats = 1" "$T/image.json" > "$d/config.json"; echo "{\"stage\":\"RefundSent\"}" > "$d/swap/c2.json"; fi'
+run testnet-keeps-other-settings-with-open-swap ok "1 swap(s) are open"
 # The volume's config.json alone is enough on mainnet.
 PRESET='if [ "$name" = main-uses-the-volume-config ]; then fill "$FILLED" > "$d/config.json"; fi'
 run main-uses-the-volume-config ok "config.json from the volume" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1

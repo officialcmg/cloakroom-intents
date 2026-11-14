@@ -1,19 +1,19 @@
-2026-11-14T05:53:45.831Z [zecret-timing] wasm_load 64
-2026-11-14T05:53:45.882Z [zecret-timing] verify_maker 52
-2026-11-14T05:54:06.329Z [zecret-timing] proving_key_build 19426
-2026-11-14T05:54:06.357Z [zecret-engine] swap c218dc5e5821dab4a686e7cbc5bd099e created: sells 99960000 zats, deposit 100050000 to uregtest13mpwg95703y9n8jdfx9j4ast6h96lclzyuqlyxn3m2d8duq0y6wr0fr7wlk7t4a6uefz6fdxc32ze7lj62p26r86v8lm7fwa0gwl980u
-2026-11-14T05:54:08.160Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest13mpwg95703y9n8jdfx9j4ast6h96lclzyuqlyxn3m2d8duq0y6wr0fr7wlk7t4a6uefz6fdxc32ze7lj62p26r86v8lm7fwa0gwl980u
-2026-11-14T05:54:13.127Z [zecret-engine] tick took 3126 ms
-2026-11-14T05:54:41.680Z [zecret-timing] proof_request 26629
-2026-11-14T05:54:41.680Z [zecret-engine] tick took 26624 ms
-2026-11-14T05:54:41.938Z [zecret-engine] encrypted RFQ for 99960000 zats sent to the maker in shielded tx b61cf78ae2f3ba0a19cd992ba42a7221c72e3188997a83342904e2fef0a7de92
-2026-11-14T05:54:49.049Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
-2026-11-14T05:55:17.417Z [zecret-timing] proof_accept 26542
-2026-11-14T05:55:17.417Z [zecret-engine] tick took 26526 ms
-2026-11-14T05:55:17.707Z [zecret-engine] encrypted ACCEPT with 50000 zats premium sent in tx d4f4c5c859145dbb094f10f928cc247f9b1a91c6d8393556357b231ddc99044b; joint address uregtest1hnh22thjsmp9ucjsy3a84hvwt7vs3xjtj5sdawjm3svema2rkca8rqfx7y922ym03re5wxwnlgtpmvze27jakqkdvrtdn78rwgdwnadn
-2026-11-14T05:55:27.038Z [zecret-engine] escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
-2026-11-14T05:55:29.040Z [zecret-engine] escrow 89e839cb verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
-2026-11-14T05:55:55.733Z [zecret-timing] proof_fund 26691
-2026-11-14T05:55:55.739Z [zecret-engine] tick took 26686 ms
-2026-11-14T05:55:55.739Z [zecret-engine] escrow 89e839cb verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
-2026-11-14T05:55:55.994Z [zecret-engine] FUNDED the joint address in fully shielded tx 6ff14193374dac6696f39fa5e1cecef63bd081d1194fe4daf48ebe5a4ec456a6
+2026-11-14T09:00:01.917Z [zecret-timing] wasm_load 97
+2026-11-14T09:00:01.976Z [zecret-timing] verify_maker 59
+2026-11-14T09:00:23.841Z [zecret-timing] proving_key_build 20844
+2026-11-14T09:00:23.881Z [zecret-engine] swap d962548d43bef06caf1bcdfbbed6b42a created: sells 99960000 zats, deposit 100050000 to uregtest1ujv7clhnwuu0cz4utvhu0tuh5yyegtys4u6nd8e25lw3703cfl29x8mfyp27ane5dg70wn2emvrgthnl0huzgjsjfz98d7sluv7kku7w
+2026-11-14T09:00:26.009Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest1ujv7clhnwuu0cz4utvhu0tuh5yyegtys4u6nd8e25lw3703cfl29x8mfyp27ane5dg70wn2emvrgthnl0huzgjsjfz98d7sluv7kku7w
+2026-11-14T09:00:31.750Z [zecret-engine] tick took 3749 ms
+2026-11-14T09:01:01.627Z [zecret-timing] proof_request 28570
+2026-11-14T09:01:01.632Z [zecret-engine] tick took 28563 ms
+2026-11-14T09:01:01.890Z [zecret-engine] encrypted RFQ for 99960000 zats sent to the maker in shielded tx 8d7921b0c8d0e0724659ef6a9cf953948936fe5e0f94e82ac96a0e50fc30b3f8
+2026-11-14T09:01:09.055Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+2026-11-14T09:01:39.190Z [zecret-timing] proof_accept 28082
+2026-11-14T09:01:39.194Z [zecret-engine] tick took 28059 ms
+2026-11-14T09:01:39.479Z [zecret-engine] encrypted ACCEPT with 50000 zats premium sent in tx ae4a2b50e9114a666b5739c40d7ce95aef08efec364a44515e17bd0336438822; joint address uregtest1gydxrm2lvc5683st7x59dk59e43e7rn4jrpdr8my44900ug9sq969qvqdc29utx6jchfgq0lgg6q03avkm2ngch5af8kus44k5wju6js
+2026-11-14T09:01:49.046Z [zecret-engine] escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+2026-11-14T09:01:51.046Z [zecret-engine] escrow 4672dd70 verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-14T09:02:18.806Z [zecret-timing] proof_fund 27759
+2026-11-14T09:02:18.807Z [zecret-engine] tick took 27757 ms
+2026-11-14T09:02:18.807Z [zecret-engine] escrow 4672dd70 verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-14T09:02:19.061Z [zecret-engine] FUNDED the joint address in fully shielded tx 541a96977eb33cc7381d58dcfa768ed4701f7eff4a0082febc39d18007ce8397

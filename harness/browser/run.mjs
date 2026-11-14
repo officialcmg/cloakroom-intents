@@ -186,6 +186,9 @@ class Maker {
       premium_zats: PREMIUM,
       stipend: STIPEND.toString(),
       windows: WINDOWS,
+      // The scenarios move NEAR time in jumps (warpTo); the maker reads every 1-2 s
+      // instead of its default plan, which follows the wall clock (docs/ENGINE.md).
+      polling: { fast_secs: 1, open_secs: 2, ready_secs: 2, settle_secs: 2, stuck_secs: 5, alert_after_secs: 20, quiet_secs: 60 },
       ...extra,
     };
     fs.writeFileSync(path.join(this.dir, 'config.json'), JSON.stringify(cfg, null, 2));

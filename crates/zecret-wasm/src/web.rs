@@ -69,6 +69,10 @@ impl Transport for Xhr {
         let (status, body, headers) = xhr("POST", url, headers, Some(body)).map_err(|m| anyhow::anyhow!(m))?;
         Ok(Response { status, body, headers })
     }
+
+    fn now_ms(&self) -> Option<u64> {
+        Some(js_sys::Date::now() as u64)
+    }
 }
 
 impl HttpTransport for Xhr {

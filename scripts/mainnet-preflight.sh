@@ -51,7 +51,8 @@ SITE_ORIGIN="${SITE_ORIGIN:-https://zecret.chrismg.dev}"
 ESCROW_WASM_GIVEN="${ESCROW_WASM:-}"
 ESCROW_WASM="${ESCROW_WASM:-$ROOT/contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm}"
 LWD="$(jq -r .zcash.lightwalletd "$ROOT/web/public/config/mainnet.json")"
-RPC="$(jq -r .near.rpc "$ROOT/web/public/config/mainnet.json")"
+# near.rpc is one URL or an ordered list (incident 2026-11-14).
+RPCS="$(jq -r '[.near.rpc] | flatten | .[]' "$ROOT/web/public/config/mainnet.json")"
 ONECLICK="$(jq -r .exit.oneClickUrl "$ROOT/web/public/config/mainnet.json")"
 echo "== Zecret mainnet preflight $(date -u +%Y-%m-%dT%H:%M:%SZ) (nothing is sent)"
 
@@ -70,7 +71,7 @@ check "configs: testnet files unchanged in meaning (testnet network, direct exit
 if [ -n "${MAKER_CONFIG:-}" ]; then
   check "maker config: no placeholder, price, premium_check, birthday, https, main" "
     ! grep -Eq 'OWNER|REPLACE' '$MAKER_CONFIG' &&
-    jq -e '.chains.network == \"main\" and ((.price_per_zec|tostring|tonumber) > 0) and .premium_check.yocto_near_per_zec != null and (.chains.birthday // 0) > 0 and (.chains.near_rpc|startswith(\"https://\")) and (.chains.lightwalletd|startswith(\"https://\"))' '$MAKER_CONFIG'"
+    jq -e '.chains.network == \"main\" and ((.price_per_zec|tostring|tonumber) > 0) and .premium_check.yocto_near_per_zec != null and (.chains.birthday // 0) > 0 and ([.chains.near_rpc]|flatten|length > 0 and all(startswith(\"https://\"))) and (.chains.lightwalletd|startswith(\"https://\"))' '$MAKER_CONFIG'"
 fi
 
 # 3. Tests.
@@ -93,10 +94,12 @@ if [ $QUICK = 0 ]; then
   check "web e2e: the default build refuses mainnet" 'cd web && npx playwright test --trace off e2e/mainnet-off.spec.ts'
   check "web e2e: the switched build runs mainnet with its notices" 'cd web && npx playwright test -c playwright.mainnet.config.ts'
 fi
-check "web: CSP connect-src lists the mainnet hosts" "jq -r '.headers[0].headers[0].value' web/vercel.json | grep -q '$LWD' && jq -r '.headers[0].headers[0].value' web/vercel.json | grep -q '$RPC'"
+check "web: CSP connect-src lists the mainnet hosts" "jq -r '.headers[0].headers[0].value' web/vercel.json | grep -q '$LWD'$(for u in $RPCS; do printf " && jq -r '.headers[0].headers[0].value' web/vercel.json | grep -q '%s'" "$u"; done)"
 
 # 4. Endpoints.
-check "NEAR RPC $RPC answers with chain_id mainnet" "curl -sS -m 20 '$RPC' -H 'content-type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"status\",\"params\":[]}' | jq -e '.result.chain_id == \"mainnet\"'"
+for u in $RPCS; do
+  check "NEAR RPC $u answers with chain_id mainnet" "curl -sS -m 20 '$u' -H 'content-type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"status\",\"params\":[]}' | jq -e '.result.chain_id == \"mainnet\"'"
+done
 check "Zcash light-wallet $LWD: gRPC-web, chain main, branch NU7" "printf '\\0\\0\\0\\0\\0' | curl -sS -m 20 -X POST '$LWD/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetLightdInfo' -H 'content-type: application/grpc-web+proto' -H 'x-grpc-web: 1' --data-binary @- > \"\$LOG/lwd\" && grep -aq 'grpc-status: *0' \"\$LOG/lwd\" && grep -aq 77190ad9 \"\$LOG/lwd\" && grep -aq main \"\$LOG/lwd\""
 check "Zcash light-wallet CORS allows $SITE_ORIGIN" "curl -sS -m 20 -o /dev/null -D - -X OPTIONS '$LWD/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetLightdInfo' -H 'Origin: $SITE_ORIGIN' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,x-grpc-web' | grep -iq 'access-control-allow-origin: \\($SITE_ORIGIN\\|\\*\\)'"
 check "1Click $ONECLICK/v0/tokens lists USDC on NEAR" "curl -sS -m 30 '$ONECLICK/v0/tokens' | jq -e 'map(select(.assetId == \"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\" and .decimals == 6)) | length == 1'"

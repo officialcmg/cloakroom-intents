@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { configUrl, coreNetwork, explorerUrl, NetConfigError, parseNetworkConfig } from '../../src/lib/netconfig';
+import { configUrl, coreNetwork, explorerUrl, nearRpcs, NetConfigError, parseNetworkConfig } from '../../src/lib/netconfig';
 
 const read = (p: string) => JSON.parse(readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8'));
 
@@ -23,6 +23,21 @@ describe('network configuration', () => {
     expect(() => parseNetworkConfig({ ...good, network: 'mainnet' }, undefined, true)).toThrow(/1Click/);
     expect(() => parseNetworkConfig({ ...good, network: 'mainnet' })).toThrow(/does not run on mainnet/);
     expect(() => parseNetworkConfig({ ...good, exit: { mode: 'direct' } })).toThrow(/relayUrl/);
+  });
+
+  it('reads one NEAR RPC endpoint or an ordered list (incident 2026-11-14)', () => {
+    const good = read('public/config/testnet.json');
+    const t = parseNetworkConfig(good);
+    expect(nearRpcs(t)).toEqual(['https://rpc.testnet.fastnear.com', 'https://near-testnet.drpc.org', 'https://testnet-rpc.intea.rs']);
+    expect(t.near.rpc).toBe('https://rpc.testnet.fastnear.com');
+    const one = parseNetworkConfig({ ...good, near: { ...good.near, rpc: 'https://one.example' } });
+    expect(one.near.rpc).toBe('https://one.example');
+    expect(nearRpcs(one)).toEqual(['https://one.example']);
+    expect(() => parseNetworkConfig({ ...good, near: { ...good.near, rpc: [] } })).toThrow(/at least one/);
+    expect(() => parseNetworkConfig({ ...good, near: { ...good.near, rpc: ['https://a.example', 'https://a.example'] } })).toThrow(/twice/);
+    expect(() => parseNetworkConfig({ ...good, near: { ...good.near, rpc: ['https://a.example', 'ftp://b.example'] } })).toThrow(/near.rpc\[1\]/);
+    // The caller's object is not changed.
+    expect(Array.isArray(good.near.rpc)).toBe(true);
   });
 
   it('picks the configuration from the URL, the build, or the demo', () => {

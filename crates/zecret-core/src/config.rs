@@ -122,10 +122,89 @@ pub struct Chains {
     /// Regtest only: NU7 activation height, if NU7 is active.
     #[serde(default)]
     pub nu7_height: Option<u32>,
-    pub near_rpc: String,
+    /// NEAR JSON-RPC endpoints, in order of preference: one URL, or a list. The client
+    /// uses the first that answers and moves to the next on a rate limit, a server error
+    /// or a timeout. More endpoints give availability, not a second opinion: each answer
+    /// is trusted as it comes (docs/ENGINE.md, NEAR RPC endpoints).
+    pub near_rpc: RpcUrls,
     pub escrow: String,
     pub token: String,
     pub intents: String,
+}
+
+/// An ordered, non-empty list of endpoint URLs. In JSON it is one string (the format
+/// before 2026-11-14) or an array of strings; one URL is written back as a string.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RpcUrls(Vec<String>);
+
+impl RpcUrls {
+    pub fn new(urls: Vec<String>) -> Result<RpcUrls> {
+        let urls: Vec<String> = urls.into_iter().map(|u| u.trim().to_string()).collect();
+        if urls.is_empty() || urls.iter().any(|u| u.is_empty()) {
+            bail!("near_rpc needs at least one URL, and no empty one");
+        }
+        for (i, u) in urls.iter().enumerate() {
+            if urls[..i].contains(u) {
+                bail!("near_rpc lists {u} twice");
+            }
+        }
+        Ok(RpcUrls(urls))
+    }
+    /// The first (preferred) endpoint.
+    pub fn primary(&self) -> &str {
+        &self.0[0]
+    }
+    pub fn as_slice(&self) -> &[String] {
+        &self.0
+    }
+    /// True when every endpoint is an https URL.
+    pub fn all_https(&self) -> bool {
+        self.0.iter().all(|u| u.starts_with("https://"))
+    }
+}
+
+impl From<&str> for RpcUrls {
+    fn from(u: &str) -> RpcUrls {
+        RpcUrls(vec![u.to_string()])
+    }
+}
+
+impl From<String> for RpcUrls {
+    fn from(u: String) -> RpcUrls {
+        RpcUrls(vec![u])
+    }
+}
+
+impl std::fmt::Display for RpcUrls {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.join(", "))
+    }
+}
+
+impl Serialize for RpcUrls {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> std::result::Result<S::Ok, S::Error> {
+        if self.0.len() == 1 {
+            s.serialize_str(&self.0[0])
+        } else {
+            self.0.serialize(s)
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for RpcUrls {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> std::result::Result<RpcUrls, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum V {
+            One(String),
+            Many(Vec<String>),
+        }
+        let urls = match V::deserialize(d)? {
+            V::One(u) => vec![u],
+            V::Many(v) => v,
+        };
+        RpcUrls::new(urls).map_err(serde::de::Error::custom)
+    }
 }
 
 /// The maker's directory entry: what a taker must know about a maker before the first
@@ -345,10 +424,46 @@ pub struct MakerConfig {
     /// one per request. 0 turns the replies off.
     #[serde(default = "default_max_refusals_per_hour")]
     pub max_refusals_per_hour: usize,
+    /// How often the maker reads NEAR for each open swap (docs/ENGINE.md, request budget).
+    #[serde(default)]
+    pub polling: Polling,
 }
 
 fn default_max_refusals_per_hour() -> usize {
     6
+}
+
+/// How often the maker reads the escrow of one open swap, in seconds (wall clock).
+///
+/// The maker reads a swap's escrow at the slow interval of its stage, and always just
+/// after each deadline that matters for the stage (the end of the funding window, t0,
+/// t1, t2, the end of the reveal window), but never more often than `fast_secs`. A read
+/// that fails is tried again after a back-off that grows to `open_secs`, or to
+/// `fast_secs` while a refund window is open. Incident 2026-11-14: the maker read every
+/// swap every second and was rate-limited.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(default)]
+pub struct Polling {
+    /// The shortest interval between two reads of one swap.
+    pub fast_secs: u64,
+    /// `Opened` with no confirmed funding: nothing can change on NEAR before a deadline.
+    pub open_secs: u64,
+    /// `Ready`, `Locked`, `Sweeping`: the taker acts; nothing is due before a deadline.
+    pub ready_secs: u64,
+    /// After a refund or another send of the maker, until a final block shows it.
+    pub settle_secs: u64,
+    /// Past t2 with the escrow still Open or Ready: only the taker can act.
+    pub stuck_secs: u64,
+    /// A deadline-critical NEAR step that has failed this long raises an alert.
+    pub alert_after_secs: u64,
+    /// The same alert or warning is repeated at most once in this time.
+    pub quiet_secs: u64,
+}
+
+impl Default for Polling {
+    fn default() -> Polling {
+        Polling { fast_secs: 3, open_secs: 30, ready_secs: 10, settle_secs: 5, stuck_secs: 300, alert_after_secs: 60, quiet_secs: 600 }
+    }
 }
 
 /// What an accepted request costs the maker, and the price of ZEC in NEAR. `Maker::open`

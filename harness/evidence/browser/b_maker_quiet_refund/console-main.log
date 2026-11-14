@@ -1,26 +1,26 @@
-2026-11-14T05:46:20.497Z [zecret-timing] wasm_load 63
-2026-11-14T05:46:20.545Z [zecret-timing] verify_maker 47
-2026-11-14T05:46:40.399Z [zecret-timing] proving_key_build 18832
-2026-11-14T05:46:40.429Z [zecret-engine] swap ea3155af1e2bb7afec8048eec9e90c51 created: sells 99960000 zats, deposit 100050000 to uregtest1x03hk800vze3g40lgg9f2kvvvvamekux5s6kvueddn7skt3p69ctpyvl8kkqtgazfje78z3xvcrgrpsxqhjuc7uq0kymsmhkcv2dqxsr
-2026-11-14T05:46:41.115Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest1x03hk800vze3g40lgg9f2kvvvvamekux5s6kvueddn7skt3p69ctpyvl8kkqtgazfje78z3xvcrgrpsxqhjuc7uq0kymsmhkcv2dqxsr
-2026-11-14T05:46:45.799Z [zecret-engine] tick took 3797 ms
-2026-11-14T05:47:14.726Z [zecret-timing] proof_request 27678
-2026-11-14T05:47:14.726Z [zecret-engine] tick took 27669 ms
-2026-11-14T05:47:15.004Z [zecret-engine] encrypted RFQ for 99960000 zats sent to the maker in shielded tx 08e96735365842d5a8443913040220feb1c4c5e01d40c00ad2b980c6414d7084
-2026-11-14T05:47:24.056Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
-2026-11-14T05:47:53.082Z [zecret-timing] proof_accept 28222
-2026-11-14T05:47:53.085Z [zecret-engine] tick took 28213 ms
-2026-11-14T05:47:53.363Z [zecret-engine] encrypted ACCEPT with 50000 zats premium sent in tx 923230f3bde022745296806b0a36a5c30c77f971e892be9112ef318d296cf8bb; joint address uregtest1xvfhsvkmwdjms3rwf90jvy2lspllkn737avwcpap52ga2vdjhfupyu8fljdrk0rregc6hdqjg7wajcc6smhspav8eap7wjc6tcw2rnrx
-2026-11-14T05:48:03.055Z [zecret-engine] escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
-2026-11-14T05:48:05.058Z [zecret-engine] escrow ad956a72 verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
-2026-11-14T05:48:32.558Z [zecret-timing] proof_fund 27497
-2026-11-14T05:48:32.559Z [zecret-engine] tick took 27487 ms
-2026-11-14T05:48:32.559Z [zecret-engine] escrow ad956a72 verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
-2026-11-14T05:48:32.838Z [zecret-engine] FUNDED the joint address in fully shielded tx 3a5634e11f0ff8483a9296feae4eabcd5fc373a9f25aa83fa1385afde7d7259c
-2026-11-14T05:48:48.019Z [zecret-engine] R2c: claim window closed (NEAR time 1794635707, t1 1794635722, budget 15s); not committing; waiting for the maker's refund or for t2 1794635872
-2026-11-14T05:49:22.613Z [zecret-timing] proof_sweep 28588
-2026-11-14T05:49:22.613Z [zecret-engine] tick took 28578 ms
-2026-11-14T05:49:22.614Z [zecret-engine] maker REFUNDED: read b from the escrow; sweeping the joint note of 99970000 zats from tx 3a5634e11f0ff8483a9296feae4eabcd5fc373a9f25aa83fa1385afde7d7259c
-2026-11-14T05:49:22.902Z [zecret-engine] swept the joint note back with (a+b), tx 1c636e7f190c9b9b09a3331b678e500ecb0e4a18576129bcc3f710e959c8d7fd; waiting for 2 confirmations
-2026-11-14T05:49:28.029Z [zecret-engine] recovery sweep 1c636e7f190c9b9b09a3331b678e500ecb0e4a18576129bcc3f710e959c8d7fd has 2 confirmations (k_Z = 2); no joint note above the fee is left; done
-2026-11-14T05:49:56.099Z [zecret-timing] proof_refund 28053
+2026-11-14T08:52:29.364Z [zecret-timing] wasm_load 88
+2026-11-14T08:52:29.420Z [zecret-timing] verify_maker 56
+2026-11-14T08:52:54.077Z [zecret-timing] proving_key_build 23636
+2026-11-14T08:52:54.104Z [zecret-engine] swap 96bb328825da621cba988034e3288723 created: sells 99960000 zats, deposit 100050000 to uregtest17377ajljf0q9lt20h84fzzy6njx9ge3zg0vm9plylzqmrvfpfsth6pq9rkg9mu49qkkpwfuf2mx9quletjwqen9888836dggpuj54g3z
+2026-11-14T08:52:54.941Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest17377ajljf0q9lt20h84fzzy6njx9ge3zg0vm9plylzqmrvfpfsth6pq9rkg9mu49qkkpwfuf2mx9quletjwqen9888836dggpuj54g3z
+2026-11-14T08:53:00.885Z [zecret-engine] tick took 4883 ms
+2026-11-14T08:53:29.479Z [zecret-timing] proof_request 27427
+2026-11-14T08:53:29.479Z [zecret-engine] tick took 27420 ms
+2026-11-14T08:53:29.736Z [zecret-engine] encrypted RFQ for 99960000 zats sent to the maker in shielded tx a0f28a4466fc05ca5ea53b0de4ce9ffaec1619fe8cfe3c285826bfc9eb566479
+2026-11-14T08:53:37.065Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+2026-11-14T08:54:06.787Z [zecret-timing] proof_accept 28781
+2026-11-14T08:54:06.788Z [zecret-engine] tick took 28774 ms
+2026-11-14T08:54:07.057Z [zecret-engine] encrypted ACCEPT with 50000 zats premium sent in tx 2f2f225caa72fe35be170b5faab2f8c096a429183a1a1988dc3fa2271cbddbaa; joint address uregtest1v0hk8h037ucp74fwc0hmjr45k6zkc7gurhxq3s7zl8gc3x7jaad52v3z3n09df7cjhu6vq5aurtqkljl92edlfel9z3445ll6c65pzgd
+2026-11-14T08:54:14.059Z [zecret-engine] escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)
+2026-11-14T08:54:18.044Z [zecret-engine] escrow f4d19a7f verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-14T08:54:47.043Z [zecret-timing] proof_fund 28997
+2026-11-14T08:54:47.043Z [zecret-engine] tick took 28978 ms
+2026-11-14T08:54:47.043Z [zecret-engine] escrow f4d19a7f verified (11 checks) at a final block; stipend of 30000000000000000000000 yoctoNEAR arrived
+2026-11-14T08:54:47.339Z [zecret-engine] FUNDED the joint address in fully shielded tx f0d1c69184b78595d499517d04cee2cf9374a9827e3f74d7378ac6ba011557d9
+2026-11-14T08:55:03.019Z [zecret-engine] R2c: claim window closed (NEAR time 1794646893, t1 1794646895, budget 15s); not committing; waiting for the maker's refund or for t2 1794647045
+2026-11-14T08:55:38.580Z [zecret-timing] proof_sweep 29559
+2026-11-14T08:55:38.580Z [zecret-engine] tick took 29548 ms
+2026-11-14T08:55:38.580Z [zecret-engine] maker REFUNDED: read b from the escrow; sweeping the joint note of 99970000 zats from tx f0d1c69184b78595d499517d04cee2cf9374a9827e3f74d7378ac6ba011557d9
+2026-11-14T08:55:38.868Z [zecret-engine] swept the joint note back with (a+b), tx f2a0a2704338042675f696850e9ff712ac715220b7c2819889dcc895fddd73a5; waiting for 2 confirmations
+2026-11-14T08:55:44.015Z [zecret-engine] recovery sweep f2a0a2704338042675f696850e9ff712ac715220b7c2819889dcc895fddd73a5 has 2 confirmations (k_Z = 2); no joint note above the fee is left; done
+2026-11-14T08:56:13.134Z [zecret-timing] proof_refund 29101

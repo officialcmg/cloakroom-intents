@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreateSwapParams, EngineEvent, SwapState } from '../../src/engine/api';
 import { memoryRecords } from '../../src/engine/real/idb';
-import { judgePayout, type PayoutFacts, type PayoutReader } from '../../src/engine/real/payoutCheck';
+import { judgePayout, readPayoutFacts, type PayoutFacts, type PayoutReader } from '../../src/engine/real/payoutCheck';
 
 /** A long wait, in place of the old stability window. */
 const WAIT_MS = 30_000;
@@ -373,5 +373,28 @@ describe('the leftover guard', () => {
     expect((await engine.getState())!.leftover?.returned).toBe(true);
     await engine.forget();
     expect(await engine.getState()).toBeNull();
+  });
+});
+
+describe('readPayoutFacts with several NEAR endpoints', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('reads everything from the next endpoint when the first is rate-limited, one try each', async () => {
+    const calls: string[] = [];
+    const enc = (v: unknown) => Array.from(new TextEncoder().encode(JSON.stringify(v)));
+    vi.stubGlobal('fetch', async (url: string, init: { body: string }) => {
+      const req = JSON.parse(init.body) as { method: string; params: { method_name?: string } };
+      calls.push(`${url} ${req.method}`);
+      if (url.includes('first')) return new Response('{"jsonrpc":"2.0","error":{"code":-429,"message":"Rate limits exceeded"}}', { status: 429 });
+      if (req.method === 'block') return Response.json({ jsonrpc: '2.0', result: { header: { hash: 'H' } } });
+      const out = req.params.method_name === 'get_swap' ? { state: 'Claimed', amount: '5', payout: 'paid' } : '0';
+      return Response.json({ jsonrpc: '2.0', result: { result: enc(out) } });
+    });
+    const f = await readPayoutFacts({ rpc: ['https://first.example', 'https://second.example'], escrow: 'e', verifier: 'v', token: 't', swapId: 'id', taker: 'k' });
+    expect(f).toEqual({ escrowState: 'Claimed', amount: '5', payout: 'paid', verifierBalance: '0' });
+    expect(calls).toEqual(['https://first.example block', 'https://second.example block', 'https://second.example query', 'https://second.example query']);
+    calls.length = 0;
+    await expect(readPayoutFacts({ rpc: ['https://first.example'], escrow: 'e', verifier: 'v', token: 't', swapId: 'id', taker: 'k' })).rejects.toThrow(/429/);
+    expect(calls).toEqual(['https://first.example block']);
   });
 });

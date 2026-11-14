@@ -265,10 +265,19 @@ pub fn check_maker_config(
         c["intents"] == ids.intents.as_str(),
         format!("maker chains.intents = {}", c["intents"]),
     );
-    let https = |k: &str| c[k].as_str().is_some_and(|u| u.starts_with("https://"));
+    // `near_rpc` is one URL or an ordered list (incident 2026-11-14).
+    let https = |v: &Value| match v {
+        Value::String(u) => u.starts_with("https://"),
+        Value::Array(a) => !a.is_empty() && a.iter().all(|u| u.as_str().is_some_and(|u| u.starts_with("https://"))),
+        _ => false,
+    };
     p.check(
-        https("near_rpc") && https("lightwalletd"),
+        https(&c["near_rpc"]) && https(&c["lightwalletd"]),
         "maker endpoints are https",
+    );
+    p.check(
+        c["near_rpc"].as_array().is_some_and(|a| a.len() >= 2),
+        "maker names at least two NEAR RPC endpoints (docs/MAINNET.md, RPC availability)",
     );
     let text = m.to_string();
     p.check(

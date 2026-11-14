@@ -29,7 +29,8 @@ first swap.
 | G8 | **The hosted maker on mainnet.** The mainnet mode of `deploy/maker/railway/start.sh` is tested with a stand-in binary (19 cases, `deploy/maker/railway/test-start.sh`; one checks that a stipend below 0.06 NEAR is refused). The image with this code was not rebuilt or run on Railway. | Watch the first start's log lines (step 6.4). |
 | G9 | **The website on mainnet.** The switched build passed its Playwright tests with all outside requests blocked and a stand-in escrow; it never ran a swap. The engine's maker check ran on mainnet only as far as a refused stand-in entry. | The first swap (step 8). |
 | G10 | **The deployment tool on mainnet.** `zecret-deploy plan` ran read-only on mainnet. `deploy` never ran on mainnet; it ran on testnet and in the sandbox. | Step 4 runs it once; each step reads the chain first and can run again. |
-| G11 | **One trusted NEAR RPC endpoint** (`rpc.mainnet.fastnear.com`) for the taker and the maker. A false endpoint that works with the maker can take the taker's ZEC (`docs/DESIGN.md` section 10). | Small swaps. For your own first swap the risk is yours. |
+| G11 | **The trusted NEAR RPC endpoint** for the taker and the maker. The files list three (`rpc.mainnet.fastnear.com`, `near.drpc.org`, `rpc.intea.rs`); the one that answers is trusted. A false endpoint that works with the maker can take the taker's ZEC (`docs/DESIGN.md` section 10). The list is for availability, not a second opinion. | Small swaps. For your own first swap the risk is yours. |
+| G14 | **RPC availability is part of the maker's liveness assumption L_M.** The maker must send its refund in [t1, t2 − B_R), or before t0 for a swap that was never funded. If no NEAR RPC endpoint takes the refund in that window, a taker who never paid can claim the USDC after t2 through the punish path. On testnet on 2026-11-14 one public endpoint answered every refund of the hosted maker with "rate limit exceeded" for 35 minutes, and the maker lost a swap's USDC that way (`docs/incidents/2026-11-14-maker-missed-refund.md`). The maker now uses an ordered list of endpoints with back-off, reads far below the free limits (about 4 requests a minute for a waiting swap) and retries a refund on every endpoint until its window closes. The free public endpoints publish no rate limit (fastnear: "Not published" in the NEAR docs) and can change their terms at any time. Not tested: the mainnet endpoints under a real rate limit. | What limits the loss: `max_zats` per swap (one maximum swap per missed refund) and `max_pending_quotes` 3 (at most three swaps open at once). Watch `GET /health` of the maker (section 8): `ok` false, `near.last_ok` older than a minute, or an alert of kind `near_failing` means act now. Advice: run the maker with at least one NEAR RPC endpoint that is paid (with an API key: put it in the URL, it is not printed) or self-hosted, first in `chains.near_rpc`, and keep the free endpoints after it. Reasons: a paid or own endpoint has a known limit, the maker's refunds do not compete with other users of a shared IP address (Railway's outgoing address is shared unless static IPs are bought), and the free endpoints can be withdrawn. |
 | G13 | **NEAR Intents operators hold the escrow's USDC for the whole swap.** The escrow keeps the swap's USDC in its own account inside `intents.near` from the open to the payout. The Verifier's operators (roles `DAO`, `UnrestrictedWithdrawer`, the account locker, the pause manager) can move or freeze those tokens at any time, also after a taker checked that the escrow holds them (security review 5, R5-02; test `r5_verifier_operator_can_drain_the_escrow`). The earlier escrow held plain USDC and was exposed to them only during a payout. | Accepted: the delivery uses NEAR Intents anyway. Keep swaps small. The site says it in its honesty lines (`web/public/config/mainnet.json`). |
 | G12 | **Legal and compliance questions.** Not assessed. They are for you to judge. Questions that apply: whether running a maker that buys ZEC for USDC needs a registration or licence where you live or where the service runs; sanctions screening of counterparties, which a shielded swap cannot do; whether the hosting providers' terms allow this use; tax treatment of the maker's trades and the premium; what the site must say to users in your jurisdiction. | Decide before you open the site to others. You can run the first swaps with the site's address shared with nobody. |
 
@@ -213,10 +214,15 @@ market)`, and all swaps together at most the float.
 
 ### NEAR RPC
 
-`rpc.mainnet.fastnear.com` is in every mainnet file (maker, taker, website, deploy
-config) and in the CSP. It answered `chain_id` `mainnet`, nearcore 2.14.1. Another
-endpoint means changing all four files and the CSP (`web/vercel.json`); the CSP unit test
-fails until both agree. The taker trusts this one endpoint (gap G11).
+The maker, taker and website files list three endpoints, in order:
+`https://rpc.mainnet.fastnear.com`, `https://near.drpc.org`, `https://rpc.intea.rs`
+(each answered a `view_account` read from the build machine on 2026-11-14; intea slows
+requests without a key by one second). The deploy config keeps one URL (the deployment
+tool takes one). The engines use the first that answers and move on when one fails (gap
+G14). A change means changing the files and the CSP (`web/vercel.json`); the CSP unit test
+fails until both agree. The taker trusts the endpoint that answers (gap G11). Put a paid
+or self-hosted endpoint first in the maker's `chains.near_rpc` if you have one (gap G14);
+the start script warns when the list has one endpoint.
 
 ### Hostname
 
@@ -566,8 +572,17 @@ the project. The testnet site is not affected.
 
 ## 8. Monitoring
 
-- Railway logs of `zecret-maker-mainnet`: lines with `transient:` that repeat, a swap
-  that stays in one stage longer than its window, `ABORT`, `refused by the node`.
+- `GET https://<maker host>/health` (the mainnet maker serves only this route on its
+  port): HTTP 200 and `"ok": true` when the maker loop ran in the last 120 s and no alert
+  that needs action is active, else 503. It shows when NEAR and Zcash last answered, each NEAR endpoint
+  (failures in a row, back-off, rate limits), open swaps by stage, the nearest deadline
+  and the alerts. An external uptime check on this URL every minute is the cheapest
+  alarm. Act at once on `near_failing` or `near_t2` (a refund may be at risk). An alert
+  `past_t2` means a refund was missed: the swap's USDC is lost if the taker claims; read
+  the maker log for that swap.
+- Railway logs of `zecret-maker-mainnet`: lines with `ALERT`, lines with `transient:` that
+  repeat (a repeat is printed at most once a minute, with a count), a swap that stays in
+  one stage longer than its window, `ABORT`, `refused by the node`.
 - Step 11 every few hours (price, gas, float).
 - The maker's NEAR: keep it above 0.3 NEAR. Its storage funds are topped up by the maker
   from its NEAR.
@@ -583,6 +598,7 @@ the project. The testnet site is not affected.
 | A bug in the maker or the escrow | The float; `max_pending_quotes` 3; the escrow's refund windows: before Ready the maker refunds; after `t2` the punish path pays the taker. Each exit publishes one key half, so neither side can take both. |
 | The taker's funds in a failed swap | The refund path returns the ZEC less fees and the premium; the deadlines are enforced by the escrow, not by the maker. |
 | Single trusted NEAR RPC (G11) | Small swaps; your own swaps first. |
+| No NEAR RPC takes the maker's refund in its window (G14) | `max_zats` per swap; `max_pending_quotes` 3; three endpoints of different operators with back-off; `/health` monitoring; a paid or own endpoint first (advice). |
 | The 1Click leg (G1) | The USDC stays in `intents.near` under the swap's key until a signed exit executes; nothing is signed below the user's minimum; the recovery file holds the key. |
 | Gas price above about 2.1 × today (G6) | The stipend margin falls below 2 and step 11 fails: pause. Up to 13 × today the 0.06 NEAR stipend still pays the taker's three calls; above that the taker cannot claim, the maker refunds at its deadline and the taker gets the ZEC back. |
 | NEAR Intents operators (G13) | They can move or freeze the escrow's USDC during any swap. Accepted; small swaps. |

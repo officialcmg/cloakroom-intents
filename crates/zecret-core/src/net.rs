@@ -27,6 +27,13 @@ impl Response {
 /// received (connection refused, timeout); an HTTP error status is an `Ok(Response)`.
 pub trait Transport {
     fn post(&self, url: &str, headers: &[(&str, &str)], body: &[u8]) -> Result<Response>;
+
+    /// The wall clock in milliseconds, if the platform has one. The NEAR RPC client uses it
+    /// to time the back-off of a failing endpoint inside one tick. Without it, the client
+    /// uses the time of the engine's last tick. The engines themselves never read it.
+    fn now_ms(&self) -> Option<u64> {
+        None
+    }
 }
 
 /// The shared handle the chain clients hold.

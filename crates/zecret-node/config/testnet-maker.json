@@ -3,7 +3,7 @@
     "lightwalletd": "https://zcash-testnet.chainsafe.dev",
     "birthday": 0,
     "network": "test",
-    "near_rpc": "https://rpc.testnet.fastnear.com",
+    "near_rpc": ["https://rpc.testnet.fastnear.com", "https://near-testnet.drpc.org", "https://testnet-rpc.intea.rs"],
     "escrow": "escrow3.zecret-3f109eea1e.testnet",
     "token": "usdc.zecret-3f109eea1e.testnet",
     "intents": "intents.zecret-3f109eea1e.testnet"

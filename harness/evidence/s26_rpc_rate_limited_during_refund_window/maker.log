@@ -1,0 +1,26 @@
+
+===== start maker --exit-after 1 =====
+[maker 1794648446] up: UA uregtest1zxf2r0z0zc3j4m3d36grnjp7wtrhs5rny98qtstlqpphl5n08q0jfzg86malsk0auy7gga9r7ev2ctt25ftzv6et5kdv4540lgtnnu8e NEAR maker.test.near key ed25519:jVUWXdVG4TUbc46GQCjYEgYG2hFY76pJ8H8Qv3EEmNM
+[maker 1794648446] NEAR endpoints: http://127.0.0.1:3131, http://127.0.0.1:3132
+[maker 1794648457] 6d2fa256 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto)
+[maker 1794648457] 6d2fa256 stage Quoting
+[maker 1794648457] {"type":"zcash_tx","swap":"6d2fa25645d6eda39c737d09f7f45f61","what":"quote","txid":"0919e26eb2361a0c47d9578aa160f0fa103cc66ca266805c2113589677fff734"}
+[maker 1794648457] 6d2fa256 encrypted QUOTE sent in tx 0919e26eb2361a0c47d9578aa160f0fa103cc66ca266805c2113589677fff734
+[maker 1794648457] 6d2fa256 stage Quoted
+[maker 1794648461] 6d2fa256 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 3b9b8ce8
+[maker 1794648461] 6d2fa256 stage Opening
+[maker 1794648464] {"type":"near_tx","swap":"6d2fa25645d6eda39c737d09f7f45f61","what":"deposit","hash":"HcErNrpU3sc1bg1SUNYRi2G8ccFTr7yN3V8YBukZGEAK"}
+[maker 1794648464] 6d2fa256 deposited 30000000000000000000000000 wrap.test.near into the maker's Verifier account before the open, tx HcErNrpU3sc1bg1SUNYRi2G8ccFTr7yN3V8YBukZGEAK (executed)
+[maker 1794648469] {"type":"near_tx","swap":"6d2fa25645d6eda39c737d09f7f45f61","what":"open","hash":"EPvW4vNNhkH3Rv7sZPArYn5WDqg379ktFjgnDVbEYsDX"}
+[maker 1794648469] 6d2fa256 escrow OPEN id 3b9b8ce8e5cfa616c988599007c7545e3dfc252e36da328cb7108cb8e08c7a1a amount 30000000000000000000000000 t0=1794648734 t1=1794648794 t2=1794648854 W=45, tx EPvW4vNNhkH3Rv7sZPArYn5WDqg379ktFjgnDVbEYsDX
+[maker 1794648469] {"type":"near_tx","swap":"6d2fa25645d6eda39c737d09f7f45f61","what":"stipend","hash":"AEw1wcvU74AKUJjzGGQ597i2bwW84R7SBEXqS52NcMBQ"}
+[maker 1794648469] 6d2fa256 STIPEND of 60000000000000000000000 yoctoNEAR sent to 7bbb387c5c3f607b86d5ca055b3d6a490083ab538c2b0cbfe7baac6cbb675606, tx AEw1wcvU74AKUJjzGGQ597i2bwW84R7SBEXqS52NcMBQ
+[maker 1794648469] 6d2fa256 stage Opened
+[maker 1794648473] 6d2fa256 no funding before t0; refunding
+[maker 1794648473] 6d2fa256 stage RefundSent
+[maker 1794648477] {"type":"near_tx","swap":"6d2fa25645d6eda39c737d09f7f45f61","what":"refund","hash":"CvSKauc2oFWvJfKpKdS44q9ckWqtdhbTjyh6XRnFr175"}
+[maker 1794648477] 6d2fa256 REFUND publishes b, tx CvSKauc2oFWvJfKpKdS44q9ckWqtdhbTjyh6XRnFr175 (executed); waiting for it to be final
+[maker 1794648479] 6d2fa256 refund is final (block <= 639); 30000000000000000000000000 paid back into the maker's Verifier account
+[maker 1794648479] 6d2fa256 stage Refunded
+[maker 1794648479] 6d2fa256 DONE Refunded
+[maker 1794648479] 1 swap(s) terminal; exiting

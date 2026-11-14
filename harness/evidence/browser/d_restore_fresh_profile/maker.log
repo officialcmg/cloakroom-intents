@@ -1,26 +1,27 @@
-[maker 1794635615] relay for direct exits on http://127.0.0.1:3410/execute-intents
-[maker 1794635615] up: UA uregtest19n9uefcnpuvfcw99ezzngxezjl5emmeq9gnjax77xwqs8q7tpldpsshuvwxz4w3ytzmmx620jlv5lkz6pc2mfl76y9g4rwqf9cc7a7s9 NEAR maker.test.near key ed25519:G2uua8e7C23BUeAXfQt2A45fu5r5WVnDg81g2S7iDjFp
-[maker 1794635687] c218dc5e RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
-[maker 1794635687] c218dc5e stage Quoting
-[maker 1794635688] {"type":"zcash_tx","swap":"c218dc5e5821dab4a686e7cbc5bd099e","what":"quote","txid":"a88895144542a856860f1c76b5bb843e2ba2297273f211b82c20dce950ee2c1d"}
-[maker 1794635688] c218dc5e encrypted QUOTE sent in tx a88895144542a856860f1c76b5bb843e2ba2297273f211b82c20dce950ee2c1d
-[maker 1794635688] c218dc5e stage Quoted
-[maker 1794635719] c218dc5e ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id 89e839cb
-[maker 1794635719] c218dc5e stage Opening
-[maker 1794635722] {"type":"near_tx","swap":"c218dc5e5821dab4a686e7cbc5bd099e","what":"deposit","hash":"HWdGitcJHqKfdxAGd4SL6EarSftggJu8Pm5RDtrkXDFP"}
-[maker 1794635722] c218dc5e deposited 29988000000000000000000000 wrap.test.near into the maker's Verifier account before the open, tx HWdGitcJHqKfdxAGd4SL6EarSftggJu8Pm5RDtrkXDFP (executed)
-[maker 1794635727] {"type":"near_tx","swap":"c218dc5e5821dab4a686e7cbc5bd099e","what":"open","hash":"HBJmeMsFcnL4neRz6wH8Bu4hBv6yL2MugMZuMJ2Qsei5"}
-[maker 1794635727] c218dc5e escrow OPEN id 89e839cb6a79b7398579a2195dcdb041b1c70dab25f47a7ca8b17b9e4b1a35e0 amount 29988000000000000000000000 t0=1794636412 t1=1794636562 t2=1794636712 W=60, tx HBJmeMsFcnL4neRz6wH8Bu4hBv6yL2MugMZuMJ2Qsei5
-[maker 1794635727] {"type":"near_tx","swap":"c218dc5e5821dab4a686e7cbc5bd099e","what":"stipend","hash":"BRvDd9Ng2ufyYPHGpxH9rXjwhbBMZgWUjYd5qsjf897P"}
-[maker 1794635727] c218dc5e STIPEND of 30000000000000000000000 yoctoNEAR sent to a8db9a5543491ce0e617738d182610b772c0dd2b493f2c011f3790fcab4b9101, tx BRvDd9Ng2ufyYPHGpxH9rXjwhbBMZgWUjYd5qsjf897P
-[maker 1794635727] c218dc5e stage Opened
-[maker 1794635761] {"type":"near_tx","swap":"c218dc5e5821dab4a686e7cbc5bd099e","what":"set_ready","hash":"5N6HQdePQFiNFPii6eZSyXccPNM2nz3Vs2dKtL8Zz8Si"}
-[maker 1794635761] c218dc5e joint note 99970000 zats with 2 confirmations (k_Z = 2); READY, tx 5N6HQdePQFiNFPii6eZSyXccPNM2nz3Vs2dKtL8Zz8Si
-[maker 1794635761] c218dc5e stage Ready
-[maker 1794635790] c218dc5e CLAIMED: read a from the escrow
-[maker 1794635790] {"type":"zcash_tx","swap":"c218dc5e5821dab4a686e7cbc5bd099e","what":"sweep","txid":"0911db580647786097fae258191c51aa2af1bc4e4120a0b590bd883ccac631d2"}
-[maker 1794635790] c218dc5e swept the joint note with (a+b) to the maker's wallet, tx 0911db580647786097fae258191c51aa2af1bc4e4120a0b590bd883ccac631d2; waiting for 2 confirmations
-[maker 1794635790] c218dc5e stage Sweeping
-[maker 1794635794] c218dc5e sweep 0911db580647786097fae258191c51aa2af1bc4e4120a0b590bd883ccac631d2 has 2 confirmations (k_Z = 2); done
-[maker 1794635794] c218dc5e stage Swept
-[maker 1794635794] c218dc5e DONE Swept
+[maker 1794646790] relay for direct exits on http://127.0.0.1:3410/execute-intents
+[maker 1794646790] up: UA uregtest1ffwppet5fxn6h2yjcmexuucpn0cgjmaev8esvesgzkyphag22cjpfqs965g3p3urd4952c4u6ah4kv0m5r7j6edstz6hrrzplgvk655w NEAR maker.test.near key ed25519:BU31uRPUiEqjufCoUEeTck8FnYc3sjGt8AnYA2yosncF
+[maker 1794646790] NEAR endpoints: http://127.0.0.1:3130
+[maker 1794646867] d962548d RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794646867] d962548d stage Quoting
+[maker 1794646867] {"type":"zcash_tx","swap":"d962548d43bef06caf1bcdfbbed6b42a","what":"quote","txid":"534832ec07451b35ecba08d3477e421c28a88846a0b77d2a7262a56776e3b099"}
+[maker 1794646867] d962548d encrypted QUOTE sent in tx 534832ec07451b35ecba08d3477e421c28a88846a0b77d2a7262a56776e3b099
+[maker 1794646867] d962548d stage Quoted
+[maker 1794646899] d962548d ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id 4672dd70
+[maker 1794646899] d962548d stage Opening
+[maker 1794646903] {"type":"near_tx","swap":"d962548d43bef06caf1bcdfbbed6b42a","what":"deposit","hash":"5iJjJosywpHPZ7Jg3Z9GtgakxRTCRXKxFvTvLvbhqLEZ"}
+[maker 1794646903] d962548d deposited 29988000000000000000000000 wrap.test.near into the maker's Verifier account before the open, tx 5iJjJosywpHPZ7Jg3Z9GtgakxRTCRXKxFvTvLvbhqLEZ (executed)
+[maker 1794646908] {"type":"near_tx","swap":"d962548d43bef06caf1bcdfbbed6b42a","what":"open","hash":"HwA9FwD99J1SDB6MMQ6JgcBqhksqVqhDL8ZA8XJpK7Qh"}
+[maker 1794646908] d962548d escrow OPEN id 4672dd70c7c020de2a3b96b231cdbb23b653190fbf1cb9ba831d8165adb1323f amount 29988000000000000000000000 t0=1794647592 t1=1794647742 t2=1794647892 W=60, tx HwA9FwD99J1SDB6MMQ6JgcBqhksqVqhDL8ZA8XJpK7Qh
+[maker 1794646908] {"type":"near_tx","swap":"d962548d43bef06caf1bcdfbbed6b42a","what":"stipend","hash":"EQaq6n1Kj6aqNC95ZZVpkJpgsXv9SD9GC37XVxQVrqX3"}
+[maker 1794646908] d962548d STIPEND of 30000000000000000000000 yoctoNEAR sent to 664f89202ead1c46f674421b98fd29cd61c568c7548eafc6284d5a4c5ce77a00, tx EQaq6n1Kj6aqNC95ZZVpkJpgsXv9SD9GC37XVxQVrqX3
+[maker 1794646908] d962548d stage Opened
+[maker 1794646945] {"type":"near_tx","swap":"d962548d43bef06caf1bcdfbbed6b42a","what":"set_ready","hash":"CwwjZrUbeeck6LmVpUAaAGJDVUF4rBkCPVjEs8oSyhdH"}
+[maker 1794646945] d962548d joint note 99970000 zats with 2 confirmations (k_Z = 2); READY, tx CwwjZrUbeeck6LmVpUAaAGJDVUF4rBkCPVjEs8oSyhdH
+[maker 1794646945] d962548d stage Ready
+[maker 1794646977] d962548d CLAIMED: read a from the escrow
+[maker 1794646978] {"type":"zcash_tx","swap":"d962548d43bef06caf1bcdfbbed6b42a","what":"sweep","txid":"49213991fd5688cdcb7ebd12685b38126e5a4464aefa2bd77d3d1dab61cdd652"}
+[maker 1794646978] d962548d swept the joint note with (a+b) to the maker's wallet, tx 49213991fd5688cdcb7ebd12685b38126e5a4464aefa2bd77d3d1dab61cdd652; waiting for 2 confirmations
+[maker 1794646978] d962548d stage Sweeping
+[maker 1794646983] d962548d sweep 49213991fd5688cdcb7ebd12685b38126e5a4464aefa2bd77d3d1dab61cdd652 has 2 confirmations (k_Z = 2); done
+[maker 1794646983] d962548d stage Swept
+[maker 1794646983] d962548d DONE Swept

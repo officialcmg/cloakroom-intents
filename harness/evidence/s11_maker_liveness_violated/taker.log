@@ -1,45 +1,45 @@
 
 ===== start taker --zats 100000000 =====
-[taker 1794634703] new swap 8e7ab026 for 100000000 zats; NEAR account 0fdc059f1a2406947a63aacf7cc158c62f46ce0a66fa12a1e3b461b41fb9ef98; wallet uregtest19tjef53zkqamr47j3zl0a9vw5wl05qw24uckzvyx46z9f07wzqxsp9sz3terh3hw6sefq75d6xz9z0sy4nxhk79lwwfx8qyxss4t4dt2
-[taker 1794634703] 8e7ab026 stage WaitingDeposit
-[taker 1794634703] balance 208333333 zats
-[taker 1794634703] {"type":"activity","swap":"8e7ab026879d5987a9ddddd2e7b49336","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794634708] balance 0 zats
-[taker 1794634708] {"type":"zcash_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"rfq","txid":"df81c5a372767dfd13799e3bb4f60f70d9e68e1fc61709b06f8dc2083eface86"}
-[taker 1794634708] 8e7ab026 encrypted RFQ for 100000000 zats sent to the maker in shielded tx df81c5a372767dfd13799e3bb4f60f70d9e68e1fc61709b06f8dc2083eface86
-[taker 1794634708] 8e7ab026 stage RfqSent
-[taker 1794634710] balance 208323333 zats
-[taker 1794634716] 8e7ab026 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
-[taker 1794634716] {"type":"quote","swap":"8e7ab026879d5987a9ddddd2e7b49336","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1qezshmptv3pwl2pd9qrefrsyrgh86efd7snqvth9teygt3gjw3na9c7r9z9ydk8pkyktaq0tcq2h2rehq29rdk02wleyl4fypclq85ug"}
-[taker 1794634716] {"type":"activity","swap":"8e7ab026879d5987a9ddddd2e7b49336","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
-[taker 1794634718] balance 0 zats
-[taker 1794634718] {"type":"zcash_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"accept","txid":"b900af0397ce8d4e22a0a6486dd71d466790e893fd82963b56c79b93bf096442"}
-[taker 1794634718] 8e7ab026 encrypted ACCEPT with 50000 zats premium sent in tx b900af0397ce8d4e22a0a6486dd71d466790e893fd82963b56c79b93bf096442; joint address uregtest1qezshmptv3pwl2pd9qrefrsyrgh86efd7snqvth9teygt3gjw3na9c7r9z9ydk8pkyktaq0tcq2h2rehq29rdk02wleyl4fypclq85ug
-[taker 1794634718] 8e7ab026 stage Accepted
-[taker 1794634720] balance 208263333 zats
-[taker 1794634724] 8e7ab026 escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)
-[taker 1794634726] 8e7ab026 escrow 08136d81 verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
-[taker 1794634726] {"type":"escrow_verified","swap":"8e7ab026879d5987a9ddddd2e7b49336","escrow_id":"08136d81d086cf810700eef65b8914d7d3abac020b0e6a17ceca7206e71c9d39","t0":1794635154,"t1":1794635214,"t2":1794635274}
-[taker 1794634726] 8e7ab026 [MISBEHAVE free-claim] escrow verified; NOT funding; will try to claim after t0
-[taker 1794634726] 8e7ab026 stage Funded
-[taker 1794634732] 8e7ab026 [MISBEHAVE free-claim] commit_claim without Ready before t2 REJECTED by the escrow: {"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: NotClaimable: commit_claim needs Ready before t1, or any time from t2"}}}} at escrow.test.near; waiting for t2
-[taker 1794634732] 8e7ab026 R2c: claim window closed (NEAR time 1794635267, t1 1794635214, budget 15s); not committing; waiting for the maker's refund or for t2 1794635274
-[taker 1794634736] {"type":"near_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"commit_claim","hash":"BzQ9kokvFceX957uYzWnvDYMLiB4q9hzSu4pLQmca9Xh"}
-[taker 1794634736] 8e7ab026 past t2 with escrow Open: LOCKED via the punish path, tx BzQ9kokvFceX957uYzWnvDYMLiB4q9hzSu4pLQmca9Xh [MISBEHAVE free-claim, never funded]
-[taker 1794634736] 8e7ab026 stage Committed
-[taker 1794634738] 8e7ab026 lock final (block 746); revealing a before the deadline 1794635323
-[taker 1794634738] 8e7ab026 stage Revealed
-[taker 1794634738] 8e7ab026 claim(a) signed and stored, tx 9dg8jdrmTBuuEEKVR9apLyGk365LRkzryz6u3TKD9WZE; it goes out on the next step
-[taker 1794634740] {"type":"near_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"claim","hash":"9dg8jdrmTBuuEEKVR9apLyGk365LRkzryz6u3TKD9WZE"}
-[taker 1794634740] 8e7ab026 REVEALED a with claim, tx 9dg8jdrmTBuuEEKVR9apLyGk365LRkzryz6u3TKD9WZE; waiting for the claim to be final
-[taker 1794634742] 8e7ab026 claim is final (block 753)
-[taker 1794634742] 8e7ab026 stage Claimed
-[taker 1794634745] {"type":"near_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"withdraw","hash":"23SZetkBgPdDU4F4YixyndVk2jLLXZttwRebJhqJGfCi"}
-[taker 1794634745] 8e7ab026 withdraw(id) sent by the taker, tx 23SZetkBgPdDU4F4YixyndVk2jLLXZttwRebJhqJGfCi (executed)
-[taker 1794634745] 8e7ab026 claim final; waiting for the payout (Due)
-[taker 1794634745] 8e7ab026 claim final; waiting for the payout (Sending)
-[taker 1794634747] 8e7ab026 PAYOUT: 30000000000000000000000000 of wrap.test.near paid into the Verifier, owned by 0fdc059f1a2406947a63aacf7cc158c62f46ce0a66fa12a1e3b461b41fb9ef98 (holds 30000000000000000000000000 now)
-[taker 1794634747] 8e7ab026 payout 30000000000000000000000000 wrap.test.near to 0fdc059f1a2406947a63aacf7cc158c62f46ce0a66fa12a1e3b461b41fb9ef98 in intents
-[taker 1794634747] 8e7ab026 stage Completed
-[taker 1794634747] 8e7ab026 DONE Completed
-[taker 1794634747] finished: Completed
+[taker 1794644628] new swap 86f2f40f for 100000000 zats; NEAR account ab6066d7a54834f6b982c3feaead66b55e3ce5d16538cbff3e04f5e32eba886b; wallet uregtest1nrx272ajv4l3htcmn0ltvm5aw4rx0ca7r5u52wkl6uumaf8x8jm5yqj69je7vks9l7l2d88zr4wm23cefvmvyx5dge5874puz5cn2kqh
+[taker 1794644628] 86f2f40f stage WaitingDeposit
+[taker 1794644628] balance 208333333 zats
+[taker 1794644628] {"type":"activity","swap":"86f2f40f69cfc7a7ee73dd8c4100f7bd","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794644633] balance 0 zats
+[taker 1794644633] {"type":"zcash_tx","swap":"86f2f40f69cfc7a7ee73dd8c4100f7bd","what":"rfq","txid":"13d683c26ab0f247406be3690905d2f1a5ff04867e786bb4c84061fc4d39ae0a"}
+[taker 1794644633] 86f2f40f encrypted RFQ for 100000000 zats sent to the maker in shielded tx 13d683c26ab0f247406be3690905d2f1a5ff04867e786bb4c84061fc4d39ae0a
+[taker 1794644633] 86f2f40f stage RfqSent
+[taker 1794644635] balance 208323333 zats
+[taker 1794644641] 86f2f40f QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
+[taker 1794644641] {"type":"quote","swap":"86f2f40f69cfc7a7ee73dd8c4100f7bd","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1p5rjlzd3dmql3t72zx9xg06s7u9tgh5y9pcpc5ux5mga5qmy3p9zdggw4hcg6kah76u0uwneam0j4vk6sz2xtdkns0azuqcmssha90v5"}
+[taker 1794644642] {"type":"activity","swap":"86f2f40f69cfc7a7ee73dd8c4100f7bd","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794644644] balance 0 zats
+[taker 1794644644] {"type":"zcash_tx","swap":"86f2f40f69cfc7a7ee73dd8c4100f7bd","what":"accept","txid":"8413a28cce59fb740b56bd175d11059b304d8eba29ab09ee156237c08ffadc6f"}
+[taker 1794644644] 86f2f40f encrypted ACCEPT with 50000 zats premium sent in tx 8413a28cce59fb740b56bd175d11059b304d8eba29ab09ee156237c08ffadc6f; joint address uregtest1p5rjlzd3dmql3t72zx9xg06s7u9tgh5y9pcpc5ux5mga5qmy3p9zdggw4hcg6kah76u0uwneam0j4vk6sz2xtdkns0azuqcmssha90v5
+[taker 1794644644] 86f2f40f stage Accepted
+[taker 1794644646] balance 208263333 zats
+[taker 1794644650] 86f2f40f escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)
+[taker 1794644652] 86f2f40f escrow 7486a8a2 verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
+[taker 1794644652] {"type":"escrow_verified","swap":"86f2f40f69cfc7a7ee73dd8c4100f7bd","escrow_id":"7486a8a285c01a5ef834c5ff21de6ac47600524f3383058f407a381c02a240b7","t0":1794645673,"t1":1794645733,"t2":1794645793}
+[taker 1794644652] 86f2f40f [MISBEHAVE free-claim] escrow verified; NOT funding; will try to claim after t0
+[taker 1794644652] 86f2f40f stage Funded
+[taker 1794644658] 86f2f40f [MISBEHAVE free-claim] commit_claim without Ready before t2 REJECTED by the escrow: {"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: NotClaimable: commit_claim needs Ready before t1, or any time from t2"}}}} at escrow.test.near; waiting for t2
+[taker 1794644658] 86f2f40f R2c: claim window closed (NEAR time 1794645786, t1 1794645733, budget 15s); not committing; waiting for the maker's refund or for t2 1794645793
+[taker 1794644662] {"type":"near_tx","swap":"86f2f40f69cfc7a7ee73dd8c4100f7bd","what":"commit_claim","hash":"26CHFEwa1ioMtQVS7UchYa1px2hrviV9Rf8EudjcwDh5"}
+[taker 1794644662] 86f2f40f past t2 with escrow Open: LOCKED via the punish path, tx 26CHFEwa1ioMtQVS7UchYa1px2hrviV9Rf8EudjcwDh5 [MISBEHAVE free-claim, never funded]
+[taker 1794644662] 86f2f40f stage Committed
+[taker 1794644664] 86f2f40f lock final (block 1884); revealing a before the deadline 1794645842
+[taker 1794644664] 86f2f40f stage Revealed
+[taker 1794644664] 86f2f40f claim(a) signed and stored, tx Ct2tzRRdZz8L4qmzJr5SdHMLM9Kx6EUwLyk59P5CXZ3B; it goes out on the next step
+[taker 1794644667] {"type":"near_tx","swap":"86f2f40f69cfc7a7ee73dd8c4100f7bd","what":"claim","hash":"Ct2tzRRdZz8L4qmzJr5SdHMLM9Kx6EUwLyk59P5CXZ3B"}
+[taker 1794644667] 86f2f40f REVEALED a with claim, tx Ct2tzRRdZz8L4qmzJr5SdHMLM9Kx6EUwLyk59P5CXZ3B; waiting for the claim to be final
+[taker 1794644669] 86f2f40f claim is final (block 1891)
+[taker 1794644669] 86f2f40f stage Claimed
+[taker 1794644671] {"type":"near_tx","swap":"86f2f40f69cfc7a7ee73dd8c4100f7bd","what":"withdraw","hash":"7fPuRamFXYV6m7WFxJhNWXt61hMc14fV8NKMTnU7CNtC"}
+[taker 1794644671] 86f2f40f withdraw(id) sent by the taker, tx 7fPuRamFXYV6m7WFxJhNWXt61hMc14fV8NKMTnU7CNtC (executed)
+[taker 1794644671] 86f2f40f claim final; waiting for the payout (Due)
+[taker 1794644671] 86f2f40f claim final; waiting for the payout (Sending)
+[taker 1794644673] 86f2f40f PAYOUT: 30000000000000000000000000 of wrap.test.near paid into the Verifier, owned by ab6066d7a54834f6b982c3feaead66b55e3ce5d16538cbff3e04f5e32eba886b (holds 30000000000000000000000000 now)
+[taker 1794644673] 86f2f40f payout 30000000000000000000000000 wrap.test.near to ab6066d7a54834f6b982c3feaead66b55e3ce5d16538cbff3e04f5e32eba886b in intents
+[taker 1794644673] 86f2f40f stage Completed
+[taker 1794644673] 86f2f40f DONE Completed
+[taker 1794644673] finished: Completed

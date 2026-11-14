@@ -20,6 +20,7 @@ use chrono::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use zecret_core::{
+    config::RpcUrls,
     near::{tx::Action, At, NearKey, NearRpc, Signer, TGAS},
     net::SharedTransport,
 };
@@ -271,8 +272,25 @@ impl DirectPlan {
     }
 }
 
+/// The Verifier's views go to the first NEAR endpoint only (the `zecret-intents` client
+/// takes one URL); an exit that fails there is tried again by the page.
 fn verifier_rpc(t: &SharedTransport, rpc_url: &str, verifier: &str) -> VerifierRpc<CorePost> {
-    VerifierRpc { transport: CorePost(t.clone()), rpc_url: rpc_url.into(), verifier: verifier.into() }
+    VerifierRpc { transport: CorePost(t.clone()), rpc_url: rpc_urls(rpc_url).primary().into(), verifier: verifier.into() }
+}
+
+/// The page passes the NEAR endpoints as one URL or as a JSON array of URLs.
+pub fn rpc_urls(s: &str) -> RpcUrls {
+    let s = s.trim();
+    if s.starts_with('[')
+        && let Ok(u) = serde_json::from_str::<RpcUrls>(s)
+    {
+        return u;
+    }
+    RpcUrls::from(s)
+}
+
+fn near_rpc(t: &SharedTransport, rpc_url: &str) -> NearRpc {
+    NearRpc::with_urls(t.clone(), &rpc_urls(rpc_url))
 }
 
 /// A NEAR account id as the protocol accepts it (2 to 64 characters of lower-case
@@ -303,7 +321,7 @@ pub fn direct_prepare(t: &SharedTransport, rpc_url: &str, verifier: &str, token:
     if balance == 0 {
         return Err(ExitError::new("EXIT_FAILED", format!("the taker's Verifier account holds no {token}"), false));
     }
-    let near = NearRpc::new(t.clone(), rpc_url);
+    let near = near_rpc(t, rpc_url);
     let nerr = |e: anyhow::Error| ExitError::new("NETWORK", format!("NEAR RPC: {e:#}"), true);
     if near.account(receiver, &At::Final).map_err(nerr)?.is_none() {
         return Err(ExitError::new("EXIT_REFUSED", format!("the NEAR account {receiver} does not exist; nothing was signed"), false));
@@ -355,7 +373,7 @@ pub fn direct_submit_with_gas(t: &SharedTransport, rpc_url: &str, seed: &[u8; 32
     if signer.account_id() != plan.signer_id {
         return Err(ExitError::new("INTERNAL", "the stored NEAR key does not own the payout account", false));
     }
-    let near = NearRpc::new(t.clone(), rpc_url);
+    let near = near_rpc(t, rpc_url);
     let nerr = |e: anyhow::Error| ExitError::new("NETWORK", format!("NEAR RPC: {e:#}"), true);
     let before = near.account(&plan.signer_id, &At::Final).map_err(nerr)?.map(|a| a.amount).unwrap_or(0);
     let v = verifier_rpc(t, rpc_url, &plan.verifier);
@@ -404,7 +422,7 @@ pub fn direct_relay(t: &SharedTransport, rpc_url: &str, relay_url: &str, seed: &
     if signer.account_id() != plan.signer_id {
         return Err(ExitError::new("INTERNAL", "the stored NEAR key does not own the payout account", false));
     }
-    let near = NearRpc::new(t.clone(), rpc_url);
+    let near = near_rpc(t, rpc_url);
     let nerr = |e: anyhow::Error| ExitError::new("NETWORK", format!("NEAR RPC: {e:#}"), true);
     let before = near.account(&plan.signer_id, &At::Final).map_err(nerr)?.map(|a| a.amount).unwrap_or(0);
     let v = verifier_rpc(t, rpc_url, &plan.verifier);

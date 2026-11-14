@@ -1,19 +1,19 @@
 
 ===== start taker --zats 100000000 --vanish-at Accepted =====
-[taker 1794632709] new swap e9481170 for 100000000 zats; NEAR account d97bea6c20bdb6b4302efd28e98a6225d6d424c2bba7f4ffbae4eceb3e0ef2ba; wallet uregtest1uhkrgdygxc9rnxmxh6hs27l7vchex6h6sg8n7ffgh9p3afwzfgyt2qz375eexr88q6xl2mqjrq4mf6e65jph9j0yylpv4xklgydzppsy
-[taker 1794632709] e9481170 stage WaitingDeposit
-[taker 1794632709] balance 208333333 zats
-[taker 1794632709] {"type":"activity","swap":"e9481170beeb67bad0e0855f918c999e","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794632714] balance 0 zats
-[taker 1794632714] {"type":"zcash_tx","swap":"e9481170beeb67bad0e0855f918c999e","what":"rfq","txid":"03b37df2e520423d30b0770915ae0a5db7f5a99f808c56ad5982734eca9fe7be"}
-[taker 1794632714] e9481170 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 03b37df2e520423d30b0770915ae0a5db7f5a99f808c56ad5982734eca9fe7be
-[taker 1794632714] e9481170 stage RfqSent
-[taker 1794632716] balance 208323333 zats
-[taker 1794632722] e9481170 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
-[taker 1794632722] {"type":"quote","swap":"e9481170beeb67bad0e0855f918c999e","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1e98athqt44lunqhuzc67usuf4n86sf7g9p2jmcs7p3lxhjykl52yuhap5tazmyejl0juhuntxrfs4fj7nwzl9764dgzavv7lhqpvckgw"}
-[taker 1794632722] {"type":"activity","swap":"e9481170beeb67bad0e0855f918c999e","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
-[taker 1794632724] balance 0 zats
-[taker 1794632724] {"type":"zcash_tx","swap":"e9481170beeb67bad0e0855f918c999e","what":"accept","txid":"a97f83de20e17f5242ce44acc53cd8b899fcd9383788586b40be1ec02fd9bc83"}
-[taker 1794632724] e9481170 encrypted ACCEPT with 50000 zats premium sent in tx a97f83de20e17f5242ce44acc53cd8b899fcd9383788586b40be1ec02fd9bc83; joint address uregtest1e98athqt44lunqhuzc67usuf4n86sf7g9p2jmcs7p3lxhjykl52yuhap5tazmyejl0juhuntxrfs4fj7nwzl9764dgzavv7lhqpvckgw
-[taker 1794632724] e9481170 stage Accepted
-[taker 1794632724] VANISH at stage Accepted (process exits; state is stored)
+[taker 1794644159] new swap ba48c70a for 100000000 zats; NEAR account 53477cf52802ac5d8223a4d74550d7801cb404e1b21cc5590021c6ee0f74df14; wallet uregtest1exa72u665wjwykgh3v2x9e65p9r99506t8lg9sa9jxtnakt3plxta00hals52ku07w0g4834t44utw0ekdv4lsvg5mpp0tvsnquz5czz
+[taker 1794644159] ba48c70a stage WaitingDeposit
+[taker 1794644159] balance 208333333 zats
+[taker 1794644159] {"type":"activity","swap":"ba48c70ac97d3310843da93f4cef42c3","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794644164] balance 0 zats
+[taker 1794644164] {"type":"zcash_tx","swap":"ba48c70ac97d3310843da93f4cef42c3","what":"rfq","txid":"576985906ce0bae85e2f9973aecd27ea883eedd34666ca3d43d1d2f0512ee4f4"}
+[taker 1794644164] ba48c70a encrypted RFQ for 100000000 zats sent to the maker in shielded tx 576985906ce0bae85e2f9973aecd27ea883eedd34666ca3d43d1d2f0512ee4f4
+[taker 1794644164] ba48c70a stage RfqSent
+[taker 1794644166] balance 208323333 zats
+[taker 1794644171] ba48c70a QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
+[taker 1794644171] {"type":"quote","swap":"ba48c70ac97d3310843da93f4cef42c3","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1lgx3cl7pvrf0feh0tprdl04qr9urddc0rzv5nkc5zv28xmml5athg2waw7wdkdt856ecq0k9sq64u34jdd5c5yrmflpudqhscy5yfyc5"}
+[taker 1794644171] {"type":"activity","swap":"ba48c70ac97d3310843da93f4cef42c3","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794644173] balance 0 zats
+[taker 1794644173] {"type":"zcash_tx","swap":"ba48c70ac97d3310843da93f4cef42c3","what":"accept","txid":"8d63009cb2fd3706591b1be5286e1a4c926bbc126ee777f4c0bb2225ccdcaf5c"}
+[taker 1794644173] ba48c70a encrypted ACCEPT with 50000 zats premium sent in tx 8d63009cb2fd3706591b1be5286e1a4c926bbc126ee777f4c0bb2225ccdcaf5c; joint address uregtest1lgx3cl7pvrf0feh0tprdl04qr9urddc0rzv5nkc5zv28xmml5athg2waw7wdkdt856ecq0k9sq64u34jdd5c5yrmflpudqhscy5yfyc5
+[taker 1794644173] ba48c70a stage Accepted
+[taker 1794644173] VANISH at stage Accepted (process exits; state is stored)

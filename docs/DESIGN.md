@@ -79,6 +79,15 @@ This section is always current. The numbered sections below give the detail.
   call. Any NEAR account can send it. The USDC can only go to the taker.
 - The operators of NEAR Intents can move or freeze the escrow's USDC at any time during
   the swap, from the open to the payout. The design accepts this risk. Swaps stay small.
+- If a NEAR RPC endpoint refuses requests (a rate limit) or does not answer, the maker
+  and the app use the next endpoint in their list. Each list has at least two endpoints
+  from different operators. A refund tries every endpoint until its window closes. The
+  maker reads each swap only when a deadline is near, so it stays far below the free
+  limits. A second endpoint gives availability. It does not check the first one.
+- If the maker cannot refund before t2, the escrow keeps the USDC. Only the taker's key
+  can act then. If the taker locks and does not claim, the maker refunds after the reveal
+  window. The maker shows this state on its health page and does not repeat its alert in
+  every cycle.
 
 **Decided**
 
@@ -126,6 +135,10 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-14 | The mainnet settings use the measured Zcash mainnet block times (mean 24.9 s; three blocks took at most 299 s). They keep the testnet windows: the funding window is 600 s. |
 | 2026-11-14 | The website runs on mainnet only in a build with `VITE_ZECRET_ALLOW_MAINNET=1`. Mainnet gets its own hostname. The testnet site stays as it is. A link cannot switch a site to mainnet. The mainnet escrow and its code hash come from the build, not from a file. |
 | 2026-11-14 | On mainnet the maker's price is one fixed number. The code has no price feed. The owner sets the market price less 3 %. The dry run (`zecret-deploy plan`) fails when the price is less than 2 % below the market. The maker takes at most 3 requests at a time, so the float can cover them. See `docs/MAINNET.md`. |
+| 2026-11-14 | The maker and the app read NEAR from an ordered list of RPC endpoints. A request goes to the next endpoint on a rate limit, a server error or a timeout. A failed endpoint waits 2 s, then 4 s, up to 60 s, or longer if it sends `Retry-After`. A request tries each endpoint once. The engines never wait in a loop. Reason: on 2026-11-14 one public endpoint refused every refund of the testnet maker for 35 minutes (`docs/incidents/2026-11-14-maker-missed-refund.md`). |
+| 2026-11-14 | The maker reads the escrow of a swap on a plan. It reads after each deadline that matters, every 30 s while a swap waits for funding, every 10 s while the taker acts, and every 3 s at most. Before, it read every swap every second. A refund and a set_ready of a funded swap also try the endpoints that wait. |
+| 2026-11-14 | After t2 the escrow refuses a refund of an Open or Ready swap. The maker cannot act until the taker's key locks the swap. The maker then reads the swap every 5 minutes at most, and repeats its alert every 30 minutes. |
+| 2026-11-14 | The maker reports its health: `GET /health` on the relay port, or on `--health` where the relay is off (mainnet). The report has no keys, no addresses and no amounts. |
 | 2026-11-14 | The mainnet templates follow the light payout. The stipend is 0.06 NEAR, and the taker accepts 0.03 NEAR. The premium is 40,000 zats, and the maker counts 0.02 NEAR of other costs for each swap. The dry run reads `min_gas_purchase_price` from the protocol config and checks that the stipend is at least 2 times the largest balance NEAR checks before the taker's three calls. See `docs/MAINNET.md`. |
 
 **Open**
@@ -334,7 +347,7 @@ live Intents code.
 | Price movement before the exit | Measured over 15 minutes: USDC to USDC moved 0.004 %; USDC to SOL or ETH fell at most 0.32 % within 10 minutes. | Show a minimum with 1 % slippage ("Your minimum", not a guarantee) and fetch a fresh quote at exit time. |
 | Keys in browser storage | A cleared browser loses the swap's keys. | Recovery file, shown before any money moves. |
 | The build environment is temporary | Docker, the sandbox binary and helper tools must be set up again on a new machine. | Done: `scripts/setup-env.sh`. Commit and push often. |
-| The taker trusts one NEAR RPC endpoint | The taker reads every NEAR fact it acts on from one endpoint, without proofs. An endpoint that works with the maker can show an escrow that does not exist, and the maker then takes the taker's ZEC. An endpoint alone can only delay a swap. | Not built. Options: let the user choose the endpoint; compare two or more endpoints; light-client proofs. See `docs/security/fixes-2-core.md` section 4. |
+| The taker trusts one NEAR RPC endpoint | The taker reads every NEAR fact it acts on from one endpoint, without proofs. An endpoint that works with the maker can show an escrow that does not exist, and the maker then takes the taker's ZEC. An endpoint alone can only delay a swap. Since 2026-11-14 the taker has a list of endpoints for availability: it moves to the next one when one fails, and still trusts the one that answers. | Not built. Options: let the user choose the endpoint; compare two or more endpoints; light-client proofs. See `docs/security/fixes-2-core.md` section 4. |
 | The taker cannot pay for `withdraw` | Closed by the light payout (2026-11-14): `withdraw(id)` needs 19 Tgas, and the taker's key sends it from the stipend. | Done. `docs/experiments/light-payout.md`. |
 | NEAR Intents operators | They can pause `mt_transfer` or lock the escrow's account in NEAR Intents. Then no payout and no refund moves until they stop. The taker's funds in NEAR Intents already depend on them. | Accepted. The payout stays due and is paid once later. |
 | Stray tokens | Tokens sent to the escrow outside a swap stay there. Nobody can take them. | Accepted. |

@@ -152,6 +152,13 @@ elif [ "$open_swaps" = 0 ]; then
   cp "$D/config.json" "$D/$old"
   cp "$want" "$D/config.json"
   log "config.json updated (no open swap); the old one is $old"
+elif jq -e --slurpfile a "$D/config.json" --slurpfile b "$want" -n '($a[0] | del(.chains.near_rpc, .polling)) == ($b[0] | del(.chains.near_rpc, .polling))' >/dev/null; then
+  # Only the NEAR RPC endpoints or the read plan differ. Neither changes the terms of an
+  # open swap, and an open swap needs working endpoints most (incident 2026-11-14).
+  old="config.json.prev-$(stamp)"
+  cp "$D/config.json" "$D/$old"
+  cp "$want" "$D/config.json"
+  log "config.json updated with $open_swaps open swap(s): only chains.near_rpc or polling changed; the old one is $old"
 else
   log "WARNING: the wanted settings differ from config.json, but $open_swaps swap(s) are open: kept config.json; it is updated at the first start with no open swap"
 fi
@@ -170,9 +177,10 @@ if [ "$NETWORK" = main ]; then
   jq -e '(.stipend | tostring | tonumber) >= 60000000000000000000000' "$D/config.json" >/dev/null || die "mainnet: stipend below 0.06 NEAR: the taker's key could not pay for its claim and payout with a margin of 2"
   jq -e '(.chains.birthday // 0) > 0' "$D/config.json" >/dev/null || die "mainnet: set chains.birthday to a Zcash height before the maker's wallet was made"
   jq -e '(.misbehave // null) == null' "$D/config.json" >/dev/null || die "mainnet: misbehave is a test setting"
-  jq -e '(.chains.near_rpc | startswith("https://")) and (.chains.lightwalletd | startswith("https://"))' "$D/config.json" >/dev/null || die "mainnet: near_rpc and lightwalletd must be https URLs"
+  jq -e '([.chains.near_rpc] | flatten | length > 0 and all(type == "string" and startswith("https://"))) and (.chains.lightwalletd | startswith("https://"))' "$D/config.json" >/dev/null || die "mainnet: near_rpc and lightwalletd must be https URLs"
+  jq -e '([.chains.near_rpc] | flatten | length) >= 2' "$D/config.json" >/dev/null || log "WARNING: mainnet: chains.near_rpc names one endpoint; a rate limit there stops refunds (docs/MAINNET.md, RPC availability)"
 fi
-log "settings: $(jq -c '{network: .chains.network, escrow: .chains.escrow, near_account, birthday: .chains.birthday, min_zats, max_zats, premium_zats, price_per_zec, timing, windows}' "$D/config.json")"
+log "settings: $(jq -c '{network: .chains.network, near_rpc: ([.chains.near_rpc] | flatten | map(sub("[?#].*$"; ""))), escrow: .chains.escrow, near_account, birthday: .chains.birthday, min_zats, max_zats, premium_zats, price_per_zec, timing, windows}' "$D/config.json")"
 log "open swaps: $open_swaps"
 
 # 4. Ownership, then drop privileges.
@@ -196,9 +204,10 @@ else
 fi
 if [ "$NETWORK" = main ]; then
   # No relay on mainnet: the exit runs through 1Click (zecret maker refuses --relay there).
-  log "starting: zecret maker --dir $D (mainnet, no relay)"
+  # The port serves GET /health only (read-only; no key, no amounts).
+  log "starting: zecret maker --dir $D --health 0.0.0.0:$PORT (mainnet, no relay)"
   exec setpriv --reuid="$UID_ZECRET" --regid="$UID_ZECRET" --clear-groups -- \
-    env HOME="$D" "$ZECRET_BIN" maker --dir "$D"
+    env HOME="$D" "$ZECRET_BIN" maker --dir "$D" --health "0.0.0.0:$PORT"
 fi
 log "starting: zecret maker --dir $D --relay 0.0.0.0:$PORT"
 exec setpriv --reuid="$UID_ZECRET" --regid="$UID_ZECRET" --clear-groups -- \

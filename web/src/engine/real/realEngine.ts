@@ -41,7 +41,7 @@ import { parseDirectory, type MakerDirectory, type MakerTerms } from '../../lib/
 import { validateZcashReturnAddress } from '../../lib/address/zcash';
 import { validateDestinationAddress } from '../../lib/address/chains';
 import { paymentUri } from '../../lib/zip321';
-import { coreNetwork, explorerUrl, safeLink, type NetworkConfig } from '../../lib/netconfig';
+import { coreNetwork, explorerUrl, nearRpcs, safeLink, type NetworkConfig } from '../../lib/netconfig';
 import { StaleWriteError, type RecordStore } from './idb';
 import { judgePayout, readPayoutFacts, type PayoutReader } from './payoutCheck';
 import { abortReason, coreStageName, loadWasm, type CoreEvent, type CoreSwap, type WasmModule, type WasmTaker } from './wasm';
@@ -327,7 +327,7 @@ export class RealEngine implements EngineBackend {
     const d = this.directory!;
     const chains: Record<string, unknown> = {
       network: coreNetwork(cfg.network),
-      near_rpc: cfg.near.rpc,
+      near_rpc: nearRpcs(cfg),
       escrow: cfg.near.escrow,
       token: cfg.near.token,
       intents: cfg.near.verifier,
@@ -1064,7 +1064,7 @@ export class RealEngine implements EngineBackend {
     const { cfg } = this.need();
     let facts;
     try {
-      facts = await this.readPayout({ rpc: cfg.near.rpc, escrow: cfg.near.escrow, verifier: cfg.near.verifier, token: cfg.near.token, swapId: core.escrow_id, taker: core.taker_account });
+      facts = await this.readPayout({ rpc: nearRpcs(cfg), escrow: cfg.near.escrow, verifier: cfg.near.verifier, token: cfg.near.token, swapId: core.escrow_id, taker: core.taker_account });
     } catch (e) {
       log(`payout check: ${(e as Error).message}`);
       return 'unknown';
@@ -1306,7 +1306,7 @@ export class RealEngine implements EngineBackend {
     const receiver = s.params.directExit!.nearAccount;
     if (!m.directPlan) {
       await this.activity({ kind: 'signing', label: 'Preparing the transfer of your tokens to your NEAR account', startedAt: now(), estimatedMs: 2_000 });
-      const r = parse<WasmResult<DirectPlan>>(wasm.directPrepare(cfg.near.rpc, cfg.near.verifier, cfg.near.token, this.nearSeed(), receiver, now()));
+      const r = parse<WasmResult<DirectPlan>>(wasm.directPrepare(JSON.stringify(nearRpcs(cfg)), cfg.near.verifier, cfg.near.token, this.nearSeed(), receiver, now()));
       if (!r.ok) {
         if (r.error.transient) return 5_000;
         return this.exitFailed(r.error);
@@ -1326,7 +1326,7 @@ export class RealEngine implements EngineBackend {
       }
       await this.activity({ kind: 'broadcasting', label: 'Signing the transfer and handing it to the maker’s relay', startedAt: now(), estimatedMs: 5_000 });
       const t = now();
-      const r = parse<WasmResult<{ txHash: string | null; delivered: string }>>(wasm.directRelay(cfg.near.rpc, cfg.exit.relayUrl, this.nearSeed(), JSON.stringify(plan), now()));
+      const r = parse<WasmResult<{ txHash: string | null; delivered: string }>>(wasm.directRelay(JSON.stringify(nearRpcs(cfg)), cfg.exit.relayUrl, this.nearSeed(), JSON.stringify(plan), now()));
       timing('direct_exit_relay', now() - t);
       if (!r.ok) {
         if (r.error.transient) {

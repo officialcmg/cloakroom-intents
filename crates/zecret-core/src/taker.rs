@@ -40,7 +40,7 @@ use crate::{
     engine::{self, drive_pending, short, Event, Next, PendingState, PendingZ, Tick},
     keys,
     msg::{self, Accept, Envelope, Quote, Refusal, Rfq},
-    near::{escrow, At, Escrow, NearKey, NearRpc, Signer, SwapState},
+    near::{escrow, rpc::unavailable, At, Escrow, NearKey, NearRpc, Signer, SwapState},
     net::SharedTransport,
     store::{get_json, put_json, Store},
     wallet::{self, CoverWait, Wallet},
@@ -51,6 +51,8 @@ use crate::{
 pub const POLL_SECS: u64 = 2;
 /// Seconds before a retry after a transient error.
 pub const RETRY_SECS: u64 = 5;
+/// The same warning is repeated at most once in this time (seconds).
+pub const WARN_QUIET_SECS: u64 = 60;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum TakerStage {
@@ -214,9 +216,18 @@ pub struct Taker {
     /// True in a tick whose Zcash sync failed: the wallet's view is old. Only the stages
     /// that need NEAR alone go on (security review 2, F2-02).
     zcash_stale: bool,
+    /// Repeated warnings held back.
+    quiet: engine::Quiet,
 }
 
 /// Stages that need only NEAR: a Zcash sync error does not stop them.
+/// Stages whose NEAR sends protect the taker's funds before a deadline (commit_claim
+/// before t1, claim before the reveal window ends, the payout): the RPC client's
+/// critical mode (it also tries endpoints that are backing off).
+fn deadline_stage(stage: &TakerStage) -> bool {
+    matches!(stage, TakerStage::Funded | TakerStage::Committed | TakerStage::Revealed | TakerStage::Claimed | TakerStage::PayoutPending)
+}
+
 fn near_only(stage: &TakerStage) -> bool {
     matches!(stage, TakerStage::Funded | TakerStage::Committed | TakerStage::Revealed | TakerStage::Claimed | TakerStage::PayoutPending)
 }
@@ -240,7 +251,7 @@ impl Taker {
         };
         let mut wallet = engine::wallet_for(&cfg.chains, t.clone())?;
         wallet.watch("wallet", &me.fvk, &[Scope::External, Scope::Internal]);
-        let near = NearRpc::new(t, &cfg.chains.near_rpc);
+        let near = NearRpc::with_urls(t, &cfg.chains.near_rpc);
         let mut swap = None;
         for k in store.keys(PREFIX_SWAP)? {
             let s: TakerSwap = get_json(store, &k)?.ok_or_else(|| anyhow!("record {k} vanished"))?;
@@ -248,7 +259,7 @@ impl Taker {
                 swap = Some(s);
             }
         }
-        let mut tk = Taker { cfg, me, wallet, near, swap, cover: None, ev: vec![], last_balance: None, announced: None, cover_passed: None, zcash_stale: false };
+        let mut tk = Taker { cfg, me, wallet, near, swap, cover: None, ev: vec![], last_balance: None, announced: None, cover_passed: None, zcash_stale: false, quiet: engine::Quiet::default() };
         if let Some(s) = tk.swap.clone() {
             tk.watch_joint(&s)?;
             if let Some(p) = &s.pending {
@@ -388,17 +399,28 @@ impl Taker {
     /// One step of the state machine. Never fails: a transient error becomes a `Warning`
     /// event and a retry time.
     pub fn tick(&mut self, now: u64, store: &mut dyn Store) -> Tick {
+        self.near.set_time(now);
+        let critical = self.swap.as_ref().map(|s| deadline_stage(&s.stage)).unwrap_or(false);
+        let prev = self.near.set_critical(critical);
         let r = self.step(now, store);
+        self.near.set_critical(prev);
         let next = match r {
             Ok(n) => n,
             Err(e) => {
                 let swap = self.swap.as_ref().map(|s| s.rfq_id.clone()).unwrap_or_default();
+                // Every NEAR endpoint is backing off: outside the deadline stages, wait for
+                // the first to come back (at most 30 s) instead of asking again in 5 s.
+                let wait = match unavailable(&e) {
+                    Some(u) if !critical => (u.retry_at_ms.div_ceil(1000)).saturating_sub(now).clamp(RETRY_SECS, 30),
+                    _ => RETRY_SECS,
+                };
                 self.ev.push(Event::Warning { swap, message: format!("{e:#}") });
-                Next::At(now + RETRY_SECS)
+                Next::At(now + wait)
             }
         };
         self.drain_wallet_notes();
-        Tick { next, events: std::mem::take(&mut self.ev) }
+        let events = std::mem::take(&mut self.ev);
+        Tick { next, events: self.quiet.filter(events, now, WARN_QUIET_SECS) }
     }
 
     fn step(&mut self, now: u64, store: &mut dyn Store) -> Result<Next> {

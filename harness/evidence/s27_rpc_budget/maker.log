@@ -1,0 +1,23 @@
+
+===== start maker  =====
+[maker 1794645613] up: UA uregtest1k3we5ejgf8c97d72l3mcxpmmfeh0zpgexlvvxyel6p5gdps9jnppnzdfala503utt0az9xux47njt2mzg068gt3mwch9qcf0lgmv625v NEAR maker.test.near key ed25519:42QfdTSXfFrb5Lzsf2mknwYo31oqQGvArN9nPEfHihAa
+[maker 1794645613] NEAR endpoints: http://127.0.0.1:3133
+[maker 1794645690] 68449868 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto)
+[maker 1794645690] 68449868 stage Quoting
+[maker 1794645690] {"type":"zcash_tx","swap":"68449868b73d2e724da9a0a326d64d7f","what":"quote","txid":"f123dd79f0f19a2f5ea29568a4e1998a58624c86bb4004477208c2271a2e7004"}
+[maker 1794645690] 68449868 encrypted QUOTE sent in tx f123dd79f0f19a2f5ea29568a4e1998a58624c86bb4004477208c2271a2e7004
+[maker 1794645690] 68449868 stage Quoted
+[maker 1794645696] 68449868 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 07d9117f
+[maker 1794645696] 68449868 stage Opening
+[maker 1794645703] {"type":"near_tx","swap":"68449868b73d2e724da9a0a326d64d7f","what":"open","hash":"HDw2nobbda47qPKstsJLqPrncbnAsPDNRC9YF8qW5xir"}
+[maker 1794645703] 68449868 escrow OPEN id 07d9117f2cd4e586f93ed2d3d2ebadcdb0e2ecd65ac2b4e2e6e06e327ccb536e amount 30000000000000000000000000 t0=1794647717 t1=1794647777 t2=1794647837 W=45, tx HDw2nobbda47qPKstsJLqPrncbnAsPDNRC9YF8qW5xir
+[maker 1794645703] {"type":"near_tx","swap":"68449868b73d2e724da9a0a326d64d7f","what":"stipend","hash":"D1zyEPJHhMUuzd82m6nqgfUTHTc4fhvKfjR4PE2dNYmZ"}
+[maker 1794645703] 68449868 STIPEND of 60000000000000000000000 yoctoNEAR sent to b169a8f2ecab8c9deb819b32888166385d130515593696b2daa1e5747530218f, tx D1zyEPJHhMUuzd82m6nqgfUTHTc4fhvKfjR4PE2dNYmZ
+[maker 1794645703] 68449868 stage Opened
+
+===== start maker  =====
+[maker 1794645771] up: UA uregtest1k3we5ejgf8c97d72l3mcxpmmfeh0zpgexlvvxyel6p5gdps9jnppnzdfala503utt0az9xux47njt2mzg068gt3mwch9qcf0lgmv625v NEAR maker.test.near key ed25519:42QfdTSXfFrb5Lzsf2mknwYo31oqQGvArN9nPEfHihAa
+[maker 1794645771] NEAR endpoints: http://127.0.0.1:3133
+[maker 1794645773] {"type":"alert","swap":"68449868b73d2e724da9a0a326d64d7f","message":"past t2 1794647837 with the escrow Open: the escrow allows no refund now. Only the taker's key can act (commit_claim); after a lock the maker refunds when the reveal window ends, or sweeps after a claim. The maker reads this escrow every 15s"}
+[maker 1794645773] 68449868 ALERT: past t2 1794647837 with the escrow Open: the escrow allows no refund now. Only the taker's key can act (commit_claim); after a lock the maker refunds when the reveal window ends, or sweeps after a claim. The maker reads this escrow every 15s
+[maker 1794645773] 68449868 L_M violated: back online at 1794647842, too close to t2 1794647837 to refund safely; the taker may now claim (the trade completes if she funded)

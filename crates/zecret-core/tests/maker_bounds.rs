@@ -50,7 +50,10 @@ fn cfg_json() -> Value {
         "timing": {"inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 900, "k_z": 3},
         "near_account": "maker.near", "price_per_zec": "30000000", "min_zats": 100000, "max_zats": 10000000,
         "premium_zats": 1000, "stipend": "30000000000000000000000",
-        "windows": {"t0_secs": 1800, "t1_secs": 600, "t2_secs": 900, "reveal_secs": 600}
+        "windows": {"t0_secs": 1800, "t1_secs": 600, "t2_secs": 900, "reveal_secs": 600},
+        // These tests check the rules tick by tick: read the escrow at every tick (the
+        // request budget is tested in maker.rs).
+        "polling": {"fast_secs": 1, "open_secs": 1, "ready_secs": 1, "settle_secs": 1, "stuck_secs": 1}
     })
 }
 

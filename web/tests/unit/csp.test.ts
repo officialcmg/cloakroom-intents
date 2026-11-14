@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { MAINNET_ANCHORS, parseNetworkConfig } from '../../src/lib/netconfig';
+import { MAINNET_ANCHORS, nearRpcs, parseNetworkConfig } from '../../src/lib/netconfig';
 
 const read = (p: string) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const vercel = JSON.parse(read('vercel.json')) as { headers: { source: string; headers: { key: string; value: string }[] }[] };
@@ -37,12 +37,14 @@ describe('Content-Security-Policy', () => {
     // the mainnet project (docs/MAINNET.md), so the list is the union of both files.
     const anchors = { escrow: 'escrow.zecret.near', escrowCodeHash: 'DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1', token: MAINNET_ANCHORS.token, verifier: MAINNET_ANCHORS.verifier };
     const files = ['testnet', 'mainnet'].map((n) => parseNetworkConfig(JSON.parse(read(`public/config/${n}.json`)), anchors, true));
-    const endpoints = files.flatMap((cfg) => [cfg.zcash.lightwalletd!, cfg.near.rpc, cfg.exit.mode === 'direct' ? cfg.exit.relayUrl : cfg.exit.oneClickUrl]);
+    const endpoints = files.flatMap((cfg) => [cfg.zcash.lightwalletd!, ...nearRpcs(cfg), cfg.exit.mode === 'direct' ? cfg.exit.relayUrl : cfg.exit.oneClickUrl]);
     const https = endpoints.filter((u) => new URL(u).protocol === 'https:').map((u) => new URL(u).origin);
     const hosts = new Set(["'self'", 'https://1click.chaindefuser.com', ...https]);
     expect(new Set(directive('connect-src'))).toEqual(hosts);
     expect(directive('connect-src').filter((h) => h.startsWith('http:'))).toEqual([]);
     expect(https).toContain('https://zcash-mainnet.chainsafe.dev');
     expect(https).toContain('https://rpc.mainnet.fastnear.com');
+    // Incident 2026-11-14: each shipped network names at least two NEAR RPC endpoints.
+    for (const cfg of files) expect(nearRpcs(cfg).length).toBeGreaterThanOrEqual(2);
   });
 });

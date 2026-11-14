@@ -89,8 +89,13 @@ pub const MAX_SOURCES: usize = 1024;
 /// Store prefix of the relay's own records (one per swap: count and sent payloads).
 pub const PREFIX_RELAY: &str = "relay/";
 
+/// The maker's latest `Maker::health` JSON, written by the maker loop after each tick and
+/// served on `GET /health`.
+pub type HealthBoard = Arc<Mutex<Value>>;
+
 pub struct Relay {
-    pub near_rpc: String,
+    /// NEAR endpoints, in order (the maker's `chains.near_rpc`).
+    pub near_rpc: zecret_core::config::RpcUrls,
     pub verifier: String,
     /// The NEP-141 token the maker pays (`chains.token`): the only token whose
     /// `ft_withdraw` is relayed.
@@ -98,6 +103,8 @@ pub struct Relay {
     pub maker_account: String,
     pub key: NearKey,
     pub store_dir: PathBuf,
+    /// When set, `GET /health` answers with the maker's health.
+    pub health: Option<HealthBoard>,
 }
 
 /// A refusal with the HTTP status class: `retry` is answered with 503 (the browser tries
@@ -492,7 +499,7 @@ impl Drop for Slot {
 
 fn worker(relay: &Relay, signer: &Mutex<Signer>, transport: &(dyn Fn() -> Result<SharedTransport> + Send + Sync), rx: &Mutex<Receiver<(TcpStream, Slot)>>) {
     let rpc = match transport() {
-        Ok(t) => NearRpc::new(t, &relay.near_rpc),
+        Ok(t) => NearRpc::with_urls(t, &relay.near_rpc),
         Err(e) => {
             eprintln!("relay: worker without a NEAR transport: {e:#}");
             return;
@@ -516,6 +523,7 @@ fn serve_one(relay: &Relay, rpc: &NearRpc, signer: &Mutex<Signer>, s: &mut TcpSt
     let _ = s.set_write_timeout(Some(REQUEST_DEADLINE));
     let (status, body) = match read_request(s, Instant::now() + REQUEST_DEADLINE) {
         Ok((method, _, _)) if method == "OPTIONS" => (204, Value::Null),
+        Ok((method, path, _)) if method == "GET" && path == "/health" && relay.health.is_some() => health_response(relay.health.as_ref().unwrap()),
         Ok((method, path, body)) if method == "POST" && path == "/execute-intents" => {
             if !slot.relay_allowed() {
                 (503, json!({"ok": false, "error": format!("at most {MAX_RELAYS_PER_SOURCE_PER_MINUTE} relay requests a minute per address; try again later")}))
@@ -532,6 +540,45 @@ fn serve_one(relay: &Relay, rpc: &NearRpc, signer: &Mutex<Signer>, s: &mut TcpSt
         Err(e) => (status_of(&e), json!({"ok": false, "error": format!("{e:#}")})),
     };
     let _ = write_response(s, status, &body);
+}
+
+/// The answer to `GET /health`: the board with the age of its last update. 200 when the
+/// maker loop updated it within [`HEALTH_STALE_SECS`] and has no active alert, else 503,
+/// so a plain HTTP check can watch it.
+pub fn health_response(board: &HealthBoard) -> (u16, Value) {
+    let mut v = lock(board).clone();
+    let now = unix_now();
+    let age = v["now"].as_u64().map(|t| now.saturating_sub(t));
+    let fresh = age.map(|a| a <= HEALTH_STALE_SECS).unwrap_or(false);
+    let ok = fresh && v["ok"].as_bool().unwrap_or(false);
+    if v.is_object() {
+        v["served_at"] = json!(now);
+        v["loop_age_secs"] = json!(age);
+        v["ok"] = json!(ok);
+    }
+    (if ok { 200 } else { 503 }, v)
+}
+
+/// The maker loop runs a tick every few seconds; a board older than this means the loop
+/// is stuck.
+pub const HEALTH_STALE_SECS: u64 = 120;
+
+/// Serves only `GET /health` on `listener`, one request at a time, each within
+/// [`REQUEST_DEADLINE`]. For networks where the relay is off (mainnet): it reads the
+/// maker's health board and nothing else; it holds no key and sends nothing.
+pub fn serve_health(listener: TcpListener, board: HealthBoard) -> Result<()> {
+    for conn in listener.incoming() {
+        let Ok(mut s) = conn else { continue };
+        let _ = s.set_write_timeout(Some(REQUEST_DEADLINE));
+        let (status, body) = match read_request(&s, Instant::now() + REQUEST_DEADLINE) {
+            Ok((method, path, _)) if method == "GET" && path == "/health" => health_response(&board),
+            Ok((method, path, _)) => (404, json!({"ok": false, "error": format!("no route {method} {path}")})),
+            Err(e) => (status_of(&e), json!({"ok": false, "error": format!("{e:#}")})),
+        };
+        let _ = write_response(&mut s, status, &body);
+        let _ = s.shutdown(Shutdown::Both);
+    }
+    Ok(())
 }
 
 /// Reads from the stream with one deadline for the whole request: every read gets only
@@ -619,7 +666,7 @@ fn write_response(s: &mut TcpStream, status: u16, body: &Value) -> Result<()> {
     };
     write!(
         s,
-        "HTTP/1.1 {status} {reason}\r\naccess-control-allow-origin: *\r\naccess-control-allow-methods: POST, OPTIONS\r\naccess-control-allow-headers: content-type\r\naccess-control-max-age: 600\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{text}",
+        "HTTP/1.1 {status} {reason}\r\naccess-control-allow-origin: *\r\naccess-control-allow-methods: GET, POST, OPTIONS\r\naccess-control-allow-headers: content-type\r\naccess-control-max-age: 600\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{text}",
         text.len()
     )?;
     s.flush()?;
@@ -629,6 +676,44 @@ fn write_response(s: &mut TcpStream, status: u16, body: &Value) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn health_is_200_only_when_fresh_and_without_alerts() {
+        let board: HealthBoard = Arc::new(Mutex::new(json!({"now": unix_now(), "ok": true, "alerts": []})));
+        let (st, v) = health_response(&board);
+        assert_eq!(st, 200);
+        assert_eq!(v["ok"], true);
+        assert!(v["loop_age_secs"].as_u64().unwrap() <= 1);
+        *lock(&board) = json!({"now": unix_now(), "ok": false, "alerts": [{"kind": "near_failing"}]});
+        assert_eq!(health_response(&board).0, 503);
+        // A maker loop that stopped updating the board is unhealthy.
+        *lock(&board) = json!({"now": unix_now() - HEALTH_STALE_SECS - 5, "ok": true});
+        let (st, v) = health_response(&board);
+        assert_eq!((st, v["ok"].as_bool()), (503, Some(false)));
+        // Before the first tick.
+        *lock(&board) = json!({"ok": false, "starting": true});
+        assert_eq!(health_response(&board).0, 503);
+    }
+
+    #[test]
+    fn the_health_listener_answers_only_get_health() {
+        let board: HealthBoard = Arc::new(Mutex::new(json!({"now": unix_now(), "ok": true})));
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        std::thread::spawn(move || serve_health(l, board));
+        let ask = |req: &str| {
+            let mut s = TcpStream::connect(addr).unwrap();
+            s.write_all(req.as_bytes()).unwrap();
+            let mut out = String::new();
+            s.read_to_string(&mut out).unwrap();
+            out
+        };
+        let ok = ask("GET /health HTTP/1.1\r\nhost: x\r\n\r\n");
+        assert!(ok.starts_with("HTTP/1.1 200"), "{ok}");
+        assert!(ok.contains("\"ok\":true"));
+        let post = ask("POST /execute-intents HTTP/1.1\r\ncontent-length: 2\r\n\r\n{}");
+        assert!(post.starts_with("HTTP/1.1 404"), "{post}");
+    }
 
     #[test]
     fn reads_the_signer_of_both_standards() {

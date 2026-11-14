@@ -43,6 +43,33 @@ their checks.
   `/swap` load.
 - [ ] Owner: NEAR mainnet payout account, repository public, demo video, post, form.
 
+## Incident 2026-11-14: the maker missed a refund (fix ready, not released)
+
+- 06:43 to 07:18 UTC: `rpc.testnet.fastnear.com` answered the hosted maker with "rate
+  limits exceeded"; all 28 `send_tx` of the refund of swap `c2b9fa50` were refused and t2
+  passed with the escrow Open. 0.2877 tUSDC stay in `escrow3`: the escrow accepts no
+  refund after t2 and the taker key is gone. Note:
+  `docs/incidents/2026-11-14-maker-missed-refund.md`.
+- Fix in the working tree (not committed, not released): NEAR RPC endpoint lists with
+  failover and back-off (maker, taker engines, website), a read plan instead of a read
+  every second (Opened: 4 requests a minute instead of about 120), a critical mode for
+  refunds, rate-limited alerts and warnings, `GET /health`, the start script applies an
+  endpoint change with a swap open. Three testnet endpoints:
+  `rpc.testnet.fastnear.com`, `near-testnet.drpc.org`, `testnet-rpc.intea.rs`.
+- Checks run on the fix (08:00 to 09:15 UTC): `zecret-core` 61 unit and all integration
+  tests, `zecret-node` 18 unit, 9 relay and 1 sandbox test, `zecret-wasm` 3 unit, 3
+  recorded and 3 sandbox tests (`--test-threads 1`), `zecret-deploy` 23; clippy
+  `-D warnings` clean in `crates` (with and without `misbehave`) and `deploy/tool`; start
+  script 24 cases; 25 native scenarios including the new `s26` (rate-limited endpoint in
+  the refund window) and `s27` (request budget; the old build fails it: 118 requests a
+  minute in Opened, 121 past t2, 242 alert lines in 2 minutes); 6 browser scenarios; web
+  typecheck, lint, 123 unit tests, build, 96 Playwright tests;
+  `scripts/mainnet-preflight.sh` 25 passed and the browser check passed when rerun after
+  a fix to it.
+- To release: commit with a new line in `deploy/maker/RELEASE`. Any commit that changes
+  `deploy/maker/railway/start.sh` rebuilds the maker, with or without that line.
+- Not done: the fix is not live; the soak stays paused until it is.
+
 ## Maker deploys (read before pushing changes under `crates/`)
 
 Railway rebuilds the maker only when a file under `deploy/maker/` changes (set

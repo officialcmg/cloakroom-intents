@@ -1,0 +1,19 @@
+
+===== start taker --zats 100000000 --vanish-at Accepted =====
+[taker 1794648446] new swap 6d2fa256 for 100000000 zats; NEAR account 7bbb387c5c3f607b86d5ca055b3d6a490083ab538c2b0cbfe7baac6cbb675606; wallet uregtest1d42yal3rledfm3wnj8x4ez6phctgx607mtzc8873yda6w7nj6hlxvwqu5m53yh5mw2eqhw9gexydvngrv6z47ke6mrdeafft6gg3x6q2
+[taker 1794648446] 6d2fa256 stage WaitingDeposit
+[taker 1794648446] balance 208333333 zats
+[taker 1794648446] {"type":"activity","swap":"6d2fa25645d6eda39c737d09f7f45f61","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794648451] balance 0 zats
+[taker 1794648451] {"type":"zcash_tx","swap":"6d2fa25645d6eda39c737d09f7f45f61","what":"rfq","txid":"20fe4b1e5ed7badd46a62c5e1d50ea6f1b1cb37ecb753e8e3d86109fe969a4b7"}
+[taker 1794648451] 6d2fa256 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 20fe4b1e5ed7badd46a62c5e1d50ea6f1b1cb37ecb753e8e3d86109fe969a4b7
+[taker 1794648451] 6d2fa256 stage RfqSent
+[taker 1794648453] balance 208323333 zats
+[taker 1794648457] 6d2fa256 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
+[taker 1794648457] {"type":"quote","swap":"6d2fa25645d6eda39c737d09f7f45f61","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1u573w56m0zvhtn4l0lp025n96jsa7vep5m86tecjwhgy6j4k3x4qcqg7qh058h5gpeq8paunlpdaytkc6aex308dktydam2hng3krue2"}
+[taker 1794648457] {"type":"activity","swap":"6d2fa25645d6eda39c737d09f7f45f61","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794648460] balance 0 zats
+[taker 1794648460] {"type":"zcash_tx","swap":"6d2fa25645d6eda39c737d09f7f45f61","what":"accept","txid":"2406faa9972f2c958a5c9e254e1b5b84cd6d7e7017591ae912238f91058ecefa"}
+[taker 1794648460] 6d2fa256 encrypted ACCEPT with 50000 zats premium sent in tx 2406faa9972f2c958a5c9e254e1b5b84cd6d7e7017591ae912238f91058ecefa; joint address uregtest1u573w56m0zvhtn4l0lp025n96jsa7vep5m86tecjwhgy6j4k3x4qcqg7qh058h5gpeq8paunlpdaytkc6aex308dktydam2hng3krue2
+[taker 1794648460] 6d2fa256 stage Accepted
+[taker 1794648460] VANISH at stage Accepted (process exits; state is stored)
