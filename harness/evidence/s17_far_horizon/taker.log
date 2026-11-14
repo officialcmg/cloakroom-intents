@@ -1,15 +1,15 @@
 
 ===== start taker --zats 100000000 =====
-[taker 1794563612] new swap 536dc57a for 100000000 zats; NEAR account fac4213f2083eb5f72693472de6523cbf47e79543d43339bb2006dcad1552c05; wallet uregtest1zazx86l32pd5ns69mpxrxx2qzwz975d0z5m3ssf0sr5cqdymu224p9y6a75x7jjs4y0ad434vd5mmgc42crjczp9fhcaastl7cmkez85
-[taker 1794563612] 536dc57a stage WaitingDeposit
-[taker 1794563612] balance 208333333 zats
-[taker 1794563612] {"type":"activity","swap":"536dc57ab79ff12bb7ce553d02371188","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794563618] balance 0 zats
-[taker 1794563618] {"type":"zcash_tx","swap":"536dc57ab79ff12bb7ce553d02371188","what":"rfq","txid":"43e18b904519fe38eec17d290ee3468899c4fb7afad257d0a7ae7070201b976b"}
-[taker 1794563618] 536dc57a encrypted RFQ for 100000000 zats sent to the maker in shielded tx 43e18b904519fe38eec17d290ee3468899c4fb7afad257d0a7ae7070201b976b
-[taker 1794563618] 536dc57a stage RfqSent
-[taker 1794563620] balance 208323333 zats
-[taker 1794563626] 536dc57a ABORT: QUOTE REJECTED: deadline horizon t2 - open = 4294967475s above the taker's limit of 172800s; nothing was funded
-[taker 1794563626] 536dc57a stage Aborted
-[taker 1794563626] 536dc57a DONE Aborted
-[taker 1794563626] finished: Aborted
+[taker 1794618965] new swap 602527b3 for 100000000 zats; NEAR account 328760e8f8887afc263302999040d0f8860d8ba88eb2c05ef427e2ca08114c04; wallet uregtest1yn93f33g0lqk37m7k30ksclg9vpsudnnlqmwfkfjvz4pkf0xa3lvg5ry72t7daxnqarxp6meyv0t7z3a8xzqeac2rdkv03gpwvajt3vs
+[taker 1794618965] 602527b3 stage WaitingDeposit
+[taker 1794618966] balance 208333333 zats
+[taker 1794618966] {"type":"activity","swap":"602527b3e32c992a717d7f9341c1d58e","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794618970] balance 0 zats
+[taker 1794618970] {"type":"zcash_tx","swap":"602527b3e32c992a717d7f9341c1d58e","what":"rfq","txid":"10368b22ac8e2e48edca5c101d77da04f329d8667488cec63625b5f8b4d881b2"}
+[taker 1794618970] 602527b3 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 10368b22ac8e2e48edca5c101d77da04f329d8667488cec63625b5f8b4d881b2
+[taker 1794618970] 602527b3 stage RfqSent
+[taker 1794618972] balance 208323333 zats
+[taker 1794618976] 602527b3 ABORT: QUOTE REJECTED: deadline horizon t2 - open = 4294967475s above the taker's limit of 172800s; nothing was funded
+[taker 1794618976] 602527b3 stage Aborted
+[taker 1794618976] 602527b3 DONE Aborted
+[taker 1794618976] finished: Aborted

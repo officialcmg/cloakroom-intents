@@ -469,6 +469,27 @@ This also shows the gap that the website now closes: a swap that reaches "done" 
 leftover ZEC is still unsent keeps its keys, and "Start a new swap" waits until the
 leftover transaction is mined (or the user confirms leaving it behind).
 
+### Maker outage and the swaps after the fix (2026-11-13 and 2026-11-14)
+
+From about 14:30 to 16:35 UTC on 2026-11-13 the hosted maker sent no quotes: the node
+refused every transaction it built ("unknown Ironwood anchor"). Two swaps through the
+site refunded after the 10-minute quote wait. Cause, fix and transactions:
+[`docs/incidents/2026-11-13-maker-unknown-anchor.md`](incidents/2026-11-13-maker-unknown-anchor.md).
+The fix was deployed at 16:35 UTC (commit `cdaf614`).
+
+Two swaps through the site completed after the fix, each 0.01 TAZ for 0.2877 test USDC:
+
+- 16:41 to 16:49 UTC on 2026-11-13, the swap recorded for the demo video. Facts:
+  `testnet/hosted/demo/demo-facts.json`.
+- 00:57 to 01:04 UTC on 2026-11-14, a health check 8.5 hours after the deployment.
+  Result file: `testnet/hosted/result-0.01-after-sync-fix.json`. Zcash: request
+  `2f4641227d0052814f903d48d62a89cdff8eb45415b9e56cc5b16840901e0b7d`, acceptance `40167313b64098d11a9c90d6cb65531756da4f9b36ae875fc3f8a3d1e7fd58d0`, funding `4fc20d8485b69947aa4d2f6a961a9f88b9b2a1e88c73ded231ae040c7c8bcf21`.
+  NEAR: `commit_claim` `HkjduriUhApmqiDdJPpeYhssMfzPbLYGtQDQaWpb77Z9`, `claim` `HiBWv49ZgJoMGnEN6KwTtFk7QagPbijhgLBdEVT4cZc4`, exit
+  `5gXPiER9ex5cqZGPikwZESbybu1QkPoBFzfforE1Dxfi`.
+
+The transactions of these two runs come from the page's result files. They were not
+audited separately.
+
 ## A fresh testnet payer
 
 These commands make a new command-line wallet, fund it from the faucet and pay an address.

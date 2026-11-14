@@ -9,9 +9,9 @@ Stack backtrace:
    2: <zecret_core::taker::Taker>::start
              at ./crates/zecret-core/src/taker.rs:303:14
    3: zecret::run_taker
-             at ./crates/zecret-node/src/main.rs:213:24
+             at ./crates/zecret-node/src/main.rs:234:24
    4: zecret::main
-             at ./crates/zecret-node/src/main.rs:151:20
+             at ./crates/zecret-node/src/main.rs:172:20
    5: <fn() -> core::result::Result<(), anyhow::Error> as core::ops::function::FnOnce<()>>::call_once
              at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
    6: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>
@@ -44,17 +44,17 @@ Stack backtrace:
   20: _start
 
 ===== start taker --zats 100000000 =====
-[taker 1794564505] new swap 9faed7bd for 100000000 zats; NEAR account 9e57c3fddaf3a322870b7f26e6ebb0a18b4d1b37c10d8c90c2eb3bee1e77a83f; wallet uregtest15qm4aqf0yhkhjev2cujyfh5u6hx7k800wf6j5kmd3twzh2he248wa5zvye5tjdfz3zea6qcm3ry3m6dek0sxkvmg3h3nsundps0awwwx
-[taker 1794564505] 9faed7bd stage WaitingDeposit
-[taker 1794564505] balance 208333333 zats
-[taker 1794564505] {"type":"activity","swap":"9faed7bdf179152b54e0e54d916f03c0","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794564511] balance 0 zats
-[taker 1794564511] {"type":"zcash_tx","swap":"9faed7bdf179152b54e0e54d916f03c0","what":"rfq","txid":"a104a4e613f427fd620947a9791fa28fbf362f4e0e71b7f2e3033e7a54a4d7e5"}
-[taker 1794564511] 9faed7bd encrypted RFQ for 100000000 zats sent to the maker in shielded tx a104a4e613f427fd620947a9791fa28fbf362f4e0e71b7f2e3033e7a54a4d7e5
-[taker 1794564511] 9faed7bd stage RfqSent
-[taker 1794564512] balance 208323333 zats
-[taker 1794564518] {"type":"refused","swap":"9faed7bdf179152b54e0e54d916f03c0","code":"over_limit","min_zats":1000,"max_zats":50000000}
-[taker 1794564518] 9faed7bd ABORT: MAKER REFUSED (over_limit): the amount 100000000 zats is above the maker's limit of 50000000 zats; nothing was funded
-[taker 1794564518] 9faed7bd stage Aborted
-[taker 1794564518] 9faed7bd DONE Aborted
-[taker 1794564518] finished: Aborted
+[taker 1794619189] new swap 5e775504 for 100000000 zats; NEAR account d2a9fd77ff9a4fb05cf16db34b192ade3aa14061f086490725ce4390d7398146; wallet uregtest1hyw205es0x8nw3qlfaukn59hayhxqvyflfm40y3edfxm792377ex486e6ppj2npa89ea53m0hnh3zx7wdus42kpxdpxgudrsrqlmqnu9
+[taker 1794619189] 5e775504 stage WaitingDeposit
+[taker 1794619190] balance 208333333 zats
+[taker 1794619190] {"type":"activity","swap":"5e7755047273bc1052e4e0d7d06f6125","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794619194] balance 0 zats
+[taker 1794619194] {"type":"zcash_tx","swap":"5e7755047273bc1052e4e0d7d06f6125","what":"rfq","txid":"8748d10a4e14a5a7c6fdae8a90250fd0874be9fe39fd74f2954ba787efeec8bf"}
+[taker 1794619194] 5e775504 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 8748d10a4e14a5a7c6fdae8a90250fd0874be9fe39fd74f2954ba787efeec8bf
+[taker 1794619194] 5e775504 stage RfqSent
+[taker 1794619196] balance 208323333 zats
+[taker 1794619200] {"type":"refused","swap":"5e7755047273bc1052e4e0d7d06f6125","code":"over_limit","min_zats":1000,"max_zats":50000000}
+[taker 1794619200] 5e775504 ABORT: MAKER REFUSED (over_limit): the amount 100000000 zats is above the maker's limit of 50000000 zats; nothing was funded
+[taker 1794619200] 5e775504 stage Aborted
+[taker 1794619200] 5e775504 DONE Aborted
+[taker 1794619200] finished: Aborted

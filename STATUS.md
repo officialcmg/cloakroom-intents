@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-13 14:30 UTC. Deadline: 2026-11-14 23:59 UTC.
+Updated: 2026-11-14 01:30 UTC. Deadline: 2026-11-14 23:59 UTC.
 
 Any session can resume from this file. Read `docs/BUILD_PLAN.md` for the packages and
 their checks.
@@ -41,6 +41,22 @@ Railway rebuilds the maker only when a file under `deploy/maker/` changes (set
 maker). To release maker code: change `deploy/maker/RELEASE` (one line, the date and
 what is released) in the same commit. Vercel still skips commits whose message starts
 with "WIP".
+
+## Latest (2026-11-14 01:30 UTC)
+
+- Maker outage on 2026-11-13, 14:30 to 16:35 UTC: the maker's wallet no longer matched
+  the chain and every quote was refused. Fixed in commit `cdaf614` (the wallet follows
+  chain reorganisations and repairs its tree). Note:
+  `docs/incidents/2026-11-13-maker-unknown-anchor.md`. Scenario s24 covers it.
+- After the fix: two more swaps through the site completed (16:41 UTC, the demo video;
+  00:57 UTC on 2026-11-14, a health check). Six swaps on public test networks in total.
+- All 22 native scenarios pass on the final code (rerun by the main session, 01:24 UTC).
+- Demo video: `testnet/hosted/demo/zecret-demo.mp4` on the build machine (not in git; the
+  owner has a copy). Re-cut: `testnet/hosted/demo/edit_demo.py`.
+- A scheduled task "Zecret maker health swap" runs one 0.01 TAZ swap through the site
+  every 3 hours until the deadline and reports a failure to the owner.
+- The 5 browser scenarios were last run in full before the wallet fix; scenario a was
+  rerun after it.
 
 ## Hand-over: where the build is (2026-11-13 14:30 UTC)
 

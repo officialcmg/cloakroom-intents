@@ -11,7 +11,7 @@ a token on another chain.
 
 **What runs today:** the website and one maker on Zcash testnet and NEAR testnet, at
 <https://zecret.chrismg.dev>. There a swap pays shielded testnet ZEC for test USDC,
-delivered to a NEAR testnet account. Four swaps completed this way (see
+delivered to a NEAR testnet account. Six swaps completed on these networks, five of them through the website (see
 [Try it](#try-it)). **Built, not run with funds:** the delivery to other chains through
 NEAR Intents' 1Click API. It is tested against the live `intents.near` code in a sandbox
 and against recorded 1Click answers. Mainnet is planned and not deployed.
@@ -68,9 +68,9 @@ This is the only status table in this file. It follows `STATUS.md` as of 2026-11
 | Part | Status | Evidence |
 |---|---|---|
 | Escrow contract on NEAR (Rust) | **Done.** 57 unit tests, 6 sandbox tests with the live `intents.near` and `wrap.near` code, 8 sandbox tests with the USDC code from mainnet. Deployed on NEAR testnet with no access keys. | [`contracts/near-escrow/README.md`](contracts/near-escrow/README.md), [`docs/DEPLOY.md`](docs/DEPLOY.md) |
-| Maker and taker as native programs | **Works on local chains.** 21 two-party scenarios pass on Zebra regtest and a NEAR sandbox: the happy path, the maker's refund, the punish path, and malicious-maker and malicious-taker cases. | [`harness/RESULTS.md`](harness/RESULTS.md) |
+| Maker and taker as native programs | **Works on local chains.** 22 two-party scenarios pass on Zebra regtest and a NEAR sandbox: the happy path, the maker's refund, the punish path, a Zcash chain reorganisation under a running maker, and malicious-maker and malicious-taker cases. All 22 were rerun on the final code on 2026-11-14. | [`harness/RESULTS.md`](harness/RESULTS.md) |
 | Taker engine in the browser | **Works on local chains and on testnet.** The Rust taker runs as WebAssembly in a Web Worker behind the website. Five browser scenarios pass in headless Chromium on Zebra regtest and a NEAR sandbox: a full swap with exit, a refund after the maker goes quiet, two reloads during a swap, a restore from the recovery file in a fresh browser, and a quote below the minimum. | [`harness/BROWSER_RESULTS.md`](harness/BROWSER_RESULTS.md) |
-| Swaps on public test networks | **Four completed.** (1) The native maker and taker: 0.1 TAZ for 3 test USDC, 222 s to the taker's end. Through the hosted website and the hosted maker: (2) 0.05 TAZ for 1.4877 test USDC, 493 s from the payment to done; (3) 0.01 TAZ for 0.2877 test USDC, 392 s; (4) 0.05 TAZ for 1.4877 test USDC, 314 s, paid by the Fauzec faucet with no wallet. A restore of (4) in a fresh browser sent the 0.9499 TAZ surplus back to the return address. One more hosted run stopped before funding (quote below the minimum) and returned the deposit. Escrow refund and punish paths ran only on local chains. | [`docs/TESTNET.md`](docs/TESTNET.md), [`testnet/EVIDENCE.json`](testnet/EVIDENCE.json), [`testnet/hosted/`](testnet/hosted/) |
+| Swaps on public test networks | **Six completed.** (1) The native maker and taker: 0.1 TAZ for 3 test USDC, 222 s to the taker's end. Through the hosted website and the hosted maker: (2) 0.05 TAZ for 1.4877 test USDC, 493 s from the payment to done; (3) 0.01 TAZ for 0.2877 test USDC, 392 s; (4) 0.05 TAZ for 1.4877 test USDC, 314 s, paid by the Fauzec faucet with no wallet. (5) 0.01 TAZ for 0.2877 test USDC, 453 s, the swap in the demo video; (6) the same amount, about 6 minutes, 8.5 hours after the wallet fix below. A restore of (4) in a fresh browser sent the 0.9499 TAZ surplus back to the return address. One more hosted run stopped before funding (quote below the minimum) and returned the deposit. On 2026-11-13 from 14:30 to 16:35 UTC the hosted maker did not answer: its wallet no longer matched the chain. Two swaps in that time refunded after the 10-minute wait, with no loss. The fix and the cause are in [`docs/incidents/2026-11-13-maker-unknown-anchor.md`](docs/incidents/2026-11-13-maker-unknown-anchor.md). Escrow refund and punish paths ran only on local chains. | [`docs/TESTNET.md`](docs/TESTNET.md), [`testnet/EVIDENCE.json`](testnet/EVIDENCE.json), [`testnet/hosted/`](testnet/hosted/) |
 | Website | **Hosted on testnet.** Landing page, the swap app with the real engine, and a simulated demo. 110 unit tests and 92 Playwright tests (desktop and phone). Chromium only; Firefox and WebKit projects exist but were not run. | [`docs/WEB.md`](docs/WEB.md), [`docs/HOSTING.md`](docs/HOSTING.md) |
 | Maker with its relay | **Hosted on testnet** (Railway), with its own wallet and NEAR key made on its volume. | [`docs/HOSTING.md`](docs/HOSTING.md) |
 | Exit through NEAR Intents on mainnet | **Not verified.** The library is tested against the live `intents.near` code in a sandbox, and against recorded answers of the live 1Click API. Quote, generate and submit answered without an API key. No exit with real funds was run. On testnet the exit is a direct withdrawal from a stand-in Verifier, because NEAR Intents has no testnet. | [`docs/INTENTS.md`](docs/INTENTS.md) |
@@ -189,7 +189,7 @@ maker reached `Swept`, the escrow is `Claimed` at a final block, the taker's NEA
 is the hex of its key and the stipend created it, and the taker sent `commit_claim` and
 `claim` itself. The scenario took 79 s on the build machine; the first run also compiles.
 
-Run all 21 scenarios:
+Run all 22 scenarios:
 
 ```sh
 python3 -I harness/run.py
@@ -197,7 +197,7 @@ python3 -I harness/run.py
 
 The last line is `SUMMARY:` with `PASS` for each scenario. The runner writes
 `harness/RESULTS.md` (what each scenario tests) and overwrites `harness/evidence/`. The
-last full run (2026-11-13 10:10 UTC) passed all 21. It builds the escrow and `zecret`
+last full run (2026-11-14 01:24 UTC) passed all 22. It builds the escrow and `zecret`
 with the test-only `misbehave` feature, and uses ports 18232, 3030 and 24667; the browser
 runner uses 24667 too, so do not run both at once.
 
@@ -506,7 +506,7 @@ signing internals, the TLA+ model against the code, and the Railway start script
 ## Limits and what is not built
 
 - No mainnet deployment and no exit with real funds through 1Click is recorded here.
-- The four completed swaps on public test networks ran the normal path. Escrow refund and
+- The six completed swaps on public test networks ran the normal path. Escrow refund and
   punish paths ran only on local chains.
 - No wallet app was tested as the payer. The testnet payments came from the project's
   command-line wallet and from the Fauzec faucet.
@@ -543,7 +543,7 @@ disclosure.
 | Browser | None (Cloakroom's UI drove a local client) | A taker engine in a Web Worker; a new website with a landing page |
 | Exit to other chains | None | `zecret-intents`: 1Click quote, check before signing, signed exit |
 | Deployment | Base | `zecret-deploy`; a NEAR testnet deployment; the website on Vercel and the maker on Railway, on testnet |
-| Tests | Scenarios on Zebra regtest and anvil | 21 scenarios on Zebra regtest and a NEAR sandbox; sandbox tests with live `intents.near`, `wrap.near` and USDC code; 5 browser scenarios; website unit and browser tests; four swaps on public test networks |
+| Tests | Scenarios on Zebra regtest and anvil | 22 scenarios on Zebra regtest and a NEAR sandbox; sandbox tests with live `intents.near`, `wrap.near` and USDC code; 5 browser scenarios; website unit and browser tests; six swaps on public test networks |
 | Security | Cloakroom audit notes for the Solidity escrow | Three reviews of the new code, with fixes |
 
 ### Libraries, templates and tools

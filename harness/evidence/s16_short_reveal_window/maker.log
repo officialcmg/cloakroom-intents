@@ -1,8 +1,8 @@
 
 ===== start maker  =====
-[maker 1794563583] up: UA uregtest1hn02aa7hnrtaqc3mmaahfrjrdfv72ryw5ja40nwrld0gvjxxzgrc8m3jpdzh0yderzjnmneh5tkmyqeuvdqclvtjq3mh29ga2cw2uk8n NEAR maker.test.near key ed25519:BTATzwFEvYPPfbMyBTV8uBNFhZ4xHyiSUvsDGVC6FxrF
-[maker 1794563594] 725048db RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE ShortReveal]
-[maker 1794563594] 725048db stage Quoting
-[maker 1794563594] {"type":"zcash_tx","swap":"725048db6780fcd4e06f5c14b386e478","what":"quote","txid":"6d67d5d2936fc2babde6386c7b515ab98000a0476ca2d5d1b6d0a588d5d4f037"}
-[maker 1794563594] 725048db encrypted QUOTE sent in tx 6d67d5d2936fc2babde6386c7b515ab98000a0476ca2d5d1b6d0a588d5d4f037
-[maker 1794563594] 725048db stage Quoted
+[maker 1794618940] up: UA uregtest1rpepvrjyvwl7f7hrzz4zxsf0aj8dl7l92vspry9akwl00xuxzhvrzlglg98yqpf37cx6f2z3q9ht2cxynqcsusq2etwuwhh27ytazlz4 NEAR maker.test.near key ed25519:2kH1exvGCx1x3hLksuftZXoxyLsz5B2sdcV65wA3FUFh
+[maker 1794618951] 470e0815 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE ShortReveal]
+[maker 1794618951] 470e0815 stage Quoting
+[maker 1794618951] {"type":"zcash_tx","swap":"470e0815107446544bf2249be3d71e87","what":"quote","txid":"c8d3686371608a925f0595e386e7fe553aca265481114046914ce87cd5f2f8c2"}
+[maker 1794618951] 470e0815 encrypted QUOTE sent in tx c8d3686371608a925f0595e386e7fe553aca265481114046914ce87cd5f2f8c2
+[maker 1794618951] 470e0815 stage Quoted
