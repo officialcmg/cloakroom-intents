@@ -14,7 +14,7 @@ source .tools/env.sh 2>/dev/null || true
 export PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers ZECRET_BIN=${ZECRET_BIN:-$PWD/.tools/soak/zecret}
 for i in $(seq 0 $((SLOTS - 1))); do
   n=$(printf '%02d' $((i + 1))); t=$((START + i * 900))
-  grep -q "\"slot\":\"$n\"" "$LOG" && continue
+  grep -Eq "\"slot\": ?\"$n\"" "$LOG" && continue
   now=$(date -u +%s)
   if [ "$now" -ge $((t + 900)) ]; then echo "{\"slot\":\"$n\",\"at\":\"$(date -u -d @$t +%FT%TZ)\",\"result\":\"missed\"}" >> "$LOG"; continue; fi
   [ "$now" -lt "$t" ] && sleep $((t - now))

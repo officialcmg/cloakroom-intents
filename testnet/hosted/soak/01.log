@@ -15,3 +15,6 @@
 [hosted 03:05:39 +338s] stage claiming
 [hosted 03:05:47 +346s] stage claimed
 [hosted 03:05:53 +352s] stage exiting
+[hosted 03:06:02 +361s] stage done
+[hosted 03:06:02 +361s] PASS  the page reached done done ""
+[hosted 03:06:02 +361s] PASS  no Content-Security-Policy violation 
