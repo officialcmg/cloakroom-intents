@@ -198,7 +198,7 @@ python3 -I harness/run.py
 
 The last line is `SUMMARY:` with `PASS` for each scenario. The runner writes
 `harness/RESULTS.md` (what each scenario tests) and overwrites `harness/evidence/`. The
-last full run (2026-11-14 04:04 UTC, branch `escrow-light-payout`) passed all 23. It builds the escrow and `zecret`
+last full run (2026-11-14 05:02 to 05:41 UTC, branch `escrow-light-payout` after the merge of `main`) passed all 23 (seven of them in a second run, after a parallel build without the `misbehave` feature had replaced the binary during the first). It builds the escrow and `zecret`
 with the test-only `misbehave` feature, and uses ports 18232, 3030 and 24667; the browser
 runner uses 24667 too, so do not run both at once.
 

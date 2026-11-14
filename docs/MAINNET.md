@@ -26,7 +26,7 @@ first swap.
 | G5 | **Wallet apps as payers on mainnet.** The deposit address has one Orchard-protocol receiver, and since NU6.3 a wallet pays it only into the Ironwood pool. Zodl, Zingo, Zkool, Cake and Edge support Ironwood per their release notes (`docs/WEB.md`; not re-checked for this file). None was tested against this site. | Pay the first swap from the wallet you plan to recommend. If it cannot pay the address, use the command-line payer (step 8, "If the wallet app refuses"). |
 | G6 | **Mainnet gas price against the stipend.** The taker's key sends `commit_claim` (15 Tgas), `claim` (25 Tgas) and `withdraw(id)` (25 Tgas) from the stipend alone. NEAR checks before each call that the signer holds the attached gas at `max(gas price, min_gas_purchase_price)` (nearcore 2.14.1, `calculate_tx_cost`; `docs/experiments/light-payout.md`). Read from mainnet RPC: gas price 10^8, `min_gas_purchase_price` 10^9 (protocol 88). The largest balance checked is 0.0278 NEAR, before `withdraw`. The maker's stipend is 0.06 NEAR: 2.16 times that. It covers the three calls up to a gas price of 1.32 × 10^9 (13 times today). Measured in the 2.14.1 sandbox with the mainnet code of `intents.near` and USDC, and on testnet (`docs/TESTNET.md`, "Light payout on testnet"); not with a mainnet transaction. | The dry run reads `min_gas_purchase_price` and the gas price and prints the check (step 3). It fails when the margin falls below 2, at about 2.1 times today's gas price: pause the maker then. If a taker still cannot claim, the maker refunds at its deadline and the taker takes the ZEC back (less fees and premium). |
 | G7 | **The maker's fixed price.** `price_per_zec` is one number in `config.json`. The code has no price feed. A price above the market loses USDC on every swap. See section 3, "Price". | Use the price rule. Run the dry run with `--maker-config` every few hours: it fails when the price is less than 2 % below the market. Keep the float small. |
-| G8 | **The hosted maker on mainnet.** The mainnet mode of `deploy/maker/railway/start.sh` is tested with a stand-in binary (18 cases, `deploy/maker/railway/test-start.sh`). The image with this code was not rebuilt or run on Railway. | Watch the first start's log lines (step 6.4). |
+| G8 | **The hosted maker on mainnet.** The mainnet mode of `deploy/maker/railway/start.sh` is tested with a stand-in binary (19 cases, `deploy/maker/railway/test-start.sh`; one checks that a stipend below 0.06 NEAR is refused). The image with this code was not rebuilt or run on Railway. | Watch the first start's log lines (step 6.4). |
 | G9 | **The website on mainnet.** The switched build passed its Playwright tests with all outside requests blocked and a stand-in escrow; it never ran a swap. The engine's maker check ran on mainnet only as far as a refused stand-in entry. | The first swap (step 8). |
 | G10 | **The deployment tool on mainnet.** `zecret-deploy plan` ran read-only on mainnet. `deploy` never ran on mainnet; it ran on testnet and in the sandbox. | Step 4 runs it once; each step reads the chain first and can run again. |
 | G11 | **One trusted NEAR RPC endpoint** (`rpc.mainnet.fastnear.com`) for the taker and the maker. A false endpoint that works with the maker can take the taker's ZEC (`docs/DESIGN.md` section 10). | Small swaps. For your own first swap the risk is yours. |
@@ -593,6 +593,9 @@ the project. The testnet site is not affected.
 ## 10. Checks run for this runbook (2026-11-14)
 
 - `zecret-deploy plan` on mainnet, read-only (output in section 11).
+- `scripts/mainnet-preflight.sh` again after the light-payout update (05:20 UTC, branch
+  `escrow-light-payout`, `ESCROW_HASH=AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536`,
+  `SKIP_ENGINE_BUILD=1` after an engine build from the same checkout): 24 passed, 0 failed.
 - `scripts/mainnet-preflight.sh` (full run, 03:34 UTC) with the stand-in owner, today's
   escrow wasm and hash, and the example maker config: 24 passed, 0 failed (with
   `SKIP_ENGINE_BUILD=1`: the engine had been built from this branch just before).
@@ -613,7 +616,7 @@ the project. The testnet site is not affected.
   only"; this branch fixes it.
 - Website: unit tests (120), Playwright on the default build (the mainnet refusal, the
   landing page, the tabs; 18 tests) and on the switched build (6 tests).
-- Start script: 18 cases with a stand-in binary.
+- Start script: 18 cases with a stand-in binary (19 since the light-payout update, 05:40 UTC: all pass).
 
 Not checked: anything in the gap list; the Vercel and Railway setups (not created);
 Firefox and Safari; the explorer links from a browser.

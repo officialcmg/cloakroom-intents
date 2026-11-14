@@ -10,7 +10,8 @@
 #   - the settings come from ZECRET_MAKER_CONFIG (base64 of config.json; it holds no
 #     secret) or from the volume, never from the image;
 #   - the settings must say chains.network "main", hold no template placeholder, set
-#     price_per_zec, premium_check and chains.birthday, and use https endpoints;
+#     price_per_zec, premium_check and chains.birthday, a stipend of at least 0.06 NEAR,
+#     and use https endpoints;
 #   - the maker runs without the relay (the exit runs through 1Click);
 #   - key material comes only from the service's variables or the volume, as on testnet.
 #
@@ -163,6 +164,10 @@ if [ "$NETWORK" = main ]; then
   if grep -Eq 'OWNER|REPLACE' "$D/config.json"; then die "mainnet: config.json still holds a template placeholder (OWNER or REPLACE)"; fi
   jq -e '(.price_per_zec | tostring | tonumber) > 0' "$D/config.json" >/dev/null || die "mainnet: price_per_zec is 0 or missing: set the maker's price (docs/MAINNET.md, the price rule)"
   jq -e '.premium_check.yocto_near_per_zec != null' "$D/config.json" >/dev/null || die "mainnet: premium_check is required"
+  # The taker's key sends commit_claim, claim and withdraw(id) from the stipend; below
+  # 0.06 NEAR the margin over NEAR's balance check is less than 2
+  # (docs/experiments/light-payout.md).
+  jq -e '(.stipend | tostring | tonumber) >= 60000000000000000000000' "$D/config.json" >/dev/null || die "mainnet: stipend below 0.06 NEAR: the taker's key could not pay for its claim and payout with a margin of 2"
   jq -e '(.chains.birthday // 0) > 0' "$D/config.json" >/dev/null || die "mainnet: set chains.birthday to a Zcash height before the maker's wallet was made"
   jq -e '(.misbehave // null) == null' "$D/config.json" >/dev/null || die "mainnet: misbehave is a test setting"
   jq -e '(.chains.near_rpc | startswith("https://")) and (.chains.lightwalletd | startswith("https://"))' "$D/config.json" >/dev/null || die "mainnet: near_rpc and lightwalletd must be https URLs"
