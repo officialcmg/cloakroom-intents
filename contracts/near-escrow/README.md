@@ -346,6 +346,9 @@ cargo test --lib
 # Sandbox tests (live wrap.near and intents.near code from $ZECRET_WASM_DIR)
 LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test sandbox -- --nocapture --test-threads 1
 
+# Review 5's sandbox tests (gas sweeps, the backing check during a payout, operator powers)
+LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test review5 -- --nocapture --test-threads 1
+
 # Sandbox tests with the USDC code from mainnet. Download it once (not in git):
 ./fetch-usdc-wasm.sh        # -> $ZECRET_WASM_DIR/usdc.near.wasm, checks the code hash
 LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test usdc -- --nocapture --test-threads 1
@@ -424,3 +427,10 @@ funds" and is refunded at the end to show it is intact:
 - payouts of two swaps and a duplicate `withdraw` race with a Verifier pause sent 0 to 3
   blocks later: every swap is paid exactly once, and the escrow ends holding exactly what
   it owes.
+
+Review 5 tests (`tests/review5.rs`, written by the reviewer of
+[`docs/security/review-5.md`](../../docs/security/review-5.md)): `claim` and `refund` swept
+from the smallest working gas to 44 Tgas (and every 0.001 Tgas at the payout threshold of
+about 33.13 Tgas) with no failing band; `on_payout`'s gas margin with the longest ids; the
+backing check during a payout in flight (it fails closed only until `on_payout`); a
+Verifier operator moving the escrow's tokens (the payout stays Due).

@@ -4,7 +4,7 @@
 // Zebra regtest and a NEAR sandbox (real escrow, live wrap.near and intents.near code).
 //
 //   source .tools/env.sh
-//   node harness/browser/run.mjs              # scenarios a b c d e
+//   node harness/browser/run.mjs              # scenarios a b c d e f
 //   node harness/browser/run.mjs a e          # selected scenarios
 //   node harness/browser/run.mjs --serve      # chains, maker and site only, for a person
 //
@@ -678,7 +678,45 @@ async function scenarioE() {
   return c.save();
 }
 
-const SCENARIOS = { a: scenarioA, b: scenarioB, c: scenarioC, d: scenarioD, e: scenarioE };
+
+async function scenarioF() {
+  const scen = 'f_maker_vanishes_after_claim';
+  const c = new Checks(scen, 'The maker process is killed the moment the browser shows the claim final. The browser engine sends withdraw(id) from the taker key with what the stipend left, and the USDC ends under the taker key in the Verifier with no other party. The local exit goes through the maker\'s relay, so with the maker gone the swap stops at the exit; the scenario ends there');
+  const maker = new Maker(scen);
+  maker.start();
+  const url = writeRun(scen, maker, '30');
+  const user = new Wallet(path.join(WORK, scen, 'user'));
+  await coinbase(user.ua);
+  await coinbase(maker.ua);
+  const recv = receiver('alicef');
+  await settle();
+  if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
+  const { page, ctx } = await newPage(scen, 'main');
+  const { deposit } = await startSwap(page, url, { nearAccount: recv, returnAddress: user.ua, scen });
+  const payTx = user.pay(deposit.address, PAY_ZATS);
+  log(`user paid ${PAY_ZATS} zats in ${payTx}`);
+  const claimed = await waitState(page, (s) => s.history.some((h) => h.stage === 'claimed'), 20 * 60_000, 'claimed');
+  await maker.stop();
+  const makerLogAtKill = maker.logText();
+  const acct = claimed.escrow.takerAccount;
+  log(`maker killed when the page showed claimed; taker account ${acct}`);
+  const st = await waitState(page, (s) => s.stage === 'exiting' || s.stage === 'done' || s.stage === 'exit_retry', 10 * 60_000, 'the payout (paid_out, then the exit)');
+  await page.screenshot({ path: path.join(EVID, scen, 'after-payout.png'), fullPage: true });
+  const e = await escrowSwap(st.escrow.swapId);
+  c.facts.taker_account = acct;
+  c.facts.stage = st.stage;
+  c.ok('the maker sent no withdraw before it was killed', !makerLogAtKill.includes('withdraw(id) for the taker'));
+  c.ok('the page reached paid_out with the maker gone', st.history.some((h) => h.stage === 'paid_out'), st.history.map((h) => h.stage).join(','));
+  c.ok('escrow payout Paid to the taker key', e?.payout === 'paid' && e?.recipient === acct, `${e?.payout} ${e?.recipient}`);
+  c.ok('the taker key holds exactly the price in the Verifier', (await intentsBal(acct)) === PRICE, `${await intentsBal(acct)} vs ${PRICE}`);
+  c.ok('the browser sent commit_claim, claim and withdraw itself', ['commit', 'claim', 'withdraw'].every((id) => st.txs.some((t) => t.id === id)), st.txs.map((t) => t.id).join(','));
+  c.ok('the exit did not complete without the relay (expected on local networks)', st.stage !== 'done', st.stage);
+  await privacyAudit(c, [payTx, ...zcashTxids(st, maker)]);
+  await ctx.close();
+  return c.save();
+}
+
+const SCENARIOS = { a: scenarioA, b: scenarioB, c: scenarioC, d: scenarioD, e: scenarioE, f: scenarioF };
 
 // ---------------------------------------------------------------- main
 
@@ -792,7 +830,7 @@ async function main() {
 }
 
 let lastScen;
-const SCEN_NAMES = { a: 'a_full_swap', b: 'b_maker_quiet_refund', c: 'c_reload_twice', d: 'd_restore_fresh_profile', e: 'e_quote_below_minimum' };
+const SCEN_NAMES = { a: 'a_full_swap', b: 'b_maker_quiet_refund', c: 'c_reload_twice', d: 'd_restore_fresh_profile', e: 'e_quote_below_minimum', f: 'f_maker_vanishes_after_claim' };
 async function runScenario(k, fn) {
   lastScen = SCEN_NAMES[k];
   fs.rmSync(path.join(EVID, lastScen), { recursive: true, force: true });

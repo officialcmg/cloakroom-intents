@@ -1,0 +1,132 @@
+{
+  "network": "testnet",
+  "rpc_url": "https://rpc.testnet.fastnear.com",
+  "updated_at": "2026-11-14T04:05:32Z",
+  "owner": "zecret-3f109eea1e.testnet",
+  "escrow": {
+    "account_id": "escrow3.zecret-3f109eea1e.testnet",
+    "code_hash": "AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536",
+    "wasm_bytes": 471730,
+    "intents_account": "intents.zecret-3f109eea1e.testnet",
+    "access_keys": 0
+  },
+  "token": {
+    "account_id": "usdc.zecret-3f109eea1e.testnet",
+    "code_hash": "5znPiqS6ocnsGYgeByDsED99dmFS9kv2b7S8dEaL7bRE",
+    "wasm_bytes": 0,
+    "deployed_by_this_tool": false,
+    "note": "existing token"
+  },
+  "intents": {
+    "account_id": "intents.zecret-3f109eea1e.testnet",
+    "code_hash": "BtA1BEFNS619KkvXFsgcpQ21Tb5yMm32aaUkn7xNothk",
+    "wasm_bytes": 0,
+    "deployed_by_this_tool": false,
+    "note": "existing Verifier"
+  },
+  "maker": {
+    "account_id": "maker3.zecret-3f109eea1e.testnet",
+    "public_key": "ed25519:FFKBmVcizSdkrJxYJJ2Bty9zjm3n5LguEUy1o5jTEjmx",
+    "token_balance": "100000000",
+    "storage_funds_yocto": "198730000000000000000000",
+    "verifier_balance": "100000000"
+  },
+  "transactions": [
+    {
+      "step": "faucet zecret-fund-21e858efced4.testnet -> owner (delete account)",
+      "hash": "4tr7coeoKgZcfMSF1YQUFzoUwnpXAP99BxX3nAEruvsX",
+      "signer": "zecret-fund-21e858efced4.testnet",
+      "receiver": "zecret-fund-21e858efced4.testnet",
+      "block_height": 277605661,
+      "block_hash": "Ctj15GQFxnwt5u17wUaqD2NyShG4SYA1J1aHyVECu4oa",
+      "gas_burnt_tgas": 0.96,
+      "included_ms": 1549,
+      "included_final_ms": 2999,
+      "final_ms": 3720
+    },
+    {
+      "step": "create escrow account (one temporary key)",
+      "hash": "62LaNpQ6CPAmTZ8FfTbHKckREomub9QxHG4g2mYaz1dE",
+      "signer": "zecret-3f109eea1e.testnet",
+      "receiver": "escrow3.zecret-3f109eea1e.testnet",
+      "block_height": 277605669,
+      "block_hash": "7tjd2EzPs3kx8LXEL5a85qFKZD8WPbfXFqN2y71ptDjk",
+      "gas_burnt_tgas": 8.57,
+      "included_ms": 1218,
+      "included_final_ms": 2912,
+      "final_ms": 3762
+    },
+    {
+      "step": "escrow: deploy + new + delete key (one transaction)",
+      "hash": "FMSRRYU8qsLwHaeWeMnjjyxPWCPcRaytqXQPxbYmgAmA",
+      "signer": "escrow3.zecret-3f109eea1e.testnet",
+      "receiver": "escrow3.zecret-3f109eea1e.testnet",
+      "block_height": 277605678,
+      "block_hash": "AzqGL3MdfFRQ4W6vAVihyzcZK5LBeQZWAH6pmrBXTbk5",
+      "gas_burnt_tgas": 36.38,
+      "included_ms": 3161,
+      "included_final_ms": 3877,
+      "final_ms": 5014
+    },
+    {
+      "step": "create maker account",
+      "hash": "D4MNN4zbLCY9L81gtLKArZA7yMyxDSMuqdBJ43VPzWgA",
+      "signer": "zecret-3f109eea1e.testnet",
+      "receiver": "maker3.zecret-3f109eea1e.testnet",
+      "block_height": 277605686,
+      "block_hash": "6tSq4rutpwAbtPEcDRxDpp4XZ1U2Bgw56doJmyMRfuNJ",
+      "gas_burnt_tgas": 8.57,
+      "included_ms": 1588,
+      "included_final_ms": 2678,
+      "final_ms": 4120
+    },
+    {
+      "step": "token.storage_deposit for maker3.zecret-3f109eea1e.testnet",
+      "hash": "Dahwa9SCEbo3Xng8pxRD6WqFQcZocrMb6989MSLvCwNA",
+      "signer": "zecret-3f109eea1e.testnet",
+      "receiver": "usdc.zecret-3f109eea1e.testnet",
+      "block_height": 277605694,
+      "block_hash": "F8QyVJ2pybcvkKWuX3gEcfW9AUCNUaaiKY9H2HeZsLks",
+      "gas_burnt_tgas": 2.23,
+      "included_ms": 1951,
+      "included_final_ms": 3032,
+      "final_ms": 4118
+    },
+    {
+      "step": "token.mint 200000000 to maker",
+      "hash": "3Wr1WEL12W8hUSBzh8euhYLT289jJt1N7jSEvnkAfh8Z",
+      "signer": "maker3.zecret-3f109eea1e.testnet",
+      "receiver": "usdc.zecret-3f109eea1e.testnet",
+      "block_height": 277605701,
+      "block_hash": "9s3eF4zsqijV7oAPfZtn8yuvDmgT1qwEk1cRMbxDwGN3",
+      "gas_burnt_tgas": 2.41,
+      "included_ms": 1552,
+      "included_final_ms": 2662,
+      "final_ms": 4117
+    },
+    {
+      "step": "escrow.add_storage_funds (maker)",
+      "hash": "7ywR89HfwMxCnAg1W7R8Kdhmtvpr4pukTJdSk86qdav5",
+      "signer": "maker3.zecret-3f109eea1e.testnet",
+      "receiver": "escrow3.zecret-3f109eea1e.testnet",
+      "block_height": 277605709,
+      "block_hash": "BpgcDicLiFZWN2gQ6GBT5FEsyxraAEAPHLAaqSo57svD",
+      "gas_burnt_tgas": 2.44,
+      "included_ms": 1261,
+      "included_final_ms": 3074,
+      "final_ms": 3782
+    },
+    {
+      "step": "token.ft_transfer_call 100000000 into the maker's Verifier account",
+      "hash": "3n8s6Ejtbj8q5WWJ72xvkSZy8bC44CZjiUbrPg2zfHc7",
+      "signer": "maker3.zecret-3f109eea1e.testnet",
+      "receiver": "usdc.zecret-3f109eea1e.testnet",
+      "block_height": 277605716,
+      "block_hash": "Fgc1Je27bEeteUAPfrvRVSPGqhGs8mv1FPNGRD1jwRPA",
+      "gas_burnt_tgas": 8.96,
+      "included_ms": 1562,
+      "included_final_ms": 2637,
+      "final_ms": 4808
+    }
+  ]
+}

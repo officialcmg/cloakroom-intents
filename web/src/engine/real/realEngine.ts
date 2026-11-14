@@ -867,7 +867,14 @@ export class RealEngine implements EngineBackend {
           break;
         }
         case 'near_tx': {
-          const label = e.what === 'commit_claim' ? 'Claim commitment (reveals nothing)' : e.what === 'claim' ? 'Claim with your key half' : e.what;
+          const label =
+            e.what === 'commit_claim'
+              ? 'Claim commitment (reveals nothing)'
+              : e.what === 'claim'
+                ? 'Claim with your key half'
+                : e.what === 'withdraw'
+                  ? 'Payout into NEAR Intents (withdraw, sent by your key)'
+                  : e.what;
           txs.push(this.nearTx(e.what === 'commit_claim' ? 'commit' : e.what, label, e.hash));
           break;
         }
