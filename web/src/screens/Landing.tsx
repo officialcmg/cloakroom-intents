@@ -174,7 +174,7 @@ export function Landing() {
                 <li>Which Zcash wallet paid. Nothing on NEAR or on the destination chain points back to it.</li>
                 <li>The messages between your browser and the maker. They are encrypted memos in shielded Zcash transactions.</li>
                 <li>
-                  Your NEAR gas. The swap uses a new NEAR key. Its gas comes from 0.03 NEAR that the maker sends to that key (the stipend), so no account of yours pays gas on NEAR.
+                  Your NEAR gas. The swap uses a new NEAR key. Its gas comes from 0.06 NEAR that the maker sends to that key (the stipend), so no account of yours pays gas on NEAR.
                 </li>
               </ul>
             </div>
@@ -210,6 +210,10 @@ export function Landing() {
             </Case>
             <Case icon="key" title="The maker disappears after your ZEC reached the shared address">
               After a deadline, your browser claims the USDC anyway.
+            </Case>
+            <Case icon="shield" title="The maker disappears after your claim">
+              Your browser moves the USDC to your key in NEAR Intents itself, with the NEAR that the maker sent at the start. On testnet, the last transfer to your NEAR account
+              goes through the maker’s relay; while the maker is away, the USDC waits under your key.
             </Case>
             <Case icon="refresh" title="The delivery to the other chain fails">
               The USDC stays in NEAR Intents under your key. You try again, or accept a lower price. Nothing is signed below your minimum unless you accept it.

@@ -1,46 +1,43 @@
 // Did the payout of a claimed swap already leave the taker key? (A restore after the exit.)
 //
-// The core waits in `Claimed` until the taker key holds the price in the Verifier
-// (`Taker::on_claimed`). A browser that restores a swap after its exit finished never sees
-// that: the escrow paid the credit into the Verifier, and the exit then moved the tokens
-// out. The escrow and the Verifier tell the cases apart (contracts/near-escrow/src/lib.rs):
+// The escrow pays a claimed swap with one `mt_transfer` inside the Verifier, from the
+// escrow's own Verifier account to the taker key's account. Its callback sets the swap's
+// `payout` to `paid` only after that transfer succeeded, and `paid` is final
+// (contracts/near-escrow/src/lib.rs). The core completes when a final block shows `paid`.
 //
-// - `claim` sets the swap to `Claimed` and adds the amount to the taker's Intents credit in
-//   the same receipt. Only `withdraw` lowers that credit, and the escrow restores it when the
-//   transfer into the Verifier fails. So `Claimed` with an Intents credit of zero means the
-//   escrow paid the taker key (or the payment is still in flight for a few blocks).
-// - The taker key's account in the Verifier is new for each swap, and only the taker key can
-//   move tokens out of it. A zero balance after the payment means the exit moved them.
+// A browser that restores a swap after its exit finished must not start the exit again:
+// the tokens are gone. The escrow and the Verifier tell the cases apart, read at one final
+// block:
 //
-// The engine therefore acts on `gone` only when it holds at final blocks for a while
-// (`GONE_STABLE_MS`), which covers a withdraw still in flight.
+// - `payout` is not `paid`: the escrow still holds the tokens (or the transfer is in
+//   flight). The core keeps going.
+// - `paid` and the taker key's Verifier balance is above zero: the tokens are there; the
+//   exit runs.
+// - `paid` and a zero balance: the transfer happened before this block, and only the taker
+//   key can move tokens out of its Verifier account. So the exit already happened.
 
-/** How long `gone` must hold before the engine concludes the exit happened. */
-export const GONE_STABLE_MS = 30_000;
-
-/** What a NEAR view returns, at a final block. */
+/** What NEAR views return, at one final block. */
 export interface PayoutFacts {
   /** The escrow's swap state (`get_swap(id).state`), or undefined if the swap is not there. */
   escrowState: string | undefined;
   /** The swap's amount in the escrow (`get_swap(id).amount`), token base units. */
   amount: string | undefined;
-  /** The taker's Intents credit in the escrow (`get_credit(token, taker).intents`). */
-  creditIntents: string;
+  /** The swap's payout state (`get_swap(id).payout`): `none`, `due`, `sending` or `paid`. */
+  payout: string | undefined;
   /** The taker key's token balance in the Verifier (`mt_balance_of`). */
   verifierBalance: string;
 }
 
 /**
- * - `not_paid`: the escrow still owes the taker (credit above zero), or the claim is not
- *   visible: the core keeps waiting (and reports PayoutPending after its timeout).
- * - `in_verifier`: the tokens are under the taker key: the core sees them and completes.
+ * - `not_paid`: the escrow has not paid the taker yet (or the claim is not visible): the
+ *   core keeps going (it sends withdraw itself and reports PayoutPending after its timeout).
+ * - `in_verifier`: the tokens are under the taker key: the exit runs.
  * - `gone`: the escrow paid and the tokens left the taker key: the exit already happened.
  */
 export type PayoutVerdict = 'not_paid' | 'in_verifier' | 'gone';
 
 export function judgePayout(f: PayoutFacts): PayoutVerdict {
-  if (f.escrowState !== 'Claimed') return 'not_paid';
-  if (BigInt(f.creditIntents) > 0n) return 'not_paid';
+  if (f.escrowState !== 'Claimed' || f.payout !== 'paid') return 'not_paid';
   if (BigInt(f.verifierBalance) > 0n) return 'in_verifier';
   return 'gone';
 }
@@ -56,7 +53,7 @@ async function rpcCall(rpc: string, method: string, params: unknown): Promise<un
   return body.result;
 }
 
-/** All views at one final block, so the three answers describe the same moment. */
+/** Both views at one final block, so the answers describe the same moment. */
 export const readPayoutFacts: PayoutReader = async ({ rpc, escrow, verifier, token, swapId, taker }) => {
   const block = (await rpcCall(rpc, 'block', { finality: 'final' })) as { header: { hash: string } };
   const view = async (account: string, method: string, args: unknown): Promise<unknown> => {
@@ -69,8 +66,7 @@ export const readPayoutFacts: PayoutReader = async ({ rpc, escrow, verifier, tok
     })) as { result: number[] };
     return JSON.parse(new TextDecoder().decode(new Uint8Array(r.result)));
   };
-  const swap = (await view(escrow, 'get_swap', { id: swapId })) as { state: string; amount: string } | null;
-  const credit = (await view(escrow, 'get_credit', { token, owner: taker })) as { intents: string };
+  const swap = (await view(escrow, 'get_swap', { id: swapId })) as { state: string; amount: string; payout: string } | null;
   const balance = (await view(verifier, 'mt_balance_of', { account_id: taker, token_id: `nep141:${token}` })) as string;
-  return { escrowState: swap?.state, amount: swap?.amount, creditIntents: String(credit.intents), verifierBalance: String(balance) };
+  return { escrowState: swap?.state, amount: swap?.amount, payout: swap?.payout, verifierBalance: String(balance) };
 };

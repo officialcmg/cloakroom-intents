@@ -562,7 +562,7 @@ export class SimEngine implements EngineBackend {
             stage: 'escrow_open',
             patch: {
               escrow: { contract: this.directoryEscrow(), swapId: randomHex(32), takerAccount: randomHex(32), stipendYocto: STIPEND_YOCTO },
-              addTxs: [this.tx('open', 'near', 'Maker locked the USDC in the escrow', now), this.tx('stipend', 'near', 'Maker sent 0.03 NEAR to your new key', now)],
+              addTxs: [this.tx('open', 'near', 'Maker locked the USDC in the escrow', now), this.tx('stipend', 'near', 'Maker sent 0.06 NEAR to your new key', now)],
             },
           };
         });
@@ -617,7 +617,7 @@ export class SimEngine implements EngineBackend {
       case 'claimed':
         return taker(TYPICAL_MS.claimed!, () => ({
           stage: 'paid_out',
-          patch: { payout: { usdc: s.quote!.usdc, intentsAccount: s.escrow!.takerAccount }, addTxs: [this.tx('withdraw', 'near', 'USDC paid into NEAR Intents under your key', this.now())] },
+          patch: { payout: { usdc: s.quote!.usdc, intentsAccount: s.escrow!.takerAccount }, addTxs: [this.tx('withdraw', 'near', 'Your key moved the USDC into NEAR Intents (withdraw)', this.now())] },
         }));
       case 'paid_out':
         return taker(2_000, () => ({

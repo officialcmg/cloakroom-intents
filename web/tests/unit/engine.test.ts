@@ -146,7 +146,7 @@ describe('simulated engine', () => {
     await client.sim.pay();
     const paid = await t.until(at('paid_out'));
     expect(paid.payout?.usdc).toBe('937838000');
-    expect(paid.escrow?.stipendYocto).toBe('30000000000000000000000');
+    expect(paid.escrow?.stipendYocto).toBe('60000000000000000000000');
     // The engine runs the exit by itself: firm price, check and sign, submit, deliver.
     const phases = new Set<string>();
     client.subscribe((e) => {

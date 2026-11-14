@@ -234,8 +234,16 @@ fn open_ready_commit_claim_withdraw_and_refund() {
     rpc.transact(&maker, &to, actions).unwrap().ok().unwrap();
     let v = wait_final(&e, &id2, SwapState::Refunded);
     assert_eq!(v.b.unwrap(), hex::encode(b_bytes), "b is readable from contract state");
-    assert_eq!(v.payout, escrow::Payout::Paid, "refund with 50 Tgas pays in the same call");
-    std::thread::sleep(Duration::from_secs(2));
+    assert_ne!(v.payout, escrow::Payout::Due, "refund with 50 Tgas starts the payout in the same call");
+    let mut paid = v.payout;
+    for _ in 0..30 {
+        if paid == escrow::Payout::Paid {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(500));
+        paid = e.get_swap(&id2, &At::Final).unwrap().unwrap().payout;
+    }
+    assert_eq!(paid, escrow::Payout::Paid, "the refund's payout is paid without another call");
     assert_eq!(e.intents_balance(&net.maker, &At::Final).unwrap(), before, "the refund returned the maker's tokens to its Verifier account");
     assert_eq!(e.owed(&At::Final).unwrap(), 0);
 }
