@@ -42,6 +42,18 @@ maker). To release maker code: change `deploy/maker/RELEASE` (one line, the date
 what is released) in the same commit. Vercel still skips commits whose message starts
 with "WIP".
 
+## Overnight (2026-11-14, owner asleep)
+
+- Soak test: `testnet/hosted/soak.sh` runs one real 0.01 TAZ swap through the live site
+  every 15 minutes, 03:00 to 10:45 UTC (32 swaps). Results:
+  `testnet/hosted/soak/results.jsonl`. The scheduled task "Zecret soak check" reads them
+  every hour, fixes failures and notes them in `testnet/hosted/soak/NOTES.md`.
+- Branch `escrow-light-payout` (worktree `/home/user/zecret-lw`): an escrow change so
+  that the taker's key can finish the payout alone. Not merged. The live services stay
+  on `escrow2` until it is proven; cut-off for a switch is 18:00 UTC.
+- Branch `mainnet-ready` (worktree `/home/user/zecret-mainnet`): runbook, configs and
+  no-funds checks for mainnet. Not merged. Nothing is done on mainnet without the owner.
+
 ## Latest (2026-11-14 01:30 UTC)
 
 - Maker outage on 2026-11-13, 14:30 to 16:35 UTC: the maker's wallet no longer matched
