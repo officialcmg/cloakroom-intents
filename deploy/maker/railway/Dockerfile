@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1
 # The hosted testnet maker with its relay, as Railway builds it (docs/HOSTING.md).
+# The same image runs the mainnet maker in a second service: the start script's mainnet
+# mode (ZECRET_NETWORK=main, ZECRET_ALLOW_MAINNET=1) takes its settings from the service's
+# variables or the volume, never from the testnet settings below, and runs no relay
+# (docs/MAINNET.md).
 #
 # Railway builds this file from the repository root on every push to main that changes
 # crates/** or deploy/maker/** (the service's watch paths). It differs from

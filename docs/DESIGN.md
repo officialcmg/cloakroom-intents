@@ -104,6 +104,10 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | The Zcash wallet follows chain reorganisations. It checks that each block links to the block before. It keeps the last 100 blocks. After a reorganisation it goes back to the last common block and scans the new blocks. It applies a block completely or not at all. Reason: on testnet the hosted maker kept a tree that was not the chain's tree. For 35 minutes the node refused every quote ("unknown Ironwood anchor"). Two takers got their ZEC back after the 10-minute quote timeout. See `docs/incidents/2026-11-13-maker-unknown-anchor.md`. |
 | 2026-11-13 | If a node refuses a transaction because of its anchor, the wallet compares its tree with the server's tree. If they differ, it rescans from its birthday. Then it builds the transaction again. The anchor is the tree two blocks below the tip, or the tree of the newest block with a spent note if that is newer. |
 | 2026-11-13 | The maker drops a request if no node takes its quote within 5 minutes (setting `quote_send_secs`). The taker stops waiting for a quote after 10 minutes. A later quote is of no use. |
+| 2026-11-14 | The wallet runs on Zcash mainnet. The Zcash library in use has no mainnet height for NU7. The wallet sets 3,543,405 (ZIP 218). The chain agrees: the branch id changes at that block. |
+| 2026-11-14 | The mainnet settings use the measured Zcash mainnet block times (mean 24.9 s; three blocks took at most 299 s). They keep the testnet windows: the funding window is 600 s. |
+| 2026-11-14 | The website runs on mainnet only in a build with `VITE_ZECRET_ALLOW_MAINNET=1`. Mainnet gets its own hostname. The testnet site stays as it is. A link cannot switch a site to mainnet. The mainnet escrow and its code hash come from the build, not from a file. |
+| 2026-11-14 | On mainnet the maker's price is one fixed number. The code has no price feed. The owner sets the market price less 3 %. The dry run (`zecret-deploy plan`) fails when the price is less than 2 % below the market. The maker takes at most 3 requests at a time, so the float can cover them. See `docs/MAINNET.md`. |
 
 **Open**
 

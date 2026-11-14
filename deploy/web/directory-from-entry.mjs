@@ -27,7 +27,7 @@ if (!network) throw new Error('the entry is not for Zcash testnet or mainnet');
 if (!/^\d+(\.\d{1,6})?$/.test(rate) || Number(rate) <= 0) throw new Error('the rate must be a positive USDC amount with at most 6 decimals');
 const escrow = escrowArg ?? (network === 'testnet' ? 'escrow2.zecret-3f109eea1e.testnet' : undefined);
 if (!escrow) throw new Error('give the mainnet escrow account as the third argument');
-if (network === 'mainnet' && (!escrow.endsWith('.near') || !e.near_account.endsWith('.near'))) throw new Error('a mainnet entry needs .near accounts');
+if (network === 'mainnet' && (escrow.endsWith('.testnet') || e.near_account.endsWith('.testnet'))) throw new Error('a mainnet entry cannot name .testnet accounts');
 const zec = (zats) => (Number(zats) / 1e8).toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
 const out = {
   format: 'zecret-maker-directory',

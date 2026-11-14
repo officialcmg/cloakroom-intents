@@ -1,5 +1,10 @@
 # Running the maker as a service
 
+For mainnet, follow [`docs/MAINNET.md`](../../docs/MAINNET.md): the settings template is
+`crates/zecret-node/config/mainnet-maker.json`, and the Railway start script has a separate
+mainnet mode (`ZECRET_NETWORK=main` and `ZECRET_ALLOW_MAINNET=1`, no relay). Its tests:
+`sh deploy/maker/railway/test-start.sh`.
+
 The maker daemon is `zecret maker --dir D` from `crates/zecret-node` (binary `zecret`).
 It runs until stopped. It keeps its wallet key, its NEAR key, its swap records and its
 settings in the folder `D`:

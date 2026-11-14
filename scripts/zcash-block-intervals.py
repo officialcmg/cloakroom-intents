@@ -7,6 +7,7 @@ prints the distribution of the time between consecutive blocks and of k consecut
 intervals (k = 2 and 3: what k_Z confirmations take).
 
     python3 -I scripts/zcash-block-intervals.py [URL] [N] [--json]
+    python3 -I scripts/zcash-block-intervals.py [URL] --tip     (prints the tip height only)
 
 URL defaults to https://zcash-mainnet.chainsafe.dev, N to 3000. The timing tests in
 crates/zecret-node/src/testnet_config.rs and mainnet_config.rs quote its output.
@@ -114,6 +115,11 @@ def main():
     url = args[0] if args else "https://zcash-mainnet.chainsafe.dev"
     n = int(args[1]) if len(args) > 1 else 3000
     tip = {f: v for f, _, v in fields(call(url, "GetLatestBlock", b"")[0])}[1]
+    if "--tip" in sys.argv:
+        print(tip)
+        return
+    if n < 3:
+        sys.exit("N must be at least 3")
     start = tip - n
     times = {}
     step = 500

@@ -14,7 +14,9 @@
 #   MAKER_CONFIG  the mainnet maker's config.json (no key in it). Optional.
 #   SITE_ORIGIN   the mainnet site's origin, for the CORS check of the light-wallet server.
 #                 Default https://zecret.chrismg.dev.
-#   CARGO_TARGET_DIR  shared cargo target folder, to save disk (optional).
+#   DEPLOY_TARGET_DIR, CRATES_TARGET_DIR  cargo target folders for deploy/ and crates/,
+#                 to reuse earlier builds and save disk (optional).
+#   SKIP_ENGINE_BUILD=1  use web/public/engine as it is (it must be built from this checkout).
 # --quick skips the cargo tests, the web build and the Playwright tests.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -42,6 +44,9 @@ check() {
 }
 
 [ -f "$ROOT/.tools/env.sh" ] && . "$ROOT/.tools/env.sh"
+unset CARGO_TARGET_DIR
+DT="${DEPLOY_TARGET_DIR:+CARGO_TARGET_DIR=$DEPLOY_TARGET_DIR }"
+CT="${CRATES_TARGET_DIR:+CARGO_TARGET_DIR=$CRATES_TARGET_DIR }"
 SITE_ORIGIN="${SITE_ORIGIN:-https://zecret.chrismg.dev}"
 ESCROW_WASM_GIVEN="${ESCROW_WASM:-}"
 ESCROW_WASM="${ESCROW_WASM:-$ROOT/contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm}"
@@ -70,11 +75,16 @@ fi
 
 # 3. Tests.
 if [ $QUICK = 0 ]; then
-  check "deploy tool: cargo test (mainnet guard, plan, costs, price rule)" 'cd deploy && cargo test -p zecret-deploy'
-  check "deploy tool: cargo clippy -D warnings" 'cd deploy && cargo clippy -p zecret-deploy --all-targets -- -D warnings'
-  check "zecret-node: mainnet and testnet config tests (paper bounds, premium check)" 'cd crates && cargo test -p zecret-node --lib config'
-  check "zecret-core: mainnet consensus parameters (NU7 at 3,543,405)" 'cd crates && cargo test -p zecret-core --lib mainnet_parameters'
+  check "deploy tool: cargo test (mainnet guard, plan, costs, price rule)" "cd deploy && ${DT}cargo test -p zecret-deploy"
+  check "deploy tool: cargo clippy -D warnings" "cd deploy && ${DT}cargo clippy -p zecret-deploy --all-targets -- -D warnings"
+  check "zecret-node: mainnet and testnet config tests (paper bounds, premium check)" "cd crates && ${CT}cargo test -p zecret-node --lib config"
+  check "zecret-core: mainnet consensus parameters (NU7 at 3,543,405)" "cd crates && ${CT}cargo test -p zecret-core --lib mainnet_parameters"
   check "maker start script: mainnet mode tests" 'sh deploy/maker/railway/test-start.sh'
+  # The browser engine of this checkout: an engine built from code without Zcash mainnet
+  # parameters fails the browser check below. SKIP_ENGINE_BUILD=1 keeps web/public/engine.
+  if [ -z "${SKIP_ENGINE_BUILD:-}" ]; then
+    check "web: build the browser engine (crates/zecret-wasm/build.sh)" 'CC_wasm32_unknown_unknown=clang AR_wasm32_unknown_unknown=llvm-ar crates/zecret-wasm/build.sh'
+  fi
   check "web: npm ci" 'cd web && npm ci --no-audit --no-fund'
   check "web: typecheck" 'cd web && npm run typecheck'
   check "web: lint" 'cd web && npm run lint'
@@ -96,12 +106,12 @@ fi
 
 # 5. The dry run.
 OWNER_ARG="${OWNER:-aurora}"
-plan="cd deploy && cargo run -q -p zecret-deploy -- plan --config configs/mainnet.toml --owner '$OWNER_ARG' --escrow-wasm '$ESCROW_WASM'"
+plan="cd deploy && ${DT}cargo run -q -p zecret-deploy -- plan --config configs/mainnet.toml --owner '$OWNER_ARG' --escrow-wasm '$ESCROW_WASM'"
 [ -n "${ESCROW_HASH:-}" ] && plan="$plan --expect-escrow-hash '$ESCROW_HASH'"
 [ -n "${MAKER_CONFIG:-}" ] && plan="$plan --maker-config '$MAKER_CONFIG'"
 if [ $QUICK = 0 ] && [ -z "${ESCROW_WASM_GIVEN:-}" ]; then
   # The escrow's own target folder (its .cargo/config.toml sets the wasm flags).
-  check "escrow: build the wasm from this checkout" 'cd contracts/near-escrow && env -u CARGO_TARGET_DIR cargo build --target wasm32-unknown-unknown --release'
+  check "escrow: build the wasm from this checkout" 'cd contracts/near-escrow && cargo build --target wasm32-unknown-unknown --release'
 fi
 check "escrow wasm exists ($ESCROW_WASM)" "test -s '$ESCROW_WASM'"
 if [ -n "${OWNER:-}" ]; then what="owner $OWNER"; else what="stand-in owner aurora, read-only; set OWNER for the real check"; fi
