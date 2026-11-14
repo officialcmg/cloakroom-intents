@@ -680,6 +680,8 @@ swaps.
 Go only if every line is true:
 
 - [ ] This branch is merged, and `mainnet-release` points at the merged commit.
+- [ ] The escrow and app flow you ship passed its own testnet soak (your rule of
+      2026-11-14 in `STATUS.md`: no mainnet step on a flow that has not passed its soak).
 - [ ] `scripts/mainnet-preflight.sh` with your `OWNER` and `ESCROW_HASH`: `PREFLIGHT PASSED`.
 - [ ] The escrow hash is the one you decided to ship (today's escrow or the light-payout
       escrow), and the same hash is in `VITE_MAINNET_ESCROW_CODE_HASH`.
