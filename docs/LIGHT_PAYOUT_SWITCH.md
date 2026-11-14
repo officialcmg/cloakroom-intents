@@ -133,5 +133,12 @@ open. Funds are not stuck by a roll-back:
 
 ## Recommendation
 
-See the final report of this branch for the recommendation on whether to switch before the
-submission. Doing nothing is also safe: `escrow2` keeps working as before.
+Switch, but early and only with the steps above: in a quiet hour well before the
+deadline (it takes about an hour with the drain, the two rebuilds and one health swap),
+and not in the last hours before the submission. What speaks for it: the escrow passed an
+independent review with no finding above low; all contract, engine, harness (23) and
+browser (6) tests pass; four swaps ran on testnet against `escrow3`, including one through
+the browser engine and one where the maker was killed after the claim and the taker
+finished alone. What speaks against it: the Railway and Vercel build of this branch was
+not run, and a mistake in the drain step needs manual work on `escrow2`. If any check in
+steps 4 to 7 does not hold, revert at once. Not switching is safe: `escrow2` keeps working.
