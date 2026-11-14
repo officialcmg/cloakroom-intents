@@ -31,6 +31,22 @@ const bin = process.env.ZECRET_BIN || path.join(ROOT, 'crates/target/release/zec
 const t0 = Date.now();
 const log = (m) => console.log(`[hosted ${new Date().toISOString().slice(11, 19)} +${Math.round((Date.now() - t0) / 1000)}s] ${m}`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// The payer is a one-shot command-line wallet. A public light-wallet server sometimes
+// answers 502 for a moment. Read-only steps are run again; a send is run again only when
+// it failed while reading the chain, before anything was broadcast.
+const READ_STEP = /GetLatestBlock|GetBlockRange|GetTreeState|GetLightdInfo/;
+function payerCli(args, { send = false } = {}) {
+  for (let i = 1; ; i++) {
+    try {
+      return execFileSync(bin, args, { encoding: 'utf8' });
+    } catch (e) {
+      const err = String(e.stderr || e.message);
+      if (i >= 5 || (send && !READ_STEP.test(err.split('\n')[0]))) throw e;
+      log(`payer wallet: ${err.split('\n')[0].slice(0, 120)}; try ${i + 1} of 5 in 20 s`);
+      execFileSync('sleep', ['20']);
+    }
+  }
+}
 const result = { site, amountZec: amount, nearAccount, startedAt: new Date().toISOString(), checks: [], facts: {} };
 const check = (what, cond, detail = '') => {
   result.checks.push({ check: what, pass: !!cond, detail: String(detail) });
@@ -76,7 +92,7 @@ async function waitState(page, pred, timeoutMs, what) {
   throw new Error(`timed out waiting for ${what} (stage ${last?.stage}, error ${JSON.stringify(last?.lastError)})`);
 }
 
-const payerUa = JSON.parse(execFileSync(bin, ['balance', '--dir', payer], { encoding: 'utf8' }));
+const payerUa = JSON.parse(payerCli(['balance', '--dir', payer]));
 result.facts.payerBefore = payerUa;
 log(`payer ${payerUa.ua.slice(0, 20)}… holds ${payerUa.zats} zats at height ${payerUa.height}`);
 
@@ -129,7 +145,7 @@ try {
     result.facts.faucet = JSON.parse(out);
     payTx = `faucet:${out.slice(0, 300)}`;
   } else {
-    payTx = execFileSync(bin, ['pay', '--dir', payer, '--to', st0.deposit.address, '--zats', String(zats)], { encoding: 'utf8' }).trim().split('\n').pop();
+    payTx = payerCli(['pay', '--dir', payer, '--to', st0.deposit.address, '--zats', String(zats)], { send: true }).trim().split('\n').pop();
   }
   result.facts.payTx = payTx;
   log(`paid ${zats} zats in ${payTx}`);
