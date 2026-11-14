@@ -196,7 +196,7 @@ export function PayScreen({ swap }: { swap: SwapState }) {
             <p className="hint">
               {testnet
                 ? `Pay with testnet ZEC from a wallet set to testnet, such as ${TESTNET_WALLETS}. Scan the code, or copy the address and the amount.`
-                : `Use a shielded wallet such as ${WALLETS}. Scan the code, or copy the address and the amount.`}
+                : `Use a wallet that pays into the Ironwood pool. ${WALLETS} support it per their release notes; none of them was tested with this site. Scan the code, or copy the address and the amount.`}
             </p>
             {swap.network === 'testnet' && owed <= 100_000_000n && (
               <p className="hint" data-testid="faucet-hint">

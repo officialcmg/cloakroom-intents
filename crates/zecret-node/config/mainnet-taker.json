@@ -1,0 +1,18 @@
+{
+  "chains": {
+    "lightwalletd": "https://zcash-mainnet.chainsafe.dev",
+    "birthday": 0,
+    "network": "main",
+    "near_rpc": "https://rpc.mainnet.fastnear.com",
+    "escrow": "escrow.OWNER.near",
+    "token": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+    "intents": "intents.near"
+  },
+  "timing": {"inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 600, "k_z": 3},
+  "maker": "REPLACE with the output of `zecret directory --dir <maker dir>`",
+  "escrow_code_hash": "REPLACE with the code hash of the deployed escrow (zecret-deploy hash)",
+  "min_price": "0",
+  "max_premium": 30000,
+  "min_stipend": "30000000000000000000000",
+  "quote_timeout_secs": 600
+}

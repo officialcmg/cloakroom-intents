@@ -15,11 +15,34 @@
 // sandbox) and public/config/testnet.json (Zcash testnet over gRPC-web, NEAR testnet).
 //
 // A mainnet configuration must use https: endpoints, and its escrow, escrow code hash,
-// token and Verifier must equal MAINNET_ANCHORS, which are compiled into the bundle.
+// token and Verifier must equal MAINNET_ANCHORS, which are compiled into the bundle. The
+// shipped public/config/mainnet.json says "@build" for the escrow and its code hash: they
+// are always the bundle's.
+//
+// Mainnet is off unless the build sets VITE_ZECRET_ALLOW_MAINNET=1 (docs/MAINNET.md). Without
+// it, ?config=mainnet, VITE_ZECRET_CONFIG=mainnet and any file with "network": "mainnet" are
+// refused, so the testnet site cannot be pointed at mainnet by a link.
 import type { ZcashNetwork } from './address/zcash';
 
-/** The configurations shipped in public/config/ that a link may name. */
+/** The configurations shipped in public/config/ that a link may name in every build. */
 export const KNOWN_CONFIGS: readonly string[] = ['local', 'testnet'];
+
+/** The shipped mainnet configuration; a name that works only in a mainnet build. */
+export const MAINNET_CONFIG = 'mainnet';
+
+/** Whether this build may run on mainnet: only a build made with VITE_ZECRET_ALLOW_MAINNET=1. */
+export const MAINNET_ALLOWED: boolean = import.meta.env.VITE_ZECRET_ALLOW_MAINNET === '1';
+
+/** In the shipped mainnet file: take this value from the bundle's MAINNET_ANCHORS. */
+export const FROM_BUILD = '@build';
+
+/** The configuration names a link may use in this build. */
+export function knownConfigs(allowMainnet = MAINNET_ALLOWED): readonly string[] {
+  return allowMainnet ? [...KNOWN_CONFIGS, MAINNET_CONFIG] : KNOWN_CONFIGS;
+}
+
+/** A build made for mainnet: mainnet allowed and VITE_ZECRET_CONFIG=mainnet. The landing page uses it. */
+export const MAINNET_BUILD: boolean = MAINNET_ALLOWED && import.meta.env.VITE_ZECRET_CONFIG === MAINNET_CONFIG;
 
 /**
  * Whether `?config=` may name a file other than KNOWN_CONFIGS: in a development build, or
@@ -129,8 +152,27 @@ const isHttp = (u: unknown) => {
   }
 };
 
-/** Validates a parsed configuration file. `anchors`: the mainnet contracts the bundle trusts. */
-export function parseNetworkConfig(json: unknown, anchors: MainnetAnchors = MAINNET_ANCHORS): NetworkConfig {
+/**
+ * Validates a parsed configuration file. `anchors`: the mainnet contracts the bundle trusts.
+ * `allowMainnet`: whether this build runs on mainnet at all (VITE_ZECRET_ALLOW_MAINNET).
+ */
+export function parseNetworkConfig(json: unknown, anchors: MainnetAnchors = MAINNET_ANCHORS, allowMainnet = MAINNET_ALLOWED): NetworkConfig {
+  if (isObj(json) && json.network === 'mainnet') {
+    if (!allowMainnet) throw new NetConfigError('This build of the page does not run on mainnet.');
+    if (isObj(json.near)) {
+      // "@build": the escrow and its code hash of this bundle. A copy, so the caller's object is not changed.
+      const near = { ...json.near };
+      if ((near.escrow === FROM_BUILD || near.escrowCodeHash === FROM_BUILD) && (!anchors.escrow || !anchors.escrowCodeHash))
+        throw new NetConfigError('this build has no mainnet escrow built in, so it runs no mainnet swap');
+      if (near.escrow === FROM_BUILD) near.escrow = anchors.escrow;
+      if (near.escrowCodeHash === FROM_BUILD) near.escrowCodeHash = anchors.escrowCodeHash;
+      json = { ...json, near };
+    }
+  }
+  return parseFile(json, anchors);
+}
+
+function parseFile(json: unknown, anchors: MainnetAnchors): NetworkConfig {
   if (!isObj(json) || json.format !== 'zecret-config' || json.version !== 1) throw new NetConfigError('not a zecret-config version 1 file');
   const network = json.network;
   if (network !== 'mainnet' && network !== 'testnet' && network !== 'regtest') throw new NetConfigError('network must be mainnet, testnet or regtest');
@@ -177,6 +219,7 @@ function checkMainnet(c: NetworkConfig, anchors: MainnetAnchors): void {
     if (!isHttps(c.directoryUrl)) throw new NetConfigError('on mainnet directoryUrl must be a path on this site or an https: URL');
   }
   if (!anchors.escrow || !anchors.escrowCodeHash) throw new NetConfigError('this build has no mainnet escrow built in, so it runs no mainnet swap');
+  if (anchors.escrow === FROM_BUILD || anchors.escrowCodeHash === FROM_BUILD) throw new NetConfigError('the mainnet escrow of this build is not set');
   for (const k of ['escrow', 'escrowCodeHash', 'token', 'verifier'] as const) {
     if (c.near[k] !== anchors[k]) throw new NetConfigError(`on mainnet near.${k} must be ${anchors[k]}, the value built into this page; the file says ${c.near[k]}`);
   }
@@ -201,23 +244,26 @@ export function chooseConfig(
   search = typeof location === 'undefined' ? '' : location.search,
   buildDefault = import.meta.env.VITE_ZECRET_CONFIG,
   allowOverride = CONFIG_OVERRIDE_ALLOWED,
+  allowMainnet = MAINNET_ALLOWED,
 ): ConfigChoice | undefined {
   const q = new URLSearchParams(search);
   if (q.get('demo') === '1') return undefined;
   const v = q.get('config');
+  const known = knownConfigs(allowMainnet);
   if (v) {
-    if (KNOWN_CONFIGS.includes(v)) return { url: `/config/${v}.json`, source: 'link', name: v };
-    if (!allowOverride)
-      throw new NetConfigError(`This page loads only its own network settings (${KNOWN_CONFIGS.join(', ')}); it does not load "${v.slice(0, 80)}" from a link.`);
+    if (known.includes(v)) return { url: `/config/${v}.json`, source: 'link', name: v };
+    if (v === MAINNET_CONFIG) throw new NetConfigError('This build of the page does not run on mainnet.');
+    if (!allowOverride) throw new NetConfigError(`This page loads only its own network settings (${known.join(', ')}); it does not load "${v.slice(0, 80)}" from a link.`);
     return { url: nameUrl(v), source: 'override', name: v };
   }
+  if (buildDefault === MAINNET_CONFIG && !allowMainnet) throw new NetConfigError('This build of the page does not run on mainnet.');
   if (buildDefault) return { url: nameUrl(buildDefault), source: 'build', name: buildDefault };
   return undefined;
 }
 
 /** The configuration URL for this page load, or undefined for the demo (see chooseConfig). */
-export function configUrl(search?: string, buildDefault?: string, allowOverride?: boolean): string | undefined {
-  return chooseConfig(search, buildDefault, allowOverride)?.url;
+export function configUrl(search?: string, buildDefault?: string, allowOverride?: boolean, allowMainnet?: boolean): string | undefined {
+  return chooseConfig(search, buildDefault, allowOverride, allowMainnet)?.url;
 }
 
 export async function fetchNetworkConfig(url: string, signal?: AbortSignal): Promise<NetworkConfig> {

@@ -1,0 +1,25 @@
+{
+  "chains": {
+    "lightwalletd": "https://zcash-mainnet.chainsafe.dev",
+    "birthday": 0,
+    "network": "main",
+    "near_rpc": "https://rpc.mainnet.fastnear.com",
+    "escrow": "escrow.OWNER.near",
+    "token": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+    "intents": "intents.near"
+  },
+  "timing": {"inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 600, "k_z": 3},
+  "near_account": "maker.OWNER.near",
+  "price_per_zec": "0",
+  "min_zats": 200000,
+  "max_zats": 2000000,
+  "premium_zats": 25000,
+  "premium_check": {
+    "yocto_near_per_zec": "200000000000000000000000000",
+    "costs_per_request_yocto": "15000000000000000000000"
+  },
+  "stipend": "30000000000000000000000",
+  "windows": {"t0_secs": 900, "t1_secs": 600, "t2_secs": 900, "reveal_secs": 600},
+  "max_refusals_per_hour": 6,
+  "max_pending_quotes": 3
+}

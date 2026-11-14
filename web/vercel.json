@@ -12,7 +12,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-gbCxy578EO1YtUvB2zq5yPlWFH4+yb4psJbY8MT/2kI='; worker-src 'self'; connect-src 'self' https://1click.chaindefuser.com https://zcash-testnet.chainsafe.dev https://rpc.testnet.fastnear.com https://zecret-maker-production.up.railway.app; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-gbCxy578EO1YtUvB2zq5yPlWFH4+yb4psJbY8MT/2kI='; worker-src 'self'; connect-src 'self' https://1click.chaindefuser.com https://zcash-testnet.chainsafe.dev https://rpc.testnet.fastnear.com https://zecret-maker-production.up.railway.app https://zcash-mainnet.chainsafe.dev https://rpc.mainnet.fastnear.com; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
         },
         { "key": "Referrer-Policy", "value": "no-referrer" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },

@@ -20,7 +20,8 @@ describe('network configuration', () => {
     expect(() => parseNetworkConfig({ ...good, format: 'x' })).toThrow(NetConfigError);
     expect(() => parseNetworkConfig({ ...good, near: { ...good.near, tokenDecimals: 2 } })).toThrow(/tokenDecimals/);
     expect(() => parseNetworkConfig({ ...good, zcash: {} })).toThrow(/zebraRpc or lightwalletd/);
-    expect(() => parseNetworkConfig({ ...good, network: 'mainnet' })).toThrow(/1Click/);
+    expect(() => parseNetworkConfig({ ...good, network: 'mainnet' }, undefined, true)).toThrow(/1Click/);
+    expect(() => parseNetworkConfig({ ...good, network: 'mainnet' })).toThrow(/does not run on mainnet/);
     expect(() => parseNetworkConfig({ ...good, exit: { mode: 'direct' } })).toThrow(/relayUrl/);
   });
 

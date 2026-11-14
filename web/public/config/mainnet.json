@@ -1,0 +1,31 @@
+{
+  "format": "zecret-config",
+  "version": 1,
+  "network": "mainnet",
+  "label": "Zcash mainnet and NEAR mainnet",
+  "directoryUrl": "/config/mainnet-directory.json",
+  "zcash": {
+    "lightwalletd": "https://zcash-mainnet.chainsafe.dev",
+    "explorer": "https://mainnet.zcashexplorer.app/transactions/{txid}"
+  },
+  "near": {
+    "rpc": "https://rpc.mainnet.fastnear.com",
+    "escrow": "@build",
+    "escrowCodeHash": "@build",
+    "token": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+    "tokenSymbol": "USDC",
+    "tokenDecimals": 6,
+    "verifier": "intents.near",
+    "explorer": "https://nearblocks.io/txns/{hash}"
+  },
+  "timing": { "inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 600, "k_z": 3 },
+  "minStipend": "30000000000000000000000",
+  "quoteTimeoutSecs": 600,
+  "exit": { "mode": "oneclick", "oneClickUrl": "https://1click.chaindefuser.com" },
+  "honesty": [
+    "This is hackathon software. No security audit was done. Three reviews by the project found and fixed bugs; others can remain.",
+    "The delivery to other chains through NEAR Intents 1Click had not run with real funds before this site went live.",
+    "Your browser trusts one NEAR RPC endpoint (rpc.mainnet.fastnear.com) to report the escrow's state.",
+    "The maker limits each swap to a small amount. Pay only what you can afford to lose."
+  ]
+}
