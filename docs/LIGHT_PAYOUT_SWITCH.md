@@ -32,8 +32,9 @@ before they pay the premium, losing only one request fee.
    `web/public/config/testnet-directory.json` and push. Vercel redeploys the site
    (`docs/HOSTING.md`); the form then refuses to start a swap. Wait for the deployment to
    be live (`https://zecret.chrismg.dev/config/testnet-directory.json` shows `paused`).
-   The maker is not rebuilt by this push (Railway watches `crates/**` and
-   `deploy/maker/**` only).
+   The maker is not rebuilt by this push: since 2026-11-13 Railway rebuilds it only when
+   a file under `deploy/maker/` changes (`STATUS.md`, "Maker deploys"; `docs/HOSTING.md`
+   still names `crates/**` too).
 2. **Wait until the hosted maker has no open swap.** In the Railway logs of
    `zecret-maker`, the last start prints `open swaps: N`; a swap in flight finishes within
    its windows (at most `t0 + t1 + t2` = 40 minutes with the testnet template, usually
@@ -49,17 +50,21 @@ before they pay the premium, losing only one request fee.
    - `web/public/config/testnet.json`: `near.escrow` = `escrow3…`, `near.escrowCodeHash`
      = `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536`. `minStipend` stays
      `30000000000000000000000`.
-   - `web/public/config/testnet-directory.json`: `maker.escrowContract` = `escrow3…` and
-     `status` = `online` (the signed entry itself does not change: the escrow is not in
-     the maker's signature).
-   - `deploy/maker/RELEASE`: one new line, for example
+   - `web/public/config/testnet-directory.json`: `maker.escrowContract` = `escrow3…`;
+     keep `status` = `paused` in this push (the signed entry itself does not change: the
+     escrow is not in the maker's signature).
+   - `deploy/maker/RELEASE`: one new line (this is what makes Railway rebuild the maker),
+     for example
      `2026-11-14: light payout: escrow3, tokens in the Verifier, the taker sends withdraw(id); stipend 0.06 NEAR`.
    - Optional, for the record: `testnet/config/*.json` and `deploy/configs/testnet.toml`
      (`[escrow] sub_account = "escrow3"`) so that `zecret-deploy verify --config
      configs/testnet.toml` checks the new escrow. Do not run `zecret-deploy deploy` with
      that file: the escrow exists; `deploy/configs/testnet-light.toml` is the config it
      was made with.
-4. **Railway rebuilds the maker** (the push changes `crates/**`). At start,
+   Do not merge the branch without these settings in the same push: Vercel would build
+   the new engine with the old site config (`escrow2`), and the new engine cannot read
+   `escrow2` swaps.
+4. **Railway rebuilds the maker** (the push changes `deploy/maker/RELEASE`). At start,
    `deploy/maker/railway/start.sh` sees that the image's `config.json` differs from the
    volume's and that no swap is open, so it writes the new settings and keeps the old file
    as `config.json.prev-<time>`. Check the start log:
@@ -81,15 +86,18 @@ before they pay the premium, losing only one request fee.
    - NEAR for gas: about 0.07 NEAR per swap (stipend and account creation) plus 0.1 NEAR
      free for a 100 Tgas open.
    Nothing has to be done by hand for these.
-7. **Run one swap through the site** (the health-check script):
+7. **Set the site online again**: one more push with `"status": "online"` in
+   `web/public/config/testnet-directory.json`, once both deployments are live.
+   **Run one swap through the site** (the health-check script):
    `node testnet/hosted/run.mjs https://zecret.chrismg.dev <payer folder> <NEAR account> 0.01`.
    Check on testnet NearBlocks: the `withdraw` transaction of the swap is signed by the
    taker's implicit account (64 hex), not by `maker.zecret-3f109eea1e.testnet`; the
    escrow's `get_swap(id).payout` is `paid`; `mt_balance_of(escrow3, nep141:usdc…)` ≥
    `get_owed(usdc…)`; `zecret-deploy verify --config configs/testnet-light.toml` passes.
-8. Update `README.md` ("Try it, step 4" names `escrow2`), `docs/HOSTING.md` and
-   `deploy/deployment.testnet.json` (`escrow` becomes `escrow3`; `escrow2` moves to
-   `retired_escrows`).
+8. Update `README.md` ("Try it, step 4" names `escrow2`), `docs/HOSTING.md`,
+   `STATUS.md` ("Open by decision: … the taker cannot pay for `withdraw`" is no longer
+   true) and `deploy/deployment.testnet.json` (`escrow` becomes `escrow3`; `escrow2`
+   moves to `retired_escrows`; the section `light_payout` already records `escrow3`).
 
 ## Roll back to escrow2 in one commit
 
