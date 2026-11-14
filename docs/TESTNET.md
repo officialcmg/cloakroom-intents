@@ -1,5 +1,8 @@
 # One swap on public test networks
 
+The project was named Zecret until 2026-11-14 and is now Cloakroom Intents. The run
+records below keep the names, URLs and repository links that were true at the time.
+
 On 2026-11-13 the native maker (`zecret maker`) and the native taker (`zecret taker`)
 completed one swap on Zcash testnet and NEAR testnet. The taker paid 0.1 shielded
 testnet ZEC (TAZ). The taker received 3 test USDC (tUSDC) inside the stand-in NEAR

@@ -1,4 +1,4 @@
-// The landing page at /. It says what Zecret does, who holds the money, what is private,
+// The landing page at /. It says what Cloakroom Intents does, who holds the money, what is private,
 // what happens on a failure and how far the project is. It loads no engine: the swap app
 // at /swap starts the engine when the user opens it.
 //
@@ -40,7 +40,7 @@ function Out({ href, children }: { href: string; children: ReactNode }) {
 
 export function Landing() {
   useEffect(() => {
-    document.title = 'Zecret: swap shielded ZEC with no custodian';
+    document.title = 'Cloakroom Intents: swap shielded ZEC with no custodian';
   }, []);
   useReveal();
   const resume = hasMarkedSwap();
@@ -76,8 +76,8 @@ export function Landing() {
               Swap from fully shielded ZEC <em className="serif">to 30+ chains</em>
             </h1>
             <p className="hero-lede appear">
-              Pay once from your own Zcash wallet. Your browser runs the swap with the maker, and NEAR Intents sends the tokens on to the chain you choose. No company or server
-              holds your money or your keys.
+              NEAR Intents already swaps ZEC, but only from a transparent address, as a bridged token. Here your ZEC stays shielded on its way to the maker, and no bridge or
+              custodian holds it. The USDC lands in NEAR Intents under a key made in your browser, and Intents sends it on to the chain you choose.
             </p>
             <p className="hero-note appear">
               {MAINNET_BUILD
@@ -241,7 +241,7 @@ export function Landing() {
               <li>The swap form offers tokens on {CHAIN_COUNT} chains through NEAR Intents, with live mainnet prices.</li>
             </ul>
             <p className="status-origin">
-              Zecret builds on Cloakroom, my earlier protocol for shielded ZEC and ERC-20 tokens on Base. Read the <Out href={PAPER_URL}>Cloakroom paper</Out>, the{' '}
+              Cloakroom Intents is Cloakroom, my earlier protocol for shielded ZEC and ERC-20 tokens on Base, rebuilt on NEAR with NEAR Intents as the exit. Read the <Out href={PAPER_URL}>Cloakroom paper</Out>, the{' '}
               <Out href={DESIGN_URL}>design document</Out> and the <Out href={REPO_URL}>source code</Out>.
             </p>
           </div>

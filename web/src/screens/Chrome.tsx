@@ -10,7 +10,7 @@ import { Logo } from '../ui/bits';
 
 type Theme = 'system' | 'light' | 'dark';
 
-export const REPO_URL = 'https://github.com/officialcmg/zecret';
+export const REPO_URL = 'https://github.com/officialcmg/cloakroom-intents';
 export const DESIGN_URL = `${REPO_URL}/blob/main/docs/DESIGN.md`;
 export const PAPER_URL = `${REPO_URL}/blob/main/Cloakroom_Yellow_Paper.pdf`;
 
@@ -40,7 +40,7 @@ export function Header({ init, network, sections, children }: { init?: InitStatu
   return (
     <header className="topbar">
       <div className="topbar-inner">
-        <a href="/" className="home-link" onClick={onLinkClick} aria-label="Zecret, home">
+        <a href="/" className="home-link" onClick={onLinkClick} aria-label="Cloakroom Intents, home">
           <Logo />
         </a>
         {sections && (
@@ -53,7 +53,7 @@ export function Header({ init, network, sections, children }: { init?: InitStatu
           </nav>
         )}
         <div className="topbar-right">
-          {network && <span className={`pill pill-${network === 'mainnet' ? 'main' : 'test'}`}>{network === 'mainnet' ? 'Mainnet' : `Zcash ${network}`}</span>}
+          {network && <span className={`pill pill-${network === 'mainnet' ? 'main' : 'test'}`}>{network === 'mainnet' ? 'Mainnet' : <><span className="pill-long">Zcash&nbsp;</span>{network}</>}</span>}
           {init?.engine === 'simulated' && <span className="pill pill-demo">Demo</span>}
           <button type="button" className="btn btn-ghost btn-icon theme-toggle" onClick={toggle} aria-label={dark ? 'Use light theme' : 'Use dark theme'} title={dark ? 'Light theme' : 'Dark theme'}>
             <Icon name={dark ? 'sun' : 'moon'} />
@@ -65,15 +65,15 @@ export function Header({ init, network, sections, children }: { init?: InitStatu
   );
 }
 
-const SITE_URL = 'https://zecret.chrismg.dev';
+const SITE_URL = 'https://cloakroom.chrismg.dev';
 
 export function Footer({ full }: { full?: boolean }) {
   if (!full) {
     return (
       <footer className="footer">
-        <p>Zecret runs in your browser. The swap’s keys stay in this browser, never on a server. The maker never holds your ZEC alone.</p>
+        <p>Cloakroom Intents runs in your browser. The swap’s keys stay in this browser, never on a server. The maker never holds your ZEC alone.</p>
         <p className="muted">Delivery prices come from NEAR Intents. Amounts round down.</p>
-        <nav aria-label="About Zecret" className="footer-links">
+        <nav aria-label="About Cloakroom Intents" className="footer-links">
           <a href="/" onClick={onLinkClick}>
             How it works
           </a>
@@ -94,7 +94,7 @@ export function Footer({ full }: { full?: boolean }) {
           <div className="site-footer-about">
             <Logo />
             <p className="site-footer-tagline">Shielded ZEC to tokens on other chains, with no custodian.</p>
-            <p>Zecret runs in your browser. The swap’s keys stay in this browser, never on a server. The maker never holds your ZEC alone.</p>
+            <p>Cloakroom Intents runs in your browser. The swap’s keys stay in this browser, never on a server. The maker never holds your ZEC alone.</p>
           </div>
           <nav className="site-footer-col" aria-labelledby="footer-use">
             <p id="footer-use" className="site-footer-head">
@@ -126,11 +126,12 @@ export function Footer({ full }: { full?: boolean }) {
         </div>
         <div className="site-footer-note">
           <p>Testnet only. Mainnet is not deployed. Delivery prices come from NEAR Intents. Amounts round down.</p>
-          <a href={SITE_URL}>zecret.chrismg.dev</a>
+          <a href={SITE_URL}>cloakroom.chrismg.dev</a>
         </div>
       </div>
       <p className="site-footer-word" aria-hidden="true">
-        ZECRET
+        <span className="site-footer-word-2">Intents</span>
+        <span className="site-footer-word-1">CLOAKROOM</span>
       </p>
     </footer>
   );

@@ -1,6 +1,6 @@
-# Deploying Zecret
+# Deploying Cloakroom Intents
 
-This file says how to put Zecret's NEAR contracts on testnet and on mainnet, what each
+This file says how to put Cloakroom Intents' NEAR contracts on testnet and on mainnet, what each
 step costs, how to check a deployment, and what a taker checks before she sends ZEC. The
 tool is `deploy/tool` (`zecret-deploy`); its commands are in
 [`deploy/README.md`](../deploy/README.md).

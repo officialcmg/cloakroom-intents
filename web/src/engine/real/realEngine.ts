@@ -629,7 +629,7 @@ export class RealEngine implements EngineBackend {
         records,
         web: { state: { ...this.state!, activity: null }, meta: this.meta },
       };
-      return { fileName: `zecret-recovery-${s.id.slice(0, 8)}.json`, mimeType: 'application/json', text: JSON.stringify(file, null, 2) };
+      return { fileName: `cloakroom-intents-recovery-${s.id.slice(0, 8)}.json`, mimeType: 'application/json', text: JSON.stringify(file, null, 2) };
     });
   }
 
@@ -640,9 +640,9 @@ export class RealEngine implements EngineBackend {
       try {
         file = JSON.parse(text);
       } catch {
-        throw new EngineError('RECOVERY_INVALID', 'This file is not a Zecret recovery file.');
+        throw new EngineError('RECOVERY_INVALID', 'This file is not a recovery file of Cloakroom Intents.');
       }
-      if (file?.format !== 'zecret-recovery' || file.version !== 1 || typeof file.swapId !== 'string') throw new EngineError('RECOVERY_INVALID', 'This file is not a Zecret recovery file.');
+      if (file?.format !== 'zecret-recovery' || file.version !== 1 || typeof file.swapId !== 'string') throw new EngineError('RECOVERY_INVALID', 'This file is not a recovery file of Cloakroom Intents.');
       if (file.engine !== 'wasm') throw new EngineError('RECOVERY_INVALID', 'This file is from the demo with a simulated engine. Open it in the demo.');
       if (file.network !== cfg.network) throw new EngineError('RECOVERY_MISMATCH', `This file is for Zcash ${String(file.network)}, and this page runs on ${cfg.network}.`);
       const fc = file.config as Record<string, string> | undefined;

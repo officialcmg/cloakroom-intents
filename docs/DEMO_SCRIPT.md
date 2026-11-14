@@ -12,7 +12,7 @@ explains NEAR's role concretely, and gives a next step.
 ## What to record
 
 The hosted website on Zcash testnet and NEAR testnet:
-<https://zecret.chrismg.dev>. Record one real swap through it, and use
+<https://cloakroom.chrismg.dev>. Record one real swap through it, and use
 the simulated demo (`/?demo=1`) only for the failure cases. Every shot of the demo must
 show its banner ("Demo. No real money moves."), and the voice-over must say so. Every
 shot of the real app shows the banner "Testnet. Test money only."
@@ -45,7 +45,7 @@ and say on screen that time was cut.
 | Time | Picture | Words (voice-over or captions) |
 |---|---|---|
 | 0:00-0:08 | Title card: "Leave shielded Zcash without a custodian." | "Every way out of shielded ZEC today goes through an exchange, a bridge or a transparent address. Each one sees your amount, and can hold your funds." |
-| 0:08-0:15 | The landing page, then "Start a swap". | "Zecret swaps shielded ZEC for a token on another chain. Nobody holds both sides. This is the hosted site on Zcash testnet and NEAR testnet, with test money." |
+| 0:08-0:15 | The landing page, then "Start a swap". | "Cloakroom Intents swaps shielded ZEC for a token on another chain. Nobody holds both sides. This is the hosted site on Zcash testnet and NEAR testnet, with test money." |
 | 0:15-0:25 | The swap form: amount in TAZ, a token and chain, the NEAR testnet account. The price line. | "I enter an amount. I get one price: what the maker pays in USDC, and, on mainnet, what NEAR Intents delivers on the chain I chose. On testnet the test USDC goes to my NEAR account." |
 | 0:25-0:33 | Save the recovery file, then the payment screen with the QR code. Pay from the wallet. | "My browser makes the keys for this swap. I save a recovery file and pay once." |
 | 0:33-0:48 | The progress screen, step groups filling in (time cut), then "You received … test USDC on NEAR". | "The maker locks USDC on NEAR. My ZEC goes to an address whose key is split between me and the maker. When I claim the USDC, my half of the key becomes public, and only then can the maker take the ZEC. This run took about eight minutes; I cut the waiting." |
@@ -62,16 +62,16 @@ app was used as the payer.
 ```text
 Every way out of shielded ZEC uses an exchange, a bridge or a transparent address.
 
-Zecret swaps shielded ZEC with no custodian: a NEAR escrow, a split Zcash key, exit to 30+ chains via NEAR Intents.
+Cloakroom Intents swaps shielded ZEC with no custodian: a NEAR escrow, a split Zcash key, exit to 30+ chains via NEAR Intents.
 
 Built at NEAR HACKATHON @NEARProtocol #NEARHackathon
-https://github.com/officialcmg/zecret
+https://github.com/officialcmg/cloakroom-intents
 ```
 
 Reply under it (the next step):
 
 ```text
-Try it on Zcash testnet and NEAR testnet: https://zecret.chrismg.dev (test money only; the mainnet exit is next). If you hold shielded ZEC: which chain would you exit to first?
+Try it on Zcash testnet and NEAR testnet: https://cloakroom.chrismg.dev (test money only; the mainnet exit is next). If you hold shielded ZEC: which chain would you exit to first?
 ```
 
 ## Post, draft 2 (NEAR's role first; 272 characters as X counts them)
@@ -81,14 +81,14 @@ How do you leave shielded Zcash without trusting anyone?
 
 A NEAR escrow holds the USDC. A 0.03 NEAR stipend lets a fresh key send your claim. NEAR Intents moves it on with one signature.
 
-Zecret, built at NEAR HACKATHON @NEARProtocol #NEARHackathon
-https://github.com/officialcmg/zecret
+Cloakroom Intents, built at NEAR HACKATHON @NEARProtocol #NEARHackathon
+https://github.com/officialcmg/cloakroom-intents
 ```
 
 Reply under it:
 
 ```text
-Testnet site: https://zecret.chrismg.dev. The escrow, the tests and the recorded testnet swaps are in the repo. Feedback on the escrow and the check before signing is welcome.
+Testnet site: https://cloakroom.chrismg.dev. The escrow, the tests and the recorded testnet swaps are in the repo. Feedback on the escrow and the check before signing is welcome.
 ```
 
 Notes:

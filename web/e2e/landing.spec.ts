@@ -38,7 +38,7 @@ test('the landing page offers to open a swap this browser holds; the logo goes h
   await open(page, 'speed=1');
   await fillForm(page);
   await createAndSave(page);
-  await page.getByRole('link', { name: 'Zecret, home' }).click();
+  await page.getByRole('link', { name: 'Cloakroom Intents, home' }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByText('This browser holds a swap')).toBeVisible();
   await page.getByRole('main').getByRole('link', { name: 'Open your swap' }).first().click();

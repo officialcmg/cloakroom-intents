@@ -1,8 +1,8 @@
 # The website
 
-The Zecret website in `web/`: its pages, screens, states, and the decisions taken and
+The Cloakroom Intents website in `web/`: its pages, screens, states, and the decisions taken and
 why. The interface to the swap engine is in `web/ENGINE_API.md`. How to build and test is
-in `web/README.md`. The hosted copy is https://zecret.chrismg.dev (also
+in `web/README.md`. The hosted copy is https://cloakroom.chrismg.dev (also
 https://zecret-chrismgs-projects.vercel.app) on
 Zcash testnet and NEAR testnet (`docs/HOSTING.md`).
 
@@ -10,7 +10,7 @@ Zcash testnet and NEAR testnet (`docs/HOSTING.md`).
 
 | URL | Page |
 |---|---|
-| `/` | The landing page: what Zecret does, how a swap works, who holds the money, what stays private and what is public, what happens on a failure, status, questions. It loads no engine, no maker directory and no network settings. |
+| `/` | The landing page: what Cloakroom Intents does, how a swap works, who holds the money, what stays private and what is public, what happens on a failure, status, questions. It loads no engine, no maker directory and no network settings. |
 | `/swap` | The swap app. The engine (worker and WebAssembly, about 9 MB) starts only here. |
 | `/?demo=1`, `/?config=testnet`, `/?speed=20`, … | The swap app as well. A link to `/` that names an app setting (`demo`, `config`, `speed`, `fail`, `pause`, `cpu`, `directory`) opens the app and keeps its URL (`web/src/app/route.ts`). |
 
@@ -153,7 +153,7 @@ confirmation. In the demo, a dashed box offers "Simulate the payment" and "Pay o
   submitted, delivering.
 - **Transactions.** Each with its chain, a label, the shortened hash with a copy button
   and an explorer link. Simulated hashes have no link, and the page says why.
-- The browser tab title shows the step: "(5/6) Claiming your USDC · Zecret".
+- The browser tab title shows the step: "(5/6) Claiming your USDC · Cloakroom Intents".
 
 ### Failure screens
 
@@ -242,7 +242,7 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
 | Progress bars from the page's own clock. | The real worker blocks during a proof and cannot answer. The engine sends an estimate before it starts. |
 | "Keep this tab open" only from Ready to the claim. | That is the only time closing the tab can cost the swap (DESIGN.md §6). Everywhere else the page says the tab may close. |
 | No token logos. | They would load images from third parties and tell them the user's IP address and choice. |
-| `Referrer-Policy: no-referrer`. | Explorer links do not reveal that the user came from Zecret. |
+| `Referrer-Policy: no-referrer`. | Explorer links do not reveal that the user came from Cloakroom Intents. |
 | Testnet only for the simulator. | Its deposit address is random. A testnet address cannot receive mainnet ZEC by mistake. |
 | Deep green and mint, white surfaces, large rounded panels and cards, floating glass cards, pill buttons and mono badges. Hanken Grotesk for headings and amounts with Instrument Serif italic for one or two words, Inter for text, Geist Mono for labels and addresses. The style reference is the Vaynex template; its measured values are in `web/design-system/vaynex-notes.md`. | A designed look that the landing page and every app screen share. All four fonts are SIL OFL 1.1, Latin subsets (about 115 KB together), served by the site with metric-matched fallbacks, so text does not move when they load. The reference's heading font, General Sans, has a licence that forbids subsetting and distribution from a repository, so Hanken Grotesk, the closest open match, replaces it. No image, icon, text or code of the template is used. |
 | Light by default, with a dark variant of the same greens. | The style reference is light only. The dark variant follows the system unless the user picks a theme. |

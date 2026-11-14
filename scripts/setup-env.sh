@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Prepare a machine for building and testing Zecret.
+# Prepare a machine for building and testing Cloakroom Intents.
 # Safe to run more than once. Puts tools in .tools/ (not committed).
 set -euo pipefail
 
 # 0. Supported host and required tools. The NEAR sandbox below is a Linux x86-64 binary.
 if [ "$(uname -s)" != "Linux" ] || [ "$(uname -m)" != "x86_64" ]; then
-  echo "setup-env.sh needs Linux x86-64 (this is $(uname -s) $(uname -m)). The hosted site (https://zecret.chrismg.dev) and the web/ unit tests (cd web && npm ci && npm test) work on any OS." >&2
+  echo "setup-env.sh needs Linux x86-64 (this is $(uname -s) $(uname -m)). The hosted site (https://cloakroom.chrismg.dev) and the web/ unit tests (cd web && npm ci && npm test) work on any OS." >&2
   exit 1
 fi
 # This script cannot run without rustup, curl and python3. The tests need the others.

@@ -25,10 +25,10 @@ sentence. Take the real values from the code and the evidence files. Sources are
 - [ ] Stock openers.
   Reason: the first sentence must carry the first fact.
   Before: "In today's rapidly evolving privacy landscape, ..." or "Let's dive in."
-  After: "Zecret swaps shielded ZEC for a token on another chain with no custodian."
+  After: "Cloakroom Intents swaps shielded ZEC for a token on another chain with no custodian."
 - [ ] Stock closers and empty end summaries.
   Reason: a last line that repeats the section adds nothing. End on the last fact.
-  Before: "In short, Zecret makes private swaps simple and safe." After: (delete the line)
+  Before: "In short, Cloakroom Intents makes private swaps simple and safe." After: (delete the line)
 - [ ] Rule-of-three lists and forced parallelism.
   Reason: a list of three that the meaning does not need sounds made up.
   Before: "Private, trustless, and unstoppable."
@@ -107,7 +107,7 @@ sentence. Take the real values from the code and the evidence files. Sources are
 
 - [ ] Lead with the fact the reader needs.
   Reason: judges and screeners read the first lines and stop.
-  Example: the README's first paragraph says what Zecret does and for whom.
+  Example: the README's first paragraph says what Cloakroom Intents does and for whom.
 - [ ] Give numbers with units, a date and a source.
   Reason: a number without a unit or a source cannot be checked.
   Before: "Swaps are fast." After: "222 s from start to the taker's USDC, one run on testnet
@@ -186,7 +186,7 @@ sentence. Take the real values from the code and the evidence files. Sources are
 
 - [ ] The first line says what the project does. No hook question and no teaser.
   Before: "What if you could swap ZEC without anyone watching? 👀"
-  After: "Zecret swaps shielded ZEC for tokens on other chains, with no custodian."
+  After: "Cloakroom Intents swaps shielded ZEC for tokens on other chains, with no custodian."
 - [ ] One concrete result with a number, and a link to the proof.
   Example: "Test run: 0.1 ZEC to 3 USDC, testnet to testnet, 222 s."
 - [ ] One honest limit.

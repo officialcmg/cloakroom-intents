@@ -1,0 +1,2 @@
+// The destination chains of the swap form, copied from web/src/lib/chainNames.ts.
+window.CHAIN_NAMES = ["Ethereum", "Base", "Arbitrum", "Optimism", "Polygon", "BNB Chain", "Avalanche", "Gnosis", "Scroll", "Abstract", "Berachain", "Monad", "X Layer", "Plasma", "Robinhood Chain", "ADI", "Hyperliquid", "Bitcoin", "Litecoin", "Dogecoin", "Bitcoin Cash", "Dash", "Solana", "Fogo", "NEAR", "Aptos", "Movement", "Sui", "Starknet", "TON", "Tron", "Stellar", "XRP Ledger", "Cardano", "Aleo"];

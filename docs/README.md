@@ -1,7 +1,7 @@
 # Documents
 
 What each document in `docs/` is for and who should read it. Start with the repository's
-[`README.md`](../README.md): what Zecret is, its status, and how to try it.
+[`README.md`](../README.md): what Cloakroom Intents is, its status, and how to try it.
 
 ## The product and the build
 

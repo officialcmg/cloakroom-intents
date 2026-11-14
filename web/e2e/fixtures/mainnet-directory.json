@@ -5,7 +5,7 @@
   "updatedAt": "2026-11-14T00:00:00.000Z",
   "status": "online",
   "maker": {
-    "name": "Zecret maker (test fixture)",
+    "name": "Cloakroom Intents maker (test fixture)",
     "zcashAddress": "u1fixturefixturefixture",
     "requestKey": "a944a5d8a3d6004b6de8630f28a5ad2bf114a3babce90bd70d1705740752a702",
     "nearAccount": "maker.zecret.near",
