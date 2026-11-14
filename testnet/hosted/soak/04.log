@@ -6,3 +6,16 @@
 [hosted 03:46:09 +69s] paid 1000000 zats in 65bd3d02f06f3ead40385ec794d5f59b60ffad8c768fa40e3f27e3017b9f609b
 [hosted 03:46:09 +69s] stage awaiting_deposit
 [hosted 03:46:46 +105s] stage deposit_confirmed
+[hosted 03:47:15 +134s] stage request_sent
+[hosted 03:47:58 +178s] stage quote_received
+[hosted 03:48:29 +209s] stage accepted
+[hosted 03:49:35 +275s] stage escrow_open
+[hosted 03:50:16 +315s] stage funding_sent
+[hosted 03:50:32 +331s] stage funding_confirming
+[hosted 03:51:39 +398s] stage committing
+[hosted 03:51:40 +399s] stage claiming
+[hosted 03:51:46 +405s] stage claimed
+[hosted 03:51:59 +419s] stage exiting
+[hosted 03:52:06 +426s] stage done
+[hosted 03:52:06 +426s] PASS  the page reached done done ""
+[hosted 03:52:06 +426s] PASS  no Content-Security-Policy violation 
