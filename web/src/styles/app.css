@@ -3367,6 +3367,18 @@ a.hash {
   margin-top: var(--space-1);
 }
 
+.stat-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: clamp(32px, 3.4vw, 42px);
+}
+
+.stat-pair svg {
+  flex: none;
+}
+
 .is-featured {
   background: linear-gradient(155deg, var(--green-600) 0%, var(--green-900) 100%) !important;
   border-color: transparent;
@@ -3626,6 +3638,7 @@ a.hash {
 .privacy-visual {
   position: relative;
   min-height: 340px;
+  padding: clamp(20px, 4vw, 28px);
   overflow: hidden;
   border-radius: clamp(28px, 4vw, 40px);
   background:
@@ -3635,82 +3648,99 @@ a.hash {
   place-items: center;
 }
 
-.ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  border-radius: 50%;
-  border: 1px dashed rgb(255 255 255 / 26%);
-  background: rgb(255 255 255 / 4%);
-  transform: translate(-50%, -50%);
+.pv-stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
 }
 
-.ring-1 {
-  width: 190px;
-  height: 190px;
+.pv-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(255 255 255 / 34%);
+  background: rgb(255 255 255 / 9%);
+  color: var(--on-dark);
 }
 
-.ring-2 {
-  width: 290px;
-  height: 290px;
-}
-
-.ring-3 {
-  width: 400px;
-  height: 400px;
-}
-
-.privacy-core {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 108px;
-  height: 108px;
-  border-radius: 34px;
+.pv-box-shielded {
+  border-color: transparent;
   background: linear-gradient(135deg, #ffffff 0%, #d6eee4 100%);
-  color: #0e5c48;
-  box-shadow: 0 30px 90px -10px rgb(75 240 192 / 55%);
+  color: #0b2a22;
+  box-shadow: 0 24px 60px -24px rgb(75 240 192 / 55%);
 }
 
-.ring-chip {
-  position: absolute;
+.pv-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-dark-2);
+}
+
+.pv-box-shielded .pv-tag {
+  color: #0e5c48;
+}
+
+.pv-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.pv-sub {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--on-dark-2);
+}
+
+.pv-box-shielded .pv-sub {
+  color: #4c5f58;
+}
+
+.pv-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding-left: 24px;
+}
+
+.pv-line {
+  align-self: stretch;
+  border-left: 2px solid rgb(255 255 255 / 55%);
+}
+
+.pv-link-broken .pv-line {
+  border-left-style: dashed;
+}
+
+.pv-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px 7px 9px;
+  padding: 5px 11px 5px 8px;
   border-radius: var(--radius-pill);
   background: rgb(255 255 255 / 88%);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
   color: #0b2a22;
   font-size: 13px;
   font-weight: 500;
-  white-space: nowrap;
-  box-shadow: 0 14px 30px -18px rgb(0 0 0 / 55%);
 }
 
-.ring-chip .icon {
+.pv-pill .icon {
+  flex: none;
   color: #0e5c48;
 }
 
-.ring-chip-a {
-  top: 16%;
-  left: 8%;
-}
-
-.ring-chip-b {
-  top: 26%;
-  right: 6%;
-}
-
-.ring-chip-c {
-  bottom: 22%;
-  left: 10%;
-}
-
-.ring-chip-d {
-  bottom: 12%;
-  right: 12%;
+.pv-note {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--on-dark-2);
 }
 
 .privacy-card {

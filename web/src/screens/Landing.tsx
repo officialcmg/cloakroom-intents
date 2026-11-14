@@ -16,6 +16,7 @@ const MAINNET_STATE = NETWORK_SITES.mainnet ? 'Mainnet runs on a separate site.'
 import { ChainIcon } from '../ui/ChainIcon';
 import { Icon, type IconName } from '../ui/Icon';
 import { Logo } from '../ui/bits';
+import { TokenAvatar } from '../ui/TokenAvatar';
 import { useReveal } from '../ui/reveal';
 import { DESIGN_URL, Footer, Header, PAPER_URL, REPO_URL } from './Chrome';
 
@@ -248,8 +249,20 @@ export function Landing() {
             <Stat tag="Testnet · website" value="37" title="Swaps through this website" featured>
               With the hosted maker, 2026-11-13 and 14. Most took 6 to 9 minutes. Two ran at the same time, and one that was abandoned on purpose was refunded in 5 minutes.
             </Stat>
-            <Stat tag="Testnet · command line" value="0.1 → 3" title="One swap with the command-line programs">
-              0.1 testnet ZEC for 3 test USDC, end to end on the public test networks.
+            <Stat
+              tag="Testnet · no website"
+              value={
+                <span className="stat-pair" role="img" aria-label="0.1 ZEC to 3 USDC">
+                  <TokenAvatar symbol="ZEC" blockchain="zec" size={34} />
+                  <span>0.1</span>
+                  <Icon name="arrow" size={22} />
+                  <TokenAvatar symbol="USDC" blockchain="near" size={34} />
+                  <span>3</span>
+                </span>
+              }
+              title="0.1 ZEC became 3 USDC without the website"
+            >
+              The same swap also runs from the command line: a maker program and a taker program, on the public test networks, with test coins.
             </Stat>
             <Stat tag="Local networks" value="6" title="Browser scenarios pass">
               A full swap, a refund, reloads during a swap, a restore from the recovery file, a price below the minimum, and the maker stopping right after the claim.
@@ -373,7 +386,7 @@ function Case({ icon, title, children }: { icon: IconName; title: string; childr
   );
 }
 
-function Stat({ tag, value, title, featured, children }: { tag: string; value: string; title: string; featured?: boolean; children: ReactNode }) {
+function Stat({ tag, value, title, featured, children }: { tag: string; value: ReactNode; title: string; featured?: boolean; children: ReactNode }) {
   return (
     <li className={`stat-card${featured ? ' is-featured' : ''}`}>
       <span className="tag">
@@ -508,24 +521,33 @@ function HeroVisual() {
 function PrivacyVisual() {
   return (
     <div className="privacy-visual on-dark" aria-hidden="true" data-reveal>
-      <div className="ring ring-3" />
-      <div className="ring ring-2" />
-      <div className="ring ring-1" />
-      <div className="privacy-core">
-        <Icon name="shield" size={40} />
+      <div className="pv-stack">
+        <div className="pv-box pv-box-shielded">
+          <span className="pv-tag">Shielded · Zcash</span>
+          <span className="pv-title">Your Zcash wallet</span>
+          <span className="pv-sub">Balance, history and which wallet paid</span>
+        </div>
+        <div className="pv-link pv-link-broken">
+          <span className="pv-line" />
+          <span className="pv-pill">
+            <Icon name="close" size={12} /> No link on any chain
+          </span>
+        </div>
+        <div className="pv-box">
+          <span className="pv-tag">Public · NEAR</span>
+          <span className="pv-title">A new key for this swap</span>
+          <span className="pv-sub">Escrow, USDC amount and times</span>
+        </div>
+        <div className="pv-link">
+          <span className="pv-line" />
+          <span className="pv-note">NEAR Intents sends it on</span>
+        </div>
+        <div className="pv-box">
+          <span className="pv-tag">Public · destination chain</span>
+          <span className="pv-title">Your address</span>
+          <span className="pv-sub">The amount it receives</span>
+        </div>
       </div>
-      <span className="ring-chip ring-chip-a">
-        <Icon name="wallet" size={14} /> Your wallet
-      </span>
-      <span className="ring-chip ring-chip-b">
-        <Icon name="lock" size={14} /> Encrypted memos
-      </span>
-      <span className="ring-chip ring-chip-c">
-        <Icon name="key" size={14} /> New NEAR key
-      </span>
-      <span className="ring-chip ring-chip-d">
-        <Icon name="eye" size={14} /> No link back
-      </span>
     </div>
   );
 }
