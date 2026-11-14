@@ -3,3 +3,19 @@
 [hosted 04:00:34 +34s] PASS  the recovery file was saved 
 [hosted 04:00:35 +34s] stage awaiting_deposit
 [hosted 04:00:35 +34s] PASS  the page shows a testnet deposit address and amount 1000000 zats
+[hosted 04:00:50 +49s] paid 1000000 zats in b5fb19d0ccf029e10ac4dafc5f5b04863422558a258198d2f3c1bdf44d0c6d8d
+[hosted 04:00:50 +49s] stage awaiting_deposit
+[hosted 04:01:18 +78s] stage deposit_confirmed
+[hosted 04:01:47 +107s] stage request_sent
+[hosted 04:04:11 +251s] stage quote_received
+[hosted 04:04:41 +281s] stage accepted
+[hosted 04:08:13 +493s] stage escrow_open
+[hosted 04:08:47 +526s] stage funding_sent
+[hosted 04:09:18 +557s] stage funding_confirming
+[hosted 04:10:04 +604s] stage committing
+[hosted 04:10:06 +606s] stage claiming
+[hosted 04:10:12 +612s] stage claimed
+[hosted 04:10:18 +618s] stage exiting
+[hosted 04:10:24 +624s] stage done
+[hosted 04:10:24 +624s] PASS  the page reached done done ""
+[hosted 04:10:24 +624s] PASS  no Content-Security-Policy violation 
