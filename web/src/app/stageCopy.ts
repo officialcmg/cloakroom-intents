@@ -205,6 +205,15 @@ export function nowCopy(s: SwapState): NowCopy {
       }
       const min = e ? destAmount(s, e.approvedMinimum) : '';
       const leaveOk = 'You can close this tab. The USDC stays under your key until the delivery is final.';
+      // The engine waits for USDC that is not under the key yet: a refund on its way, or an
+      // earlier signed delivery that holds it (review 6). Its message names the deposit address.
+      if (s.lastError?.code === 'EXIT_FAILED' && s.lastError.transient)
+        return {
+          title: 'Waiting for the USDC to come back to your key',
+          body: s.lastError.message,
+          safety: 'safe',
+          safetyText: 'You can close this tab. The engine checks again when you open the page. Keep your recovery file.',
+        };
       if (!e || e.phase === 'quoting') {
         const busy = s.lastError?.code === 'EXIT_NO_QUOTE';
         return {

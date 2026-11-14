@@ -19,7 +19,7 @@ first swap.
 
 | # | Not tested | How to reduce it |
 |---|---|---|
-| G1 | **The 1Click delivery leg with funds.** Quote, generate and submit answered without a key, and the quote signature and payload checks pass on live answers (`docs/INTENTS.md`). No signed exit was ever executed with a funded key. The real fees, the status sequence of a funded exit, the refund path and the time to deliver are not known. Today's dry quote: 5 USDC on NEAR to USDC on Base gives 4.997080 USDC, minimum 4.947109, estimate 12 s. | First swap: the smallest amount (0.002 ZEC, about 1.8 USDC) to USDC on Base, to an address you control. If the exit fails, the USDC stays in `intents.near` under the swap's key; the recovery file holds that key. Keep the recovery file until the USDC arrives. |
+| G1 | **The 1Click delivery leg with funds.** Quote, generate and submit answered without a key, and the quote signature and payload checks pass on live answers (`docs/INTENTS.md`). Security review 6 (2026-11-14) proved the signed payloads on mainnet without funds: `simulate_intents` on `intents.near` fails only on the balance for every format the code signs, including a live 1Click exit payload. No signed exit was ever executed with a funded key. The real fees, the status sequence of a funded exit, the refund path and the time to deliver are not known. Dry quote of 2026-11-14: 2 USDC on NEAR to USDC on Base gives 1.997343 USDC, minimum 1.977369, estimate 12 s. | Before the first swap: the funded exit test (section 6a), 1 USDC to USDC on Base. Then the first swap: the smallest amount (0.002 ZEC, about 1.8 USDC) to USDC on Base, to an address you control. If the exit fails, the USDC stays in `intents.near` under the swap's key; the recovery file holds that key, and `scripts/mainnet-exit-test.sh rescue` moves it out without 1Click. Keep the recovery file until the USDC arrives. |
 | G2 | **Zcash mainnet transactions from this code.** The wallet scanned Zcash mainnet (native: 262 blocks to the tip 3,570,962 in 0.9 s; browser engine: read the tip 3,570,968 through gRPC-web). It never built, proved or broadcast a mainnet transaction. The consensus parameters for mainnet are new in this branch: `zcash_protocol` 0.11.0-pre.0 has no mainnet NU7 height, so `crates/zecret-core/src/wallet.rs` sets 3,543,405. The chain agrees: the coinbase of block 3,543,404 has branch id `0x37a5165b` (NU6.3), that of 3,543,405 has `0x77190ad9` (NU7), and the light-wallet server reports `77190ad9` at the tip. | The first Zcash send of the maker (its first quote) shows it: a node refusal says why. Before that, send 0.001 ZEC from the maker's wallet to your own wallet with `zecret pay` (step 6.5). That proves a mainnet send without a swap. |
 | G3 | **The escrow with Circle's USDC and the real `intents.near`.** Tested only in the NEAR sandbox with the code of both contracts copied from mainnet (`contracts/near-escrow/tests/usdc.rs`, `docs/security/fixes-2.md`). | The first swap is that test. The escrow keeps the swap's USDC inside `intents.near` from the open; `withdraw(id)` moves it to the taker's key with one `mt_transfer`; check the balance there (step 9). |
 | G4 | **Light-wallet server under load.** One public server, `zcash-mainnet.chainsafe.dev` (Zebra 7.0.0, lightwalletd 0.6.1). Its CORS answer allows any origin (it echoed `https://zecret.chrismg.dev`, a made-up `https://mainnet.zecret.chrismg.dev` and `http://127.0.0.1:<port>`). How long ChainSafe keeps it public, and how it behaves with many users, is not known. | Small swaps, few at a time (`max_pending_quotes` 3). If it fails, every party's deadlines still hold: the taker's ZEC comes back through the refund path. |
@@ -529,8 +529,65 @@ How to stop:
   premium if it was paid). If the maker is gone, after the deadline the page claims the
   USDC anyway.
 - **After the claim, if the exit fails:** the USDC stays in `intents.near` under the
-  swap's key. The page offers to try again. The recovery file holds the key.
+  swap's key. The page offers to try again once the USDC is back under the key. The
+  recovery file holds the key; without 1Click, `scripts/mainnet-exit-test.sh rescue`
+  moves the USDC out (section 6a).
 - **To stop the maker** for everyone: section 7.
+
+## 6a. The exit leg: first funded test
+
+Run this before the first swap, or before you open the site to others. It sends real
+USDC through the same exit code the browser runs (`zecret_wasm::exit`), without a swap.
+It costs the 1Click fees and two NEAR transactions from your account (about 0.002 NEAR).
+
+**Amount.** Smallest amounts 1Click accepted on 2026-11-14 (micro-USDC, from "Amount is
+too low for bridge, try at least N"): USDC on Base 2,429; ETH on Base 1,077; USDC on
+Arbitrum 5,359; ETH on Arbitrum 2,304; SOL 78,286; XLM 14,420; TON 44,066; ZEC
+1,189,762; BTC 5,609,479. XRP answered "Internal server error" at every amount. The
+withdraw fee is fixed (0.0024 USDC to Base), so very small amounts lose most of it: use
+**1 USDC to USDC on Base** (expected about 0.9974 USDC, minimum about 0.9874). The tool
+refuses more than 5 USDC unless you pass `--max-amount`.
+
+**Steps.**
+
+1. Read-only plan. It reads your account and USDC, the Verifier salt and a dry quote, and
+   prints every transaction it would send:
+
+   ```sh
+   scripts/mainnet-exit-test.sh plan --owner-key ~/.near-credentials/mainnet/<owner>.json \
+     --amount 1000000 \
+     --dest-asset nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near \
+     --recipient 0x<your Base address>
+   ```
+
+   You should see `PLAN OK: nothing was sent.` Your account must hold the USDC as plain
+   NEP-141 USDC (`17208628…33a1`), not inside NEAR Intents.
+2. The run. Same arguments plus `--state-dir ./exit-test-state
+   --i-understand-this-spends-real-funds`. It writes the fresh key's seed to the state
+   file (mode 0600) before it sends anything, deposits the USDC into that key's NEAR
+   Intents account, then quotes, checks, signs, submits and follows the status. It
+   prints each transaction and the 1Click explorer link.
+3. What to watch: the deposit transaction on nearblocks.io; `key balance in NEAR
+   Intents: 1.000000`; the firm quote's deposit address (64 hex) and minimum; `submitted:
+   intent hash …`; status lines `PENDING_DEPOSIT` or `KNOWN_DEPOSIT_TX`, `PROCESSING`,
+   `SUCCESS` with the Base transaction; `final: SUCCESS ; the key now holds 0.000000`.
+   Record the times and the delivered amount in `docs/INTENTS.md` §9.
+4. If it ends `REFUNDED` or `FAILED`, or stops without a final status: `status --state
+   <file>` follows it again. To take the USDC back to your account (your account pays
+   the gas): `refund --state <file> --owner-key <file> --i-understand-this-spends-real-funds`.
+   Without the flag `refund` only signs and simulates.
+5. Keep the state file until the USDC arrived or came back. Then delete it.
+
+**Recovering a user's swap** with only the recovery file, without 1Click:
+
+```sh
+scripts/mainnet-exit-test.sh rescue --recovery-file zecret-recovery-xxxx.json --to-intents-account <account>
+# or --to-near-account <account registered with USDC>
+```
+
+It simulates first and sends only with the flag. The swap key's own NEAR account pays the
+gas from the rest of the stipend (0.04 NEAR must be free for `ft_withdraw`, 0.02 NEAR
+for `transfer`, at 10^9 yoctoNEAR per gas); `--gas-payer-key <file>` lets your account pay.
 
 ## 7. Pause, stop and roll back
 
@@ -634,6 +691,12 @@ the project. The testnet site is not affected.
   landing page, the tabs; 18 tests) and on the switched build (6 tests).
 - Start script: 18 cases with a stand-in binary (19 since the light-payout update, 05:40 UTC: all pass).
 
+- Exit leg (security review 6, 2026-11-14 13:25 UTC): `simulate_intents` on mainnet
+  `intents.near` with every payload format the code signs and with a live 1Click exit
+  payload, for fresh keys: only "insufficient balance or overflow". The pinned 1Click
+  quote key equals the one in SDK 0.1.26, the latest. `scripts/mainnet-exit-test.sh plan`
+  with a stand-in owner: `PLAN OK`.
+
 Not checked: anything in the gap list; the Vercel and Railway setups (not created);
 Firefox and Safari; the explorer links from a browser.
 
@@ -729,7 +792,9 @@ Go only if every line is true:
 - [ ] This branch is merged, and `mainnet-release` points at the merged commit.
 - [ ] The escrow and app flow you ship passed its own testnet soak (your rule of
       2026-11-14 in `STATUS.md`: no mainnet step on a flow that has not passed its soak).
-- [ ] `scripts/mainnet-preflight.sh` with your `OWNER` and `ESCROW_HASH`: `PREFLIGHT PASSED`.
+- [ ] `scripts/mainnet-preflight.sh` with your `OWNER` and `ESCROW_HASH`: `PREFLIGHT PASSED`
+      (it includes the quote key check and the read-only `simulate_intents` check of the exit).
+- [ ] The funded exit test (section 6a) ended `SUCCESS`, or you accept G1 as it is.
 - [ ] The escrow hash is the light-payout escrow's (`AqzB7mtM…`), and the same hash is in
       `VITE_MAINNET_ESCROW_CODE_HASH` and in the taker template's `escrow_code_hash`.
 - [ ] Step 2 and step 3: the dry run passes, both stipend lines pass at today's gas price.

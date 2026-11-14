@@ -30,7 +30,7 @@ pub mod signer;
 pub mod time;
 
 pub use check::{
-    ApprovedExit, CheckedIntent, Policy, Refusal, check_generated_intent, check_quote,
+    ApprovedExit, CheckedIntent, Policy, Refusal, check_generated_intent, check_quote, check_status,
 };
 pub use client::{ExitClient, SubmittedExit, VerifierRpc};
 pub use direct::IntentDraft;

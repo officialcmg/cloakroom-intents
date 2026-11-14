@@ -58,6 +58,16 @@ This section is always current. The numbered sections below give the detail.
   taker then takes the ZEC back.
 - If the exit through NEAR Intents fails, the USDC stays under the taker's key. The app
   tries again.
+- The app does not trust the status from NEAR Intents alone. It reads the balance of the
+  taker's key in NEAR Intents. It counts a delivery only after the USDC left the key. It
+  tries again only after the USDC is back under the key. It never sends more than the
+  payout.
+- If a refund from NEAR Intents arrives late, the app finds it and asks the user. This
+  also works after a restore from the recovery file.
+- If NEAR Intents 1Click does not work, the USDC can leave NEAR Intents without it. A
+  command-line tool reads the recovery file, signs one transfer with the taker's key and
+  sends it. The rest of the stipend pays the gas. The website has no button for this
+  yet.
 - If the user closes the page, the keys stay in the browser's storage. The user opens
   the page again and the swap continues. The app also gives a recovery file.
 - ZEC that is left in the temporary wallet goes back to a Zcash address that the user
@@ -139,6 +149,8 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-14 | The maker reads the escrow of a swap on a plan. It reads after each deadline that matters, every 30 s while a swap waits for funding, every 10 s while the taker acts, and every 3 s at most. Before, it read every swap every second. A refund and a set_ready of a funded swap also try the endpoints that wait. |
 | 2026-11-14 | After t2 the escrow refuses a refund of an Open or Ready swap. The maker cannot act until the taker's key locks the swap. The maker then reads the swap every 5 minutes at most, and repeats its alert every 30 minutes. |
 | 2026-11-14 | The maker reports its health: `GET /health` on the relay port, or on `--health` where the relay is off (mainnet). The report has no keys, no addresses and no amounts. |
+| 2026-11-14 | The exit believes the balance of the taker's key in NEAR Intents, not only the status from 1Click. A delivery counts when the key holds less than it signed. A retry starts when tokens are under the key again, and it sends at most the payout. A swap restored after its exit watches the key for a refund for 96 hours. The status from 1Click must carry the signed quote of its deposit address. Reason: security review 6 (`docs/security/review-6-intents-exit.md`); the status is not signed, and a refund can arrive late or short. |
+| 2026-11-14 | With only the recovery file, `scripts/mainnet-exit-test.sh rescue` moves the USDC out of NEAR Intents without 1Click. The taker's key signs one `transfer` or `ft_withdraw`, and its own NEAR account sends it with the rest of the stipend. No free relay for such an intent exists. |
 | 2026-11-14 | The mainnet templates follow the light payout. The stipend is 0.06 NEAR, and the taker accepts 0.03 NEAR. The premium is 40,000 zats, and the maker counts 0.02 NEAR of other costs for each swap. The dry run reads `min_gas_purchase_price` from the protocol config and checks that the stipend is at least 2 times the largest balance NEAR checks before the taker's three calls. See `docs/MAINNET.md`. |
 
 **Open**

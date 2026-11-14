@@ -109,6 +109,10 @@ pub enum Refusal {
     QuoteIsDry,
     /// A firm quote without a deposit address.
     NoDepositAddress,
+    /// The deposit address of an `INTENTS` quote is not an account inside the Verifier
+    /// that the transfer may go to: not a valid NEAR account id, the taker itself, or the
+    /// Verifier contract.
+    BadDepositAddress(String),
     /// A quote field differs from what the user approved.
     QuoteMismatch {
         field: &'static str,
@@ -189,6 +193,9 @@ impl fmt::Display for Refusal {
             Self::QuoteSignature => write!(f, "the quote is not signed by 1Click"),
             Self::QuoteIsDry => write!(f, "the quote is a dry quote"),
             Self::NoDepositAddress => write!(f, "the quote has no deposit address"),
+            Self::BadDepositAddress(a) => {
+                write!(f, "the deposit address {a:?} is not a NEAR Intents account")
+            }
             Self::QuoteMismatch {
                 field,
                 expected,
@@ -265,6 +272,51 @@ fn same(field: &'static str, expected: &str, found: &str) -> Result<(), Refusal>
     }
 }
 
+/// A NEAR account id as the protocol accepts it: 2 to 64 characters of lower-case
+/// letters, digits and `-_.`, with no separator at either end and no two in a row.
+pub fn valid_account_id(id: &str) -> bool {
+    let b = id.as_bytes();
+    if b.len() < 2 || b.len() > 64 {
+        return false;
+    }
+    let sep = |c: u8| matches!(c, b'-' | b'_' | b'.');
+    !sep(b[0])
+        && !sep(b[b.len() - 1])
+        && b.iter()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || sep(*c))
+        && !b.windows(2).any(|w| sep(w[0]) && sep(w[1]))
+}
+
+/// Checks that a `/v0/status` answer belongs to `deposit_address`: its `quoteResponse`
+/// carries 1Click's signature and names that deposit address. The `status` field itself
+/// is not signed, so this binds the answer to the quote, not the state to the truth; the
+/// caller still reads the Verifier balance before it believes a final state.
+pub fn check_status(
+    status: &crate::oneclick::StatusResponse,
+    deposit_address: &str,
+    policy: &Policy,
+) -> Result<(), Refusal> {
+    let q = status
+        .quote_response
+        .as_ref()
+        .ok_or_else(|| Refusal::Malformed("the status answer has no quoteResponse".into()))?;
+    if !quote_sig::verify(q, &policy.quote_key) {
+        return Err(Refusal::QuoteSignature);
+    }
+    let found = q
+        .pointer("/quote/depositAddress")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if found != deposit_address {
+        return Err(Refusal::QuoteMismatch {
+            field: "quote.depositAddress",
+            expected: deposit_address.into(),
+            found: found.into(),
+        });
+    }
+    Ok(())
+}
+
 /// Checks a firm quote against what the user approved.
 pub fn check_quote(
     approved: &ApprovedExit,
@@ -325,8 +377,17 @@ pub fn check_quote(
             quoted: quoted_min,
         });
     }
-    if q.deposit_address.as_deref().unwrap_or("").is_empty() {
+    let deposit = q.deposit_address.as_deref().unwrap_or("");
+    if deposit.is_empty() {
         return Err(Refusal::NoDepositAddress);
+    }
+    // `depositType: INTENTS`: the deposit address is an account inside the Verifier
+    // (a 64-hex implicit account in every quote seen). The transfer goes there.
+    if !valid_account_id(deposit)
+        || deposit == approved.signer_id
+        || deposit == approved.verifying_contract
+    {
+        return Err(Refusal::BadDepositAddress(deposit.into()));
     }
     // The swap must still be possible: the request deadline (after which 1Click
     // refunds) and the deposit deadline must both be in the future. On a firm quote

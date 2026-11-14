@@ -44,6 +44,7 @@ import { paymentUri } from '../../lib/zip321';
 import { coreNetwork, explorerUrl, nearRpcs, safeLink, type NetworkConfig } from '../../lib/netconfig';
 import { StaleWriteError, type RecordStore } from './idb';
 import { judgePayout, readPayoutFacts, type PayoutReader } from './payoutCheck';
+import { afterFinalStatus, believeSuccess, planExitAmount, REFUND_WATCH_MS, restoredExit } from './exitPlan';
 import { abortReason, coreStageName, loadWasm, type CoreEvent, type CoreSwap, type WasmModule, type WasmTaker } from './wasm';
 
 const STATE = 'web/state';
@@ -78,16 +79,34 @@ interface Meta {
   directPlan?: DirectPlan;
   /** The receiver's token balance before the direct exit was sent. */
   directBefore?: string;
-  exitQuote?: { raw: unknown; amountIn: string; amountOut: string; minAmountOut: string; depositAddress: string; timeEstimateS?: number; feeBps: number; at: number };
-  exitSubmitted?: { depositAddress: string; intentHash: string };
+  /** The firm quote of the current attempt and the exact approval it was checked against (signed with the same one). */
+  exitQuote?: { raw: unknown; amountIn: string; amountOut: string; minAmountOut: string; depositAddress: string; timeEstimateS?: number; feeBps: number; at: number; approval?: Approval };
+  exitSubmitted?: { depositAddress: string; intentHash: string; at?: number };
   /** Every 1Click deposit address this swap signed for (docs/INTENTS.md §6). */
   signedDeposits?: string[];
+  /** The USDC amount signed for each deposit address (review 6: a SUCCESS is believed only once the key holds less). */
+  signedAmounts?: Record<string, string>;
+  /** A swap restored after its exit ran elsewhere watches its NEAR Intents balance for a refund until then (review 6). */
+  refundWatchUntil?: number;
   refundTxid?: string;
   refundEmptySince?: number;
   leftoverDone?: boolean;
   leftoverTxid?: string;
   warnings?: number;
 }
+
+/** What the user approved for one exit attempt, as the engine passes it to exitQuote and exitSubmit. */
+interface Approval {
+  signerId: string;
+  verifyingContract: string;
+  originAsset: string;
+  amountIn: string;
+  destinationAsset: string;
+  recipient: string;
+  minAmountOut: string;
+}
+
+type ExitStatus = { status: string; isFinal: boolean; amountOut?: string; destinationTxs: { hash: string; url?: string }[]; refundedAmount?: string; refundReason?: string };
 
 type WasmResult<T> = { ok: true; value: T } | { ok: false; error: { code: ErrorCode; message: string; transient: boolean; offered?: { amountOut: string; minAmountOut: string } } };
 
@@ -478,8 +497,9 @@ export class RealEngine implements EngineBackend {
       this.state = { ...this.state, activity: terminal ? null : { kind: 'syncing', label: 'Catching up with the Zcash and NEAR networks', startedAt: now(), estimatedMs: 3_000 } };
       await this.persist();
       this.emitWire({ type: 'swap', swap: this.state });
-      // A swap that reached `done` may still owe the leftover ZEC to the return address.
-      if (!terminal || (this.state.stage === 'done' && !this.meta.leftoverDone)) this.schedule(0);
+      // A swap that reached `done` may still owe the leftover ZEC to the return address, or
+      // watch for a refund of an exit that ran in another browser (review 6).
+      if (!terminal || (this.state.stage === 'done' && (!this.meta.leftoverDone || this.refundWatchActive()))) this.schedule(0);
       return this.state;
     });
   }
@@ -706,11 +726,16 @@ export class RealEngine implements EngineBackend {
         throw new EngineError('WRONG_STAGE', 'The exit runs after the USDC is paid out.');
       }
       let approvedMinimum = s.exit?.approvedMinimum ?? s.params.minDestinationAmount;
+      let minimumFor = s.exit?.minimumFor;
       if (request.acceptMinimum !== undefined) {
         if (!isUint(request.acceptMinimum) || BigInt(request.acceptMinimum) <= 0n) throw new EngineError('INVALID_PARAMS', 'acceptMinimum must be a positive whole number.');
         if (BigInt(request.acceptMinimum) > BigInt(approvedMinimum)) throw new EngineError('INVALID_PARAMS', 'acceptMinimum may only lower the minimum.');
-        if (!s.exit?.offered) throw new EngineError('WRONG_STAGE', 'There is no lower price to accept.');
+        const offered = s.exit?.offered;
+        if (!offered) throw new EngineError('WRONG_STAGE', 'There is no lower price to accept.');
+        // The user accepts the minimum of the offer they saw, not a lower one (review 6).
+        if (BigInt(request.acceptMinimum) < BigInt(offered.minAmountOut)) throw new EngineError('INVALID_PARAMS', 'acceptMinimum may not be below the offered minimum.');
         approvedMinimum = request.acceptMinimum;
+        if (offered.amountIn) minimumFor = offered.amountIn;
       }
       const m = this.meta!;
       m.exitQuote = undefined;
@@ -718,7 +743,7 @@ export class RealEngine implements EngineBackend {
       if (s.lastError?.code !== 'NETWORK') m.directPlan = undefined;
       const direct = this.cfg!.exit.mode === 'direct';
       await this.stage('exiting', {
-        exit: { attempts: (s.exit?.attempts ?? 0) + 1, phase: direct ? 'signing' : 'quoting', approvedMinimum, offered: undefined, amountOut: undefined, minAmountOut: undefined, depositAddress: undefined, intentHash: undefined },
+        exit: { attempts: (s.exit?.attempts ?? 0) + 1, phase: direct ? 'signing' : 'quoting', approvedMinimum, minimumFor, offered: undefined, amountOut: undefined, minAmountOut: undefined, depositAddress: undefined, intentHash: undefined, doneElsewhere: false },
         needs: null,
         lastError: null,
       });
@@ -826,8 +851,12 @@ export class RealEngine implements EngineBackend {
       case 'recovered':
       case 'refunding':
         return this.refundStep();
-      case 'done':
-        return this.leftoverStep();
+      case 'done': {
+        const leftover = await this.leftoverStep();
+        if (this.state!.stage !== 'done') return leftover;
+        const watch = await this.refundWatchStep();
+        return leftover === null ? watch : watch === null ? leftover : Math.min(leftover, watch);
+      }
       default:
         return null;
     }
@@ -1072,8 +1101,12 @@ export class RealEngine implements EngineBackend {
     if (judgePayout(facts) !== 'gone') return 'not';
     log(`payout check: the escrow paid ${facts.amount ?? '?'} to ${core.taker_account} and the tokens left that key: the exit happened before this browser followed the swap`);
     m.coreDone = true;
-    await this.persist();
     const direct = cfg.exit.mode === 'direct';
+    // 1Click: a signed exit can still be refunded into the key (review 6). Follow the deposit
+    // address the file names, or watch the balance for a refund.
+    const restored = direct ? undefined : restoredExit(m.signedDeposits);
+    if (restored?.kind === 'watch') m.refundWatchUntil = now() + REFUND_WATCH_MS;
+    await this.persist();
     if (s.stage !== 'paid_out') {
       await this.emit({
         type: 'stage',
@@ -1082,6 +1115,17 @@ export class RealEngine implements EngineBackend {
         at: now(),
         patch: { payout: { usdc: this.toMicro(facts.amount ?? core.quote?.price ?? '0'), intentsAccount: core.taker_account } },
       });
+    }
+    if (restored?.kind === 'follow') {
+      m.exitSubmitted = { depositAddress: restored.depositAddress, intentHash: '', at: now() };
+      await this.persist();
+      log(`payout check: following the deposit address ${restored.depositAddress} that this key signed for`);
+      await this.stage('exiting', {
+        exit: { attempts: Math.max(1, s.exit?.attempts ?? 0), phase: 'delivering', approvedMinimum: s.exit?.approvedMinimum ?? s.params.minDestinationAmount, depositAddress: restored.depositAddress },
+        needs: null,
+        lastError: null,
+      });
+      return 'moved';
     }
     await this.emit({
       type: 'stage',
@@ -1266,7 +1310,7 @@ export class RealEngine implements EngineBackend {
     return core.near_sk;
   }
 
-  private async exitFailed(err: { code: ErrorCode; message: string; offered?: { amountOut: string; minAmountOut: string } }, phase?: 'refunded' | 'failed'): Promise<null> {
+  private async exitFailed(err: { code: ErrorCode; message: string; offered?: { amountOut: string; minAmountOut: string; amountIn?: string } }, phase?: 'refunded' | 'failed'): Promise<null> {
     const s = this.state!;
     await this.stage('exit_retry', {
       exit: { ...(err.offered ? { offered: err.offered } : {}), ...(phase ? { phase } : {}) },
@@ -1378,17 +1422,38 @@ export class RealEngine implements EngineBackend {
     return 0;
   }
 
-  private approval(cfg: NetworkConfig) {
+  /** The payout in token base units. */
+  private payoutAmount(): bigint {
+    return BigInt(this.state!.payout!.usdc) * this.scale();
+  }
+
+  /** The taker key's token balance in the Verifier at a final block, or undefined if NEAR RPC did not answer. */
+  private keyBalance(): bigint | undefined {
+    const s = this.state!;
+    try {
+      return BigInt(this.taker!.intentsBalance(s.payout?.intentsAccount ?? this.coreSwap()?.taker_account ?? ''));
+    } catch (e) {
+      log(`exit: the NEAR Intents balance could not be read: ${(e as Error).message}`);
+      return undefined;
+    }
+  }
+
+  private approval(cfg: NetworkConfig, amountIn: bigint, minAmountOut: bigint): Approval {
     const s = this.state!;
     return {
       signerId: s.payout!.intentsAccount,
       verifyingContract: cfg.near.verifier,
       originAsset: `nep141:${cfg.near.token}`,
-      amountIn: (BigInt(s.payout!.usdc) * this.scale()).toString(),
+      amountIn: amountIn.toString(),
       destinationAsset: s.params.destination.assetId,
       recipient: s.params.destination.address,
-      minAmountOut: s.exit!.approvedMinimum,
+      minAmountOut: minAmountOut.toString(),
     };
+  }
+
+  /** The approval of a stored quote (older records have none: the payout and the approved minimum). */
+  private storedApproval(cfg: NetworkConfig, q: NonNullable<Meta['exitQuote']>): Approval {
+    return q.approval ?? this.approval(cfg, this.payoutAmount(), BigInt(this.state!.exit!.approvedMinimum));
   }
 
   private async oneClickStep(wasm: WasmModule, cfg: NetworkConfig): Promise<number | null> {
@@ -1401,7 +1466,26 @@ export class RealEngine implements EngineBackend {
       // An earlier signed exit may have delivered although its submit answer was lost
       // (review 3, H4): look at every deposit address signed for before a new quote.
       if (await this.earlierExitDelivered(wasm, base)) return 0;
-      const r = parse<WasmResult<NonNullable<Meta['exitQuote']>>>(wasm.exitQuote(base, JSON.stringify(this.approval(cfg)), now()));
+      // The amount comes from the balance under the key (review 6): never more than the
+      // payout, less if a refund came back short, nothing while an earlier exit holds it.
+      const balance = this.keyBalance();
+      if (balance === undefined) return 10_000;
+      const plan = planExitAmount(this.payoutAmount(), BigInt(exit.approvedMinimum), BigInt(exit.minimumFor ?? '0'), balance);
+      if (plan.kind === 'empty') {
+        const last = (m.signedDeposits ?? [])[(m.signedDeposits ?? []).length - 1];
+        if (last) {
+          log(`exit: the key holds no USDC; following the deposit address ${last} it signed for`);
+          m.exitSubmitted = { depositAddress: last, intentHash: '', at: now() };
+          await this.persist();
+          await this.stage('exiting', { exit: { phase: 'delivering', depositAddress: last }, lastError: null });
+          return 0;
+        }
+        await this.emit({ type: 'stage', swapId: s.id, stage: 'exiting', at: now(), patch: { lastError: { code: 'EXIT_FAILED', message: 'Your key in NEAR Intents holds no USDC yet. The engine checks again in 30 seconds.', transient: true } } });
+        return 30_000;
+      }
+      if (plan.amountIn !== this.payoutAmount()) log(`exit: the key holds ${balance}, less than the payout ${this.payoutAmount()}: this attempt moves ${plan.amountIn} for at least ${plan.minAmountOut}`);
+      const approval = this.approval(cfg, plan.amountIn, plan.minAmountOut);
+      const r = parse<WasmResult<Omit<NonNullable<Meta['exitQuote']>, 'at' | 'approval'>>>(wasm.exitQuote(base, JSON.stringify(approval), now()));
       if (!r.ok) {
         if (r.error.code === 'EXIT_NO_QUOTE') {
           await this.emit({ type: 'stage', swapId: s.id, stage: 'exiting', at: now(), patch: { lastError: { code: 'EXIT_NO_QUOTE', message: r.error.message, transient: true } } });
@@ -1409,9 +1493,9 @@ export class RealEngine implements EngineBackend {
           return 20_000;
         }
         if (r.error.transient) return 10_000;
-        return this.exitFailed(r.error);
+        return this.exitFailed(r.error.offered ? { ...r.error, offered: { ...r.error.offered, amountIn: approval.amountIn } } : r.error);
       }
-      m.exitQuote = { ...r.value, at: now() };
+      m.exitQuote = { ...r.value, approval, at: now() };
       await this.persist();
       const q = r.value;
       await this.stage('exiting', {
@@ -1426,12 +1510,15 @@ export class RealEngine implements EngineBackend {
         return 0;
       }
       await this.activity({ kind: 'signing', label: 'Checking the delivery request and signing it with your key', startedAt: now(), estimatedMs: 3_000 });
+      const approval = this.storedApproval(cfg, m.exitQuote);
       // Recorded before the submit, so that a lost answer still leaves the address to poll (review 3, H4).
-      if (!(m.signedDeposits ?? []).includes(m.exitQuote.depositAddress)) {
-        m.signedDeposits = [...(m.signedDeposits ?? []), m.exitQuote.depositAddress];
+      const dep = m.exitQuote.depositAddress;
+      if (!(m.signedDeposits ?? []).includes(dep) || m.signedAmounts?.[dep] !== approval.amountIn) {
+        if (!(m.signedDeposits ?? []).includes(dep)) m.signedDeposits = [...(m.signedDeposits ?? []), dep];
+        m.signedAmounts = { ...(m.signedAmounts ?? {}), [dep]: approval.amountIn };
         await this.persist();
       }
-      const r = parse<WasmResult<{ intentHash: string; depositAddress: string }>>(wasm.exitSubmit(base, this.nearSeed(), JSON.stringify(this.approval(cfg)), JSON.stringify(m.exitQuote.raw), now()));
+      const r = parse<WasmResult<{ intentHash: string; depositAddress: string }>>(wasm.exitSubmit(base, this.nearSeed(), JSON.stringify(approval), JSON.stringify(m.exitQuote.raw), now()));
       if (!r.ok) {
         if (r.error.transient) return 10_000;
         if (/too old|expired/i.test(r.error.message)) {
@@ -1441,7 +1528,7 @@ export class RealEngine implements EngineBackend {
         }
         return this.exitFailed(r.error);
       }
-      m.exitSubmitted = r.value;
+      m.exitSubmitted = { ...r.value, at: now() };
       if (!(m.signedDeposits ?? []).includes(r.value.depositAddress)) m.signedDeposits = [...(m.signedDeposits ?? []), r.value.depositAddress];
       await this.persist();
       await this.stage('exiting', { exit: { phase: 'submitted', intentHash: r.value.intentHash }, addTxs: [this.nearTx(`exit-${exit.attempts}`, 'Exit intent signed and submitted', r.value.intentHash)] });
@@ -1449,19 +1536,58 @@ export class RealEngine implements EngineBackend {
     }
     const deposit = m.exitSubmitted?.depositAddress ?? exit.depositAddress;
     if (!deposit) return this.exitFailed({ code: 'INTERNAL', message: 'The submitted exit has no deposit address.' });
-    const r = parse<WasmResult<{ status: string; isFinal: boolean; amountOut?: string; destinationTxs: { hash: string; url?: string }[] }>>(wasm.exitStatus(base, deposit));
-    if (!r.ok) return 10_000;
+    const r = parse<WasmResult<ExitStatus>>(wasm.exitStatus(base, deposit));
+    if (!r.ok) {
+      log(`exit status: ${r.error.message}`);
+      return 10_000;
+    }
     const st = r.value;
-    if (st.status === 'SUCCESS') return this.exitDelivered(st, exit.amountOut);
+    if (st.status === 'SUCCESS') return (await this.deliveredIfBelieved(deposit, st, exit.amountOut)) ? 0 : 15_000;
     // Another address this swap signed for may be the one that delivered (review 3, H4).
     if (await this.earlierExitDelivered(wasm, base, deposit)) return 0;
     if (!st.isFinal) {
       if (exit.phase !== 'delivering') await this.stage('exiting', { exit: { phase: 'delivering' } });
-      return 5_000;
+      // Every 5 s for 10 minutes, then every 30 s. 1Click refunds after the request deadline.
+      const since = m.exitSubmitted?.at;
+      return since !== undefined && now() - since > 10 * 60_000 ? 30_000 : 5_000;
+    }
+    // REFUNDED or FAILED: believe it only with the USDC back under the key (review 6).
+    const balance = this.keyBalance();
+    if (balance === undefined) return 10_000;
+    const why = st.refundReason ? ` (${st.refundReason})` : '';
+    if (afterFinalStatus(balance) === 'wait') {
+      if (s.lastError?.message?.startsWith('NEAR Intents reported') !== true || exit.phase !== 'delivering')
+        await this.stage('exiting', {
+          exit: { phase: 'delivering' },
+          lastError: { code: 'EXIT_FAILED', message: `NEAR Intents reported ${st.status}${why} for the deposit address ${deposit}, and the USDC is not back under your key yet. The engine keeps checking. Keep your recovery file.`, transient: true },
+        });
+      return 30_000;
     }
     m.exitQuote = undefined;
     m.exitSubmitted = undefined;
-    return this.exitFailed({ code: 'EXIT_FAILED', message: `NEAR Intents reported ${st.status}. The USDC is back under your key.` }, st.status === 'REFUNDED' ? 'refunded' : 'failed');
+    await this.persist();
+    return this.exitFailed({ code: 'EXIT_FAILED', message: `NEAR Intents reported ${st.status}${why}. ${this.formatUsdc(balance)} USDC is under your key in NEAR Intents.` }, st.status === 'REFUNDED' ? 'refunded' : 'failed');
+  }
+
+  /** USDC base units as a decimal string. */
+  private formatUsdc(units: bigint): string {
+    const d = BigInt(this.cfg!.near.tokenDecimals);
+    const one = 10n ** d;
+    const frac = (units % one).toString().padStart(Number(d), '0').replace(/0+$/, '');
+    return `${units / one}${frac ? `.${frac}` : ''}`;
+  }
+
+  /** A SUCCESS counts once the signed USDC left the key (review 6); the status itself is not signed. */
+  private async deliveredIfBelieved(deposit: string, st: ExitStatus, amountOut?: string): Promise<boolean> {
+    const balance = this.keyBalance();
+    if (balance === undefined) return false;
+    const signed = BigInt(this.meta!.signedAmounts?.[deposit] ?? this.payoutAmount().toString());
+    if (!believeSuccess(balance, signed)) {
+      log(`exit: 1Click reports SUCCESS for ${deposit}, but the key still holds ${balance} (signed ${signed}); not believed yet`);
+      return false;
+    }
+    await this.exitDelivered(st, amountOut);
+    return true;
   }
 
   private async exitDelivered(st: { amountOut?: string; destinationTxs: { hash: string; url?: string }[] }, amountOut?: string): Promise<number> {
@@ -1470,21 +1596,53 @@ export class RealEngine implements EngineBackend {
       exit: { phase: 'done', deliveredAmount: st.amountOut ?? amountOut },
       // 1Click's explorer links become links on the page: https only (review 3, H3).
       addTxs: st.destinationTxs.map((t, i) => ({ id: i === 0 ? 'delivery' : `delivery-${i}`, chain: 'destination' as const, label: `${s.params.destination.symbol} delivered`, hash: t.hash, url: safeLink(t.url), at: now() })),
+      lastError: null,
     });
     return 0;
   }
 
-  /** True (and the swap is done) when a deposit address signed for earlier, other than `skip`, reports SUCCESS. */
+  /** True (and the swap is done) when a deposit address signed for earlier, other than `skip`, reports SUCCESS and the key holds less than was signed for it. */
   private async earlierExitDelivered(wasm: WasmModule, base: string, skip?: string): Promise<boolean> {
     for (const addr of this.meta!.signedDeposits ?? []) {
       if (addr === skip) continue;
-      const r = parse<WasmResult<{ status: string; isFinal: boolean; amountOut?: string; destinationTxs: { hash: string; url?: string }[] }>>(wasm.exitStatus(base, addr));
-      if (r.ok && r.value.status === 'SUCCESS') {
+      const r = parse<WasmResult<ExitStatus>>(wasm.exitStatus(base, addr));
+      if (r.ok && r.value.status === 'SUCCESS' && (await this.deliveredIfBelieved(addr, r.value))) {
         log(`exit: the earlier deposit address ${addr} delivered`);
-        await this.exitDelivered(r.value);
         return true;
       }
     }
     return false;
+  }
+
+  /** Whether a `done` swap still watches its NEAR Intents balance for a refund. */
+  private refundWatchActive(): boolean {
+    const until = this.meta?.refundWatchUntil;
+    return until !== undefined && now() < until && this.cfg?.exit.mode === 'oneclick';
+  }
+
+  private refundCheckedAt?: number;
+
+  /**
+   * A swap restored after its exit ran in another browser (`exit.doneElsewhere`): a signed
+   * 1Click exit can still be refunded into the key until its deadline. While the page is
+   * open, the balance is read once a minute; tokens under the key move the swap to
+   * `exit_retry`, where the user can exit again (review 6).
+   */
+  private async refundWatchStep(): Promise<number | null> {
+    if (!this.refundWatchActive()) return null;
+    const since = this.refundCheckedAt === undefined ? Infinity : now() - this.refundCheckedAt;
+    if (since < 60_000) return 60_000 - since;
+    this.refundCheckedAt = now();
+    const balance = this.keyBalance();
+    if (balance === undefined || balance === 0n) return 60_000;
+    log(`refund watch: the key holds ${balance} again`);
+    this.meta!.refundWatchUntil = undefined;
+    await this.persist();
+    await this.stage('exit_retry', {
+      exit: { phase: 'refunded', doneElsewhere: false },
+      needs: 'exit_decision',
+      lastError: { code: 'EXIT_FAILED', message: `${this.formatUsdc(balance)} USDC came back under your key in NEAR Intents (a refund of the earlier exit). You can send it again.` },
+    });
+    return null;
   }
 }

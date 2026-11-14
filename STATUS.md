@@ -5,6 +5,18 @@ Updated: 2026-11-14 01:30 UTC. Deadline: 2026-11-14 23:59 UTC.
 Any session can resume from this file. Read `docs/BUILD_PLAN.md` for the packages and
 their checks.
 
+## Exit leg review (2026-11-14 13:00 to 15:00 UTC, security review 6)
+
+`docs/security/review-6-intents-exit.md`. Not committed. The signed exit payloads were
+proven on mainnet without funds (`simulate_intents` fails only on the balance). Fixed: the
+engine now reads the taker key's NEAR Intents balance before each attempt, after a final
+status and before it believes SUCCESS; a restored swap watches for a late refund; status
+answers must carry the signed quote; the deposit address is checked. New:
+`scripts/mainnet-exit-test.sh` (the owner's funded exit test and the rescue without
+1Click; run only `plan` until the owner decides), preflight checks for the quote key and
+the payload formats. Open: a rescue button on the site (gap X-1), everything in "What only
+a funded run can prove".
+
 ## Not done
 
 - Mainnet: nothing is deployed. The exit through NEAR Intents to another chain has not

@@ -245,8 +245,14 @@ export interface SwapState {
      * amountIn, amountOut, minAmountOut and deliveredAmount are then in that token's units.
      */
     direct?: { nearAccount: string; token: string; symbol: string; decimals: number };
-    /** A firm quote below the approved minimum, offered to the user. */
-    offered?: { amountOut: string; minAmountOut: string };
+    /**
+     * The USDC amount `approvedMinimum` is for: the payout, or the amount of an offer the user
+     * accepted. An attempt with less USDC under the key (a refund that came back short) scales
+     * the minimum at the same rate. Absent: the payout.
+     */
+    minimumFor?: string;
+    /** A firm quote below the approved minimum, offered to the user (`amountIn`: the USDC it was for). */
+    offered?: { amountOut: string; minAmountOut: string; amountIn?: string };
     deliveredAmount?: string;
     /**
      * The exit happened before this browser followed it (a swap restored after its exit):

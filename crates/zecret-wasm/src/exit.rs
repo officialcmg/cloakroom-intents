@@ -25,7 +25,7 @@ use zecret_core::{
     net::SharedTransport,
 };
 use zecret_intents::{
-    check::{check_generated_intent, check_quote, Policy, Refusal},
+    check::{check_generated_intent, check_quote, check_status, Policy, Refusal},
     client::VerifierRpc,
     direct::{execute_intents_args, IntentDraft},
     oneclick::{self, ExitQuoteParams, OneClick, QuoteRequest, QuoteResponse, SwapStatus},
@@ -212,11 +212,19 @@ pub struct Status {
     pub amount_out: Option<String>,
     pub destination_txs: Vec<Value>,
     pub refunded_amount: Option<String>,
+    pub refund_reason: Option<String>,
+    pub updated_at: Option<String>,
 }
 
+/// One `/v0/status` reading for a deposit address this key signed for. The answer must
+/// carry the quote for that address with 1Click's signature (`check::check_status`);
+/// otherwise it is an error and the engine asks again. The `status` field itself is not
+/// signed, so the engine also reads the Verifier balance before it believes a final state.
 pub fn oneclick_status<T: HttpTransport>(t: &T, api: &OneClick, deposit_address: &str) -> Result<Status, ExitError> {
     let r = t.send(&api.status_request(deposit_address, None)).map_err(|m| classify(&Error::Transport(m)))?;
     let s = oneclick::parse_status(&r).map_err(|e| classify(&e))?;
+    check_status(&s, deposit_address, &Policy::default())
+        .map_err(|r| ExitError::new("NETWORK", format!("the status answer from NEAR Intents is not signed for this deposit address ({r}); the engine asks again"), true))?;
     let status = match &s.status {
         SwapStatus::KnownDepositTx => "KNOWN_DEPOSIT_TX".to_string(),
         SwapStatus::PendingDeposit => "PENDING_DEPOSIT".to_string(),
@@ -233,6 +241,8 @@ pub fn oneclick_status<T: HttpTransport>(t: &T, api: &OneClick, deposit_address:
         amount_out: s.swap_details.amount_out.clone(),
         destination_txs: s.swap_details.destination_chain_tx_hashes.iter().map(|d| json!({"hash": d.hash, "url": d.explorer_url})).collect(),
         refunded_amount: s.swap_details.refunded_amount.clone(),
+        refund_reason: s.swap_details.refund_reason.clone(),
+        updated_at: s.updated_at.clone(),
     })
 }
 

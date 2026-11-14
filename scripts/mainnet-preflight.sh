@@ -17,6 +17,7 @@
 #   DEPLOY_TARGET_DIR, CRATES_TARGET_DIR  cargo target folders for deploy/ and crates/,
 #                 to reuse earlier builds and save disk (optional).
 #   SKIP_ENGINE_BUILD=1  use web/public/engine as it is (it must be built from this checkout).
+#   EXIT_OWNER_KEY  a near-cli key file of the owner: runs the exit test tool's read-only plan.
 # --quick skips the cargo tests, the web build and the Playwright tests.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -103,6 +104,20 @@ done
 check "Zcash light-wallet $LWD: gRPC-web, chain main, branch NU7" "printf '\\0\\0\\0\\0\\0' | curl -sS -m 20 -X POST '$LWD/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetLightdInfo' -H 'content-type: application/grpc-web+proto' -H 'x-grpc-web: 1' --data-binary @- > \"\$LOG/lwd\" && grep -aq 'grpc-status: *0' \"\$LOG/lwd\" && grep -aq 77190ad9 \"\$LOG/lwd\" && grep -aq main \"\$LOG/lwd\""
 check "Zcash light-wallet CORS allows $SITE_ORIGIN" "curl -sS -m 20 -o /dev/null -D - -X OPTIONS '$LWD/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetLightdInfo' -H 'Origin: $SITE_ORIGIN' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,x-grpc-web' | grep -iq 'access-control-allow-origin: \\($SITE_ORIGIN\\|\\*\\)'"
 check "1Click $ONECLICK/v0/tokens lists USDC on NEAR" "curl -sS -m 30 '$ONECLICK/v0/tokens' | jq -e 'map(select(.assetId == \"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\" and .decimals == 6)) | length == 1'"
+# The exit leg (docs/security/review-6-intents-exit.md). The quote key the engine pins must
+# be the one in the latest official SDK: a rotation makes every exit refuse to sign.
+check "1Click quote key: the latest official SDK names the key pinned in zecret-intents" '
+  key=$(grep -o "ONE_CLICK_QUOTE_KEY_B58: &str = \"[1-9A-HJ-NP-Za-km-z]*\"" crates/zecret-intents/src/quote_sig.rs | cut -d\" -f2) && test -n "$key" &&
+  tgz=$(curl -sS -m 30 https://registry.npmjs.org/@defuse-protocol/one-click-sdk-typescript/latest | jq -r .dist.tarball) &&
+  curl -sS -m 60 "$tgz" | tar xzO package/dist/index.mjs | grep -q "ONE_CLICK_MANAGER_PUB_KEY = \"ed25519:$key\""'
+# simulate_intents on mainnet intents.near with payloads signed by the crate for a fresh,
+# empty key: only "insufficient balance" may fail. The full run also makes one firm 1Click
+# quote (a deposit address, nothing else) and simulates the generated exit payload.
+if [ $QUICK = 0 ]; then live_skip=""; else live_skip="ZECRET_LIVE_SKIP_FIRM_QUOTE=1 "; fi
+check "exit payloads: mainnet intents.near accepts every format the crate signs (read-only simulate_intents)" "cd crates/zecret-intents && ${CT}${live_skip}ZECRET_LIVE_MAINNET_READONLY=1 cargo test --test live_mainnet -- --test-threads 1"
+if [ -n "${EXIT_OWNER_KEY:-}" ]; then
+  check "exit test tool: plan for 1 USDC to USDC on Base (read-only)" "scripts/mainnet-exit-test.sh plan --owner-key '$EXIT_OWNER_KEY' --amount 1000000 --dest-asset nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near --recipient 0x1111111111111111111111111111111111111111"
+fi
 if [ $QUICK = 0 ]; then
   check "browser: light-wallet, engine tip, NEAR RPC and 1Click from a page" 'cd web && node ../scripts/mainnet-browser-check.mjs'
 fi

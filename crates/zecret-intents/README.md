@@ -18,7 +18,7 @@ error handling are in [`docs/INTENTS.md`](../../docs/INTENTS.md).
 |---|---|
 | `oneclick` | Request builders and parsers for the 1Click API: `GET /v0/tokens`, `POST /v0/quote` (dry and firm), `POST /v0/generate-intent`, `POST /v0/submit-intent`, `GET /v0/status`. |
 | `quote_sig` | Checks 1Click's ed25519 signature over a quote, with the algorithm and key of the official TypeScript SDK 0.1.26. |
-| `check` | The pre-signing check. Refuses to sign unless the quote is signed by 1Click, is recent by its signed `timestamp`, and matches what the user approved, and the generated payload is exactly one `transfer` of the approved amount of the approved token to the quote's deposit address, from the taker's account, on `intents.near`, with a deadline in range and a versioned nonce that expires with the intent. |
+| `check` | `check_status`: a `/v0/status` answer counts only with 1Click's signed quote for the deposit address asked about. The pre-signing check. Refuses to sign unless the quote is signed by 1Click, is recent by its signed `timestamp`, and matches what the user approved, and the generated payload is exactly one `transfer` of the approved amount of the approved token to the quote's deposit address, from the taker's account, on `intents.near`, with a deadline in range and a versioned nonce that expires with the intent. |
 | `signer` | The taker's ed25519 key: account id (hex of the public key), `raw_ed25519` and `nep413` signatures. It can sign only payloads this crate built or checked. |
 | `payload` | Intents (`transfer`, `ft_withdraw`), the Verifier payload for both standards, NEP-413 hashing, intent hashes, the signed `MultiPayload`. |
 | `nonce` | Versioned (salted, expiring) and legacy Verifier nonces. |
@@ -101,6 +101,14 @@ wasm-check/run.sh                                 # runs the wasm build in Node
   replayed payload, a wrong salt, a payload signed by another key and an amount above
   the balance are refused, a legacy nonce works, and two signers' payloads run in one
   call.
+- **Adversarial tests** (`tests/adversarial.rs`): a hostile 1Click that holds the quote
+  key. Each changed quote is signed again with a test key that the policy pins, so the
+  tests reach the field checks behind the signature (security review 6).
+- **Live read-only tests** (`tests/live_mainnet.rs`, opt-in with
+  `ZECRET_LIVE_MAINNET_READONLY=1`): `simulate_intents` on mainnet `intents.near` for
+  every payload the crate signs and for a live 1Click exit payload, for a fresh key; only
+  the balance may fail. Makes one firm quote (a deposit address) unless
+  `ZECRET_LIVE_SKIP_FIRM_QUOTE=1`; never submits.
 - **Wasm check** (`wasm-check/`): a small cdylib bound with wasm-bindgen 0.2.129 and
   run in Node 22 (not WASI): quote signature, check, signature, a refusal, and the
   browser random source. It has not been run in a browser.

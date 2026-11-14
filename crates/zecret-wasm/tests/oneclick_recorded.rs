@@ -91,3 +91,24 @@ fn a_quote_for_another_recipient_is_refused() {
     let e = oneclick_submit(&t, &api, &[0x5a; 32], &other, &q.raw, now_ms(&f)).unwrap_err();
     assert_eq!(e.code, "EXIT_REFUSED", "{e:?}");
 }
+
+#[test]
+fn a_status_answer_that_is_not_signed_for_the_deposit_address_is_not_believed() {
+    let f = fixture();
+    let status = f["exchanges"].as_array().unwrap().iter().find(|e| e["request"]["url"].as_str().unwrap().contains("/v0/status")).unwrap().clone();
+    let deposit = f["exchanges"][1]["response"]["body"]["quote"]["depositAddress"].as_str().unwrap().to_owned();
+    // The recorded answer is signed for its deposit address.
+    let t = Replay { exchanges: vec![status.clone()], next: RefCell::new(0) };
+    assert_eq!(oneclick_status(&t, &OneClick::default(), &deposit).unwrap().status, "FAILED");
+    // A forged SUCCESS whose quote was changed: not signed, so an error to retry, not a state.
+    let mut forged = status;
+    forged["response"]["body"]["status"] = "SUCCESS".into();
+    forged["response"]["body"]["quoteResponse"]["quote"]["amountOut"] = "1".into();
+    let t = Replay { exchanges: vec![forged.clone()], next: RefCell::new(0) };
+    let e = oneclick_status(&t, &OneClick::default(), &deposit).unwrap_err();
+    assert_eq!((e.code, e.transient), ("NETWORK", true), "{e:?}");
+    // Without the quote, the answer is not believed either.
+    forged["response"]["body"].as_object_mut().unwrap().remove("quoteResponse");
+    let t = Replay { exchanges: vec![forged], next: RefCell::new(0) };
+    assert_eq!(oneclick_status(&t, &OneClick::default(), &deposit).unwrap_err().code, "NETWORK");
+}

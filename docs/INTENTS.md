@@ -4,9 +4,11 @@ This document describes step 10 of "How one swap runs" in `DESIGN.md`: the app s
 one message, and NEAR Intents sends the destination tokens to the user's address on the
 selected chain. The code is `crates/zecret-intents`.
 
-Everything below was checked on 2026-11-13 unless it says otherwise. "Measured" means
-a request to the live 1Click API or a test against the Verifier code in a sandbox. The
-section "Not verified" lists what needs real funds on mainnet.
+Everything below was checked on 2026-11-13 unless it says otherwise, and checked again on
+2026-11-14 for security review 6 (`docs/security/review-6-intents-exit.md`). "Measured"
+means a request to the live 1Click API, a read-only call to the mainnet Verifier, or a
+test against the Verifier code in a sandbox. The section "Not verified" lists what needs
+real funds on mainnet.
 
 ## 1. Starting point
 
@@ -96,7 +98,10 @@ returns a `Refusal` and nothing is signed.
    `quote.deadline` (the deposit deadline): it replaces `quoteRequest.deadline` in the
    signed message, so `quoteRequest.deadline` is not signed. All recorded quotes (dry,
    firm and the copy in `/v0/status`) verify.
-2. The quote is firm (`dry: false`) and has a deposit address and no deposit memo.
+2. The quote is firm (`dry: false`) and has a deposit address and no deposit memo. The
+   deposit address is a valid NEAR account id, and it is not the taker's account or the
+   Verifier (`Refusal::BadDepositAddress`). A lower-case EVM address is a valid Verifier
+   account, so only the signature shows that 1Click chose it.
 3. `swapType` is `EXACT_INPUT`; `depositType` and `refundType` are `INTENTS`;
    `recipientType` is `DESTINATION_CHAIN`.
 4. `originAsset`, `amount`, `quote.amountIn`, `destinationAsset` and `recipient` equal
@@ -136,6 +141,36 @@ What the check cannot prove: that 1Click delivers to the recipient. The quote si
 shows that 1Click promised to deliver to that recipient for that deposit address. The
 delivery itself depends on 1Click and its solvers.
 
+**The status.** `/v0/status` is not signed, but its `quoteResponse` is. The engine
+accepts a status answer only if that quote carries 1Click's signature and names the
+deposit address it asked about (`check::check_status`); otherwise it asks again. It then
+reads the taker key's balance in the Verifier (`mt_balance_of` at a final block) before it
+believes a final state (review 6):
+
+- `SUCCESS` counts only when the key holds less than it signed for that deposit address.
+- `REFUNDED` or `FAILED` lead to "try again" only when tokens are under the key. While
+  they are not, the engine keeps watching and shows the deposit address.
+- Each attempt moves `min(payout, balance)`, never more than the payout. With less, the
+  approved minimum is scaled at the same rate (`web/src/engine/real/exitPlan.ts`).
+- With no balance and a deposit address signed earlier, the engine follows that address
+  and signs nothing new.
+
+**The quote key.** `ONE_CLICK_QUOTE_KEY` is copied from `ONE_CLICK_MANAGER_PUB_KEY` in the
+SDK; the docs page "Verify Quote Signatures" points to the SDK and does not print the
+key. If 1Click rotates it, every quote is refused (`EXIT_REFUSED`) and no status is
+believed: the USDC stays under the key. To follow a rotation: take the new key from the
+latest SDK release, change `quote_sig.rs` (both constants; the unit test compares them),
+run the tests and rebuild the engine. `scripts/mainnet-preflight.sh` compares the pinned
+key with the latest SDK on every run.
+
+**Format proof.** `tests/live_mainnet.rs` (opt-in, `ZECRET_LIVE_MAINNET_READONLY=1`)
+signs every payload the crate can sign, and the payload of a live 1Click exit, for a
+fresh key, and runs `simulate_intents` on mainnet `intents.near`. On 2026-11-14 all of
+them failed only with "insufficient balance or overflow", and the controls (wrong salt,
+another key's signature) failed with "invalid salt" and "invalid signature". The Verifier
+checks the signature, the format, the contract, the deadline, the key and the nonce before
+any balance, so the formats are right. The answers are in review 6.
+
 ## 4. What needs an API key
 
 Measured without any key or header, from this machine:
@@ -160,6 +195,13 @@ Rate limit without a key: `x-ratelimit-limit-unauth: 1200` per 60 s.
 
 **Fees.**
 
+- 2026-11-14: the fees page and the API keys page say that without a key 1Click adds
+  25 bp to every quote, on top of any `appFees`. The quotes of that day show an `appFees`
+  entry of 1 bp (stablecoins) or 20 bp, and amounts that match it: 2 USDC to USDC on Base
+  cost 13 bp in USD terms, which is the 1 bp plus the 0.0024 USDC withdraw fee. No extra
+  25 bp is visible in any quote. What is charged can only be seen with funds. The amounts
+  the page shows (`minAmountOut`, the cost from 1Click's USD values) are what 1Click
+  guarantees or refunds, so the user is not shown more than the quote.
 - Without a key, every quote's `quoteRequest.appFees` contained a fee to account
   `5880ad2b362620fadf759cbceb1cd5737ce8c6ed7fb8e9942881e6731f9247dd`: 1 bp for USDC to
   USDC on Base, 20 bp for USDC to SOL, ETH on Base and ZEC.
@@ -219,15 +261,18 @@ one.
 | Quote from the future | `Refusal::QuoteFromFuture` (signed `timestamp` more than 1 minute after the local clock) | The local clock is behind. Show that to the user. Nothing was signed. |
 | Payload nonce not accepted | `Refusal::BadNonce` (not a versioned nonce, or its deadline is not the intent deadline) | Do not sign. Get a new firm quote and payload. |
 | Price moved below the approved minimum | `Refusal::MinimumTooLow` at step 4 | Show the new price and ask the user again. Nothing was signed. |
-| Price moves below `minAmountOut` after submission | `/v0/status` `REFUNDED` (documented, not measured) | The USDC is back under the taker's key in the Verifier. Check `mt_balance_of`, then start again from step 3. |
+| Price moves below `minAmountOut` after submission | `/v0/status` `REFUNDED` (documented, not measured) | The engine reads `mt_balance_of`. Tokens there: `exit_retry`, and the next attempt moves what is there. None yet: it keeps watching and shows the deposit address. |
 | No solver quote | HTTP 400 `Quoting for this pair is not available` (`NoQuote`) | Retry after 20 s. Measured: it cleared within 20 s. |
 | Amount too small for the destination bridge | HTTP 400 `Amount is too low for bridge, try at least N` (`AmountTooLow { min }`) | Tell the user the minimum. Offer another destination. |
 | Invalid recipient address | HTTP 400 `recipient is not valid` | Ask for the address again. The burn address `0x…dEaD` is refused. |
 | Refusal by the safety check | `Error::Refused(..)` | Do not retry with the same answer. Log it; get a new quote. Repeated refusals mean the API or the connection is not trustworthy: use the direct path (section 7). |
 | Submit failed with no HTTP answer or 5xx | `Error::Transport`, `ApiErrorKind::Server` | Send the same signed payload again. It has the same hash and nonce, so it can execute at most once. |
 | Submit answered 4xx | `ApiErrorKind::QuoteNotPending` (`Quote is in FAILED status, expected PENDING_DEPOSIT or INCOMPLETE_DEPOSIT`) or `BadSignedIntent` (`Cannot parse signed intent`) | New firm quote, new signature. |
-| Status `FAILED` | `/v0/status` | Check `mt_balance_of` for the taker. If the USDC is still there, start again from step 3. Measured: with no funds, the status was `FAILED` with `updatedAt` 7 s after the recorded flow started (dry quote, firm quote, generate, submit). |
-| Status stuck in `PENDING_DEPOSIT` or `PROCESSING` | no final status after `timeEstimate` × 10 | Keep polling at a slower rate. After the quote's request deadline, 1Click refunds by its documentation. The signed transfer can execute until the intent deadline (request deadline + 72 h). Check `mt_balance_of`; if the USDC is still there after the intent deadline, start again. |
+| Status `FAILED` | `/v0/status` | Same rule as `REFUNDED`. Measured: with no funds, the status was `FAILED` with `updatedAt` 7 s after the recorded flow started (dry quote, firm quote, generate, submit), so there `FAILED` meant the transfer never ran. If it ran, the USDC is at the deposit address with 1Click: the engine keeps watching for a refund, and the deposit address is what 1Click support needs. |
+| Status `SUCCESS` but the key still holds what it signed | `/v0/status` is not signed | Not believed; the engine asks again (review 6). |
+| Status answer without 1Click's signed quote for this address | `check::check_status` | Not believed; the engine asks again in 10 s. |
+| Status stuck in `PENDING_DEPOSIT` or `PROCESSING` | no final status | The engine polls every 5 s for 10 minutes, then every 30 s. After the quote's request deadline, 1Click refunds by its documentation. The signed transfer can execute until the intent deadline (request deadline + 72 h). |
+| A swap restored after its exit ran in another browser | escrow `paid`, key balance 0 | `done` with `doneElsewhere`; while the page is open it reads the balance once a minute for 96 h, and a refund moves the swap to `exit_retry`. With deposit addresses in the file, it follows the last one. |
 | Unknown deposit address | HTTP 404 `Deposit address … not found` (`NotFound`) | The address is not from 1Click, or the record is gone. Check `mt_balance_of`. |
 
 Notes:
@@ -254,6 +299,17 @@ can, or the maker's backend). Uses:
 - local tests against the Verifier code.
 
 It cannot swap to another chain alone; a swap needs a solver.
+
+**Rescue with only the recovery file (mainnet).** `scripts/mainnet-exit-test.sh rescue
+--recovery-file FILE --to-intents-account ACCOUNT` (one `transfer`, 20 Tgas) or
+`--to-near-account ACCOUNT` (one `ft_withdraw` to a NEAR account registered with USDC,
+40 Tgas; the engine's own `direct_prepare` and `direct_submit_with_gas`). The tool signs
+with the swap key from the file, simulates on `intents.near`, and only with
+`--i-understand-this-spends-real-funds` sends `execute_intents` from the swap key's own
+NEAR account, which pays the gas from the rest of the stipend; `--gas-payer-key` lets
+another account pay. There is no free relay for such an intent: the solver relay's
+`publish_intent` needs an API key and quote hashes. The site has no button for it yet
+(review 6, gap X-1).
 
 Rules (from `contracts/defuse/core/src/engine/mod.rs` and `nonce/` in `near/intents`,
 commit `fce0936`, and checked in the sandbox):
@@ -282,6 +338,8 @@ Tgas; a refused call about 3.6 Tgas.
 | Test | What it shows | Command |
 |---|---|---|
 | Unit (24) | Builders, parsers, nonces, NEP-413 hash against the Verifier's test vector, raw intent hash against the Verifier's test vector, error classes | `cargo test --lib` |
+| Adversarial (11) | Quotes changed and signed again with a test key that the policy pins: every field check behind the signature, deposit addresses that are not Verifier accounts, signed status answers | `cargo test --test adversarial` |
+| Live, read-only (2, opt-in) | `simulate_intents` on mainnet `intents.near` for every payload the crate signs and for a live 1Click exit payload; fails only on the balance | `ZECRET_LIVE_MAINNET_READONLY=1 cargo test --test live_mainnet -- --test-threads 1` |
 | Recorded (21) | The full exit replayed against live answers for `raw_ed25519` and `nep413`, byte-identical requests, all refusals on real payloads, quote freshness from the signed timestamp, the review-1 F-02 proof of concept, legacy or long-lived nonce | `cargo test --test recorded` |
 | Sandbox (2) | With the live `intents.near` code: an unfunded key's `ft_withdraw` and `transfer` signed by the crate and submitted by a third account, balances checked; replay, wrong salt, wrong key and too large an amount refused; legacy nonce; two signers in one call | `LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test sandbox` |
 | Wasm | The crate built for `wasm32-unknown-unknown` runs: quote signature, check, signature equal to the recorded one, a refusal, browser random source | `crates/zecret-intents/wasm-check/run.sh` (Node 22, not a browser) |
@@ -303,4 +361,11 @@ These need real funds on mainnet and the owner's approval:
 - `ft_withdraw` with memo `WITHDRAW_TO:<address>` for bridge tokens; the crate can build
   it but it was not tested.
 - The crate in a browser Web Worker. It ran in Node 22 through wasm-bindgen, not in a
-  browser.
+  browser. (The engine that contains it runs in browsers in the Playwright tests; the
+  1Click exit there is simulated.)
+- The rescue on mainnet: that the rest of the stipend pays for the attached gas.
+- That the engine's balance reads see a refund within its waits.
+
+The format of every signed payload is verified on mainnet without funds (§3, "Format
+proof"). `scripts/mainnet-exit-test.sh` runs the first funded exit when the owner decides
+to (`docs/MAINNET.md`).

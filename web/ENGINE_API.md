@@ -64,7 +64,7 @@ must emit an `activity` with `estimatedMs` **before** it starts blocking work.
 | `setReturnAddress(addr)` | until the refund or leftover is sent | Unified address with an Orchard receiver on the swap's network. Clears `needs: 'return_address'`. |
 | `exportRecovery()` | a swap exists | Returns `{ fileName, mimeType, text }`. Sets `recoveryExportedAt`. The page saves the text as is. |
 | `importRecovery(text)` | no other unfinished swap | Restores and continues the swap. The real engine checks the file's addresses as `createSwap` does and computes `deposit.address` and `deposit.uri` from the file's wallet key; it sets `restoredAt`. Throws `RECOVERY_INVALID`, `RECOVERY_MISMATCH`, `SWAP_EXISTS`, `LEFTOVER_PENDING`, `INVALID_ADDRESS`. |
-| `exit(request?)` | `exit_retry` | Runs the exit again from a fresh firm quote. `request.acceptMinimum` lowers the approved minimum to the `minAmountOut` of `exit.offered`, which the user saw and accepted; it can never raise it. In `paid_out` or `exiting` it is a no-op (the engine runs the exit by itself). |
+| `exit(request?)` | `exit_retry` | Runs the exit again from a fresh firm quote. `request.acceptMinimum` lowers the approved minimum to the `minAmountOut` of `exit.offered`, which the user saw and accepted; it can never raise it, and it may not go below the offered minimum. The accepted minimum is for `exit.offered.amountIn` (kept as `exit.minimumFor`). In `paid_out` or `exiting` it is a no-op (the engine runs the exit by itself). |
 | `forget(options?)` | before any payment arrives, or after `done` / `refunded` | Deletes the swap and its keys from this browser. Otherwise `WRONG_STAGE`. While `leftoverPending(swap)` (leftover ZEC with no return address, or its transaction not yet mined; `leftover.returned` marks it mined) it throws `LEFTOVER_PENDING` unless `options.discardLeftover` is true. The real engine also throws it (transient) at `done` until its leftover step has looked at the wallet once. |
 
 `CreateSwapParams`:
@@ -124,7 +124,7 @@ the page ends the worker and starts a new one, which resumes from storage.
 | `recovering`, `recovered` | Core `Recovering`, `Recovered`. |
 | `refunding`, `refunded` | After `Recovered` or `Aborted`: `returnLeftover` to the return address; `refunded` once that transaction is mined. When the node refuses a refund or leftover send, the engine opens the swap again from storage before it retries: the wallet keeps the notes of a built transaction reserved until it expires, so without that the balance would read 0 and the step would end with nothing sent. A core `Aborted` reason that starts with `MAKER REFUSED` (the maker's signed refusal memo: over its limit, under its minimum, busy, unsupported) becomes `refund.reason` and `lastError` `MAKER_CHECK_FAILED`, with the maker's reason in the message. |
 | `exiting`, `exit_retry`, `done` | The exit (1Click or direct) after `Completed`. |
-| `paid_out`, `done` with `exit.doneElsewhere` | In `claimed` (core `Claimed` or `PayoutPending`, checked every 10 s) and in `paid_out` before the exit starts (always checked; a failed read makes the exit wait): the escrow shows the payout `paid` (swap state `Claimed`) and the taker key's Verifier balance reads 0, at one final block. `paid` is set only after the transfer to the taker key succeeded, and only that key can move the tokens out, so the exit happened before this browser followed the swap (a restore after the exit). `payout.usdc` is the escrow's amount; `deliveredAmount` and the delivery transaction are not set. The leftover step follows. |
+| `paid_out`, `done` with `exit.doneElsewhere` | In `claimed` (core `Claimed` or `PayoutPending`, checked every 10 s) and in `paid_out` before the exit starts (always checked; a failed read makes the exit wait): the escrow shows the payout `paid` (swap state `Claimed`) and the taker key's Verifier balance reads 0, at one final block. `paid` is set only after the transfer to the taker key succeeded, and only that key can move the tokens out, so the exit happened before this browser followed the swap (a restore after the exit). `payout.usdc` is the escrow's amount; `deliveredAmount` and the delivery transaction are not set. The leftover step follows. With the 1Click exit, a swap whose recovery file lists deposit addresses it signed for goes to `exiting` (`delivering`) on the last one instead. Without them it goes to `done` with `exit.doneElsewhere` and, while the page is open, reads the key's balance once a minute for 96 hours: tokens under the key move it to `exit_retry` (`exit.phase: 'refunded'`, `doneElsewhere: false`). |
 
 Activities: `proving` before each proof (from the core's `activity` event, and before a
 refund), `waiting` while the swap waits on a chain or the maker, `syncing` after a reload or
@@ -177,7 +177,7 @@ step; the page only shows `exit.phase` and decides in `exit_retry`.
 | `quoting` | Firm `POST /v0/quote` (`dry: false`, 100 bp slippage, refund to the taker's Intents account). On `Quoting for this pair is not available` it sets `lastError` `EXIT_NO_QUOTE` with `transient: true` and asks again after 20 s. If `minAmountOut` < `exit.approvedMinimum`: stage `exit_retry`, `EXIT_BELOW_MINIMUM`, `exit.offered`. Nothing is signed. | `amountIn`, `amountOut`, `minAmountOut`, `depositAddress`, `timeEstimateS`, `feeBps` |
 | `signing` | Quote signature and field check, `generate-intent`, payload check, one ed25519 signature. A failed check: `exit_retry` with `EXIT_REFUSED`. | – |
 | `submitted` | `submit-intent` returned `intentHash` (checked against the signed payload). | `intentHash`, a `TxRef` |
-| `delivering` | Polling `GET /v0/status` until final. `SUCCESS`: `done`. `REFUNDED` / `FAILED`: `exit_retry`, `EXIT_FAILED`, `exit.phase: 'refunded' \| 'failed'`. | – |
+| `delivering` | Polling `GET /v0/status` (every 5 s, after 10 minutes every 30 s). An answer counts only if its `quoteResponse` carries 1Click's signature for this deposit address. `SUCCESS`: `done`, once the taker key's Verifier balance is below the amount signed for that address. `REFUNDED` / `FAILED`: with tokens under the key, `exit_retry`, `EXIT_FAILED`, `exit.phase: 'refunded' \| 'failed'`; with none yet, the stage stays `exiting` with `lastError` `EXIT_FAILED` and `transient: true` (its message names the deposit address) and the engine keeps checking. | – |
 | `done` | Delivered. | `deliveredAmount`, a `destination` `TxRef`; or `doneElsewhere: true` without them (see "How the real engine makes the website's stages") |
 
 `exit.approvedMinimum` starts as `params.minDestinationAmount`. `exit.attempts` counts
@@ -186,6 +186,12 @@ every deposit address it signed for (docs/INTENTS.md §6). It records the addres
 submits, so a lost `submit-intent` answer still leaves it to poll; an earlier address that
 reports `SUCCESS` finishes the swap, also before a new firm quote. Explorer links from
 1Click are kept only when they are `https:`.
+
+Each attempt reads the taker key's Verifier balance first (security review 6). It moves
+`min(payout, balance)`: never more than the payout, and less after a refund that came
+back short, with the approved minimum scaled at the same rate. With no balance and an
+address signed for earlier, it follows that address (`delivering`) and signs nothing new;
+with no balance and no such address, it waits with a transient `EXIT_FAILED`.
 
 ## Errors
 
@@ -205,7 +211,7 @@ reports `SUCCESS` finishes the swap, also before a new firm quote. Explorer link
 | `MAKER_CHECK_FAILED` | The maker's quote or escrow failed another of the engine's checks (signature, proof of knowledge, windows, escrow parameters, code hash, stipend), or the maker refused the request with a signed refusal memo (the message gives its reason). Nothing was funded. Refund path. |
 | `MAKER_TIMEOUT` | No quote in time. Refund path. |
 | `MAKER_REFUNDED` | The maker refunded the escrow instead of setting it ready. Recovery path. |
-| `EXIT_FAILED` | 1Click reported `FAILED` or `REFUNDED`. |
+| `EXIT_FAILED` | 1Click reported `FAILED` or `REFUNDED` and the USDC is under the key again (`exit_retry`). With `transient: true` in `exiting`: the engine waits for USDC that is not under the key yet (a refund on its way, or an earlier signed exit that holds it). |
 | `EXIT_BELOW_MINIMUM` | The firm exit quote is below the approved minimum. |
 | `EXIT_NO_QUOTE` | 1Click had no quote for a moment. Transient; the engine retries. |
 | `EXIT_AMOUNT_TOO_LOW` | 1Click: "Amount is too low for bridge". Another destination is needed. |
