@@ -1,6 +1,7 @@
 // Renders the film frame by frame with headless Chromium.
 //   node render.mjs frames <outDir> [from] [to] [workers]   JPEG frames, film seconds [from, to)
 //   node render.mjs stills <outDir> t1,t2,...              PNG stills at those times
+// ENDCARD=A|B|C|D picks an end-card design for this render only.
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -19,7 +20,7 @@ async function open() {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => console.error('PAGEERROR', e.message));
   page.on('console', (m) => { if (m.type() === 'error') console.error('CONSOLE', m.text()); });
-  await page.goto('file://' + path.join(HERE, 'src/film.html'));
+  await page.goto('file://' + path.join(HERE, 'src/film.html') + (process.env.ENDCARD ? `?endcard=${process.env.ENDCARD}` : ''));
   await page.evaluate(() => window.filmReady);
   return { browser, page };
 }

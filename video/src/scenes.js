@@ -29,9 +29,24 @@
   const DURATION = 70.0;
 
   // ---------- brand ----------
-  for (const id of ['s1mark', 's6mark']) $(id).innerHTML = BRAND.MARK_SVG.replace(/bm/g, id + 'x'); // unique ids: a mask in a hidden copy would blank the other
-  for (const id of ['s1word', 's6word']) $(id).innerHTML = `<span class="wp" style="display:inline-block">${BRAND.word1}</span><span class="wp serif" style="display:inline-block;font-size:1.12em;letter-spacing:0;margin-left:0.22em">${BRAND.word2}</span>`;
-  $('s6url').innerHTML = `${BRAND.url} ${svg('M5 12h14M13 6l6 6-6 6', 40, 2.2)}`;
+  // The end card has four designs. Pick one here; `?endcard=B` in the page URL (or
+  // ENDCARD=B for render.mjs) overrides it for a test render.
+  const ENDCARD = new URLSearchParams(location.search).get('endcard') || 'A';
+
+  const MARKS = ['s1mark', 'eAmark', 'eBmark', 'eCmark', 'eDmark'];
+  const WORDS = ['s1word', 'eAword', 'eBword', 'eCword', 'eDword'];
+  for (const id of MARKS) $(id).innerHTML = BRAND.MARK_SVG.replace(/bm/g, 'mk' + id); // unique ids: a mask in a hidden copy would blank the other
+  for (const id of WORDS) $(id).innerHTML = `<span class="wp" style="display:inline-block">${BRAND.word1}</span><span class="wp serif" style="display:inline-block;font-size:1.12em;letter-spacing:0;margin-left:0.22em">${BRAND.word2}</span>`;
+  // The URL is plain type: the name, then the domain in the accent colour.
+  const [u1, ...uRest] = BRAND.url.split('.');
+  for (const id of ['eAurl', 'eBurl', 'eCurl']) $(id).innerHTML = `${u1}<span class="tld">.${uRest.join('.')}</span>`;
+  $('eDurl').textContent = BRAND.url;
+  // The QR code: dark modules on white, square modules, crisp edges. Each copy draws
+  // into its own box; the wipe is a clip on the path.
+  for (const v of 'ABCD') {
+    $(`e${v}qr`).innerHTML = `<svg viewBox="0 0 ${QR.modules} ${QR.modules}" shape-rendering="crispEdges"><rect width="${QR.modules}" height="${QR.modules}" fill="#fff"/><path d="${QR.path}" fill="#072b23"/></svg>`;
+  }
+  $('ec' + ENDCARD).classList.add('on');
 
   // ---------- scene 1: cold open ----------
   const s1a = chars($('s1a'));
@@ -285,29 +300,84 @@
   }
 
   // ---------- scene 6: end card ----------
-  const s6h = words($('s6h'));
-  const s6chars = [...$('s6word').children];
-  function scene6(t) {
+  // Every design enters in the first 3.4 s; the QR code is then still to the end (5 s).
+  const markIn = (el, t, a) => {
+    const m = prog(t, a, 1.0, ease.spring);
+    T(el, { s: lerp(0.6, 1, m), r: lerp(-12, 0, m), o: prog(t, a, 0.35), blur: (1 - prog(t, a, 0.5)) * 8 });
+  };
+  const wordIn = (el, t, a) => [...el.children].forEach((c, i) => {
+    const p = prog(t, a + i * 0.3, 1.0, ease.outExpo);
+    T(c, { x: (1 - p) * 34, o: p, blur: (1 - p) * 8 });
+  });
+  const qrIn = (v, t, a) => {
+    const p = prog(t, a, 0.9, ease.spring);
+    T($(`e${v}plate`), { y: (1 - p) * 40, s: lerp(0.92, 1, p), o: prog(t, a, 0.3), blur: (1 - prog(t, a, 0.45)) * 10 });
+    const w = prog(t, a + 0.25, 0.9, ease.inOutCubic);
+    $(`e${v}qr`).querySelector('path').style.clipPath = w < 1 ? `inset(0 0 ${(1 - w) * 100}% 0)` : 'none';
+  };
+  const ruleIn = (el, t, a) => T(el, { sx: prog(t, a, 1.1, ease.inOutCubic), sy: 1, origin: '0 50%' });
+  const reveal = (t) => {
     const r = prog(t, 0, 1.0, ease.inOutQuint);
     $('s6').style.clipPath = r < 1 ? `circle(${r * 1300}px at 960px 540px)` : 'none';
-    T($('s6glow'), { x: Math.sin(t * 0.4) * 60, y: -t * 6 });
-    T($('s6arc'), { y: (1 - prog(t, 0, 2, ease.outCubic)) * 200 });
-    const m = prog(t, 0.5, 1.0, ease.spring);
-    T($('s6mark'), { s: lerp(0.6, 1, m), r: lerp(-12, 0, m), o: prog(t, 0.5, 0.35), blur: (1 - prog(t, 0.5, 0.5)) * 8 });
-    s6chars.forEach((c, i) => {
-      const p = prog(t, 0.65 + i * 0.3, 1.0, ease.outExpo);
-      T(c, { x: (1 - p) * 34, o: p, blur: (1 - p) * 8 });
-    });
-    revealWords(s6h, t, 1.3, { stagger: 0.06, d: 1.0 });
-    appear($('s6url'), prog(t, 2.2, 0.9, ease.spring), { dy: 24, s0: 0.94 });
-    appear($('s6status'), prog(t, 2.6, 0.9, ease.outQuint), { dy: 18 });
-    // A slow push-in for the hold.
-    T($('s6').firstElementChild, {});
-    const push = prog(t, 0, 8.4, ease.inOutSine);
-    $('s6').querySelector('.abs[style*="flex-direction"]').style.transform = `scale(${lerp(0.985, 1.015, push)})`;
-    // Fade to the brand green at the very end.
-    $('s6').style.filter = 'none';
-  }
+  };
+  const HEADS = {};
+  for (const id of ['eAh', 'eBh1', 'eBh2', 'eCh', 'eCscan', 'eDh']) HEADS[id] = words($(id));
+
+  const ENDCARDS = {
+    A(t) {
+      reveal(t);
+      T($('eAglow'), { x: Math.sin(t * 0.4) * 60, y: -t * 6 });
+      T($('eAarc'), { y: (1 - prog(t, 0, 2, ease.outCubic)) * 200 });
+      markIn($('eAmark'), t, 0.4);
+      wordIn($('eAword'), t, 0.55);
+      revealWords(HEADS.eAh, t, 1.1, { stagger: 0.06, d: 1.0 });
+      qrIn('A', t, 1.0);
+      appear($('eAurlwrap'), prog(t, 1.9, 1.0, ease.outQuint), { dy: 26 });
+      ruleIn($('eArule'), t, 2.2);
+      appear($('eAstatus'), prog(t, 2.5, 0.9, ease.outQuint), { dy: 18 });
+    },
+    B(t) {
+      reveal(t);
+      T($('eBglow'), { x: t * 8, y: Math.sin(t * 0.4) * 30 });
+      markIn($('eBmark'), t, 0.4);
+      wordIn($('eBword'), t, 0.5);
+      appear($('eBtag'), prog(t, 0.9, 0.8, ease.outQuint), { dy: 14 });
+      revealWords(HEADS.eBh1, t, 0.8, { stagger: 0.06, d: 1.0 });
+      revealWords(HEADS.eBh2, t, 1.25, { stagger: 0.08, d: 1.1 });
+      ruleIn($('eBrule'), t, 1.7);
+      appear($('eBfoot'), prog(t, 2.0, 1.0, ease.outQuint), { dy: 26 });
+      qrIn('B', t, 1.9);
+      appear($('eBscan'), prog(t, 2.6, 0.8, ease.outQuint), { dy: 12 });
+    },
+    C(t) {
+      // The dark half wipes in from the left; the light half follows from the right.
+      const l = prog(t, 0, 1.0, ease.inOutQuint);
+      $('eCleft').style.clipPath = l < 1 ? `inset(0 ${(1 - l) * 100}% 0 0)` : 'none';
+      const rr = prog(t, 0.3, 1.0, ease.inOutQuint);
+      $('s6').style.clipPath = rr < 1 ? `inset(0 0 0 ${lerp(1000, 0, l)}px)` : 'none';
+      $('eCright').style.clipPath = rr < 1 ? `inset(0 0 0 ${(1 - rr) * 100}%)` : 'none';
+      T($('eCglow'), { x: t * 10, y: Math.sin(t * 0.4) * 40 });
+      markIn($('eCmark'), t, 0.5);
+      wordIn($('eCword'), t, 0.7);
+      revealWords(HEADS.eCh, t, 1.2, { stagger: 0.06, d: 1.0 });
+      appear($('eCstatus'), prog(t, 2.4, 0.9, ease.outQuint), { dy: 18 });
+      revealWords(HEADS.eCscan, t, 1.0, { stagger: 0.07, d: 0.9 });
+      qrIn('C', t, 1.3);
+      appear($('eCurl'), prog(t, 2.0, 1.0, ease.outQuint), { dy: 22 });
+    },
+    D(t) {
+      reveal(t);
+      T($('eDarc1'), { s: lerp(0.9, 1, prog(t, 0, 2.4, ease.outCubic)), o: prog(t, 0.2, 1.5) });
+      T($('eDarc2'), { s: lerp(0.9, 1, prog(t, 0.2, 2.6, ease.outCubic)), o: prog(t, 0.4, 1.5) });
+      markIn($('eDmark'), t, 0.4);
+      wordIn($('eDword'), t, 0.65);
+      revealWords(HEADS.eDh, t, 1.15, { stagger: 0.05, d: 1.0 });
+      qrIn('D', t, 1.6);
+      appear($('eDurl'), prog(t, 2.2, 0.9, ease.outQuint), { dy: 18 });
+      appear($('eDstatus'), prog(t, 2.6, 0.9, ease.outQuint), { dy: 14 });
+    },
+  };
+  const scene6 = (t) => ENDCARDS[ENDCARD](t);
 
   const SCENES = { s1: scene1, s2: scene2, s3: scene3, s4: (t) => window.scene4 && window.scene4(t), s5: scene5, s6: scene6 };
 

@@ -101,3 +101,14 @@ svg.ic { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoi
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), inset 0 0 0 1px rgb(255 255 255 / 7%), 0 40px 80px -30px rgb(0 0 0 / 50%); }
 .stat .num { font: 600 150px/1 var(--display); letter-spacing: -0.05em; font-variant-numeric: tabular-nums; min-width: 250px; color: #fff; }
 .stat .txt { font: 500 44px/1.15 var(--sans); letter-spacing: -0.015em; color: rgb(255 255 255 / 86%); }
+
+/* End card */
+.ec { position: absolute; inset: 0; display: none; }
+.ec.on { display: block; }
+.urltype { font-family: var(--display); font-weight: 600; letter-spacing: -0.035em; line-height: 1; white-space: nowrap; }
+.urltype .tld { color: var(--green-600); }
+.dark .urltype .tld { color: var(--mint-300); }
+.qr { overflow: hidden; background: #fff; }
+.qr svg { display: block; width: 100%; height: 100%; }
+#eAh .serif, #eCh .serif { color: var(--mint-300); }
+#eDh .serif, #eCscan .serif { color: var(--green-600); }
