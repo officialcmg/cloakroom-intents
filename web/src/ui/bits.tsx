@@ -6,17 +6,22 @@ export function Logo() {
   const id = `logo-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   return (
     <span className="logo">
-      <svg className="logo-mark" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+      <svg className="logo-mark" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#2a8f72" />
-            <stop offset="1" stopColor="#0d4a3a" />
+            <stop offset="1" stopColor="#0d4f3e" />
           </linearGradient>
+          <mask id={`${id}-m`}>
+            <rect width="32" height="32" fill="#fff" />
+            <circle cx="16" cy="10.6" r="1.7" fill="#000" />
+            <path d="M16 15.2 18.6 26H13.4Z" fill="#000" />
+          </mask>
         </defs>
-        <rect width="30" height="30" rx="9" fill={`url(#${id})`} />
-        <rect x="0.5" y="0.5" width="29" height="29" rx="8.5" fill="none" stroke="#fff" strokeOpacity="0.18" />
-        {/* A coat hanger: the cloakroom holds the coat (the ZEC) and hands it back. */}
-        <path d="M12.6 10.1a2.4 2.4 0 1 1 2.4 2.4V14M15 14 7.2 20.9h15.6z" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+        <rect width="32" height="32" rx="9.6" fill={`url(#${id})`} />
+        <rect x="0.5" y="0.5" width="31" height="31" rx="9.1" fill="none" stroke="#fff" strokeOpacity="0.18" />
+        {/* An open cape, held by one clasp: the cloak in the name. */}
+        <path mask={`url(#${id}-m)`} fill="#fff" stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" d="M12.8 7.2H19.2C19.6 13 21.8 19 24.8 24.8 22 25.4 19 25.6 16 25.6S10 25.4 7.2 24.8C10.2 19 12.4 13 12.8 7.2Z" />
       </svg>
       <span className="logo-word">
         Cloakroom<span className="logo-word-2"> Intents</span>
