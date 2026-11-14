@@ -28,3 +28,5 @@ sub_account = "maker"
 initial_balance_near = "2"
 token_target = "20000000000"
 storage_funds_near = "0.5"
+# Tokens the maker deposits into its own Verifier account; the escrow takes swaps from there.
+verifier_target = "10000000000"

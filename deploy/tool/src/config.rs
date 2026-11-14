@@ -120,8 +120,9 @@ pub struct MakerCfg {
     pub sub_account: String,
     /// NEAR sent to the maker when the tool creates it.
     pub initial_balance_near: String,
-    /// Token units (smallest unit) the maker should hold. With the stand-in token the
-    /// tool mints up to this; with a real token it only reports.
+    /// Token units (smallest unit) the maker should hold, outside and inside the
+    /// Verifier together. With the stand-in token the tool mints up to this; with a real
+    /// token it only reports.
     pub token_target: String,
     /// NEAR of escrow storage funds (`add_storage_funds`) the maker should have.
     pub storage_funds_near: String,

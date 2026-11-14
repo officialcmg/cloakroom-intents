@@ -594,7 +594,9 @@ async fn ensure_maker(ctx: &mut Ctx, ids: &Ids) -> Res<()> {
     ensure_registered(ctx, &ids.token, &ids.maker).await?;
 
     let target: u128 = ctx.cfg.maker.token_target.parse()?;
-    let mut have = ft_balance(ctx, &ids.token, &ids.maker).await?;
+    // The target counts the maker's tokens outside and inside the Verifier.
+    let in_verifier = verifier_balance(ctx, &ids.intents, &ids.token, &ids.maker).await?;
+    let mut have = ft_balance(ctx, &ids.token, &ids.maker).await? + in_verifier;
     if ctx.cfg.token.deploy || ctx.cfg.token.open_mint {
         while have < target {
             let amount = (target - have).min(test_usdc_max_mint());
@@ -609,7 +611,7 @@ async fn ensure_maker(ctx: &mut Ctx, ids: &Ids) -> Res<()> {
                 )
                 .await?
                 .require_ok()?;
-            have = ft_balance(ctx, &ids.token, &ids.maker).await?;
+            have = ft_balance(ctx, &ids.token, &ids.maker).await? + in_verifier;
         }
     } else if have < target {
         println!(
@@ -681,7 +683,7 @@ async fn ensure_maker(ctx: &mut Ctx, ids: &Ids) -> Res<()> {
         if now < vtarget {
             return Err(format!(
                 "after the deposit the maker holds {now} in the Verifier, below {vtarget} ({:?})",
-                o.failure()
+                o.failure
             )
             .into());
         }

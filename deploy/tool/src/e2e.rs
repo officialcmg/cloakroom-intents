@@ -86,7 +86,6 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
         .get(&ids.maker)?
         .ok_or_else(|| format!("no key for maker {}", ids.maker))?;
     let maker = ctx.chain.w.account(&ids.maker, maker_sk)?;
-    let token_id: near_workspaces::AccountId = ids.token.parse()?;
     let escrow_id: near_workspaces::AccountId = ids.escrow.parse()?;
     let intents_id: near_workspaces::AccountId = ids.intents.parse()?;
 
@@ -359,7 +358,7 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
     println!("destination {destination} received {AMOUNT}; taker holds 0 in the Verifier");
     let taker_left = ctx.chain.rpc.balance(&taker_id).await?;
     println!(
-        "taker key NEAR left after commit_claim and claim: {} of {}",
+        "taker key NEAR left after commit_claim, claim and withdraw: {} of {}",
         fmt_near(taker_left),
         fmt_near(STIPEND)
     );
