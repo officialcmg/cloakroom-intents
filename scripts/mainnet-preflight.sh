@@ -13,7 +13,7 @@
 #   ESCROW_WASM   the escrow wasm to deploy. Default: the build in contracts/near-escrow.
 #   MAKER_CONFIG  the mainnet maker's config.json (no key in it). Optional.
 #   SITE_ORIGIN   the mainnet site's origin, for the CORS check of the light-wallet server.
-#                 Default https://zecret.chrismg.dev.
+#                 Default https://cloakroom.chrismg.dev.
 #   DEPLOY_TARGET_DIR, CRATES_TARGET_DIR  cargo target folders for deploy/ and crates/,
 #                 to reuse earlier builds and save disk (optional).
 #   SKIP_ENGINE_BUILD=1  use web/public/engine as it is (it must be built from this checkout).
@@ -48,7 +48,7 @@ check() {
 unset CARGO_TARGET_DIR
 DT="${DEPLOY_TARGET_DIR:+CARGO_TARGET_DIR=$DEPLOY_TARGET_DIR }"
 CT="${CRATES_TARGET_DIR:+CARGO_TARGET_DIR=$CRATES_TARGET_DIR }"
-SITE_ORIGIN="${SITE_ORIGIN:-https://zecret.chrismg.dev}"
+SITE_ORIGIN="${SITE_ORIGIN:-https://cloakroom.chrismg.dev}"
 ESCROW_WASM_GIVEN="${ESCROW_WASM:-}"
 ESCROW_WASM="${ESCROW_WASM:-$ROOT/contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm}"
 LWD="$(jq -r .zcash.lightwalletd "$ROOT/web/public/config/mainnet.json")"

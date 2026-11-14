@@ -1,6 +1,6 @@
 # Working in this repository
 
-Zecret swaps shielded ZEC for tokens on other chains with no custodian. Read
+Cloakroom Intents (named Zecret until 2026-11-14) swaps shielded ZEC for tokens on other chains with no custodian. Read
 `docs/DESIGN.md` first; its opening section, "The design in plain words", is always
 current. `docs/BUILD_PLAN.md` says how the build runs and `STATUS.md` says where it is.
 
