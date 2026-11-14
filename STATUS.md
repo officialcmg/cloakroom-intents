@@ -51,6 +51,12 @@ with "WIP".
 - Branch `escrow-light-payout` (worktree `/home/user/zecret-lw`): an escrow change so
   that the taker's key can finish the payout alone. Not merged. The live services stay
   on `escrow2` until it is proven; cut-off for a switch is 18:00 UTC.
+- Owner's wish (02:59 UTC): part of the soak must run on the app AFTER the escrow
+  change. When `escrow-light-payout` is proven and the live services are switched, run a
+  soak on the new flow: the remaining slots if the switch lands before 10:45 UTC, and in
+  any case at least 12 swaps after the switch (`testnet/hosted/soak.sh <start> 12`, with
+  `SOAK_OUT`-style separate results: copy the script's output folder first). No mainnet
+  step on a flow that has not passed its own soak.
 - Branch `mainnet-ready` (worktree `/home/user/zecret-mainnet`): runbook, configs and
   no-funds checks for mainnet. Not merged. Nothing is done on mainnet without the owner.
 
