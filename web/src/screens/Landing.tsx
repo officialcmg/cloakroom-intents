@@ -236,8 +236,8 @@ export function Landing() {
             </p>
           </div>
           <ul className="stat-cards" data-reveal>
-            <Stat tag="Testnet · website" value="3" title="Swaps through this website" featured>
-              With the hosted maker on 2026-11-13: 0.05 testnet ZEC for 1.4877 test USDC in 493 s, 0.01 for 0.2877 in 392 s, and one paid by the faucet with no wallet.
+            <Stat tag="Testnet · website" value="5" title="Swaps through this website" featured>
+              With the hosted maker, 2026-11-13 and 14. For example: 0.05 testnet ZEC for 1.4877 test USDC in 493 s, 0.01 for 0.2877 in 392 s, and one paid by the faucet with no wallet.
             </Stat>
             <Stat tag="Testnet · command line" value="0.1 → 3" title="One swap with the command-line programs">
               0.1 testnet ZEC for 3 test USDC, end to end on the public test networks.
