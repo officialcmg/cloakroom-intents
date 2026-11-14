@@ -109,10 +109,10 @@
   const NODES = [
     { x: 300, label: 'Shielded ZEC', icon: 'shield', tone: 'ok' },
     { x: 760, label: 'Transparent address', icon: 'open', tone: 'warn' },
-    { x: 1220, label: 'Bridge', icon: 'bridge', tone: 'muted' },
+    { x: 1220, label: 'Swap service', icon: 'bridge', tone: 'muted' },
     { x: 1640, label: 'Swap', icon: 'swap', tone: 'muted' },
   ];
-  const LINKS = ['unshield', 'bridge', 'swap'];
+  const LINKS = ['unshield', 'deposit', 'swap'];
   const NY = 548; // tile centre
   {
     const d = $('s2diag');
@@ -314,7 +314,7 @@
     { n: 32, txt: 'real swaps completed on public test networks' },
     { n: 35, txt: 'destination chains in the swap form' },
     { n: '6–9', txt: 'minutes for a typical swap, mostly waiting for Zcash blocks' },
-    { n: 0, txt: 'bridges or custodians holding the ZEC' },
+    { n: 0, txt: 'custodians holding the ZEC' },
   ];
   $('s5stats').innerHTML = STATS.map((s, i) => `<div class="stat" id="s5s${i}" style="left:${144 + (i % 2) * 848}px;top:${336 + Math.floor(i / 2) * 264}px">
     <div class="num" id="s5n${i}">0</div><div class="txt">${s.txt}</div></div>`).join('');

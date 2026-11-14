@@ -19,8 +19,8 @@ S4 = 36.8 + 0.9  # film time where the footage starts (scene 4 start in src/scen
 
 claims = [
     ('Shielded ZEC → 30+ chains', '0–5 s', 'README.md (top): "swapping shielded ZEC for tokens on 30+ chains"; web/src/lib/chainNames.ts lists 35 destination chains'),
-    ('Swapping ZEC today means unshielding it first. NEAR Intents can already swap ZEC. But that ZEC is a bridged token: it left the shielded pool for a transparent address first.', '8–21 s',
-     'README.md "The problem": inside NEAR Intents ZEC is the NEP-141 token nep141:zec.omft.near (1Click token list, 2026-11-13), not shielded ZEC; Cloakroom paper quote on routes through a transparent address'),
+    ('Swapping ZEC today means unshielding it first. Your coins leave the shielded pool for a transparent address. The amount and the timing become public.', '8–21 s',
+     'README.md "The problem": to swap ZEC today the coins first leave the shielded pool for a transparent address; inside NEAR Intents ZEC is the token nep141:zec.omft.near (1Click token list, 2026-11-13)'),
     ('The ZEC stays shielded the whole way.', '20–37 s', 'README.md "The problem": "Zecret keeps the ZEC in the shielded pool for the whole swap"; web Landing.tsx privacy section'),
     ('The ZEC goes to a shielded address. Its key is split in two halves. (Your browser / The maker)', '21–37 s', 'README.md top: spending key split in two halves, the user holds one, the maker the other'),
     ('An escrow on NEAR releases the USDC to whoever reveals the right half. The maker locks USDC first.', '26–37 s', 'README.md top and Terms ("Escrow": claim(a) / refund(b)); Landing.tsx FlowDiagram "Locks USDC first"'),
@@ -35,9 +35,9 @@ claims = [
     (f'Real time: {int(cut["paymentToFinalSecs"] // 60)} min {round(cut["paymentToFinalSecs"] % 60)} s from payment to done', 'scene 4', 'this recording, marks.json (pay_sent to stage done)'),
     ('Real swaps on public test networks. 32 real swaps completed; 35 destination chains in the swap form', '66–79 s', 'README.md Status ("32 completed"); web/src/lib/chainNames.ts (35 chains). Counts as of 2026-11-14, before this recording.'),
     ('6–9 minutes per swap, mostly waiting for Zcash blocks', '66–79 s', 'docs/TESTNET.md soak: 12 back-to-back swaps took 364 to 574 s; README.md hosted runs 314–493 s'),
-    ('0 bridges or custodians holding the ZEC', '66–79 s', 'README.md top: the ZEC goes to a shielded address spent only with both key halves'),
+    ('0 custodians holding the ZEC', '66–79 s', 'README.md top: the ZEC goes to a shielded address spent only with both key halves'),
     ('Exit to other chains: built. The live mainnet contract accepts its signed message in a read-only simulation. Not yet run with funds.', '70–79 s', 'README.md Status, "Exit through NEAR Intents on mainnet" and the brief\'s fact list; docs/INTENTS.md'),
-    ('Shielded ZEC to 30+ chains. No bridge holds your coins.', '78–88 s', 'as above'),
+    ('Shielded ZEC to 30+ chains. Without unshielding first.', '78–88 s', 'as above'),
     ('cloakroom.chrismg.dev', '78–88 s', 'the live site, which showed "Cloakroom Intents" at the recording'),
     ('Testnet today · Built on Cloakroom · NEAR HACKATHON 2026', '78–88 s', 'README.md: testnet only, mainnet not deployed; built on Cloakroom (commit 2f8e2f7); NEAR HACKATHON 2026-11-01 to 2026-11-14'),
 ]

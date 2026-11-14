@@ -44,7 +44,7 @@ and say on screen that time was cut.
 
 | Time | Picture | Words (voice-over or captions) |
 |---|---|---|
-| 0:00-0:08 | Title card: "Leave shielded Zcash without a custodian." | "Every way out of shielded ZEC today goes through an exchange, a bridge or a transparent address. Each one sees your amount, and can hold your funds." |
+| 0:00-0:08 | Title card: "Leave shielded Zcash without a custodian." | "Every way out of shielded ZEC today goes through a transparent address first, so the amount and timing become public." |
 | 0:08-0:15 | The landing page, then "Start a swap". | "Cloakroom Intents swaps shielded ZEC for a token on another chain. Nobody holds both sides. This is the hosted site on Zcash testnet and NEAR testnet, with test money." |
 | 0:15-0:25 | The swap form: amount in TAZ, a token and chain, the NEAR testnet account. The price line. | "I enter an amount. I get one price: what the maker pays in USDC, and, on mainnet, what NEAR Intents delivers on the chain I chose. On testnet the test USDC goes to my NEAR account." |
 | 0:25-0:33 | Save the recovery file, then the payment screen with the QR code. Pay from the wallet. | "My browser makes the keys for this swap. I save a recovery file and pay once." |
@@ -60,7 +60,7 @@ app was used as the payer.
 ## Post, draft 1 (problem first; 277 characters as X counts them)
 
 ```text
-Every way out of shielded ZEC uses an exchange, a bridge or a transparent address.
+Every way out of shielded ZEC goes through a transparent address first, so the amount and timing become public.
 
 Cloakroom Intents swaps shielded ZEC with no custodian: a NEAR escrow, a split Zcash key, exit to 30+ chains via NEAR Intents.
 

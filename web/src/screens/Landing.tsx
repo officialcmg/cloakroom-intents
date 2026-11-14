@@ -80,7 +80,7 @@ export function Landing() {
               Swap from fully shielded ZEC <em className="serif">to 30+ chains</em>
             </h1>
             <p className="hero-lede appear">
-              NEAR Intents already swaps ZEC, but only from a transparent address, as a bridged token. Here your ZEC stays shielded on its way to the maker, and no bridge or
+              To swap ZEC today, your coins first leave the shielded pool for a transparent address, so the amount and the timing become public. Here your ZEC stays shielded on its way to the maker, and no
               custodian holds it. The USDC lands in NEAR Intents under a key made in your browser, and Intents sends it on to the chain you choose.
             </p>
             <p className="hero-note appear">

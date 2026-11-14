@@ -3,18 +3,17 @@
 Cloakroom Intents is a website for swapping shielded ZEC for tokens on 30+ chains with no
 custodian.
 
-**The problem.** NEAR Intents already swaps ZEC, but only from a transparent address, as a
-bridged token. Inside NEAR Intents, ZEC is the NEP-141 token `nep141:zec.omft.near` (1Click
-token list, read on 2026-11-13), not shielded ZEC. The Cloakroom paper (October 2026, in
-this repository as [`Cloakroom_Yellow_Paper.pdf`](Cloakroom_Yellow_Paper.pdf)) states:
-"Every route out of shielded Zcash today passes through a transparent address held by an
-exchange, a bridge or an intent network, which publishes amounts and timing and can hold
-funds."
+**The problem.** To swap ZEC today, your coins first leave the shielded pool for a
+transparent address, so the amount and the timing become public. That holds for exchanges
+and for swap services, including NEAR Intents, where ZEC is the bridged token
+`nep141:zec.omft.near` (1Click token list, read on 2026-11-13). The earlier Cloakroom paper
+(October 2026) is in this repository as
+[`Cloakroom_Yellow_Paper.pdf`](Cloakroom_Yellow_Paper.pdf).
 
 What is different here:
 
-- The ZEC stays in the shielded pool on its way to the maker, and no bridge or custodian
-  holds it. It goes to a shielded Zcash address whose spending key is split in two halves:
+- The ZEC stays in the shielded pool on its way to the maker, and no custodian holds
+  it. It goes to a shielded Zcash address whose spending key is split in two halves:
   the user holds one, the maker holds the other.
 - A maker locks USDC in an escrow contract on NEAR. When the user claims the USDC, the
   claim publishes the user's half, and the maker can then take the ZEC. If the maker

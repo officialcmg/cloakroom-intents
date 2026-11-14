@@ -62,11 +62,11 @@ Cloakroom Intents swaps shielded ZEC for tokens on other chains with no custodia
 Update the "Status" paragraph if `STATUS.md` changes before submission.
 
 ```text
-The problem: every route out of shielded Zcash passes through a transparent address held by an exchange, a bridge or an intent network, which publishes amounts and timing and can hold funds.
+The problem: to swap ZEC today, the coins first leave the shielded pool for a transparent address, so the amount and timing become public.
 
 Cloakroom Intents swaps shielded ZEC for a token on another chain with no custodian. A maker locks USDC in an escrow contract on NEAR. The user's ZEC goes to a shielded address whose spending key is split between the user and the maker. Claiming the USDC publishes the user's key half, so the maker can take the ZEC; a refund publishes the maker's half, so the user takes the ZEC back. The ZEC never leaves the shielded pool.
 
-How NEAR fits in: the escrow is a Rust contract on NEAR with no access keys. Each swap uses a new ed25519 implicit account that the maker funds with a 0.03 NEAR stipend, so the user sends her own claim with no relayer and no gas payment that links her to the swap. NEAR's fast finality shrinks the protocol's safety windows from hours (on Base) to minutes. The USDC is paid into NEAR Intents under the user's key, and one signature, checked before signing, sends it to a token on another chain through 1Click.
+How NEAR fits in: the escrow is a Rust contract on NEAR with no access keys. Each swap uses a new ed25519 implicit account that the maker funds with a 0.06 NEAR stipend, so the user sends her own claim with no relayer and no gas payment that links her to the swap. NEAR's fast finality shrinks the protocol's safety windows from hours (on Base) to minutes. The USDC is paid into NEAR Intents under the user's key, and one signature, checked before signing, sends it to a token on another chain through 1Click.
 
 Status: the native maker and taker pass 21 two-party scenarios on local chains. The website runs the taker in the browser as WebAssembly; five browser scenarios pass on local chains. The website and a maker are hosted on Zcash testnet and NEAR testnet at https://cloakroom.chrismg.dev; a swap through it turned 0.05 testnet ZEC into 1.4877 test USDC in 493 s. Nothing is deployed on mainnet, and the exit with real funds has not run. Cloakroom Intents is my earlier Cloakroom protocol (ZECATHON, Base) rebuilt on NEAR with NEAR Intents as the exit, disclosed as baseline commit 2f8e2f7 (branch pre-hackathon-baseline). The project was named Zecret until 2026-11-14.
 ```
