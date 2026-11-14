@@ -1,7 +1,8 @@
 # Chain logos: sources and licences
 
 The logos in `src/ui/chainIconData.ts` are the chains' trademarks. The landing page uses
-them only to name the chains that the swap form supports.
+them only to name the chains that the swap form supports. Every logo is the chain's own
+mark, taken unchanged from the icon set (except the two notes below); none is drawn here.
 
 ## Sources
 
@@ -57,4 +58,3 @@ them only to name the chains that the swap form supports.
 - XRP Ledger: the branded mark is white. Its fill is changed to the dark brand colour
   `#23292F` so that it shows on the light tile.
 - Dogecoin: the view box is widened so that the coin has the same size as the other logos.
-- A chain without a logo gets its initial on the same tile. No chain uses this now.

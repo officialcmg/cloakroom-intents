@@ -3103,13 +3103,6 @@ a.hash {
   height: 88%;
 }
 
-.chain-icon-initial span {
-  font-size: 0.6em;
-  font-weight: 700;
-  letter-spacing: 0;
-  color: var(--text-2, var(--text-3));
-}
-
 [data-theme='dark'] .chain-icon {
   background: #e4ece8;
   box-shadow: none;

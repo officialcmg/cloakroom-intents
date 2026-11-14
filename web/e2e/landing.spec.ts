@@ -81,8 +81,9 @@ test('the chain strip shows a logo beside each chain name; the logos are hidden 
   const strip = page.getByRole('region', { name: /destination chains in the swap form/ });
   const items = strip.getByRole('listitem');
   await expect(items).toHaveCount(35);
-  await expect(items.first()).toHaveAccessibleName('Ethereum');
-  await expect(items.nth(34)).toHaveAccessibleName('Aleo');
+  // The logos add no text: each item reads as the chain's name alone.
+  await expect(items.first()).toHaveText('Ethereum');
+  await expect(items.nth(34)).toHaveText('Aleo');
   const icons = strip.locator('.chains-list:not([aria-hidden]) .chain-icon');
   await expect(icons).toHaveCount(35);
   for (const i of await icons.all()) {
