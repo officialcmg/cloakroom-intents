@@ -3,7 +3,12 @@
 This is the runbook for the owner. Follow it from top to bottom. Each step says what to
 run, what you should see, and what to check on chain. Nothing in this file was run on
 mainnet with funds. Everything that could be checked without funds was checked on
-2026-11-14 between 02:50 and 03:25 UTC; the outputs below are from those runs.
+2026-11-14 between 02:50 and 03:25 UTC; the outputs below are from those runs. On
+2026-11-14 at 05:00 UTC the runbook was updated for the light-payout escrow (branch
+`escrow-light-payout`, code hash `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536`): the
+taker's key sends the payout `withdraw(id)` itself, the maker keeps its USDC in its own
+`intents.near` account and opens with `mt_transfer_call`, and the stipend is 0.06 NEAR.
+The dry run in section 11 is from that update.
 
 Read the gap list first. It says what is still untested at the moment of the first swap.
 
@@ -16,24 +21,23 @@ first swap.
 |---|---|---|
 | G1 | **The 1Click delivery leg with funds.** Quote, generate and submit answered without a key, and the quote signature and payload checks pass on live answers (`docs/INTENTS.md`). No signed exit was ever executed with a funded key. The real fees, the status sequence of a funded exit, the refund path and the time to deliver are not known. Today's dry quote: 5 USDC on NEAR to USDC on Base gives 4.997080 USDC, minimum 4.947109, estimate 12 s. | First swap: the smallest amount (0.002 ZEC, about 1.8 USDC) to USDC on Base, to an address you control. If the exit fails, the USDC stays in `intents.near` under the swap's key; the recovery file holds that key. Keep the recovery file until the USDC arrives. |
 | G2 | **Zcash mainnet transactions from this code.** The wallet scanned Zcash mainnet (native: 262 blocks to the tip 3,570,962 in 0.9 s; browser engine: read the tip 3,570,968 through gRPC-web). It never built, proved or broadcast a mainnet transaction. The consensus parameters for mainnet are new in this branch: `zcash_protocol` 0.11.0-pre.0 has no mainnet NU7 height, so `crates/zecret-core/src/wallet.rs` sets 3,543,405. The chain agrees: the coinbase of block 3,543,404 has branch id `0x37a5165b` (NU6.3), that of 3,543,405 has `0x77190ad9` (NU7), and the light-wallet server reports `77190ad9` at the tip. | The first Zcash send of the maker (its first quote) shows it: a node refusal says why. Before that, send 0.001 ZEC from the maker's wallet to your own wallet with `zecret pay` (step 6.5). That proves a mainnet send without a swap. |
-| G3 | **The escrow with Circle's USDC and the real `intents.near`.** Tested only in the NEAR sandbox with the code of both contracts copied from mainnet (`contracts/near-escrow/tests/usdc.rs`, `docs/security/fixes-2.md`). | The first swap is that test. The escrow's `withdraw` pays the taker inside `intents.near`; check the balance there (step 9). |
+| G3 | **The escrow with Circle's USDC and the real `intents.near`.** Tested only in the NEAR sandbox with the code of both contracts copied from mainnet (`contracts/near-escrow/tests/usdc.rs`, `docs/security/fixes-2.md`). | The first swap is that test. The escrow keeps the swap's USDC inside `intents.near` from the open; `withdraw(id)` moves it to the taker's key with one `mt_transfer`; check the balance there (step 9). |
 | G4 | **Light-wallet server under load.** One public server, `zcash-mainnet.chainsafe.dev` (Zebra 7.0.0, lightwalletd 0.6.1). Its CORS answer allows any origin (it echoed `https://zecret.chrismg.dev`, a made-up `https://mainnet.zecret.chrismg.dev` and `http://127.0.0.1:<port>`). How long ChainSafe keeps it public, and how it behaves with many users, is not known. | Small swaps, few at a time (`max_pending_quotes` 3). If it fails, every party's deadlines still hold: the taker's ZEC comes back through the refund path. |
 | G5 | **Wallet apps as payers on mainnet.** The deposit address has one Orchard-protocol receiver, and since NU6.3 a wallet pays it only into the Ironwood pool. Zodl, Zingo, Zkool, Cake and Edge support Ironwood per their release notes (`docs/WEB.md`; not re-checked for this file). None was tested against this site. | Pay the first swap from the wallet you plan to recommend. If it cannot pay the address, use the command-line payer (step 8, "If the wallet app refuses"). |
-| G6 | **Mainnet gas price against the stipend.** Read from mainnet RPC: block gas price `100000000` yoctoNEAR per gas (10^8). The protocol config reports `min_gas_price` `1000000000` (10^9), which equals the "pessimistic" price measured in the 2.14.1 sandbox; mainnet also runs nearcore 2.14.1. With NEAR's check at 10 times the gas price, `claim` (25 Tgas attached) needs 0.025 NEAR, plus about 0.0019 NEAR already burnt: 0.0269 NEAR of the 0.03 NEAR stipend. The stipend stays enough only up to a gas price of 1.124 × 10^8, **1.12 times today's price**. If NEAR's check uses a fixed 10^9, the gas price does not matter. Which one is true on mainnet was not tested: it needs a transaction. | The dry run prints this check with today's gas price (step 3). If the gas price rises above 1.12 × 10^8 before a swap, pause the maker. If a taker cannot claim, the maker refunds at its deadline and the taker takes the ZEC back (less fees and premium). |
+| G6 | **Mainnet gas price against the stipend.** The taker's key sends `commit_claim` (15 Tgas), `claim` (25 Tgas) and `withdraw(id)` (25 Tgas) from the stipend alone. NEAR checks before each call that the signer holds the attached gas at `max(gas price, min_gas_purchase_price)` (nearcore 2.14.1, `calculate_tx_cost`; `docs/experiments/light-payout.md`). Read from mainnet RPC: gas price 10^8, `min_gas_purchase_price` 10^9 (protocol 88). The largest balance checked is 0.0278 NEAR, before `withdraw`. The maker's stipend is 0.06 NEAR: 2.16 times that. It covers the three calls up to a gas price of 1.32 × 10^9 (13 times today). Measured in the 2.14.1 sandbox with the mainnet code of `intents.near` and USDC, and on testnet (`docs/TESTNET.md`, "Light payout on testnet"); not with a mainnet transaction. | The dry run reads `min_gas_purchase_price` and the gas price and prints the check (step 3). It fails when the margin falls below 2, at about 2.1 times today's gas price: pause the maker then. If a taker still cannot claim, the maker refunds at its deadline and the taker takes the ZEC back (less fees and premium). |
 | G7 | **The maker's fixed price.** `price_per_zec` is one number in `config.json`. The code has no price feed. A price above the market loses USDC on every swap. See section 3, "Price". | Use the price rule. Run the dry run with `--maker-config` every few hours: it fails when the price is less than 2 % below the market. Keep the float small. |
 | G8 | **The hosted maker on mainnet.** The mainnet mode of `deploy/maker/railway/start.sh` is tested with a stand-in binary (18 cases, `deploy/maker/railway/test-start.sh`). The image with this code was not rebuilt or run on Railway. | Watch the first start's log lines (step 6.4). |
 | G9 | **The website on mainnet.** The switched build passed its Playwright tests with all outside requests blocked and a stand-in escrow; it never ran a swap. The engine's maker check ran on mainnet only as far as a refused stand-in entry. | The first swap (step 8). |
 | G10 | **The deployment tool on mainnet.** `zecret-deploy plan` ran read-only on mainnet. `deploy` never ran on mainnet; it ran on testnet and in the sandbox. | Step 4 runs it once; each step reads the chain first and can run again. |
 | G11 | **One trusted NEAR RPC endpoint** (`rpc.mainnet.fastnear.com`) for the taker and the maker. A false endpoint that works with the maker can take the taker's ZEC (`docs/DESIGN.md` section 10). | Small swaps. For your own first swap the risk is yours. |
+| G13 | **NEAR Intents operators hold the escrow's USDC for the whole swap.** The escrow keeps the swap's USDC in its own account inside `intents.near` from the open to the payout. The Verifier's operators (roles `DAO`, `UnrestrictedWithdrawer`, the account locker, the pause manager) can move or freeze those tokens at any time, also after a taker checked that the escrow holds them (security review 5, R5-02; test `r5_verifier_operator_can_drain_the_escrow`). The earlier escrow held plain USDC and was exposed to them only during a payout. | Accepted: the delivery uses NEAR Intents anyway. Keep swaps small. The site says it in its honesty lines (`web/public/config/mainnet.json`). |
 | G12 | **Legal and compliance questions.** Not assessed. They are for you to judge. Questions that apply: whether running a maker that buys ZEC for USDC needs a registration or licence where you live or where the service runs; sanctions screening of counterparties, which a shielded swap cannot do; whether the hosting providers' terms allow this use; tax treatment of the maker's trades and the premium; what the site must say to users in your jurisdiction. | Decide before you open the site to others. You can run the first swaps with the site's address shared with nobody. |
 
 Smaller known gaps:
 
-- The progress screen says "Each block takes about 75 seconds" while the swap waits for
-  confirmations (`web/src/app/stageCopy.ts`). Since NU7 it is about 25 s on mainnet
-  (24.9 s measured) and 20 s on testnet. This branch does not change it because the text
-  is shared with testnet. The engine on mainnet now polls every 25 s
-  (`realEngine.ts`, `blockMs`).
+- The progress screen no longer names a block time: it says the wait usually takes a few
+  minutes. Measured means since NU7: 24.9 s per block on mainnet, about 20 to 25 s on
+  testnet. The engine on mainnet polls every 25 s (`realEngine.ts`, `blockMs`).
 - `mainnet.zcashexplorer.app` and `nearblocks.io` (the explorer links in
   `web/public/config/mainnet.json`) answered HTTP 403 to `curl` from the build machine
   (bot protection, presumably). Not checked from a browser.
@@ -84,25 +88,28 @@ USDC's `storage_balance_bounds`), by `zecret-deploy plan`:
 
 | Item | NEAR | Source |
 |---|---|---|
-| Escrow code storage: 525,881 bytes × 10^19 yoctoNEAR per byte | 5.25881 | wasm size; `storage_amount_per_byte` read on mainnet. Locked for ever: the escrow has no keys. |
+| Escrow code storage: 471,730 bytes × 10^19 yoctoNEAR per byte | 4.71730 | wasm size; `storage_amount_per_byte` read on mainnet. Locked for ever: the escrow has no keys. |
 | Escrow margin (`escrow.margin_near`) | 0.20000 | config. Locked. Pays the escrow's own deploy transaction. |
 | Maker account (`maker.initial_balance_near`) | 1.00000 | config. The maker spends it: 0.1 escrow storage funds at deploy, then gas and stipends. |
-| USDC registration of the escrow and the maker, 2 × 0.00125 | 0.00250 | `storage_balance_bounds` read on mainnet. `intents.near` is registered already. |
-| Gas of the deployment, about 64.4 Tgas × 10^8 | 0.00644 | testnet gas per transaction × today's mainnet gas price |
-| **Total from the owner** | **6.46775** | of which 5.46131 stays locked |
+| USDC registration of the maker, 1 × 0.00125 | 0.00125 | `storage_balance_bounds` read on mainnet. `intents.near` is registered already. The light-payout escrow needs no registration: it never holds plain USDC. |
+| Gas of the deployment, about 62.2 Tgas × 10^8 | 0.00621 | testnet gas per transaction × today's mainnet gas price |
+| **Total from the owner** | **5.92476** | of which 4.91855 stays locked |
 
-- `deploy` refuses to start unless the owner holds **6.95881 NEAR free** (its own
+- `deploy` refuses to start unless the owner holds **6.41730 NEAR free** (its own
   bound: the two transfers plus 0.5 NEAR for gas and registrations).
-- The maker then needs more NEAR to run: about 0.2 NEAR must stay free for NEAR's gas
-  check of its 200 Tgas `withdraw`, and each swap costs it about 0.04 NEAR (0.03
-  stipend, about 0.006 storage, about 0.005 gas). With 0.9 NEAR left after its storage
-  funds it runs about 17 swaps. Send it 1 NEAR more after deploy (step 5).
-- So have **8 NEAR** on the owner account: 6.96 for the deploy check, 1 for the maker's
+- The maker then needs more NEAR to run. NEAR's check of its 100 Tgas open needs about
+  0.1 NEAR free (100 Tgas at `min_gas_purchase_price` 10^9). Each opened swap costs it
+  about 0.075 NEAR: the 0.06 stipend, 0.0071 for the creation of the taker's account
+  (`account_creation_charge`), 0.0052 escrow storage (522 bytes), and about 0.003 gas
+  (deposit 8.1 Tgas, open 15 Tgas, `set_ready`). The maker no longer pays the payout.
+  With 0.9 NEAR left after its storage funds it runs about 10 swaps. Send it 1 NEAR more
+  after deploy (step 5): about 23 swaps.
+- So have **8 NEAR** on the owner account: 6.42 for the deploy check, 1 for the maker's
   top-up, the rest for gas.
 - This replaces the 6.58 NEAR estimate in `docs/DEPLOY.md`: that figure counted the 0.1
   NEAR storage funds as an owner cost; the tool pays them from the maker's 1 NEAR.
-- If the escrow changes (branch `escrow-light-payout`), its wasm size changes the first
-  line. The dry run recomputes it from the wasm you give it.
+- These amounts are for the light-payout escrow (471,730 bytes). Another escrow build
+  changes the first line; the dry run recomputes it from the wasm you give it.
 
 ### 2.2 USDC float for the maker
 
@@ -128,7 +135,7 @@ swap. **Send 0.01 ZEC** to the maker's address (step 6.3) before it quotes.
 ### 2.4 A shielded Zcash mainnet wallet to pay from
 
 For the first swap you are the taker. You need a wallet that pays into the Ironwood pool
-(gap G5) with about 0.01 ZEC: 0.002 ZEC for the swap, 25,000 zats premium, and the
+(gap G5) with about 0.01 ZEC: 0.002 ZEC for the swap, 40,000 zats premium, and the
 temporary wallet's fees (the page shows the exact amount). Also have a USDC on Base (or
 other chain) address of yours for the exit, and a Zcash address of yours for leftovers.
 
@@ -187,15 +194,21 @@ market)`, and all swaps together at most the float.
 
 ### Premium and stipend
 
-- Stipend: 0.03 NEAR (measured; do not lower it). See gap G6.
+- Stipend: 0.06 NEAR (`docs/experiments/light-payout.md`: 2.16 times the largest balance
+  NEAR checks while the taker's key sends `commit_claim`, `claim` and `withdraw(id)`; do
+  not lower it). The taker accepts quotes from 0.03 NEAR (`min_stipend`), which covers
+  the three calls up to 2.1 times today's gas price. See gap G6.
 - `premium_check` is required on mainnet: the maker refuses to start without it.
   The rule: `premium_zats × yocto_near_per_zec / 10^8 ≥ stipend + costs_per_request_yocto`.
-- Template: `premium_zats` 25,000, `yocto_near_per_zec` 200 NEAR (a low estimate; the
-  market was 273.5 NEAR per ZEC from 1Click's token prices: ZEC 924.59 USD, wNEAR 3.38
-  USD), `costs_per_request_yocto` 0.015 NEAR. The premium is then worth 0.05 NEAR at the
-  low estimate, against 0.045 NEAR of costs, and 0.068 NEAR at the market. The smallest
-  premium that passes at 200 NEAR per ZEC is 22,500 zats.
-- 25,000 zats is about 0.23 USDC: 12.5 % of a 0.002 ZEC swap, 1.25 % of a 0.02 ZEC swap.
+- Template: `premium_zats` 40,000, `yocto_near_per_zec` 200 NEAR (a low estimate; the
+  market was 270.6 NEAR per ZEC from 1Click's token prices at 04:59 UTC: ZEC 906.56 USD,
+  wNEAR 3.35 USD), `costs_per_request_yocto` 0.02 NEAR (0.0071 account creation, 0.0052
+  swap storage, about 0.003 gas of deposit, open and `set_ready`, about 0.005 for a
+  refund and spare). The premium is then worth 0.08 NEAR at the low estimate, against
+  0.08 NEAR of stipend and costs, and 0.108 NEAR at the market. The smallest premium
+  that passes at 200 NEAR per ZEC is 40,000 zats. The taker template accepts up to
+  50,000 zats (`max_premium`).
+- 40,000 zats is about 0.36 USDC: 20 % of a 0.002 ZEC swap, 2 % of a 0.02 ZEC swap.
 - The dry run checks that `yocto_near_per_zec` is not above the market.
 
 ### NEAR RPC
@@ -229,10 +242,11 @@ T=deploy/target/debug/zecret-deploy
 $T hash contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm
 ```
 
-The hash must be the code hash of the escrow build you decided to ship. Today's escrow
-(NV-02 fix) gives `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1`, 525,881 bytes. If the
-light-payout escrow ships instead, its hash is different; use that one everywhere below
-as `ESCROW_HASH`.
+The hash must be the code hash of the escrow build you decided to ship. The light-payout
+escrow (reviewed in `docs/security/review-5.md`, live on testnet as `escrow3`) gives
+`AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536`, 471,730 bytes. This runbook, the
+templates and the website assume that escrow: the earlier escrow (`DuBGKiy8…`) does not
+work with this code. Use the hash everywhere below as `ESCROW_HASH`.
 
 Run the preflight (every no-funds check; about 10 minutes, most of it builds):
 
@@ -278,15 +292,17 @@ $T plan --config deploy/configs/mainnet.toml --expect-escrow-hash $ESCROW_HASH \
 It must end with `DRY RUN PASSED: READY TO DEPLOY (nothing was sent)`, or with `NO CHECK
 FAILED; OWNER INPUTS MISSING` where the only missing input is the maker config (step 6).
 The full output of a run on 2026-11-14 with the stand-in owner `aurora` and an example
-maker config is in section 9.
+maker config is in section 11.
 
 ### Step 3. Check the stipend line (now)
 
-In the dry run, the line `0.03 NEAR covers commit and claim ... (stays enough up to a gas
-price of 112400000, 1.12× today)` must be `[PASS]`. If it fails, do not continue (gap
-G6).
+In the dry run, both lines under `taker stipend` must be `[PASS]`: `the maker's stipend
+0.06000 NEAR is at least 2× the largest balance NEAR checks (0.02783 NEAR before
+withdraw ...)` and `the taker's min_stipend 0.03000 NEAR covers the need today`. They
+use `min_gas_purchase_price` from the protocol config. If one fails, do not continue
+(gap G6).
 
-### Step 4. Deploy the contracts (2 min; spends about 6.47 NEAR)
+### Step 4. Deploy the contracts (2 min; spends about 5.92 NEAR)
 
 ```sh
 $T deploy --config deploy/configs/mainnet.toml \
@@ -304,7 +320,6 @@ Check on chain:
 q '{"request_type":"view_account","finality":"final","account_id":"escrow.'$OWNER'"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["code_hash"])'   # = ESCROW_HASH
 q '{"request_type":"view_access_key_list","finality":"final","account_id":"escrow.'$OWNER'"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["keys"])'  # = []
 view escrow.$OWNER get_intents_account '{}'                       # = "intents.near"
-view 17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1 storage_balance_of '{"account_id":"escrow.'$OWNER'"}'   # not null
 view escrow.$OWNER get_storage_funds '{"account_id":"maker.'$OWNER'","token":"17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"}'   # about 0.099 NEAR
 ```
 
@@ -315,7 +330,12 @@ with `ALL CHECKS PASSED`.
 
 - Send **60 USDC** (native USDC on NEAR, contract
   `17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`) to
-  `maker.<owner>`. The deploy registered it.
+  `maker.<owner>`. The deploy registered it. The USDC stays there as plain balance: before
+  each open the maker deposits what the swap needs into its own `intents.near` account
+  (`ft_transfer_call` on USDC; log line `deposited ... into the maker's Verifier account
+  before the open`) and then opens from there with `mt_transfer_call`. To deposit the
+  whole float at once instead, set `verifier_target` in `[maker]` of
+  `deploy/configs/mainnet.toml` and run `deploy` again.
 - Send **1 NEAR** to `maker.<owner>`.
 
 Check: `view 17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1 ft_balance_of '{"account_id":"maker.'$OWNER'"}'`
@@ -444,12 +464,16 @@ See section 6.
 
 ```sh
 SWAP=<swap id from the maker log "escrow OPEN id ...">
-view escrow.$OWNER get_swap '{"id":"'$SWAP'"}'                # state Claimed, a published
-view 17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1 ft_balance_of '{"account_id":"maker.'$OWNER'"}'   # 60 USDC less the price
-view intents.near mt_balance_of '{"account_id":"escrow.'$OWNER'","token_id":"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"}'  # "0": nothing stranded
+view escrow.$OWNER get_swap '{"id":"'$SWAP'"}'                # state Claimed, a published, payout paid
+view 17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1 ft_balance_of '{"account_id":"maker.'$OWNER'"}'   # plain USDC; with the maker's balance inside intents.near: 60 USDC less the price
+view escrow.$OWNER get_owed '{"token":"17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"}'   # what open swaps still owe
+view intents.near mt_balance_of '{"account_id":"escrow.'$OWNER'","token_id":"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"}'  # equals get_owed: nothing stranded, nothing missing
+view intents.near mt_balance_of '{"account_id":"maker.'$OWNER'","token_id":"nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1"}'  # the maker's USDC inside intents.near
 ```
 
-And the USDC on Base at your address, and the maker log line `<swap> stage Swept`.
+And the USDC on Base at your address, and the maker log line `<swap> stage Swept`. On
+nearblocks.io the `withdraw` transaction of the swap is signed by the taker's 64-hex
+account, not by `maker.<owner>`.
 
 ### Step 10. Open the site to others (only after the go / no-go list)
 
@@ -469,7 +493,7 @@ than 3 maximum swaps. `verify` shows the maker's NEAR, USDC and storage funds.
 ## 6. The first swap
 
 - **Amount:** 0.002 ZEC, the maker's minimum (about 1.8 USDC). Small enough to lose. The
-  page asks for the amount plus the premium (0.00025 ZEC) and the temporary wallet's fees.
+  page asks for the amount plus the premium (0.0004 ZEC) and the temporary wallet's fees.
 - **Who pays:** you, as the taker, from your own wallet app (gap G5). The exit goes to
   your own USDC on Base address.
 - **Before you pay:** save the recovery file (the page asks). Keep the tab open.
@@ -484,10 +508,10 @@ The maker log prints one line per stage change, `<swap> stage <Name>`, with the 
 |---|---|---|
 | Payment seen, confirmed | | Zcash explorer: your payment |
 | Request sent | `Quoting`, then `Quoted` | Zcash: the maker's quote (its first mainnet send if step 6.5 was skipped) |
-| Escrow opened | `Opening`, then `Opened`; the line `escrow OPEN id ... amount ...` | NEAR: `ft_transfer_call` on USDC to the escrow, and 0.03 NEAR to a new 64-hex account |
+| Escrow opened | `Opening`, then `Opened`; the line `escrow OPEN id ... amount ...` (before it, when the maker's `intents.near` account holds too little, `deposited ... into the maker's Verifier account`) | NEAR: `ft_transfer_call` on USDC to `intents.near` (the deposit, when needed), `mt_transfer_call` on `intents.near` to the escrow (the open), and 0.06 NEAR to a new 64-hex account |
 | Waiting for confirmations | `Ready` after 3 Zcash blocks on your payment to the shared address | NEAR: `set_ready` |
 | Claiming | | NEAR: `commit_claim` and `claim` signed by the 64-hex account |
-| Payout | the maker sends `withdraw` (200 Tgas) | `intents.near` holds the USDC under the 64-hex account |
+| Payout | none: the taker's key sends `withdraw(id)` (25 Tgas); the maker sends it only as a backup | `intents.near` holds the USDC under the 64-hex account; `get_swap(id).payout` is `paid` |
 | Delivery | | 1Click status `SUCCESS`; USDC on Base |
 | Done | `Sweeping`, then `Swept` | Zcash: the maker's sweep of the shared address |
 
@@ -523,9 +547,11 @@ settings differ ... kept config.json` and applies it at the next start.
 
 **Take the money back.**
 
-- USDC float: with the maker's NEAR key (`$D/near_key.json`), `ft_transfer` from
-  `maker.<owner>` to your account (near-cli; the deploy tool has no command for it). Stop
-  the maker first.
+- USDC float: with the maker's NEAR key (`$D/near_key.json`). Stop the maker first. The
+  part inside `intents.near`: `ft_withdraw` on `intents.near` (`token`
+  `17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1`, `receiver_id` your
+  account, `amount`; 1 yoctoNEAR, 50 Tgas). The plain part: `ft_transfer` on USDC to your
+  account. Use near-cli; the deploy tool has no command for it.
 - Maker's storage funds: `withdraw_storage_funds` on the escrow, signed by the maker.
 - Maker's ZEC: stop the service, then `zecret pay --dir $D --to <your address> --zats N`
   on your machine from the backup. Never run two processes on one wallet.
@@ -558,7 +584,8 @@ the project. The testnet site is not affected.
 | The taker's funds in a failed swap | The refund path returns the ZEC less fees and the premium; the deadlines are enforced by the escrow, not by the maker. |
 | Single trusted NEAR RPC (G11) | Small swaps; your own swaps first. |
 | The 1Click leg (G1) | The USDC stays in `intents.near` under the swap's key until a signed exit executes; nothing is signed below the user's minimum; the recovery file holds the key. |
-| Gas price above 1.12 × today (G6) | The taker cannot claim; the maker refunds at its deadline; the taker gets the ZEC back. Pause when step 11 fails. |
+| Gas price above about 2.1 × today (G6) | The stipend margin falls below 2 and step 11 fails: pause. Up to 13 × today the 0.06 NEAR stipend still pays the taker's three calls; above that the taker cannot claim, the maker refunds at its deadline and the taker gets the ZEC back. |
+| NEAR Intents operators (G13) | They can move or freeze the escrow's USDC during any swap. Accepted; small swaps. |
 | Key custody on Railway | Only the float, the maker's ZEC (fees and finished swaps) and its NEAR are on the service. Your owner key never goes there. Move ZEC and USDC out regularly. |
 | Light-wallet server down (G4) | Swaps stop progressing; deadlines return funds. No loss beyond fees. |
 | Maker's volume lost | Backup of `$D` (keys). Swap records of open swaps are lost: those swaps end by the taker's deadlines; the maker may lose the USDC of a swap the taker then claims after `t2` (at most one maximum swap per open swap). |
@@ -591,36 +618,35 @@ the project. The testnet site is not affected.
 Not checked: anything in the gap list; the Vercel and Railway setups (not created);
 Firefox and Safari; the explorer links from a browser.
 
-## 11. Dry-run output (2026-11-14 03:23 UTC)
+## 11. Dry-run output (2026-11-14 04:59 UTC, light-payout escrow)
 
-Stand-in owner `aurora` (an existing account; read-only), today's escrow build, and an
-example maker config (`maker-mainnet.json` = the template with owner `aurora`, birthday
-3,570,900 and price 890 USDC per ZEC):
+Stand-in owner `aurora` (an existing account; read-only), the light-payout escrow build,
+and an example maker config (`maker-mainnet.json` = the template with owner `aurora`,
+birthday 3,570,900 and price 870 USDC per ZEC, about 3.5 % below the market):
 
 ```text
-$ zecret-deploy plan --config configs/mainnet.toml --owner aurora --escrow-wasm ../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm --expect-escrow-hash DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1 --maker-config maker-mainnet.json
-escrow wasm ../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm: 525881 bytes, code hash DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1
+$ zecret-deploy plan --config configs/mainnet.toml --owner aurora --escrow-wasm ../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm --expect-escrow-hash AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536 --maker-config maker-mainnet.json
+escrow wasm /home/user/zecret-lw/contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm: 471730 bytes, code hash AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536
 == dry run on mainnet: nothing is signed or sent
 network
   [PASS] RPC https://rpc.mainnet.fastnear.com serves chain_id "mainnet" (want mainnet), nearcore "2.14.1"
-  [info] final block 224457020 (9n3E23jmCP9hxoqBvEiA9hvzFmWFcxbcyan6MqpcgB1h), gas price 100000000 yoctoNEAR per gas
+  [info] final block 224467086 (4tD4BWaA3463oW96g2FJA93az6WmFB7usVbfx278sg9N), gas price 100000000 yoctoNEAR per gas
   [PASS] storage price 10000000000000000000 yoctoNEAR per byte (1.00000 NEAR per 100 kB) equals the tool's
   [info] protocol version 88, min_gas_price in the protocol config "1000000000"
 escrow code
-  [info] escrow wasm ../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm: 525881 bytes, code hash DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1
-  [PASS] escrow code hash DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1 equals the reviewed hash DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1
+  [info] escrow wasm /home/user/zecret-lw/contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm: 471730 bytes, code hash AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536
+  [PASS] escrow code hash AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536 equals the reviewed hash AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536
 owner aurora
-  [PASS] owner aurora exists: balance 145768.49718 NEAR, storage 14384189674 bytes, free 1926.60044 NEAR
+  [PASS] owner aurora exists: balance 145768.49718 NEAR, storage 14384258369 bytes, free 1925.91349 NEAR
   [OWNER] put the owner's full-access key in configs/../.keys/mainnet/aurora.json (mode 600) before deploy
 accounts
-  [info] CREATE escrow.aurora: one temporary key, then one transaction deploys DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1, calls new(intents_account = intents.near) and deletes the key
+  [info] CREATE escrow.aurora: one temporary key, then one transaction deploys AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536, calls new(intents_account = intents.near) and deletes the key
   [info] CREATE maker.aurora with 1 NEAR, then add_storage_funds 0.1 NEAR from it
   [PASS] maker initial balance 1.00000 NEAR covers its storage funds 0.10000 NEAR plus 0.1 NEAR for gas
 token 17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1
   [info] token code hash DVJx7F3dHEHJYwpYPwXHu8K9Uo7h4kXFcALucY5oNX8q
   [PASS] token symbol "USDC" decimals 6 (config 6)
   [info] token storage_balance_bounds.min 0.00125 NEAR
-  [info] REGISTER escrow.aurora on the token (storage_deposit, paid by the owner)
   [PASS] intents.near is registered on the token
   [info] REGISTER maker.aurora on the token (storage_deposit, paid by the owner)
   [PASS] the token is Circle's USDC on NEAR (the 1Click USDC asset)
@@ -628,22 +654,24 @@ Verifier intents.near
   [info] Verifier code hash BtA1BEFNS619KkvXFsgcpQ21Tb5yMm32aaUkn7xNothk
   [PASS] Verifier current_salt = "252812b3"
 cost to the owner
-    5.25881 NEAR  escrow account: 525881 bytes of code storage [locked]
+    4.71730 NEAR  escrow account: 471730 bytes of code storage [locked]
     0.20000 NEAR  escrow margin (escrow.margin_near) [locked]
     1.00000 NEAR  maker account (maker.initial_balance_near; pays its gas, stipends and storage funds)
-    0.00250 NEAR  token registrations: 2 × 0.00125 NEAR [locked]
-    0.00644 NEAR  gas of the deployment transactions (about 64.4 Tgas at 100000000 yoctoNEAR/gas)
-    6.46775 NEAR  TOTAL, of which 5.46131 NEAR stays locked (escrow storage and margin, registrations)
-  [info] deploy refuses to start unless the owner holds 6.95881 NEAR free (its own bound: the transfers plus 0.5 NEAR for gas and registrations)
-  [PASS] owner free balance 1926.60044 NEAR ≥ 6.95881 NEAR
-taker stipend
-  [PASS] 0.03 NEAR covers commit and claim: claim's 25 Tgas at 10× the gas price plus about 0.0019 NEAR burnt = 0.02690 NEAR (stays enough up to a gas price of 112400000, 1.12× today)
+    0.00125 NEAR  token registrations: 1 × 0.00125 NEAR [locked]
+    0.00621 NEAR  gas of the deployment transactions (about 62.2 Tgas at 100000000 yoctoNEAR/gas)
+    5.92476 NEAR  TOTAL, of which 4.91855 NEAR stays locked (escrow storage and margin, registrations)
+  [info] deploy refuses to start unless the owner holds 6.41730 NEAR free (its own bound: the transfers plus 0.5 NEAR for gas and registrations)
+  [PASS] owner free balance 1925.91349 NEAR ≥ 6.41730 NEAR
+taker stipend (commit_claim, claim and withdraw(id) from the taker's key)
+  [info] min_gas_purchase_price 1000000000 yoctoNEAR per gas (protocol config), gas price 100000000
+  [PASS] the maker's stipend 0.06000 NEAR is at least 2× the largest balance NEAR checks (0.02783 NEAR before withdraw: 15 + 25 + 25 Tgas attached, measured burn): 2.16×; it stays enough up to a gas price of 1323714342 (13.24× today)
+  [PASS] the taker's min_stipend 0.03000 NEAR covers the need today; it stays enough up to a gas price of 211574074 (2.12× today)
 1Click (dry quotes only)
   [PASS] GET /v0/tokens: HTTP 200, 231 assets
   [PASS] 1Click lists USDC on NEAR with 6 decimals
-  [info] 1Click token prices: ZEC Some(924.59) USD, wNEAR Some(3.38) USD
-  [PASS] exit route 5 USDC (NEAR) → USDC on Base: amountOut 4997080 minAmountOut 4947109 in about Some(12.0) s; 1Click signature valid
-  [PASS] 0.005 ZEC → USDC on Base: amountOut 4594051 (918.8102 USDC per ZEC); 1Click signature valid
+  [info] 1Click token prices: ZEC Some(906.56) USD, wNEAR Some(3.35) USD
+  [PASS] exit route 5 USDC (NEAR) → USDC on Base: amountOut 4997010 minAmountOut 4947039 in about Some(12.0) s; 1Click signature valid
+  [PASS] 0.005 ZEC → USDC on Base: amountOut 4507637 (901.5274 USDC per ZEC); 1Click signature valid
 maker config maker-mainnet.json
   [PASS] maker chains.network = "main" (want main)
   [PASS] maker near_account = "maker.aurora" (want maker.aurora)
@@ -654,26 +682,26 @@ maker config maker-mainnet.json
   [PASS] maker config has no placeholder left
   [PASS] maker config sets no misbehave
   [PASS] maker birthday 3570900
-  [PASS] maker stipend 0.03000 NEAR (0.03 NEAR measured)
-  [PASS] maker limits 200000..2000000 zats, premium 25000 zats
-  [PASS] maker price 890000000 USDC units per ZEC is 200..1500 bp below the market 918810200
-  [PASS] premium_check: 25000 zats at 200.00000 NEAR per ZEC is 0.05000 NEAR ≥ stipend + costs 0.04500 NEAR
-  [PASS] premium_check.yocto_near_per_zec 200.00000 NEAR is not above the market 273.54733 NEAR (it must be a low estimate)
-  [info] the premium is worth 0.06838 NEAR at the market price
+  [PASS] maker stipend 0.06000 NEAR (0.06000 NEAR decided in docs/experiments/light-payout.md)
+  [PASS] maker limits 200000..2000000 zats, premium 40000 zats
+  [PASS] maker price 870000000 USDC units per ZEC is 200..1500 bp below the market 901527400
+  [PASS] premium_check: 40000 zats at 200.00000 NEAR per ZEC is 0.08000 NEAR ≥ stipend + costs 0.08000 NEAR
+  [PASS] premium_check.yocto_near_per_zec 200.00000 NEAR is not above the market 270.61492 NEAR (it must be a low estimate)
+  [info] the premium is worth 0.10824 NEAR at the market price
 == plan for aurora on mainnet
-  1. create escrow.aurora and deploy DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1 in one transaction that deletes its key
-  2. register escrow.aurora and intents.near on 17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1 if needed
-  3. create maker.aurora, register it on the token, add 0.1 storage funds
-  4. verify (read-only); no USDC moves: the owner sends USDC to maker.aurora
-  total from the owner: about 6.46775 NEAR
+  1. create escrow.aurora and deploy AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536 in one transaction that deletes its key
+  2. register intents.near on 17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1 if needed (the escrow needs no registration: its tokens stay in the Verifier)
+  3. create maker.aurora, register it on the token, add 0.1 storage funds in the escrow
+  4. verify (read-only); no USDC moves: the owner sends USDC to maker.aurora; the maker deposits it into its own Verifier account (ft_transfer_call, about 8.1 Tgas) before its first open, or deploy does it up to maker.verifier_target
+  total from the owner: about 5.92476 NEAR
 == 0 failed check(s), 1 owner input(s) missing
   owner: put the owner's full-access key in configs/../.keys/mainnet/aurora.json (mode 600) before deploy
 DRY RUN PASSED: NO CHECK FAILED; OWNER INPUTS MISSING (nothing was sent)
 ```
 
 The maker account `maker.aurora` does not exist, so the float check did not run in this
-output; with a deployed maker the dry run also compares its USDC balance with 3 maximum
-swaps.
+output; with a deployed maker the dry run also compares its USDC (plain and inside
+`intents.near`) with 3 maximum swaps.
 
 ## 12. Go / no-go
 
@@ -683,9 +711,9 @@ Go only if every line is true:
 - [ ] The escrow and app flow you ship passed its own testnet soak (your rule of
       2026-11-14 in `STATUS.md`: no mainnet step on a flow that has not passed its soak).
 - [ ] `scripts/mainnet-preflight.sh` with your `OWNER` and `ESCROW_HASH`: `PREFLIGHT PASSED`.
-- [ ] The escrow hash is the one you decided to ship (today's escrow or the light-payout
-      escrow), and the same hash is in `VITE_MAINNET_ESCROW_CODE_HASH`.
-- [ ] Step 2 and step 3: the dry run passes, the stipend line passes at today's gas price.
+- [ ] The escrow hash is the light-payout escrow's (`AqzB7mtM…`), and the same hash is in
+      `VITE_MAINNET_ESCROW_CODE_HASH` and in the taker template's `escrow_code_hash`.
+- [ ] Step 2 and step 3: the dry run passes, both stipend lines pass at today's gas price.
 - [ ] `verify` after deploy: `ALL CHECKS PASSED`; the escrow has no access keys.
 - [ ] The maker holds 60 USDC, about 1.9 NEAR, 0.01 ZEC; `$D` is backed up offline.
 - [ ] The maker's log shows mainnet mode, no relay, the expected address and key.
@@ -696,5 +724,5 @@ Go only if every line is true:
 - [ ] You decided the legal questions in G12.
 - [ ] You are awake for the next hour to watch the first swap.
 
-No-go if any check fails, if the gas price is above 1.12 × 10^8 yoctoNEAR per gas, or if
+No-go if any check fails, if a stipend line fails (today at a gas price above about 2.1 × 10^8 yoctoNEAR per gas), or if
 1Click's dry quote fails.

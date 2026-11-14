@@ -76,7 +76,7 @@ This is the only status table in this file. It follows `STATUS.md` as of 2026-11
 | Exit through NEAR Intents on mainnet | **Not verified.** The library is tested against the live `intents.near` code in a sandbox, and against recorded answers of the live 1Click API. Quote, generate and submit answered without an API key. No exit with real funds was run. On testnet the exit is a direct withdrawal from a stand-in Verifier, because NEAR Intents has no testnet. | [`docs/INTENTS.md`](docs/INTENTS.md) |
 | Mainnet deployment | **Not done.** Nothing is deployed on mainnet. It needs real funds (about 6.6 NEAR) and the owner's approval. | [`docs/DEPLOY.md`](docs/DEPLOY.md) |
 | Wallet apps as the payer | **Not tested.** Zkool and Zingo (Android) offer testnet wallets and support the Ironwood pool per their release notes. Zodl, Cake and Edge ship no testnet app. | [`docs/WEB.md`](docs/WEB.md) |
-| Security reviews | **Three reviews; fix reports cover every confirmed finding.** Review 1 (escrow, Intents library), the follow-up on the real USDC contract (a double payment), review 2 (swap engines, maker and taker side) and review 3 (website, browser engine, relay). A fourth, read-only review found no new finding. The taker-side fixes of review 2 were checked by tests, not by a new review. Open by decision: one trusted NEAR RPC endpoint. | [`docs/security/`](docs/security/), [Security](#security) |
+| Security reviews | **Five reviews; fix reports cover every confirmed finding.** Review 1 (escrow, Intents library), the follow-up on the real USDC contract (a double payment), review 2 (swap engines, maker and taker side) and review 3 (website, browser engine, relay). A fourth, read-only review found no new finding. Review 5 (the light-payout escrow) found one low finding, handled in the client. The taker-side fixes of review 2 were checked by tests, not by a new review. Open by decision: one trusted NEAR RPC endpoint; the operators of NEAR Intents can move or freeze the escrow's USDC during a swap. | [`docs/security/`](docs/security/), [Security](#security) |
 
 ## Try it
 
@@ -207,25 +207,26 @@ The six browser scenarios run with `node harness/browser/run.mjs`
 
 ### 4. Check the testnet deployment (read-only)
 
-With `curl`, no build. This reads the escrow and the recorded native swap at a final block:
+With `curl`, no build. This reads the escrow and a recorded native swap at a final block
+(the switch rehearsal of 2026-11-14, `docs/LIGHT_PAYOUT_SWITCH.md`):
 
 ```sh
 RPC=https://rpc.testnet.fastnear.com
-ESCROW=escrow2.zecret-3f109eea1e.testnet
+ESCROW=escrow3.zecret-3f109eea1e.testnet
 q() { curl -s $RPC -H 'content-type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":$1}"; }
 q '{"request_type":"view_account","finality":"final","account_id":"'$ESCROW'"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["code_hash"])'
 q '{"request_type":"view_access_key_list","finality":"final","account_id":"'$ESCROW'"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["keys"])'
-ARGS=$(printf '{"id":"%s"}' 04a469d68c2d16588a3face45cd57309198270cb1ed95fdd716159b48e84ace4 | base64 -w0)
+ARGS=$(printf '{"id":"%s"}' d239fbc8a8965b34e0e7e093c2a5cd68860f3e7ccf2c3efd7052bfa7f101c492 | base64 -w0)
 q '{"request_type":"call_function","finality":"final","account_id":"'$ESCROW'","method_name":"get_swap","args_base64":"'$ARGS'"}' \
-  | python3 -c 'import json,sys; s=json.loads(bytes(json.load(sys.stdin)["result"]["result"])); print(s["state"], s["amount"], s["token"], "a published:", bool(s["a"]), "b:", s["b"])'
+  | python3 -c 'import json,sys; s=json.loads(bytes(json.load(sys.stdin)["result"]["result"])); print(s["state"], s["amount"], s["token"], "a published:", bool(s["a"]), "b:", s["b"], "payout:", s["payout"])'
 ```
 
 It prints the escrow's code hash, its access keys (none) and the swap:
 
 ```text
-DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1
+AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536
 []
-Claimed 3000000 usdc.zecret-3f109eea1e.testnet a published: True b: None
+Claimed 300000 usdc.zecret-3f109eea1e.testnet a published: True b: None payout: paid
 ```
 
 The deployment tool checks more (the token, the Verifier, the maker) and compares the
@@ -241,7 +242,9 @@ cd ..
 ```
 
 On success it ends with `ALL CHECKS PASSED`; a failed build or RPC call stops it before
-that line. The full output is in [`docs/DEPLOY.md`](docs/DEPLOY.md), "How to check a
+that line. One check fails until the hosted maker's first open on `escrow3` after the
+switch: `maker escrow storage funds 0.00000 NEAR` (the maker adds them itself before that
+open). The full output is in [`docs/DEPLOY.md`](docs/DEPLOY.md), "How to check a
 deployment".
 
 The transactions of every recorded swap, with explorer links and how each was checked,
@@ -350,7 +353,7 @@ transfer to a NEAR account then waits for the maker's relay. Full rules:
   `ed25519_verify` (2.6 Tgas for the call).
 - The escrow has no owner and no upgrade method. One transaction deploys the code, calls
   `new` and deletes the account's only key. The testnet escrow
-  `escrow2.zecret-3f109eea1e.testnet` has no access keys ([Try it, step 4](#4-check-the-testnet-deployment-read-only)).
+  `escrow3.zecret-3f109eea1e.testnet` has no access keys ([Try it, step 4](#4-check-the-testnet-deployment-read-only)).
 
 ### 2. A new key per swap, paid by a stipend
 

@@ -85,7 +85,8 @@ describe('price math', () => {
   it('sells what the engine sells: the payment less 4 fee units and the premium (hosted testnet swap, QUOTE_BELOW_MINIMUM)', () => {
     // The hosted testnet maker: 30 USDC per ZEC, fee 10,000 zats, flat premium 1,000 zats.
     const testnet = parseDirectory(JSON.parse(readFileSync(new URL('../../public/config/testnet-directory.json', import.meta.url), 'utf8'))).terms;
-    const r = computeZecSide(1_000_000n, testnet);
+    // The shipped file can say "paused" (docs/LIGHT_PAYOUT_SWITCH.md); the price math is the same online.
+    const r = computeZecSide(1_000_000n, { ...testnet, status: 'online' });
     if (!r.ok) throw new Error('no');
     // crates/zecret-core/src/taker.rs required_deposit: zip317_fee(1,1) + 3 x zip317_fee(1,2) + premium = 40,000 + premium.
     expect(r.value.networkFeeZats).toBe(40_000n);

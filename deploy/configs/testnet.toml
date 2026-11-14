@@ -12,8 +12,11 @@ deployment_file = "../deployment.testnet.json"
 
 [escrow]
 # A deployed escrow cannot change. escrow.<owner> holds the build before the NV-02 fix
-# (docs/security/fixes-2.md) and stays as it is; the current build is escrow2.<owner>.
-sub_account = "escrow2"
+# (docs/security/fixes-2.md); escrow2.<owner> holds the two-step payout (retired at the
+# switch, docs/LIGHT_PAYOUT_SWITCH.md). The current build is escrow3.<owner>, the
+# light-payout escrow; it was deployed with configs/testnet-light.toml. Do not run
+# `deploy` with this file: it would sign as the maker with the key in keys_dir.
+sub_account = "escrow3"
 wasm = "../../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm"
 margin_near = "0.2"
 
@@ -36,6 +39,12 @@ margin_near = "0.5"
 [maker]
 sub_account = "maker"
 initial_balance_near = "2"
-# 20 000 tUSDC (6 decimals).
+# 20 000 tUSDC (6 decimals), plain and inside the Verifier together. The maker deposits
+# into its Verifier account by itself before each open (verifier_target 0: no deposit
+# by this tool).
 token_target = "20000000000"
-storage_funds_near = "0.5"
+verifier_target = "0"
+# The maker adds 0.1 NEAR of storage funds in escrow3 by itself before its first open
+# (storage_min 0.01 NEAR, storage_topup 0.1 NEAR in its config). Until then `verify`
+# reports 0 here.
+storage_funds_near = "0.01"

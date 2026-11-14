@@ -23,7 +23,8 @@
   "quoteTimeoutSecs": 600,
   "exit": { "mode": "oneclick", "oneClickUrl": "https://1click.chaindefuser.com" },
   "honesty": [
-    "This is hackathon software. No security audit was done. Three reviews by the project found and fixed bugs; others can remain.",
+    "This is hackathon software. No security audit was done. Reviews by the project found and fixed bugs; others can remain.",
+    "The escrow keeps the swap's USDC inside NEAR Intents (intents.near) from the open to the payout. The operators of NEAR Intents can move or freeze those tokens during the whole swap.",
     "The delivery to other chains through NEAR Intents 1Click had not run with real funds before this site went live.",
     "Your browser trusts one NEAR RPC endpoint (rpc.mainnet.fastnear.com) to report the escrow's state.",
     "The maker limits each swap to a small amount. Pay only what you can afford to lose."

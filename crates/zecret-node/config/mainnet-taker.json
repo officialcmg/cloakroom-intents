@@ -12,7 +12,7 @@
   "maker": "REPLACE with the output of `zecret directory --dir <maker dir>`",
   "escrow_code_hash": "REPLACE with the code hash of the deployed escrow (zecret-deploy hash)",
   "min_price": "0",
-  "max_premium": 30000,
+  "max_premium": 50000,
   "min_stipend": "30000000000000000000000",
   "quote_timeout_secs": 600
 }

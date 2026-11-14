@@ -19,16 +19,31 @@ pub const TGAS_CREATE_ACCOUNT: f64 = 8.57;
 pub const TGAS_ESCROW_DEPLOY: f64 = 40.31;
 pub const TGAS_STORAGE_DEPOSIT: f64 = 2.23;
 pub const TGAS_ADD_STORAGE_FUNDS: f64 = 2.51;
-/// Prepaid gas the taker attaches to `commit_claim` and `claim` (crates/zecret-core,
-/// `near::escrow`: GAS_COMMIT, GAS_REVEAL).
+/// The maker's deposit into its own Verifier account (`ft_transfer_call` on the token), burnt
+/// (docs/experiments/light-payout.md, section 5). Paid by the maker, not the owner.
+pub const TGAS_VERIFIER_DEPOSIT: f64 = 8.1;
+/// Prepaid gas the taker attaches to `commit_claim`, `claim` and `withdraw(id)`
+/// (crates/zecret-core, `near::escrow`: GAS_COMMIT, GAS_REVEAL, GAS_PAYOUT).
 pub const TGAS_COMMIT_PREPAID: u128 = 15;
 pub const TGAS_CLAIM_PREPAID: u128 = 25;
-/// Measured cost of commit and claim together (contracts/near-escrow README, "The taker's
-/// stipend": 0.03 NEAR before, 0.0281 NEAR after).
-pub const COMMIT_CLAIM_BURNT_YOCTO: u128 = ONE_NEAR * 19 / 10_000;
-/// NEAR checks that a signer holds the prepaid gas at a pessimistic price. In the 2.14.1
-/// sandbox it was 10 times the gas price (docs/DESIGN.md, the stipend decision).
-pub const PESSIMISTIC_FACTOR: u128 = 10;
+pub const TGAS_WITHDRAW_PREPAID: u128 = 25;
+/// The taker's three calls, measured in the 2.14.1 sandbox with the light-payout escrow
+/// (docs/experiments/light-payout.md, sections 1 and 3), in Ggas (10^9 gas):
+/// - gas burnt to convert a transaction into a receipt, paid at the gas price;
+pub const GGAS_CONVERT: u128 = 320;
+/// - send and execution fees that NEAR buys with the attached gas, at the purchase price;
+pub const GGAS_FEES: u128 = 887;
+/// - gas that `commit_claim` and `claim` burnt in total (0.000256 and 0.001656 NEAR at
+///   10^8 yoctoNEAR per gas), before the refunds.
+pub const GGAS_COMMIT_BURNT: u128 = 2_560;
+pub const GGAS_CLAIM_BURNT: u128 = 16_560;
+/// `min_gas_purchase_price` since protocol 85, for when the RPC does not report it.
+pub const MIN_GAS_PURCHASE_PRICE: u128 = 1_000_000_000;
+/// The stipend must be at least this many times the largest balance NEAR checks.
+pub const STIPEND_MARGIN: u128 = 2;
+/// The maker's stipend (light payout) and the smallest stipend the taker accepts.
+pub const MAKER_STIPEND: u128 = ONE_NEAR * 6 / 100;
+pub const TAKER_MIN_STIPEND: u128 = ONE_NEAR * 3 / 100;
 /// 1Click asset ids.
 pub const ZEC_ASSET: &str = "nep141:zec.omft.near";
 pub const BASE_USDC_ASSET: &str =
@@ -140,16 +155,40 @@ pub fn owner_costs(
     Ok(v)
 }
 
-/// The stipend check: the taker's key must hold the prepaid gas of `claim` at the
-/// pessimistic price after `commit_claim`. Returns (needed, the gas price at which the
-/// stipend stops being enough).
-pub fn stipend_need(stipend: u128, gas_price: u128) -> (u128, u128) {
-    let commit_check = TGAS_COMMIT_PREPAID * 1_000_000_000_000 * gas_price * PESSIMISTIC_FACTOR;
-    let claim_check = TGAS_CLAIM_PREPAID * 1_000_000_000_000 * gas_price * PESSIMISTIC_FACTOR;
-    let need = commit_check.max(claim_check + COMMIT_CLAIM_BURNT_YOCTO);
-    let max_price = stipend.saturating_sub(COMMIT_CLAIM_BURNT_YOCTO)
-        / (TGAS_CLAIM_PREPAID * 1_000_000_000_000 * PESSIMISTIC_FACTOR);
-    (need, max_price)
+/// What NEAR checks before a transaction (nearcore 2.14.1, `calculate_tx_cost`): the
+/// conversion gas at the gas price `p`, plus the attached gas and the receipt fees at
+/// `max(p, m)`, where `m` is `min_gas_purchase_price`.
+fn tx_cost(attached_tgas: u128, p: u128, m: u128) -> u128 {
+    const G: u128 = 1_000_000_000;
+    GGAS_CONVERT * G * p + (attached_tgas * 1_000 + GGAS_FEES) * G * p.max(m)
+}
+
+/// The stipend check for the light payout. The taker's key sends `commit_claim`, `claim`
+/// and `withdraw(id)` from the stipend alone. Before each call NEAR checks that the key
+/// holds [`tx_cost`] on top of what the earlier calls burnt. Returns (the largest balance
+/// checked, the largest gas price at which `stipend` still covers it). With the measured
+/// figures, at p = 10^8 and m = 10^9 the need is 0.027831 NEAR (before `withdraw`).
+pub fn stipend_need(stipend: u128, gas_price: u128, min_purchase: u128) -> (u128, u128) {
+    const G: u128 = 1_000_000_000;
+    let need_at = |p: u128| {
+        let commit = tx_cost(TGAS_COMMIT_PREPAID, p, min_purchase);
+        let claim = GGAS_COMMIT_BURNT * G * p + tx_cost(TGAS_CLAIM_PREPAID, p, min_purchase);
+        let withdraw = (GGAS_COMMIT_BURNT + GGAS_CLAIM_BURNT) * G * p
+            + tx_cost(TGAS_WITHDRAW_PREPAID, p, min_purchase);
+        commit.max(claim).max(withdraw)
+    };
+    let need = need_at(gas_price);
+    // need_at grows with p: find the largest p with need_at(p) <= stipend.
+    let (mut lo, mut hi) = (0u128, 1u128 << 50);
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        if need_at(mid) <= stipend {
+            lo = mid
+        } else {
+            hi = mid - 1
+        }
+    }
+    (need, lo)
 }
 
 /// The maker's price rule. `maker_micro` and `market_micro` are USDC base units (6
@@ -248,8 +287,12 @@ pub fn check_maker_config(
     }
     let stipend = u128_of(&m["stipend"]).unwrap_or(0);
     p.check(
-        stipend == 3 * ONE_NEAR / 100,
-        format!("maker stipend {} (0.03 NEAR measured)", fmt_near(stipend)),
+        stipend == MAKER_STIPEND,
+        format!(
+            "maker stipend {} ({} decided in docs/experiments/light-payout.md)",
+            fmt_near(stipend),
+            fmt_near(MAKER_STIPEND)
+        ),
     );
     let (min, max, prem) = (
         m["min_zats"].as_u64().unwrap_or(0),
@@ -548,7 +591,9 @@ pub async fn plan(cfg: &Config, base: &Path, a: PlanArgs<'_>) -> Res<Plan> {
                 "token storage_balance_bounds.min {}",
                 fmt_near(registration_min)
             ));
-            for who in [&ids.escrow, &ids.intents, &ids.maker] {
+            // The light-payout escrow keeps its tokens inside the Verifier and never holds
+            // the plain token, so it needs no registration (deploy::deploy).
+            for who in [&ids.intents, &ids.maker] {
                 let sb = rpc
                     .view(
                         &ids.token,
@@ -652,10 +697,40 @@ pub async fn plan(cfg: &Config, base: &Path, a: PlanArgs<'_>) -> Res<Plan> {
     }
 
     // 8. The stipend at today's gas price.
-    println!("taker stipend");
-    let stipend = 3 * ONE_NEAR / 100;
-    let (need, max_price) = stipend_need(stipend, gas_price);
-    p.check(need <= stipend, format!("0.03 NEAR covers commit and claim: claim's {TGAS_CLAIM_PREPAID} Tgas at {PESSIMISTIC_FACTOR}× the gas price plus about 0.0019 NEAR burnt = {} (stays enough up to a gas price of {max_price}, {:.2}× today)", fmt_near(need), max_price as f64 / gas_price as f64));
+    println!("taker stipend (commit_claim, claim and withdraw(id) from the taker's key)");
+    let min_purchase = match &pc["runtime_config"]["min_gas_purchase_price"] {
+        Value::Null => {
+            p.info(format!("the protocol config has no min_gas_purchase_price; using {MIN_GAS_PURCHASE_PRICE}"));
+            MIN_GAS_PURCHASE_PRICE
+        }
+        v => u128_of(v).ok_or("min_gas_purchase_price is not a number")?,
+    };
+    p.info(format!(
+        "min_gas_purchase_price {min_purchase} yoctoNEAR per gas (protocol config), gas price {gas_price}"
+    ));
+    let (need, max_price) = stipend_need(MAKER_STIPEND, gas_price, min_purchase);
+    p.check(
+        need * STIPEND_MARGIN <= MAKER_STIPEND,
+        format!(
+            "the maker's stipend {} is at least {STIPEND_MARGIN}× the largest balance NEAR checks ({} before withdraw: {} + {} + {} Tgas attached, measured burn): {:.2}×; it stays enough up to a gas price of {max_price} ({:.2}× today)",
+            fmt_near(MAKER_STIPEND),
+            fmt_near(need),
+            TGAS_COMMIT_PREPAID,
+            TGAS_CLAIM_PREPAID,
+            TGAS_WITHDRAW_PREPAID,
+            MAKER_STIPEND as f64 / need as f64,
+            max_price as f64 / gas_price as f64
+        ),
+    );
+    let (_, min_max_price) = stipend_need(TAKER_MIN_STIPEND, gas_price, min_purchase);
+    p.check(
+        need <= TAKER_MIN_STIPEND,
+        format!(
+            "the taker's min_stipend {} covers the need today; it stays enough up to a gas price of {min_max_price} ({:.2}× today)",
+            fmt_near(TAKER_MIN_STIPEND),
+            min_max_price as f64 / gas_price as f64
+        ),
+    );
 
     // 9. 1Click.
     println!("1Click (dry quotes only)");
@@ -711,7 +786,18 @@ pub async fn plan(cfg: &Config, base: &Path, a: PlanArgs<'_>) -> Res<Plan> {
                     &json!({ "account_id": ids.maker }),
                 )
                 .await?;
-            let have: u128 = bal.ok().as_ref().and_then(u128_of).unwrap_or(0);
+            let plain: u128 = bal.ok().as_ref().and_then(u128_of).unwrap_or(0);
+            let vb = rpc
+                .view(
+                    &ids.intents,
+                    "mt_balance_of",
+                    &json!({ "account_id": ids.maker, "token_id": format!("nep141:{}", ids.token) }),
+                )
+                .await?;
+            let in_verifier: u128 = vb.ok().as_ref().and_then(u128_of).unwrap_or(0);
+            // The maker opens from its Verifier account and deposits the difference from its
+            // plain balance before an open, so both count.
+            let have = plain + in_verifier;
             let price = u128_of(&m["price_per_zec"]).unwrap_or(0);
             let max = m["max_zats"].as_u64().unwrap_or(0) as u128;
             let per_swap = max * price / 100_000_000;
@@ -719,7 +805,7 @@ pub async fn plan(cfg: &Config, base: &Path, a: PlanArgs<'_>) -> Res<Plan> {
             // wait at once (max_pending_quotes, default 32) may need a full swap.
             let pending = m["max_pending_quotes"].as_u64().unwrap_or(32) as u128;
             p.info(format!(
-                "maker USDC float {have} units; one swap at max_zats pays {per_swap}; NEAR {}",
+                "maker USDC float {have} units ({plain} plain, {in_verifier} in its Verifier account); one swap at max_zats pays {per_swap}; NEAR {}",
                 fmt_near(acc["amount"].as_str().unwrap_or("0").parse().unwrap_or(0))
             ));
             if per_swap > 0 && have < per_swap * pending {
@@ -743,15 +829,15 @@ pub async fn plan(cfg: &Config, base: &Path, a: PlanArgs<'_>) -> Res<Plan> {
         ids.escrow
     );
     println!(
-        "  2. register {} and {} on {} if needed",
-        ids.escrow, ids.intents, ids.token
+        "  2. register {} on {} if needed (the escrow needs no registration: its tokens stay in the Verifier)",
+        ids.intents, ids.token
     );
     println!(
-        "  3. create {}, register it on the token, add {} storage funds",
+        "  3. create {}, register it on the token, add {} storage funds in the escrow",
         ids.maker, cfg.maker.storage_funds_near
     );
     println!(
-        "  4. verify (read-only); no USDC moves: the owner sends USDC to {}",
+        "  4. verify (read-only); no USDC moves: the owner sends USDC to {}; the maker deposits it into its own Verifier account (ft_transfer_call, about {TGAS_VERIFIER_DEPOSIT} Tgas) before its first open, or deploy does it up to maker.verifier_target",
         ids.maker
     );
     println!("  total from the owner: about {}", fmt_near(total));
@@ -799,14 +885,21 @@ mod tests {
     }
 
     #[test]
-    fn stipend_holds_at_todays_mainnet_gas_price_only_with_a_margin() {
-        let stipend = 3 * ONE_NEAR / 100;
-        let (need, max) = stipend_need(stipend, 100_000_000);
-        assert!(need <= stipend);
-        // 25 Tgas × 10^9 = 0.025 NEAR, plus 0.0019: the margin is small.
-        assert_eq!(need, ONE_NEAR / 40 + COMMIT_CLAIM_BURNT_YOCTO);
-        assert!(max > 100_000_000 && max < 120_000_000, "{max}");
-        assert!(stipend_need(stipend, 120_000_000).0 > stipend);
+    fn stipend_need_matches_the_light_payout_measurement() {
+        // docs/experiments/light-payout.md, section 3: 0.027831 NEAR before withdraw at
+        // p = 10^8 and min_gas_purchase_price = 10^9.
+        let (need, max) = stipend_need(MAKER_STIPEND, 100_000_000, MIN_GAS_PURCHASE_PRICE);
+        assert_eq!(need, 27_831 * ONE_NEAR / 1_000_000);
+        assert!(need * STIPEND_MARGIN <= MAKER_STIPEND);
+        // Section 4: 0.06 NEAR holds up to about 1.33 · 10^9, 0.03 NEAR up to about 2.1 · 10^8.
+        assert!((1_320_000_000..1_330_000_000).contains(&max), "{max}");
+        let (_, max03) = stipend_need(TAKER_MIN_STIPEND, 100_000_000, MIN_GAS_PURCHASE_PRICE);
+        assert!((210_000_000..215_000_000).contains(&max03), "{max03}");
+        assert!(stipend_need(TAKER_MIN_STIPEND, max03, MIN_GAS_PURCHASE_PRICE).0 <= TAKER_MIN_STIPEND);
+        assert!(stipend_need(TAKER_MIN_STIPEND, max03 + 1, MIN_GAS_PURCHASE_PRICE).0 > TAKER_MIN_STIPEND);
+        // Without the purchase floor (before protocol 85) the need is the plain gas cost.
+        let (old, _) = stipend_need(MAKER_STIPEND, 100_000_000, 0);
+        assert!(old < ONE_NEAR / 100);
     }
 
     #[test]

@@ -3,13 +3,13 @@
   "version": 1,
   "network": "testnet",
   "updatedAt": "2026-11-13T11:01:08.800Z",
-  "status": "online",
+  "status": "paused",
   "maker": {
     "name": "Zecret testnet maker",
     "zcashAddress": "utest10kyef9lq7c637hlxx3fwdfrkukqnttzswcr4ukes5h3ewzca4e4nzycm73txxfgf44azfyngreys08dpzxqp8eah8dwacktj3s5yu0wv",
     "requestKey": "a944a5d8a3d6004b6de8630f28a5ad2bf114a3babce90bd70d1705740752a702",
     "nearAccount": "maker.zecret-3f109eea1e.testnet",
-    "escrowContract": "escrow2.zecret-3f109eea1e.testnet",
+    "escrowContract": "escrow3.zecret-3f109eea1e.testnet",
     "nearPublicKey": "ed25519:4aQfVk7LxZzASG5mLRsjDn1AxkzsCDjjmtf5q6ApZyHH",
     "epoch": 1,
     "signedLimits": {

@@ -1,1 +1,2 @@
 2026-11-14: wallet accepts Zcash mainnet parameters; start script has a separate mainnet mode (off unless two variables are set)
+2026-11-14: light payout: escrow3, the maker's tUSDC in its own Verifier account (deposited before each open), the taker sends withdraw(id); stipend 0.06 NEAR

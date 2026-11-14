@@ -154,7 +154,7 @@ export function nowCopy(s: SwapState): NowCopy {
     case 'funding_confirming':
       return {
         title: 'Waiting for Zcash confirmations',
-        body: `The maker waits for ${s.funding?.required ?? 2} Zcash blocks on your payment to the shared address, then sets the escrow to Ready. Each block takes about 75 seconds.`,
+        body: `The maker waits for ${s.funding?.required ?? 2} Zcash blocks on your payment to the shared address, then sets the escrow to Ready. This usually takes a few minutes.`,
         safety: 'come_back',
         safetyText: comeBack,
       };

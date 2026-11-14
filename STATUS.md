@@ -14,9 +14,18 @@ their checks.
 - Only Chromium was tested. Firefox and WebKit projects exist in
   `web/playwright.config.ts` (`ZECRET_BROWSERS=all`) and were not run: this machine has
   no Firefox or WebKit build (`docs/reviews/cross-browser.md`, follow-up).
-- Open by decision: the taker trusts one NEAR RPC endpoint; the taker cannot pay for
-  `withdraw` itself (the app shows the payout-pending state with the exact call). See
+- Open by decision: the taker trusts one NEAR RPC endpoint. The operators of NEAR
+  Intents can move or freeze the escrow's USDC for the whole swap (the light-payout
+  escrow keeps it inside NEAR Intents from the open; review 5, R5-02). See
   `docs/security/`.
+- The switch of the live testnet services to the light-payout escrow (`escrow3`) is
+  prepared on branch `escrow-light-payout` and not done: runbook
+  `docs/LIGHT_PAYOUT_SWITCH.md`. Until the main session runs it, the live site and the
+  hosted maker use `escrow2`, where the hosted maker sends the payout. The branch was
+  rehearsed on testnet with a throwaway maker (`maker4`) and the exact site and taker
+  configuration that goes live.
+- Not run for the light payout: the Railway and Vercel builds of the branch; a maker
+  restart on Railway in the middle of an `escrow3` swap (tested locally: s4, s25).
 
 ## Before submission (do not skip)
 
@@ -60,6 +69,21 @@ with "WIP".
 - Mainnet preparation is merged (commit `61336ff`, 03:52 UTC): runbook `docs/MAINNET.md`,
   configs, `zecret-deploy plan`, `scripts/mainnet-preflight.sh`. The soak swaps from slot
   05 on run on this code. Nothing is done on mainnet without the owner.
+
+## Light payout (2026-11-14 05:30 UTC, branch `escrow-light-payout`)
+
+- Escrow `escrow3.zecret-3f109eea1e.testnet` (code hash
+  `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536`, no access keys) is deployed on testnet.
+  It keeps the swap's USDC inside the Verifier; the taker's key sends `commit_claim`,
+  `claim` and `withdraw(id)` from a 0.06 NEAR stipend. Security review 5: no finding
+  above low.
+- The branch merges `main` (mainnet preparation) and updates it for the new flow:
+  `zecret-deploy plan` checks the stipend with `min_gas_purchase_price` from the protocol
+  config; the mainnet templates use stipend 0.06 NEAR, premium 40,000 zats and 0.02 NEAR
+  costs per request; `docs/MAINNET.md` has the new amounts and dry-run output.
+- The branch's final state is the switch: the testnet maker, taker and site configs name
+  `escrow3`, the directory is `paused`, and `deploy/maker/RELEASE` has a new line. Merging
+  it into `main` IS the switch. Run it only with `docs/LIGHT_PAYOUT_SWITCH.md`.
 
 ## Latest (2026-11-14 01:30 UTC)
 
@@ -152,7 +176,7 @@ Nothing.
 
 ## Fix rounds
 
-All fix rounds are done. Still open by decision, not by omission: one NEAR RPC endpoint is trusted; the taker cannot pay for `withdraw` itself (the app shows a payout-pending state with the exact call); the bundled sample directory's premium minimum.
+All fix rounds are done. Still open by decision, not by omission: one NEAR RPC endpoint is trusted; the operators of NEAR Intents can move or freeze the escrow's USDC during a swap (review 5, R5-02); the bundled sample directory's premium minimum. Closed by the light payout (branch `escrow-light-payout`, after its switch): the taker's key sends `withdraw(id)` itself from the 0.06 NEAR stipend.
 
 ## For the owner
 

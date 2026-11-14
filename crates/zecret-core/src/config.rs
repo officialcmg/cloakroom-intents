@@ -359,9 +359,11 @@ pub struct PremiumCheck {
     /// yoctoNEAR for 1 ZEC (10^8 zatoshis). Use a low estimate of the ZEC price.
     #[serde(with = "u128_str")]
     pub yocto_near_per_zec: u128,
-    /// yoctoNEAR the maker spends for each accepted request besides the stipend: the gas
-    /// of `open` (ft_transfer_call), of the refund and of the withdraw, and the escrow
-    /// storage of one swap. Default 0.015 NEAR; measure it on the network in use.
+    /// yoctoNEAR the maker spends for each accepted request besides the stipend: the
+    /// account creation that the stipend transfer pays (0.007 NEAR since protocol 85), the
+    /// gas of its Verifier deposit, `open` (`mt_transfer_call`), `set_ready` and a refund,
+    /// and the escrow storage of one swap. Default 0.015 NEAR; the mainnet template uses
+    /// 0.02 NEAR (docs/MAINNET.md); measure it on the network in use.
     #[serde(default = "default_costs_per_request", with = "u128_str")]
     pub costs_per_request_yocto: u128,
 }

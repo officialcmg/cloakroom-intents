@@ -4,9 +4,9 @@
   "updated_at": "2026-11-13T05:13:38Z",
   "owner": "zecret-3f109eea1e.testnet",
   "escrow": {
-    "account_id": "escrow2.zecret-3f109eea1e.testnet",
-    "code_hash": "DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1",
-    "wasm_bytes": 525881,
+    "account_id": "escrow3.zecret-3f109eea1e.testnet",
+    "code_hash": "AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536",
+    "wasm_bytes": 471730,
     "intents_account": "intents.zecret-3f109eea1e.testnet",
     "access_keys": 0
   },
@@ -19,6 +19,15 @@
       "access_keys": 0,
       "retired_at": "2026-11-13T05:13:11Z",
       "replaced_by": "escrow2.zecret-3f109eea1e.testnet"
+    },
+    {
+      "account_id": "escrow2.zecret-3f109eea1e.testnet",
+      "code_hash": "DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1",
+      "wasm_bytes": 525881,
+      "intents_account": "intents.zecret-3f109eea1e.testnet",
+      "access_keys": 0,
+      "retired_at": "the switch commit (docs/LIGHT_PAYOUT_SWITCH.md)",
+      "replaced_by": "escrow3.zecret-3f109eea1e.testnet"
     }
   ],
   "token": {
@@ -296,7 +305,7 @@
     }
   ],
   "light_payout": {
-    "note": "The light-payout escrow (branch escrow-light-payout), deployed next to escrow2 on 2026-11-14 with deploy/configs/testnet-light.toml. The live site and the hosted maker still use escrow2. The tool's own record of this deployment is deploy/deployment.testnet-light.json; this section is a copy. Swaps run against it: docs/TESTNET.md, 'Light payout on testnet'.",
+    "note": "The light-payout escrow (branch escrow-light-payout), deployed next to escrow2 on 2026-11-14 with deploy/configs/testnet-light.toml. It is the current escrow from the switch commit on (docs/LIGHT_PAYOUT_SWITCH.md); escrow2 is under retired_escrows and keeps working for swaps opened on it. The tool's own record of this deployment is deploy/deployment.testnet-light.json; this section is a copy. Swaps run against it: docs/TESTNET.md, 'Light payout on testnet'.",
     "source_commit": "dccd718b9020a0f0ba001b0eeda517d780a2dac5",
     "escrow": {
       "account_id": "escrow3.zecret-3f109eea1e.testnet",

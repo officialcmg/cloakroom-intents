@@ -77,6 +77,8 @@ This section is always current. The numbered sections below give the detail.
 - If NEAR Intents refuses the payout (for example its operators pause transfers), the
   USDC stays in the escrow. The app tries again. After 5 minutes the app shows the exact
   call. Any NEAR account can send it. The USDC can only go to the taker.
+- The operators of NEAR Intents can move or freeze the escrow's USDC at any time during
+  the swap, from the open to the payout. The design accepts this risk. Swaps stay small.
 
 **Decided**
 
@@ -124,6 +126,7 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-14 | The mainnet settings use the measured Zcash mainnet block times (mean 24.9 s; three blocks took at most 299 s). They keep the testnet windows: the funding window is 600 s. |
 | 2026-11-14 | The website runs on mainnet only in a build with `VITE_ZECRET_ALLOW_MAINNET=1`. Mainnet gets its own hostname. The testnet site stays as it is. A link cannot switch a site to mainnet. The mainnet escrow and its code hash come from the build, not from a file. |
 | 2026-11-14 | On mainnet the maker's price is one fixed number. The code has no price feed. The owner sets the market price less 3 %. The dry run (`zecret-deploy plan`) fails when the price is less than 2 % below the market. The maker takes at most 3 requests at a time, so the float can cover them. See `docs/MAINNET.md`. |
+| 2026-11-14 | The mainnet templates follow the light payout. The stipend is 0.06 NEAR, and the taker accepts 0.03 NEAR. The premium is 40,000 zats, and the maker counts 0.02 NEAR of other costs for each swap. The dry run reads `min_gas_purchase_price` from the protocol config and checks that the stipend is at least 2 times the largest balance NEAR checks before the taker's three calls. See `docs/MAINNET.md`. |
 
 **Open**
 

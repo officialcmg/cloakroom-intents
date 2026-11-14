@@ -10,8 +10,8 @@
   },
   "near": {
     "rpc": "https://rpc.testnet.fastnear.com",
-    "escrow": "escrow2.zecret-3f109eea1e.testnet",
-    "escrowCodeHash": "DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1",
+    "escrow": "escrow3.zecret-3f109eea1e.testnet",
+    "escrowCodeHash": "AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536",
     "token": "usdc.zecret-3f109eea1e.testnet",
     "tokenSymbol": "test USDC",
     "tokenDecimals": 6,
