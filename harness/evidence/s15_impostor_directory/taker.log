@@ -1,15 +1,15 @@
 
 ===== start taker --zats 100000000 =====
-Error: maker directory entry is not signed by ed25519:2kH1exvGCx1x3hLksuftZXoxyLsz5B2sdcV65wA3FUFh
+Error: maker directory entry is not signed by ed25519:2W4LfjLe8SV5UHhYitEdgGoSMd4kVDf6WZj1AY94rz99
 
 Stack backtrace:
    0: <anyhow::Error>::msg::<alloc::string::String>
              at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/backtrace.rs:10:14
    1: <zecret_core::taker::Taker>::verify_maker
    2: <zecret_core::taker::Taker>::start_with_min_price
-             at ./crates/zecret-core/src/taker.rs:316:14
+             at ./crates/zecret-core/src/taker.rs:318:14
    3: <zecret_core::taker::Taker>::start
-             at ./crates/zecret-core/src/taker.rs:303:14
+             at ./crates/zecret-core/src/taker.rs:305:14
    4: zecret::run_taker
              at ./crates/zecret-node/src/main.rs:234:24
    5: zecret::main
@@ -46,16 +46,16 @@ Stack backtrace:
   21: _start
 
 ===== start taker --zats 100000000 =====
-Error: maker key ed25519:HdLnsMeeC3EAvt2Xy3NBZ8vL4p3RkaauuwYQPvXjz8LS is not a key of maker.test.near
+Error: maker key ed25519:CwzsVzDvXffH74BsRZxEjWiDNmxw34ykv5ne6Gay8ZPk is not a key of maker.test.near
 
 Stack backtrace:
    0: <anyhow::Error>::msg::<alloc::string::String>
              at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/backtrace.rs:10:14
    1: <zecret_core::taker::Taker>::verify_maker
    2: <zecret_core::taker::Taker>::start_with_min_price
-             at ./crates/zecret-core/src/taker.rs:316:14
+             at ./crates/zecret-core/src/taker.rs:318:14
    3: <zecret_core::taker::Taker>::start
-             at ./crates/zecret-core/src/taker.rs:303:14
+             at ./crates/zecret-core/src/taker.rs:305:14
    4: zecret::run_taker
              at ./crates/zecret-node/src/main.rs:234:24
    5: zecret::main

@@ -1,15 +1,15 @@
 
 ===== start taker --zats 100000000 =====
-[taker 1794618354] new swap c4292a5e for 100000000 zats; NEAR account f0d15f821918e5ea8ef48760097dc6905630f860bdc49c7ec92a43349bc627a5; wallet uregtest1xn5vy0pssp66rmydylpaen8sl72kjdk36tfdkvdt8xxhng03qmfdt7r4yvg8r2wqt7weyapw5yhv62f26l4wjw7jhzeyewv6uqsaa6hc
-[taker 1794618354] c4292a5e stage WaitingDeposit
-[taker 1794618354] balance 208333333 zats
-[taker 1794618354] {"type":"activity","swap":"c4292a5edbc5a5a5cd6e0e5cd3bf0dca","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794618358] balance 0 zats
-[taker 1794618358] {"type":"zcash_tx","swap":"c4292a5edbc5a5a5cd6e0e5cd3bf0dca","what":"rfq","txid":"d7582f8623bcd7d6dd23abc1ded320da938bd0ce2692f1c8a036d307ee7384f1"}
-[taker 1794618358] c4292a5e encrypted RFQ for 100000000 zats sent to the maker in shielded tx d7582f8623bcd7d6dd23abc1ded320da938bd0ce2692f1c8a036d307ee7384f1
-[taker 1794618358] c4292a5e stage RfqSent
-[taker 1794618360] balance 208323333 zats
-[taker 1794618366] c4292a5e ABORT: QUOTE REJECTED: maker proof of knowledge INVALID (possible rogue-key attack); nothing was funded
-[taker 1794618366] c4292a5e stage Aborted
-[taker 1794618366] c4292a5e DONE Aborted
-[taker 1794618366] finished: Aborted
+[taker 1794627704] new swap e79a791c for 100000000 zats; NEAR account 4a1f6f92ecfa187ccd11f79d2d79012e1c87a8a0885c74536031e4692fd5b01a; wallet uregtest1pw7d9j9ph4ddfvsws6ll4sk5pe7e9ym9shp872zall87ghs820lr7etmzc3394dewujspq2d74a7cxds6awx6r0d9d23zyh45g0dd8ss
+[taker 1794627704] e79a791c stage WaitingDeposit
+[taker 1794627704] balance 208333333 zats
+[taker 1794627704] {"type":"activity","swap":"e79a791c241967f433b709b581a43134","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794627712] balance 0 zats
+[taker 1794627712] {"type":"zcash_tx","swap":"e79a791c241967f433b709b581a43134","what":"rfq","txid":"7795bd3da6eb32a3dfa3ee5868c9fc31459a2266faeac3dc943745adc442b321"}
+[taker 1794627712] e79a791c encrypted RFQ for 100000000 zats sent to the maker in shielded tx 7795bd3da6eb32a3dfa3ee5868c9fc31459a2266faeac3dc943745adc442b321
+[taker 1794627712] e79a791c stage RfqSent
+[taker 1794627714] balance 208323333 zats
+[taker 1794627720] e79a791c ABORT: QUOTE REJECTED: maker proof of knowledge INVALID (possible rogue-key attack); nothing was funded
+[taker 1794627720] e79a791c stage Aborted
+[taker 1794627720] e79a791c DONE Aborted
+[taker 1794627720] finished: Aborted

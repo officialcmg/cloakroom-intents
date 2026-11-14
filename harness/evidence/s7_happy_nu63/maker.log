@@ -1,28 +1,28 @@
 
 ===== start maker --exit-after 1 =====
-[maker 1794619384] up: UA uregtest1n6fpcrhumcsf38l9322t9m7d2yq5maxu90pkvsqck8f92d8gjqv5ge2fqj8zal5vjd4rcvgqmm36dy8sdpzzvys3qugt7skl75md2hty NEAR maker.test.near key ed25519:2kH1exvGCx1x3hLksuftZXoxyLsz5B2sdcV65wA3FUFh
-[maker 1794619394] d8597eb0 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
-[maker 1794619394] d8597eb0 stage Quoting
-[maker 1794619395] {"type":"zcash_tx","swap":"d8597eb0247e0ba360054391e1cee2be","what":"quote","txid":"2d2f84debf2edd7736d4841959e83cc12e45c5203db12fdbf1501daf03a8ed9e"}
-[maker 1794619395] d8597eb0 encrypted QUOTE sent in tx 2d2f84debf2edd7736d4841959e83cc12e45c5203db12fdbf1501daf03a8ed9e
-[maker 1794619395] d8597eb0 stage Quoted
-[maker 1794619400] d8597eb0 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 351b9f21
-[maker 1794619400] d8597eb0 stage Opening
-[maker 1794619405] {"type":"near_tx","swap":"d8597eb0247e0ba360054391e1cee2be","what":"open","hash":"BSnfDBtSiVe3Ti12x3jwUjHkZL8afe1nV3YweNrkqv97"}
-[maker 1794619405] d8597eb0 escrow OPEN id 351b9f212349e8e68ec7e99e88b85fdd6e5488c10abbd720795788d3545ded97 amount 30000000000000000000000000 t0=1794621178 t1=1794621238 t2=1794621298 W=45, tx BSnfDBtSiVe3Ti12x3jwUjHkZL8afe1nV3YweNrkqv97
-[maker 1794619405] {"type":"near_tx","swap":"d8597eb0247e0ba360054391e1cee2be","what":"stipend","hash":"DeQENSeU3cfgQQeybRvsTymrjPDk8b6ArDroC5L6tkkx"}
-[maker 1794619405] d8597eb0 STIPEND of 30000000000000000000000 yoctoNEAR sent to 2624da7a05b5135c33257f7cf477792d8f0d98a86146e79b472c34b03c47ee9d, tx DeQENSeU3cfgQQeybRvsTymrjPDk8b6ArDroC5L6tkkx
-[maker 1794619405] d8597eb0 stage Opened
-[maker 1794619415] {"type":"near_tx","swap":"d8597eb0247e0ba360054391e1cee2be","what":"set_ready","hash":"GE6UqiXhMdtxiKpJN4PAF1Gy9DNWDpqyoUUknmB5eZLG"}
-[maker 1794619415] d8597eb0 joint note 100010000 zats with 2 confirmations (k_Z = 2); READY, tx GE6UqiXhMdtxiKpJN4PAF1Gy9DNWDpqyoUUknmB5eZLG
-[maker 1794619415] d8597eb0 stage Ready
-[maker 1794619431] {"type":"near_tx","swap":"d8597eb0247e0ba360054391e1cee2be","what":"withdraw","hash":"51Y4Zw7YxGYfruJrxjVWo1TVv5jhQqKY7L7CM2vrsZmH"}
-[maker 1794619431] d8597eb0 withdraw for the taker into intents.near, tx 51Y4Zw7YxGYfruJrxjVWo1TVv5jhQqKY7L7CM2vrsZmH (executed)
-[maker 1794619431] d8597eb0 CLAIMED: read a from the escrow
-[maker 1794619431] {"type":"zcash_tx","swap":"d8597eb0247e0ba360054391e1cee2be","what":"sweep","txid":"90b237613cd78078ea5e44e189ec4836421553f5e31f1e70f9f1f78cdec8dbdf"}
-[maker 1794619431] d8597eb0 swept the joint note with (a+b) to the maker's wallet, tx 90b237613cd78078ea5e44e189ec4836421553f5e31f1e70f9f1f78cdec8dbdf; waiting for 2 confirmations
-[maker 1794619431] d8597eb0 stage Sweeping
-[maker 1794619435] d8597eb0 sweep 90b237613cd78078ea5e44e189ec4836421553f5e31f1e70f9f1f78cdec8dbdf has 2 confirmations (k_Z = 2); done
-[maker 1794619435] d8597eb0 stage Swept
-[maker 1794619435] d8597eb0 DONE Swept
-[maker 1794619435] 1 swap(s) terminal; exiting
+[maker 1794628993] up: UA uregtest14tvdu64ru2tyt3f2l9gnam5fnnljfu4xz7uzw48fqrax69v63pehmgajsgcdnex5g566437vdymjsk34uadrcz3rja2afynsy59ra5cg NEAR maker.test.near key ed25519:2W4LfjLe8SV5UHhYitEdgGoSMd4kVDf6WZj1AY94rz99
+[maker 1794629005] a74ef095 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto)
+[maker 1794629005] a74ef095 stage Quoting
+[maker 1794629005] {"type":"zcash_tx","swap":"a74ef0953a8987344018f02d6f029b2b","what":"quote","txid":"1c557d3fd4543604e9bebfa08ab340dae0b9ab8cd4e9ad0a0440146f0a45cf9f"}
+[maker 1794629005] a74ef095 encrypted QUOTE sent in tx 1c557d3fd4543604e9bebfa08ab340dae0b9ab8cd4e9ad0a0440146f0a45cf9f
+[maker 1794629005] a74ef095 stage Quoted
+[maker 1794629009] a74ef095 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id c3bb4e75
+[maker 1794629009] a74ef095 stage Opening
+[maker 1794629012] {"type":"near_tx","swap":"a74ef0953a8987344018f02d6f029b2b","what":"deposit","hash":"5A6wyHMgmSJULg6fZeBMTMJzAixNhSC45kyDKbANGFxX"}
+[maker 1794629012] a74ef095 deposited 30000000000000000000000000 wrap.test.near into the maker's Verifier account before the open, tx 5A6wyHMgmSJULg6fZeBMTMJzAixNhSC45kyDKbANGFxX (executed)
+[maker 1794629018] {"type":"near_tx","swap":"a74ef0953a8987344018f02d6f029b2b","what":"open","hash":"BvzdbDt1avPCtJZJCgUjfzAyrkproFaMbJcWoux67x3M"}
+[maker 1794629018] a74ef095 escrow OPEN id c3bb4e754920aeb75a83f8779d948c4ebdba5b5736553e029fdf8b451761d6bb amount 30000000000000000000000000 t0=1794630755 t1=1794630815 t2=1794630875 W=45, tx BvzdbDt1avPCtJZJCgUjfzAyrkproFaMbJcWoux67x3M
+[maker 1794629018] {"type":"near_tx","swap":"a74ef0953a8987344018f02d6f029b2b","what":"stipend","hash":"8YS5rMUNpS5TNEfWxNWJTVegrHJGvVKXaW6GqjPLKrP3"}
+[maker 1794629018] a74ef095 STIPEND of 60000000000000000000000 yoctoNEAR sent to f90989cfea3a388de48f45468d3961f8a7bfea2212b758023d163868a2ad355f, tx 8YS5rMUNpS5TNEfWxNWJTVegrHJGvVKXaW6GqjPLKrP3
+[maker 1794629018] a74ef095 stage Opened
+[maker 1794629027] {"type":"near_tx","swap":"a74ef0953a8987344018f02d6f029b2b","what":"set_ready","hash":"Fpfs2mzcWC7xKnTD4GSds3rc5mD4tW9wnDFy1Ko7P8PE"}
+[maker 1794629027] a74ef095 joint note 100010000 zats with 2 confirmations (k_Z = 2); READY, tx Fpfs2mzcWC7xKnTD4GSds3rc5mD4tW9wnDFy1Ko7P8PE
+[maker 1794629027] a74ef095 stage Ready
+[maker 1794629039] a74ef095 CLAIMED: read a from the escrow
+[maker 1794629039] {"type":"zcash_tx","swap":"a74ef0953a8987344018f02d6f029b2b","what":"sweep","txid":"1517a2746ca0f94a6f1430e93b2991ab63f0092305b9323ffe3a05569ed7091e"}
+[maker 1794629039] a74ef095 swept the joint note with (a+b) to the maker's wallet, tx 1517a2746ca0f94a6f1430e93b2991ab63f0092305b9323ffe3a05569ed7091e; waiting for 2 confirmations
+[maker 1794629039] a74ef095 stage Sweeping
+[maker 1794629043] a74ef095 sweep 1517a2746ca0f94a6f1430e93b2991ab63f0092305b9323ffe3a05569ed7091e has 2 confirmations (k_Z = 2); done
+[maker 1794629043] a74ef095 stage Swept
+[maker 1794629043] a74ef095 DONE Swept
+[maker 1794629043] 1 swap(s) terminal; exiting

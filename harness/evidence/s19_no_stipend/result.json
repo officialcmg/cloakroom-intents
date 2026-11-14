@@ -6,7 +6,7 @@
     {
       "check": "taker refused to fund (R1b)",
       "pass": true,
-      "detail": "{'Aborted': '(R1b) NEAR time 1794620391 + fund window 30s is not before t0 1794620416; not funding'}"
+      "detail": "{'Aborted': '(R1b) NEAR time 1794629884 + fund window 30s is not before t0 1794629909; not funding'}"
     },
     {
       "check": "maker refunded early (no funding)",
@@ -45,11 +45,11 @@
       "taker_zec": 208263333,
       "maker_wnear": 9879998750000000000000000000
     },
-    "escrow_id": "8b22640a2eca6245463c2ac782f4361101664e06412f06243a48f8f5f410c3de",
+    "escrow_id": "ebee888a5813406dedc756d9c905fe79d3b1d696450a1ce98b0f0d35b36c1e89",
     "zcash_txs": [
       {
-        "txid": "5e620d0949c4a676618977a80665494ffa1347815a38f7828246994f2b6db8de",
-        "height": 369,
+        "txid": "1e2abde09f151cfd0fec7d53e30bd493afd69b2b7354a79cafdfb5be08e7f1bc",
+        "height": 422,
         "version": 6,
         "ironwood_actions": 2,
         "ironwood_value_balance": 10000,
@@ -57,8 +57,8 @@
         "transparent_out": 0
       },
       {
-        "txid": "67c872433a2b0a7cb75013447583f5c8deddefd107c8619e78b06c3f2d6794fc",
-        "height": 371,
+        "txid": "6156acc75b6d6f325843fd5ac631ec6d157ecf50194298ec8c86f06eb3427f7b",
+        "height": 424,
         "version": 6,
         "ironwood_actions": 2,
         "ironwood_value_balance": 10000,
@@ -66,8 +66,8 @@
         "transparent_out": 0
       },
       {
-        "txid": "8e10d38af6292c2b49af87f6960f41195b7a06a51e0861540c9bb2c7edfd7bb5",
-        "height": 367,
+        "txid": "f860edae6b653149029e067e424689d4dcf5fb59199d98c064ab3fa2dd972296",
+        "height": 426,
         "version": 6,
         "ironwood_actions": 2,
         "ironwood_value_balance": 10000,
@@ -82,100 +82,100 @@
     "r4_not_terminal": []
   },
   "maker_swap": {
-    "rfq_id": "26cb70f5e290e7a17c709d261f3d32be",
+    "rfq_id": "3031101b493a28a27fd95af6de2300c2",
     "stage": "Refunded",
     "zats": 100000000,
     "price": "30000000000000000000000000",
     "premium": 50000,
-    "stipend": "30000000000000000000000",
-    "taker_pk": "a720fe9399718a968caa76bf531f8626b167730a3c7c4a957de92c02d4fa26d1",
-    "taker_account": "a720fe9399718a968caa76bf531f8626b167730a3c7c4a957de92c02d4fa26d1",
-    "a_pub": "f128e1d40a0401101acdd599eb62e9a0e2fd507ea90154358bcc20a07728fab5",
-    "commit_s_t": "fcf89a7542fba54733de70e50a879e8826c6eb94889ef9f2c56303874c48b05f",
+    "stipend": "60000000000000000000000",
+    "taker_pk": "c7065b42f67bff3ee9745074d508bdde2ae90ac12b18443b4d093eb3c6c1824f",
+    "taker_account": "c7065b42f67bff3ee9745074d508bdde2ae90ac12b18443b4d093eb3c6c1824f",
+    "a_pub": "4c454c1b065aad1e5b962257aaa484878ca12784dccb3fd1c46fccec9de21f9f",
+    "commit_s_t": "4a2be5ce306e13b4f799c3e3265299b43de38a1d88673848b6b9face076d0139",
     "b": "",
     "s_m": "",
     "e_m": "",
-    "e_t_pub": "a0d0dafa8cadd1bdb4ebe0a2cf07fcae47f8c0b93a0c0168c8e421a1ba0eec85",
+    "e_t_pub": "f4ee2eace8a22248a01bc8a3a8a4b62ddeffce9a4fcb0a49df045c8f63f9b317",
     "quote_memo": "<redacted>",
-    "quote_hash": "4563f2b829e0f2d96220830324dc68fae00c951ea74ccfcd46e559d1d239a389",
+    "quote_hash": "002638f0bfa7b49d7cc444bd3ea97d6b001a323d95255461e27eadf4370eba71",
     "windows": {
       "t0_secs": 120,
       "t1_secs": 60,
       "t2_secs": 60,
       "reveal_secs": 45
     },
-    "rfq_height": 367,
-    "accept_height": 371,
-    "negated": true,
+    "rfq_height": 422,
+    "accept_height": 426,
+    "negated": false,
     "joint_fvk": null,
-    "salt": "43cb5750603ed0d903ac3eabdea975154554506eddfdf063a65519a0438c1663",
-    "escrow_id": "8b22640a2eca6245463c2ac782f4361101664e06412f06243a48f8f5f410c3de",
-    "t0": 1794620416,
-    "t1": 1794620476,
-    "t2": 1794620536,
+    "salt": "b733b27c1b2603e59d05dfa1ef37615b675628507adc41671c6b679c85867d97",
+    "escrow_id": "ebee888a5813406dedc756d9c905fe79d3b1d696450a1ce98b0f0d35b36c1e89",
+    "t0": 1794629909,
+    "t1": 1794629969,
+    "t2": 1794630029,
     "pending_then": null,
     "pending": null,
-    "quote_txid": "5e620d0949c4a676618977a80665494ffa1347815a38f7828246994f2b6db8de",
-    "open_tx": "8ZFXutFXRaPLQ6Xe2jHBCUHKrC3U7PQm7q1V8ba6jPKR",
+    "quote_txid": "6156acc75b6d6f325843fd5ac631ec6d157ecf50194298ec8c86f06eb3427f7b",
+    "open_tx": "CmrJckp5Pq7hhCFhr6uG2SxvFoRTp9wcE8NAXEwUwC5E",
     "stipend_tx": null,
     "ready_tx": null,
-    "refund_tx": "F7vkjpv7qQ8uhzX87gq8Vd3Cv4goHBH53Mm8NfU7yLo5",
-    "refund_at": 1794620391,
+    "refund_tx": "Exk81sTJgk4qtU9BKdYdcAHVRNwYZnJHuHin92LCVvKJ",
+    "refund_at": 1794629884,
     "sweep_txid": null,
     "sweep_height": null,
     "taker_withdraw_at": null,
     "log": [
-      "RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE NoStipend]",
-      "encrypted QUOTE sent in tx 5e620d0949c4a676618977a80665494ffa1347815a38f7828246994f2b6db8de",
-      "ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 8b22640a",
-      "escrow OPEN id 8b22640a2eca6245463c2ac782f4361101664e06412f06243a48f8f5f410c3de amount 30000000000000000000000000 t0=1794620416 t1=1794620476 t2=1794620536 W=45, tx 8ZFXutFXRaPLQ6Xe2jHBCUHKrC3U7PQm7q1V8ba6jPKR",
+      "RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto) [MISBEHAVE NoStipend]",
+      "encrypted QUOTE sent in tx 6156acc75b6d6f325843fd5ac631ec6d157ecf50194298ec8c86f06eb3427f7b",
+      "ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id ebee888a",
+      "escrow OPEN id ebee888a5813406dedc756d9c905fe79d3b1d696450a1ce98b0f0d35b36c1e89 amount 30000000000000000000000000 t0=1794629909 t1=1794629969 t2=1794630029 W=45, tx CmrJckp5Pq7hhCFhr6uG2SxvFoRTp9wcE8NAXEwUwC5E",
       "[MISBEHAVE no-stipend] not sending the stipend",
       "no funding before t0; refunding",
-      "REFUND publishes b, tx F7vkjpv7qQ8uhzX87gq8Vd3Cv4goHBH53Mm8NfU7yLo5 (executed); waiting for it to be final",
-      "refund is final (block <= 2662); withdraw of 30000000000000000000000000 for the maker, tx 8LqTsUD7hUd2mJ54MAd6fBHyqbb7rkqJGFVrfZMtKfn3",
-      "refund is final (block <= 2667); the maker's credit is withdrawn"
+      "REFUND publishes b, tx Exk81sTJgk4qtU9BKdYdcAHVRNwYZnJHuHin92LCVvKJ (executed); waiting for it to be final",
+      "refund is final (block <= 2956); 30000000000000000000000000 paid back into the maker's Verifier account"
     ],
-    "created_at": 1794619053,
-    "withdraw_at": 1794620403
+    "created_at": 1794628574,
+    "withdraw_at": null,
+    "payout_due_at": null
   },
   "taker_swap": {
-    "rfq_id": "26cb70f5e290e7a17c709d261f3d32be",
+    "rfq_id": "3031101b493a28a27fd95af6de2300c2",
     "stage": {
-      "Aborted": "(R1b) NEAR time 1794620391 + fund window 30s is not before t0 1794620416; not funding"
+      "Aborted": "(R1b) NEAR time 1794629884 + fund window 30s is not before t0 1794629909; not funding"
     },
     "zats": 100000000,
     "a": "",
     "s_t": "",
     "e_t": "",
-    "e_t_pub": "a0d0dafa8cadd1bdb4ebe0a2cf07fcae47f8c0b93a0c0168c8e421a1ba0eec85",
+    "e_t_pub": "f4ee2eace8a22248a01bc8a3a8a4b62ddeffce9a4fcb0a49df045c8f63f9b317",
     "near_sk": "<redacted>",
-    "taker_account": "a720fe9399718a968caa76bf531f8626b167730a3c7c4a957de92c02d4fa26d1",
-    "reply_index": 1970326310,
-    "created_at": 1794619047,
+    "taker_account": "c7065b42f67bff3ee9745074d508bdde2ae90ac12b18443b4d093eb3c6c1824f",
+    "reply_index": 454046000,
+    "created_at": 1794628568,
     "min_price": "30000000000000000000000000",
-    "stage_at": 1794619071,
+    "stage_at": 1794628593,
     "quote": {
       "price": "30000000000000000000000000",
       "premium": 50000,
-      "stipend": "30000000000000000000000",
-      "b_pub": "5b1a1e7663603b24d8c14b31a0c4e3c3e714e9746ef8b039c0346711a757f429",
-      "e_m_pub": "6341584c8639a5dcbba7d61f160b7362960305f47ece20a115b5c4aa577d900e",
+      "stipend": "60000000000000000000000",
+      "b_pub": "6ba3e9421c2212adf73c33d2460856ec7e75ce7d26c9bc1dbe3de52035481cb4",
+      "e_m_pub": "0799f67f7c8e8634b4055b470b0f811f17afca889b84538cb88159f1175e10a3",
       "windows": {
         "t0_secs": 120,
         "t1_secs": 60,
         "t2_secs": 60,
         "reveal_secs": 45
       },
-      "height": 369
+      "height": 424
     },
-    "negated": true,
+    "negated": false,
     "joint_fvk": null,
-    "joint_address": "uregtest1u7udhkwwr6tml8pwf86fh3me8005dn3pnyj2tg5syjwn4hxt46rat2damg55gr8a95snyuyk5ashe6x2c9nctvqeu83dmj8x0vgsctam",
-    "escrow_id": "8b22640a2eca6245463c2ac782f4361101664e06412f06243a48f8f5f410c3de",
+    "joint_address": "uregtest1jdq6lal3a4q0ny83ngufatkwlelwzjz0d67dyrr9zvlew3ccypht8f3hrjewgmj5040953qj0p3g3aydr5rj7qezzuavy2nlmcqqfjx0",
+    "escrow_id": "ebee888a5813406dedc756d9c905fe79d3b1d696450a1ce98b0f0d35b36c1e89",
     "pending_then": null,
     "pending": null,
-    "rfq_txid": "8e10d38af6292c2b49af87f6960f41195b7a06a51e0861540c9bb2c7edfd7bb5",
-    "accept_txid": "67c872433a2b0a7cb75013447583f5c8deddefd107c8619e78b06c3f2d6794fc",
+    "rfq_txid": "1e2abde09f151cfd0fec7d53e30bd493afd69b2b7354a79cafdfb5be08e7f1bc",
+    "accept_txid": "f860edae6b653149029e067e424689d4dcf5fb59199d98c064ab3fa2dd972296",
     "fund_txid": null,
     "fund_expiry": null,
     "sweep_txid": null,
@@ -187,11 +187,11 @@
     "withdraw_tx": null,
     "withdraw_at": null,
     "log": [
-      "encrypted RFQ for 100000000 zats sent to the maker in shielded tx 8e10d38af6292c2b49af87f6960f41195b7a06a51e0861540c9bb2c7edfd7bb5",
-      "QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)",
-      "encrypted ACCEPT with 50000 zats premium sent in tx 67c872433a2b0a7cb75013447583f5c8deddefd107c8619e78b06c3f2d6794fc; joint address uregtest1u7udhkwwr6tml8pwf86fh3me8005dn3pnyj2tg5syjwn4hxt46rat2damg55gr8a95snyuyk5ashe6x2c9nctvqeu83dmj8x0vgsctam",
-      "escrow open and final; waiting for the stipend (0 of 30000000000000000000000 yoctoNEAR)",
-      "ABORT: (R1b) NEAR time 1794620391 + fund window 30s is not before t0 1794620416; not funding"
+      "encrypted RFQ for 100000000 zats sent to the maker in shielded tx 1e2abde09f151cfd0fec7d53e30bd493afd69b2b7354a79cafdfb5be08e7f1bc",
+      "QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)",
+      "encrypted ACCEPT with 50000 zats premium sent in tx f860edae6b653149029e067e424689d4dcf5fb59199d98c064ab3fa2dd972296; joint address uregtest1jdq6lal3a4q0ny83ngufatkwlelwzjz0d67dyrr9zvlew3ccypht8f3hrjewgmj5040953qj0p3g3aydr5rj7qezzuavy2nlmcqqfjx0",
+      "escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)",
+      "ABORT: (R1b) NEAR time 1794629884 + fund window 30s is not before t0 1794629909; not funding"
     ]
   }
 }
