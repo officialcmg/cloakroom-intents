@@ -2,7 +2,7 @@
   "site": "https://zecret.chrismg.dev",
   "amountZec": "0.01",
   "nearAccount": "zecret-3f109eea1e.testnet",
-  "startedAt": "2026-11-14T09:40:23.395Z",
+  "startedAt": "2026-11-14T10:21:00.935Z",
   "checks": [
     {
       "check": "the site opened with the real engine on testnet by default (network banner)",
@@ -10,54 +10,19 @@
       "detail": "Testnet. Test money only. Details"
     },
     {
-      "check": "the recovery file was saved",
-      "pass": true,
-      "detail": ""
-    },
-    {
-      "check": "the page shows a testnet deposit address and amount",
-      "pass": true,
-      "detail": "1000000 zats"
+      "check": "the flow ran to the end",
+      "pass": false,
+      "detail": "locator.waitFor: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for getByRole('heading', { name: 'Save your recovery file' }) to be visible\u001b[22m\n"
     }
   ],
   "facts": {
     "payerBefore": {
-      "height": 4618953,
+      "height": 4619051,
       "ua": "utest1zdyw8dscgrelws7muvgznaa2xwld5aysr50w7xy46p4aqyrvlw7t2ejxllda8j6qp9dtc557f6cnnj7uypn8wkmqknzmcd225ca9ca04",
-      "zats": 161659000
+      "zats": 160649000
     },
-    "preview": "You pay 0.01 ZEC. You receive at least 0.2795 USDC on Base.",
-    "deposit": {
-      "expectedZats": 1000000
-    },
-    "payTx": "e3c1fdbaf73b01ba9be9893892ccb38af88817f4295f8a958f7686a43a77d1a7",
-    "abandonedAt": {
-      "stage": "escrow_open",
-      "at": "2026-11-14T09:45:09.465Z",
-      "escrow": {
-        "contract": "escrow3.zecret-3f109eea1e.testnet",
-        "swapId": "61bcde2a97d9ed4bf1408f810b87021234e0c1b7cbbd00dd0cdf0ff680f69075",
-        "takerAccount": "a778fda4a1dabbd6f6d382e8f5c802ecf12091078e3d3fa655e103750f504923",
-        "stipendYocto": "60000000000000000000000"
-      },
-      "txs": [
-        {
-          "id": "request",
-          "chain": "zcash",
-          "label": "Request to the maker (encrypted memo)",
-          "hash": "e4feaad0534ab1b1d45ec3f2b2870814970de2c6b4861a0315565ea75c705d26",
-          "url": "https://testnet.zcashexplorer.app/transactions/e4feaad0534ab1b1d45ec3f2b2870814970de2c6b4861a0315565ea75c705d26",
-          "at": 1794649333042
-        },
-        {
-          "id": "accept",
-          "chain": "zcash",
-          "label": "Acceptance and premium to the maker",
-          "hash": "53cd3519dcda4bfce8a2bb54a1b2c519a7cb3583bd62c58743a09f142d1e0f96",
-          "url": "https://testnet.zcashexplorer.app/transactions/53cd3519dcda4bfce8a2bb54a1b2c519a7cb3583bd62c58743a09f142d1e0f96",
-          "at": 1794649457008
-        }
-      ]
-    }
-  }
+    "preview": "You pay 0.01 ZEC. You receive at least 0.2795 USDC on Base."
+  },
+  "finishedAt": "2026-11-14T10:21:18.065Z",
+  "totalSecs": 17
 }

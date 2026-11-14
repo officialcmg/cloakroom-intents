@@ -89,3 +89,13 @@ were moved to `escrow3`. The slots that fall in this window are recorded as `swi
   script. The hourly check started it again at 10:21; slot 30 ran at once. The maker's
   health route stayed `ok` throughout. This is a fault of the test machine, not of the
   app. If slot 29's swap had opened an escrow, the maker refunds it by itself.
+
+## Why the build machine "restarted": it stops when the session is idle
+
+- The machine's start time (10:20:37) equals the time of the hourly check. The cloud
+  machine is stopped when the build session has nothing running, and started again by
+  the next event. A script started detached (`setsid nohup`) does not count as running.
+  So the soak was killed at 06:35 and at 09:51, each time a few minutes after the main
+  session went quiet. It survived 03:00 to 06:30 only because agents were working.
+- Fix: from 10:22 the soak runs as a tracked background task of the session (2 hours
+  at most per start; the hourly check starts it again).
