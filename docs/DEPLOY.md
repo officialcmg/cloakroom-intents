@@ -91,6 +91,32 @@ used the owner account plus 2 faucet accounts (30 NEAR).
 | Gas for all deployment transactions (about 210 Tgas) | 0.02 | yes |
 | Each end-to-end run: stipend 0.03, storage of one swap about 0.006, gas | about 0.04 | yes |
 
+## The light-payout escrow on testnet (branch `escrow-light-payout`)
+
+Made on 2026-11-14 next to the live deployment, which it does not change:
+`zecret-deploy deploy --config deploy/configs/testnet-light.toml`. It reuses the owner,
+the stand-in token (`open_mint = true`: the tool mints the maker's tokens through the
+token's open `mint`) and the stand-in Verifier, and adds:
+
+| Part | Account | Code hash |
+|---|---|---|
+| Escrow | `escrow3.zecret-3f109eea1e.testnet` (no access keys) | `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536` (471 730 bytes) |
+| Maker | `maker3.zecret-3f109eea1e.testnet`: 2 NEAR, 200 tUSDC minted, 100 of them deposited into its own Verifier account (`maker.verifier_target`), 0.2 NEAR of escrow storage funds | |
+
+The escrow needs no token registration: it never holds the plain token. The tool's
+record is `deploy/deployment.testnet-light.json`; a copy is the section `light_payout` of
+`deploy/deployment.testnet.json`. `zecret-deploy verify` also checks, at one final
+block, that the escrow's Verifier balance covers its `get_owed(token)`, and reports the
+maker's Verifier balance. The owner's balance was 0.83 NEAR before; the tool added one
+faucet account (10 NEAR) and spent 7.42 NEAR (escrow code storage 4.72 + 0.2 margin,
+maker 2, gas). Swaps on it: `docs/TESTNET.md`, "Light payout on testnet". How to move the
+live site and maker to it: `docs/LIGHT_PAYOUT_SWITCH.md`.
+
+`zecret-deploy rehearse --config deploy/configs/sandbox.toml` passes with this branch:
+deploy, a second deploy that sends nothing, verify, and one swap in which the taker key
+sends `commit_claim`, `claim` and `withdraw(id)` from a 0.06 NEAR stipend (0.05719 NEAR
+left), then the signed exit.
+
 ## Mainnet
 
 Only the owner runs this. It spends real NEAR. The tool refuses to send any mainnet
@@ -99,13 +125,13 @@ This tool has not been run on mainnet.
 
 ### Before
 
-1. Read [`docs/security/fixes-2.md`](security/fixes-2.md). The escrow build with the
-   NV-02 fix pays a taker credit with `mt_transfer` from the escrow's own Intents
-   account, and the USDC-specific cases (pause and blocklists between deposit and
-   resolve) pass in the sandbox with the USDC code from mainnet. Its section 5 lists
-   what is not covered, including the residual case (an Intents deposit failure and a
-   USDC restriction in the same window). Deploy only a build whose code hash includes
-   this fix (`DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` at the time of writing).
+1. Read [`docs/security/fixes-2.md`](security/fixes-2.md) and
+   [`docs/security/review-5.md`](security/review-5.md). On the branch
+   `escrow-light-payout` the escrow keeps its tokens in `intents.near` and makes no USDC
+   call; its build is `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536`. On `main` the
+   build is `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` (the NV-02 two-step payout).
+   Deploy only a reviewed build, and set `maker.verifier_target` for the light payout:
+   the maker opens swaps from its own `intents.near` account.
 2. Pick an owner account that you control, for example `zecret.near`. The escrow will be
    `escrow.zecret.near`. Use a named account, not an implicit hex account (the commit
    message tells networks apart only by the escrow account id).
