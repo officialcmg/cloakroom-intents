@@ -269,9 +269,9 @@
       "source": "README.md (top): \"swapping shielded ZEC for tokens on 30+ chains\"; web/src/lib/chainNames.ts lists 35 destination chains"
     },
     {
-      "text": "Swapping ZEC today means unshielding it first. NEAR Intents can already swap ZEC. But that ZEC is a bridged token: it left the shielded pool for a transparent address first.",
+      "text": "Swapping ZEC today means unshielding it first. Your coins leave the shielded pool for a transparent address. The amount and the timing become public.",
       "when": "8–21 s",
-      "source": "README.md \"The problem\": inside NEAR Intents ZEC is the NEP-141 token nep141:zec.omft.near (1Click token list, 2026-11-13), not shielded ZEC; Cloakroom paper quote on routes through a transparent address"
+      "source": "README.md \"The problem\": to swap ZEC today the coins first leave the shielded pool for a transparent address; inside NEAR Intents ZEC is the token nep141:zec.omft.near (1Click token list, 2026-11-13)"
     },
     {
       "text": "The ZEC stays shielded the whole way.",
@@ -344,7 +344,7 @@
       "source": "docs/TESTNET.md soak: 12 back-to-back swaps took 364 to 574 s; README.md hosted runs 314–493 s"
     },
     {
-      "text": "0 bridges or custodians holding the ZEC",
+      "text": "0 custodians holding the ZEC",
       "when": "66–79 s",
       "source": "README.md top: the ZEC goes to a shielded address spent only with both key halves"
     },
@@ -354,7 +354,7 @@
       "source": "README.md Status, \"Exit through NEAR Intents on mainnet\" and the brief's fact list; docs/INTENTS.md"
     },
     {
-      "text": "Shielded ZEC to 30+ chains. No bridge holds your coins.",
+      "text": "Shielded ZEC to 30+ chains. Without unshielding first.",
       "when": "78–88 s",
       "source": "as above"
     },
