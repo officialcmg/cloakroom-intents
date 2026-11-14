@@ -289,7 +289,8 @@ export class RealEngine implements EngineBackend {
 
   private blockMs(): number {
     // Zcash testnet blocks come about every 20 s since NU7 (measured; docs/security/fixes-2-taker.md).
-    return this.cfg!.network === 'regtest' ? 5_000 : this.cfg!.network === 'testnet' ? 25_000 : 75_000;
+    // Mainnet: 25 s target since NU7 (ZIP 218), mean 24.9 s measured (crates/zecret-node/src/mainnet_config.rs).
+    return this.cfg!.network === 'regtest' ? 5_000 : 25_000;
   }
 
   /** A "waiting" activity for stages where the swap waits on a chain or the maker. */

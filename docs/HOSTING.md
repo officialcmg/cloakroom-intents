@@ -165,6 +165,11 @@ node deploy/web/directory-from-entry.mjs entry.json 30 > web/public/config/testn
 
 ## Moving to mainnet later (not done)
 
+The runbook is [`docs/MAINNET.md`](MAINNET.md). It adds a second Railway service
+(`zecret-maker-mainnet`, mainnet mode of the start script) and a second Vercel project
+(`zecret-mainnet`, built with `VITE_ZECRET_ALLOW_MAINNET=1`); the testnet services stay
+as they are. The list below is the short form.
+
 This is a list, not a plan that was run.
 
 1. Deploy the escrow on mainnet (`docs/DEPLOY.md`, about 6.6 NEAR).

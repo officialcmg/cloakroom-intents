@@ -33,9 +33,12 @@ T=./target/debug/zecret-deploy
 $T rehearse --config configs/sandbox.toml   # local sandbox: deploy, deploy again (must send nothing), e2e
 $T deploy   --config configs/testnet.toml   # create or complete the deployment; safe to run again
 $T verify   --config configs/testnet.toml   # read-only checks at a final block; exit 1 if one fails
+$T plan     --config configs/mainnet.toml --owner ACCOUNT [--maker-config F] [--expect-escrow-hash H]
+                                            # the dry run: read-only checks, the plan and its cost (docs/MAINNET.md)
 $T e2e      --config configs/testnet.toml   # one swap end to end with real transactions
 $T maker-key --config configs/testnet.toml --out DIR   # DIR/near_key.json for `zecret maker --dir DIR`
 $T hash FILE.wasm                           # the NEAR code hash of a wasm file
+$T fund --config configs/testnet.toml ACCOUNT_ID NEAR   # testnet: top up any account from the faucet
 ```
 
 The sandbox needs `LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD`.
@@ -43,9 +46,36 @@ The sandbox needs `LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD`.
 `--escrow-wasm FILE` replaces the escrow wasm path of the config.
 
 On mainnet, `deploy` refuses to run without
-`--i-am-the-owner-and-accept-spending-real-funds`. `e2e` and `rehearse` never run on
+`--i-am-the-owner-and-accept-spending-real-funds`. `plan` and `verify` only read and run
+on mainnet without it; `plan` has no signer at all. `e2e` and `rehearse` never run on
 mainnet. `e2e` attaches 200 Tgas to `withdraw` (the escrow's two-step Intents withdraw
 needs at least 110 Tgas) and checks that the escrow's own Verifier balance is 0 after it. `verify` runs on mainnet; it only reads.
+
+## What `fund` does
+
+`fund` sends at least `NEAR` to the existing testnet account `ACCOUNT_ID`. Use it to
+top up the maker or any other testnet account. It sends nothing from the owner.
+
+1. It refuses to run if the config is not for testnet, if `ACCOUNT_ID` is not a valid
+   account id or ends in `.near`, or if the amount is 0 or needs more faucet accounts
+   than `max_faucet_accounts`.
+2. It reads the balance of `ACCOUNT_ID` at a final block. If the account does not
+   exist, it stops. (A delete with a beneficiary that does not exist burns the funds.)
+3. It creates a faucet account (10 NEAR) and deletes it with `ACCOUNT_ID` as
+   beneficiary. Before each delete it checks again that `ACCOUNT_ID` exists. A faucet
+   account left by an earlier run (its key is still in `.keys/testnet/`) is used first.
+   If the network drops the delete, the tool sends it again, up to 4 times.
+4. It counts each faucet account as its balance less 0.01 NEAR for the gas of the
+   delete, and repeats step 3 until the count reaches `NEAR`. One faucet account covers
+   at most 9.99 NEAR, so `fund ... 10` uses two.
+5. It reads the balance again at a final block and prints both balances and the
+   transaction hashes. The difference also includes what the account itself spent in
+   between.
+
+`fund` does not write the deployment file. The real delete cost is about 0.0003 NEAR
+(measured on 2026-11-14: 10 NEAR faucet account, `maker.zecret-3f109eea1e.testnet`
+went from 0.62605 to 10.62577 NEAR, transaction
+`H3Ks4ysGqTAomQeyv9nMcMnsFoGarQLYRv3tsJhvChaS`).
 
 ## What `deploy` does
 
@@ -82,7 +112,7 @@ block height and timings.
 ## Tests
 
 ```sh
-cargo test -p zecret-deploy                                   # config, keys, mainnet guard
+cargo test -p zecret-deploy                                   # config, keys, mainnet and fund guards
 cargo test -p test-usdc --lib                                 # token unit tests
 LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test -p test-usdc --test sandbox   # token in nearcore 2.14.1
 LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD ./target/debug/zecret-deploy rehearse --config configs/sandbox.toml

@@ -40,7 +40,7 @@ use zcash_primitives::transaction::{
 use incrementalmerkletree::frontier::Frontier;
 use zcash_note_encryption::try_compact_note_decryption;
 use zcash_protocol::{
-    consensus::{BlockHeight, BranchId, NetworkType, NetworkUpgrade, Parameters, TEST_NETWORK},
+    consensus::{BlockHeight, BranchId, NetworkType, NetworkUpgrade, Parameters, MAIN_NETWORK, TEST_NETWORK},
     local_consensus::LocalNetwork,
     memo::MemoBytes,
     value::Zatoshis,
@@ -111,11 +111,20 @@ pub fn addr_from_raw(raw: &[u8; 43]) -> Result<Address> {
     Option::from(Address::from_raw_address_bytes(raw)).ok_or_else(|| anyhow!("bad raw address"))
 }
 
-/// Consensus parameters: a local regtest chain or the public testnet.
+/// NU7 on Zcash mainnet. The zcash_protocol release in use (0.11.0-pre.0) has no mainnet
+/// height for NU7, so the wallet sets it. ZIP 218 names 3,543,405, and the chain agrees: the
+/// coinbase transaction of block 3,543,404 carries consensus branch id 0x37a5165b (NU6.3)
+/// and that of block 3,543,405 carries 0x77190ad9 (NU7). Read on 2026-11-14 through
+/// `zcash-mainnet.chainsafe.dev` (GetBlockRange, GetTransaction); its GetLightdInfo also
+/// reported branch id 77190ad9 at the tip. Remove this when zcash_protocol has the height.
+pub const MAINNET_NU7_HEIGHT: u32 = 3_543_405;
+
+/// Consensus parameters: a local regtest chain, the public testnet or mainnet.
 #[derive(Clone, Copy, Debug)]
 pub enum Net {
     Local(LocalNetwork),
     Test,
+    Main,
 }
 
 impl Parameters for Net {
@@ -123,12 +132,17 @@ impl Parameters for Net {
         match self {
             Net::Local(p) => p.network_type(),
             Net::Test => NetworkType::Test,
+            Net::Main => NetworkType::Main,
         }
     }
     fn activation_height(&self, nu: NetworkUpgrade) -> Option<BlockHeight> {
         match self {
             Net::Local(p) => p.activation_height(nu),
             Net::Test => TEST_NETWORK.activation_height(nu),
+            Net::Main => match nu {
+                NetworkUpgrade::Nu7 => MAIN_NETWORK.activation_height(nu).or(Some(BlockHeight::from_u32(MAINNET_NU7_HEIGHT))),
+                _ => MAIN_NETWORK.activation_height(nu),
+            },
         }
     }
 }
@@ -1289,5 +1303,22 @@ mod tests {
         assert_eq!(w.mined_height("ab"), None);
         assert_eq!(zip317_fee(1, 1), 10_000);
         assert_eq!(zip317_fee(3, 2), 15_000);
+    }
+
+    #[test]
+    fn mainnet_parameters_have_nu7_at_the_height_the_chain_shows() {
+        let h = BlockHeight::from_u32;
+        // Measured on mainnet (MAINNET_NU7_HEIGHT): branch 0x37a5165b before, 0x77190ad9 from it.
+        assert_eq!(u32::from(BranchId::for_height(&Net::Main, h(MAINNET_NU7_HEIGHT - 1))), 0x37a5_165b);
+        assert_eq!(u32::from(BranchId::for_height(&Net::Main, h(MAINNET_NU7_HEIGHT))), 0x7719_0ad9);
+        assert_eq!(BranchId::for_height(&Net::Main, h(3_570_955)), BranchId::Nu7);
+        assert_eq!(Net::Main.network_type(), NetworkType::Main);
+        // The earlier upgrades are the library's mainnet heights.
+        for nu in [NetworkUpgrade::Sapling, NetworkUpgrade::Nu5, NetworkUpgrade::Nu6_3] {
+            assert_eq!(Net::Main.activation_height(nu), MAIN_NETWORK.activation_height(nu));
+        }
+        // Testnet is unchanged.
+        assert_eq!(Net::Test.activation_height(NetworkUpgrade::Nu7), TEST_NETWORK.activation_height(NetworkUpgrade::Nu7));
+        assert_eq!(BranchId::for_height(&Net::Test, h(4_618_020)), BranchId::Nu7);
     }
 }

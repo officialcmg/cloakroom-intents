@@ -85,7 +85,7 @@ describe('NV3-01: what a configuration file may say', () => {
   };
 
   it('a mainnet file with the built-in contracts and https endpoints passes', () => {
-    expect(parseNetworkConfig(mainnet, anchors).near.escrow).toBe('escrow.zecret.near');
+    expect(parseNetworkConfig(mainnet, anchors, true).near.escrow).toBe('escrow.zecret.near');
   });
 
   it('a mainnet file with http endpoints, or another escrow, code hash, token or Verifier, is refused', () => {
@@ -100,12 +100,14 @@ describe('NV3-01: what a configuration file may say', () => {
       { ...mainnet, near: { ...mainnet.near, token: 'usdc.attacker.near' } },
       { ...mainnet, near: { ...mainnet.near, verifier: 'intents.attacker.near' } },
     ];
-    for (const b of bad) expect(() => parseNetworkConfig(b, anchors), JSON.stringify(b)).toThrow(NetConfigError);
+    for (const b of bad) expect(() => parseNetworkConfig(b, anchors, true), JSON.stringify(b)).toThrow(NetConfigError);
   });
 
   it('this bundle has no mainnet escrow built in, so it refuses every mainnet file', () => {
     expect(MAINNET_ANCHORS.escrow).toBe('');
-    expect(() => parseNetworkConfig(mainnet)).toThrow(/no mainnet escrow/);
+    expect(() => parseNetworkConfig(mainnet, MAINNET_ANCHORS, true)).toThrow(/no mainnet escrow/);
+    // And without the build switch it refuses mainnet before it looks at the contracts.
+    expect(() => parseNetworkConfig(mainnet)).toThrow(/does not run on mainnet/);
   });
 
   it('explorer links are https only', () => {

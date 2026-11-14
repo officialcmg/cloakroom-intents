@@ -124,89 +124,134 @@ pub async fn top_up_from_faucet(ctx: &mut Ctx, need: u128) -> Res<()> {
             )
             .into());
         }
-        // A faucet account left by an earlier run (its key is still stored) is used
-        // first; otherwise a new one is made.
-        let fid = match leftover_faucet_account(ctx).await? {
-            Some(fid) => {
-                println!("using faucet account {fid} left by an earlier run");
-                fid
-            }
-            None => {
-                let mut r = [0u8; 6];
-                rand::Rng::fill(&mut rand::thread_rng(), &mut r);
-                let fid = format!("zecret-fund-{}.testnet", hex::encode(r));
-                let sk = ctx.keys.get_or_create(&fid)?;
-                ctx.chain
-                    .rpc
-                    .faucet_create(&ctx.cfg.faucet_url, &fid, &sk.public_key().to_string())
-                    .await?;
-                used += 1;
-                fid
-            }
-        };
-        let got = ctx.chain.rpc.balance(&fid).await?;
-        println!("faucet account {fid} holds {}", fmt_near(got));
-        let sk = ctx.keys.get(&fid)?.ok_or("faucet key vanished")?;
-        let fund = ctx.chain.w.account(&fid, sk)?;
-        let mut attempt = 0;
-        let o = loop {
-            attempt += 1;
-            let r = ctx
-                .chain
-                .track(
-                    &format!("faucet {fid} -> owner (delete account)"),
-                    true,
-                    fund.batch(fund.id())
-                        .delete_account(ctx.owner.id())
-                        .transact_async(),
-                )
-                .await;
-            match r {
-                Ok(o) => break o,
-                Err(e) if e.is::<crate::chain::Dropped>() && attempt < 4 => {
-                    println!("  {e}; sending again");
-                    if ctx.chain.rpc.account(&fid).await?.is_none() {
-                        return Err(
-                            format!("{fid} is gone although its delete was not seen").into()
-                        );
-                    }
-                }
-                Err(e) => return Err(e),
-            }
-        };
-        // The gas refund goes to the signer, which no longer exists, so NEAR reports that
-        // one refund receipt as failed (AccountDoesNotExist on the deleted account). The
-        // transaction itself must have succeeded and that must be the only failure.
-        let only_refund = o
-            .receipt_failures
-            .iter()
-            .all(|f| f.starts_with(&format!("{fid}:")) && f.contains("AccountDoesNotExist"));
-        if !o.ok || !only_refund {
-            return Err(format!(
-                "faucet top-up {} failed: {:?} {:?}",
-                o.rec.hash, o.failure, o.receipt_failures
-            )
-            .into());
+        let beneficiary = ctx.owner.id().to_string();
+        let d = drain_one_faucet_account(
+            &mut ctx.chain,
+            &ctx.cfg,
+            &ctx.keys,
+            &beneficiary,
+            "owner",
+            true,
+        )
+        .await?;
+        if d.created {
+            used += 1;
         }
-        if !o.receipt_failures.is_empty() {
-            println!("  (the failed receipt is the gas refund to the deleted account; expected)");
-        }
-        let _ = std::fs::remove_file(ctx.keys.dir().join(format!("{fid}.json")));
     }
 }
 
+/// One faucet account moved into a beneficiary.
+pub struct Drained {
+    pub faucet_account: String,
+    /// True if the faucet created it in this call; false if it was left by an earlier run.
+    pub created: bool,
+    /// Its balance at a final block just before the delete.
+    pub balance: u128,
+    pub tx_hash: String,
+}
+
+/// Takes one faucet account (one left by an earlier run, whose key is still stored, or
+/// a new one from the faucet) and deletes it with `beneficiary` as beneficiary, which
+/// moves its whole balance less the gas of the delete. Testnet only. `label` names the
+/// beneficiary in the step text. `record` adds the transaction to the deployment file.
+pub async fn drain_one_faucet_account(
+    chain: &mut Chain,
+    cfg: &Config,
+    keys: &KeyStore,
+    beneficiary: &str,
+    label: &str,
+    record: bool,
+) -> Res<Drained> {
+    if chain.network != Network::Testnet {
+        return Err("faucet accounts exist on testnet only".into());
+    }
+    // Deleting an account with a beneficiary that does not exist burns its balance.
+    if chain.rpc.account(beneficiary).await?.is_none() {
+        return Err(format!("beneficiary {beneficiary} does not exist; not deleting").into());
+    }
+    let beneficiary_id: near_workspaces::AccountId = beneficiary.parse()?;
+    let (fid, created) = match leftover_faucet_account(chain, keys).await? {
+        Some(fid) => {
+            println!("using faucet account {fid} left by an earlier run");
+            (fid, false)
+        }
+        None => {
+            let mut r = [0u8; 6];
+            rand::Rng::fill(&mut rand::thread_rng(), &mut r);
+            let fid = format!("zecret-fund-{}.testnet", hex::encode(r));
+            let sk = keys.get_or_create(&fid)?;
+            chain
+                .rpc
+                .faucet_create(&cfg.faucet_url, &fid, &sk.public_key().to_string())
+                .await?;
+            (fid, true)
+        }
+    };
+    let got = chain.rpc.balance(&fid).await?;
+    println!("faucet account {fid} holds {}", fmt_near(got));
+    let sk = keys.get(&fid)?.ok_or("faucet key vanished")?;
+    let fund = chain.w.account(&fid, sk)?;
+    let mut attempt = 0;
+    let o = loop {
+        attempt += 1;
+        let r = chain
+            .track(
+                &format!("faucet {fid} -> {label} (delete account)"),
+                record,
+                fund.batch(fund.id())
+                    .delete_account(&beneficiary_id)
+                    .transact_async(),
+            )
+            .await;
+        match r {
+            Ok(o) => break o,
+            Err(e) if e.is::<crate::chain::Dropped>() && attempt < 4 => {
+                println!("  {e}; sending again");
+                if chain.rpc.account(&fid).await?.is_none() {
+                    return Err(format!("{fid} is gone although its delete was not seen").into());
+                }
+            }
+            Err(e) => return Err(e),
+        }
+    };
+    // The gas refund goes to the signer, which no longer exists, so NEAR reports that
+    // one refund receipt as failed (AccountDoesNotExist on the deleted account). The
+    // transaction itself must have succeeded and that must be the only failure.
+    let only_refund = o
+        .receipt_failures
+        .iter()
+        .all(|f| f.starts_with(&format!("{fid}:")) && f.contains("AccountDoesNotExist"));
+    if !o.ok || !only_refund {
+        return Err(format!(
+            "faucet top-up {} failed: {:?} {:?}",
+            o.rec.hash, o.failure, o.receipt_failures
+        )
+        .into());
+    }
+    if !o.receipt_failures.is_empty() {
+        println!("  (the failed receipt is the gas refund to the deleted account; expected)");
+    }
+    let _ = std::fs::remove_file(keys.dir().join(format!("{fid}.json")));
+    Ok(Drained {
+        faucet_account: fid,
+        created,
+        balance: got,
+        tx_hash: o.rec.hash,
+    })
+}
+
 /// A `zecret-fund-*` account whose key is in the key store and that still exists.
-async fn leftover_faucet_account(ctx: &Ctx) -> Res<Option<String>> {
-    for e in std::fs::read_dir(ctx.keys.dir())? {
+async fn leftover_faucet_account(chain: &Chain, keys: &KeyStore) -> Res<Option<String>> {
+    for e in std::fs::read_dir(keys.dir())? {
         let name = e?.file_name().to_string_lossy().into_owned();
         if let Some(id) = name.strip_suffix(".json")
             && id.starts_with("zecret-fund-")
         {
-            if ctx.chain.rpc.account(id).await?.is_some() {
+            if chain.rpc.account(id).await?.is_some() {
                 return Ok(Some(id.to_string()));
             }
             // Deleted already: its key opens nothing.
-            let _ = std::fs::remove_file(ctx.keys.dir().join(&name));
+            let _ = std::fs::remove_file(keys.dir().join(&name));
         }
     }
     Ok(None)

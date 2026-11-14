@@ -120,6 +120,10 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-14 | Before the taker sends ZEC, it also checks the backing: at one final block, the escrow's balance in NEAR Intents is at least `get_owed(token)`. If the check fails, the taker reads again. It stops when the funding window is about to close. |
 | 2026-11-14 | The maker keeps its USDC in its own NEAR Intents account. If that holds less than a swap needs, the maker deposits the difference from its plain USDC before the open. A refund pays the maker inside NEAR Intents. The maker reads its balance there; it does not trust the result of a deposit (`docs/security/nv02-usdc.md`). |
 | 2026-11-14 | The escrow has no `sweep`, no credits and no in-flight sum. Tokens that reach the escrow outside a swap stay there. Nobody can take them. |
+| 2026-11-14 | The wallet runs on Zcash mainnet. The Zcash library in use has no mainnet height for NU7. The wallet sets 3,543,405 (ZIP 218). The chain agrees: the branch id changes at that block. |
+| 2026-11-14 | The mainnet settings use the measured Zcash mainnet block times (mean 24.9 s; three blocks took at most 299 s). They keep the testnet windows: the funding window is 600 s. |
+| 2026-11-14 | The website runs on mainnet only in a build with `VITE_ZECRET_ALLOW_MAINNET=1`. Mainnet gets its own hostname. The testnet site stays as it is. A link cannot switch a site to mainnet. The mainnet escrow and its code hash come from the build, not from a file. |
+| 2026-11-14 | On mainnet the maker's price is one fixed number. The code has no price feed. The owner sets the market price less 3 %. The dry run (`zecret-deploy plan`) fails when the price is less than 2 % below the market. The maker takes at most 3 requests at a time, so the float can cover them. See `docs/MAINNET.md`. |
 
 **Open**
 

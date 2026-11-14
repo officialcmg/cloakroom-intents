@@ -6,7 +6,9 @@ mod chain;
 mod config;
 mod deploy;
 mod e2e;
+mod fund;
 mod keys;
+mod plan;
 mod rpc;
 mod verify;
 
@@ -29,9 +31,18 @@ usage: zecret-deploy <command> [options]
 commands:
   deploy    --config FILE   create or complete the deployment (safe to run again)
   verify    --config FILE   read-only checks of the deployment; spends nothing
+  plan      --config FILE [--owner ACCOUNT] [--maker-config FILE] [--expect-escrow-hash HASH]
+                            the dry run: every read-only check a deployment needs (network,
+                            owner balance and key, accounts, token, Verifier, storage price,
+                            escrow code hash, stipend at today's gas price, 1Click dry quotes,
+                            the maker's settings) and the plan with its cost. It has no signer
+                            and sends nothing; it runs on mainnet without the owner flag
   e2e       --config FILE   one swap end to end on the deployment (testnet, sandbox)
   rehearse  --config FILE   sandbox config only: deploy, verify and e2e in a new local sandbox
   hash      WASM_FILE       print the NEAR code hash (sha256, base58) of a wasm file
+  fund      --config FILE ACCOUNT_ID NEAR
+                            testnet only: send at least NEAR to the existing account
+                            ACCOUNT_ID through faucet accounts (10 NEAR each)
   maker-key --config FILE --out DIR
                             write the maker's NEAR key to DIR/near_key.json (mode 600),
                             the file the maker daemon (zecret maker --dir DIR) reads,
@@ -39,6 +50,10 @@ commands:
 
 options:
   --escrow-wasm FILE   use this escrow wasm instead of escrow.wasm from the config
+  --owner ACCOUNT      plan only: the owner account instead of owner_account in the config
+  --maker-config FILE  plan only: a maker config.json to check against the plan and the market
+  --expect-escrow-hash HASH
+                       plan only: the code hash of the reviewed escrow build
   --i-am-the-owner-and-accept-spending-real-funds
                        required for any command that sends transactions on mainnet
 ";
@@ -50,6 +65,11 @@ struct Args {
     escrow_wasm: Option<String>,
     mainnet_ok: bool,
     file: Option<PathBuf>,
+    /// `fund` only: the target account id and the NEAR amount.
+    fund: Option<(String, String)>,
+    owner: Option<String>,
+    maker_config: Option<PathBuf>,
+    expect_escrow_hash: Option<String>,
 }
 
 fn parse_args(argv: &[String]) -> Res<Args> {
@@ -61,7 +81,12 @@ fn parse_args(argv: &[String]) -> Res<Args> {
         escrow_wasm: None,
         mainnet_ok: false,
         file: None,
+        fund: None,
+        owner: None,
+        maker_config: None,
+        expect_escrow_hash: None,
     };
+    let mut pos: Vec<String> = Vec::new();
     while let Some(x) = it.next() {
         match x.as_str() {
             "--config" => a.config = Some(it.next().ok_or("--config needs a file")?.into()),
@@ -69,23 +94,58 @@ fn parse_args(argv: &[String]) -> Res<Args> {
             "--escrow-wasm" => {
                 a.escrow_wasm = Some(it.next().ok_or("--escrow-wasm needs a file")?.clone())
             }
+            "--owner" => a.owner = Some(it.next().ok_or("--owner needs an account")?.clone()),
+            "--maker-config" => {
+                a.maker_config = Some(it.next().ok_or("--maker-config needs a file")?.into())
+            }
+            "--expect-escrow-hash" => {
+                a.expect_escrow_hash = Some(
+                    it.next()
+                        .ok_or("--expect-escrow-hash needs a hash")?
+                        .clone(),
+                )
+            }
             MAINNET_FLAG => a.mainnet_ok = true,
             "-h" | "--help" => return Err(USAGE.into()),
-            s if !s.starts_with('-') && a.file.is_none() => a.file = Some(s.into()),
+            s if !s.starts_with('-') => pos.push(s.to_string()),
             s => return Err(format!("unknown argument {s}\n\n{USAGE}").into()),
         }
+    }
+    if a.command == "fund" {
+        match <[String; 2]>::try_from(pos) {
+            Ok([id, amount]) => a.fund = Some((id, amount)),
+            Err(_) => {
+                return Err(
+                    format!("fund needs an account id and a NEAR amount\n\n{USAGE}").into(),
+                );
+            }
+        }
+    } else if let Some(s) = pos.first() {
+        if pos.len() > 1 || a.file.is_some() {
+            return Err(format!("unknown argument {}\n\n{USAGE}", pos[pos.len() - 1]).into());
+        }
+        a.file = Some(s.into());
     }
     Ok(a)
 }
 
 /// The mainnet guard. Commands that send transactions refuse to run on mainnet without
-/// the explicit flag; the end-to-end check never runs on mainnet.
+/// the explicit flag; the end-to-end check never runs on mainnet. `verify` and `plan` only
+/// read.
 fn guard(network: Network, command: &str, mainnet_ok: bool) -> Res<()> {
+    // fund uses the testnet faucet and nothing else.
+    if command == "fund" && network != Network::Testnet {
+        return Err(format!(
+            "refusing to run fund on {}: it runs on testnet only (it uses the testnet faucet)",
+            network.as_str()
+        )
+        .into());
+    }
     if network != Network::Mainnet {
         return Ok(());
     }
     match command {
-        "verify" => Ok(()),
+        "verify" | "plan" => Ok(()),
         "deploy" if mainnet_ok => {
             println!("MAINNET: the owner flag is given; this run spends real NEAR.");
             Ok(())
@@ -181,6 +241,9 @@ async fn run(argv: Vec<String>) -> Res<bool> {
         .ok_or_else(|| format!("--config is required\n\n{USAGE}"))?;
     let (mut cfg, base) = Config::load(&cfg_path)?;
     guard(cfg.network, &a.command, a.mainnet_ok)?;
+    if let Some((id, amount)) = &a.fund {
+        return fund::run(&cfg, &base, id, amount).await.map(|_| true);
+    }
     if let Some(w) = &a.escrow_wasm {
         // A command-line path is relative to the current directory.
         cfg.escrow.wasm = std::fs::canonicalize(w)?.to_string_lossy().into_owned();
@@ -193,6 +256,40 @@ async fn run(argv: Vec<String>) -> Res<bool> {
         code_hash(&escrow_wasm)
     );
     match a.command.as_str() {
+        "plan" => {
+            if cfg.network == Network::Sandbox {
+                return Err("plan reads a live network; use rehearse for the sandbox".into());
+            }
+            let owner = plan_owner(&cfg, a.owner.as_deref())?;
+            let p = plan::plan(
+                &cfg,
+                &base,
+                plan::PlanArgs {
+                    owner: &owner,
+                    maker_config: a.maker_config.as_deref(),
+                    expect_escrow_hash: a.expect_escrow_hash.as_deref(),
+                },
+            )
+            .await?;
+            println!(
+                "== {} failed check(s), {} owner input(s) missing",
+                p.fails.len(),
+                p.owner_todo.len()
+            );
+            for t in &p.owner_todo {
+                println!("  owner: {t}");
+            }
+            println!(
+                "{}",
+                match (p.fails.is_empty(), p.owner_todo.is_empty()) {
+                    (true, true) => "DRY RUN PASSED: READY TO DEPLOY (nothing was sent)",
+                    (true, false) =>
+                        "DRY RUN PASSED: NO CHECK FAILED; OWNER INPUTS MISSING (nothing was sent)",
+                    _ => "DRY RUN FAILED (nothing was sent)",
+                }
+            );
+            Ok(p.fails.is_empty())
+        }
         "deploy" => {
             let mut ctx = open(cfg, base, false).await?;
             deploy::deploy(&mut ctx).await?;
@@ -260,6 +357,18 @@ async fn run(argv: Vec<String>) -> Res<bool> {
         }
         c => Err(format!("unknown command {c}\n\n{USAGE}").into()),
     }
+}
+
+/// The owner for `plan`: `--owner`, or the config's `owner_account` unless it is still the
+/// template's placeholder.
+fn plan_owner(cfg: &Config, arg: Option<&str>) -> Res<String> {
+    let o = arg.unwrap_or(&cfg.owner_account);
+    if o.is_empty() || o.contains("OWNER") {
+        return Err(
+            "plan needs an owner: set owner_account in the config or pass --owner ACCOUNT".into(),
+        );
+    }
+    Ok(o.to_string())
 }
 
 fn verify_owner(cfg: &Config, base: &Path) -> Res<String> {
@@ -375,6 +484,123 @@ mod tests {
         assert!(guard(Network::Mainnet, "verify", false).is_ok());
         assert!(guard(Network::Testnet, "deploy", false).is_ok());
         assert!(guard(Network::Testnet, "e2e", false).is_ok());
+    }
+
+    #[test]
+    fn fund_runs_on_testnet_only() {
+        assert!(guard(Network::Testnet, "fund", false).is_ok());
+        for net in [Network::Mainnet, Network::Sandbox] {
+            for flag in [false, true] {
+                let e = guard(net, "fund", flag).unwrap_err().to_string();
+                assert!(e.contains("testnet only"), "{e}");
+            }
+        }
+    }
+
+    #[test]
+    fn plan_is_read_only_and_needs_no_flag() {
+        assert!(guard(Network::Mainnet, "plan", false).is_ok());
+        let a = parse_args(&args(&[
+            "plan",
+            "--config",
+            "c.toml",
+            "--owner",
+            "near",
+            "--maker-config",
+            "m.json",
+            "--expect-escrow-hash",
+            "H",
+        ]))
+        .unwrap();
+        assert_eq!(a.owner.as_deref(), Some("near"));
+        assert_eq!(a.maker_config, Some(PathBuf::from("m.json")));
+        assert_eq!(a.expect_escrow_hash.as_deref(), Some("H"));
+        assert!(!a.mainnet_ok);
+        // The plan module has no signer: it never names the near-workspaces worker.
+        let src = include_str!("plan.rs");
+        for forbidden in [
+            "near_workspaces",
+            "W::",
+            "transact_async",
+            "send_tx",
+            "broadcast_tx",
+            "KeyStore::get_or_create",
+            "ctx.owner",
+        ] {
+            assert!(!src.contains(forbidden), "plan.rs mentions {forbidden}");
+        }
+    }
+
+    #[test]
+    fn fund_arguments() {
+        let a = parse_args(&args(&["fund", "--config", "c.toml", "x.testnet", "4"])).unwrap();
+        assert_eq!(a.fund, Some(("x.testnet".into(), "4".into())));
+        assert_eq!(a.file, None);
+        assert!(parse_args(&args(&["fund", "--config", "c.toml", "x.testnet"])).is_err());
+        assert!(parse_args(&args(&["fund", "--config", "c.toml"])).is_err());
+        assert!(parse_args(&args(&["fund", "--config", "c.toml", "a", "1", "2"])).is_err());
+        // Other commands keep one positional argument.
+        let a = parse_args(&args(&["hash", "f.wasm"])).unwrap();
+        assert_eq!(a.file, Some(PathBuf::from("f.wasm")));
+        assert_eq!(a.fund, None);
+        assert!(parse_args(&args(&["hash", "a.wasm", "b.wasm"])).is_err());
+        assert!(parse_args(&args(&["maker-key", "--out", "d", "x"])).is_err());
+    }
+
+    #[tokio::test]
+    async fn fund_on_mainnet_stops_before_any_network_access() {
+        let cfg = Path::new(env!("CARGO_MANIFEST_DIR")).join("../configs/mainnet.toml");
+        let e = run(args(&[
+            "fund",
+            "--config",
+            cfg.to_str().unwrap(),
+            "someone.near",
+            "1",
+        ]))
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(e.contains("testnet only"), "{e}");
+    }
+
+    #[tokio::test]
+    async fn fund_on_the_sandbox_config_is_refused() {
+        let cfg = Path::new(env!("CARGO_MANIFEST_DIR")).join("../configs/sandbox.toml");
+        let e = run(args(&[
+            "fund",
+            "--config",
+            cfg.to_str().unwrap(),
+            "x.testnet",
+            "1",
+        ]))
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(e.contains("testnet only"), "{e}");
+    }
+
+    #[test]
+    fn plan_refuses_the_template_owner() {
+        let (cfg, _) =
+            Config::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../configs/mainnet.toml"))
+                .unwrap();
+        assert!(plan_owner(&cfg, None).is_err());
+        assert_eq!(
+            plan_owner(&cfg, Some("zecret.near")).unwrap(),
+            "zecret.near"
+        );
+    }
+
+    #[tokio::test]
+    async fn mainnet_e2e_and_rehearse_stop_before_any_network_access() {
+        let cfg = Path::new(env!("CARGO_MANIFEST_DIR")).join("../configs/mainnet.toml");
+        for c in ["e2e", "rehearse"] {
+            let e = run(args(&[c, "--config", cfg.to_str().unwrap(), MAINNET_FLAG]))
+                .await
+                .unwrap_err()
+                .to_string();
+            assert!(e.contains("does not run on mainnet"), "{e}");
+        }
     }
 
     #[test]

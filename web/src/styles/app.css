@@ -647,6 +647,12 @@ h1:focus {
   line-height: 1.5;
 }
 
+.mainnet-notice {
+  width: calc(100% - 2 * var(--gutter));
+  max-width: var(--w-wide);
+  margin: var(--space-3) auto 0;
+}
+
 .config-warning > svg {
   flex: none;
   margin-top: 1px;

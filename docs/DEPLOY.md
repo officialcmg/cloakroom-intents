@@ -119,6 +119,11 @@ left), then the signed exit.
 
 ## Mainnet
 
+The runbook is [`docs/MAINNET.md`](MAINNET.md): what to have ready, the decisions, every
+step with its checks, the first swap, the gap list. `zecret-deploy plan` is the read-only
+dry run on mainnet; its cost table (6.47 NEAR on 2026-11-14) replaces the estimate below,
+which counted the maker's storage funds twice.
+
 Only the owner runs this. It spends real NEAR. The tool refuses to send any mainnet
 transaction unless the command has `--i-am-the-owner-and-accept-spending-real-funds`.
 This tool has not been run on mainnet.

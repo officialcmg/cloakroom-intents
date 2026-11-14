@@ -1,0 +1,22 @@
+{
+  "format": "zecret-maker-directory",
+  "version": 1,
+  "network": "mainnet",
+  "updatedAt": "2026-11-14T00:00:00.000Z",
+  "status": "online",
+  "maker": {
+    "name": "Zecret maker (test fixture)",
+    "zcashAddress": "u1fixturefixturefixture",
+    "requestKey": "a944a5d8a3d6004b6de8630f28a5ad2bf114a3babce90bd70d1705740752a702",
+    "nearAccount": "maker.zecret.near",
+    "escrowContract": "escrow.zecret.near",
+    "nearPublicKey": "ed25519:4aQfVk7LxZzASG5mLRsjDn1AxkzsCDjjmtf5q6ApZyHH",
+    "epoch": 1,
+    "signedLimits": { "min_zats": 200000, "max_zats": 2000000, "premium_zats": 25000 }
+  },
+  "rate": { "usdcPerZec": "900", "validForSeconds": 300 },
+  "limits": { "minZec": "0.002", "maxZec": "0.02" },
+  "premium": { "bps": 0, "minZec": "0.00025" },
+  "zcashFeePerSendZec": "0.0001",
+  "signature": "00"
+}

@@ -6,6 +6,8 @@ import { Icon } from '../ui/Icon';
 import { Notice } from '../ui/bits';
 import { Banner } from './Chrome';
 import type { ConfigChoice, NetworkConfig } from '../lib/netconfig';
+import type { MakerTerms } from '../lib/directory';
+import { formatZec } from '../lib/units';
 
 export { Footer, Header, useTheme } from './Chrome';
 
@@ -67,6 +69,63 @@ export function NetworkBanner({ network }: { network?: NetworkConfig }) {
         ))}
       </ul>
     </Banner>
+  );
+}
+
+const MAINNET_ACK_KEY = 'zecret.mainnetNoticeRead';
+
+function readAck(): boolean {
+  try {
+    return localStorage.getItem(MAINNET_ACK_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Mainnet: real money. Until the user confirms once in this browser, a notice above the
+ * page says so, with the maker's largest swap; after that, a one-line banner with the same
+ * facts under "Details". All sentences are true for this build (docs/MAINNET.md, gap list).
+ */
+export function MainnetNotice({ network, terms }: { network?: NetworkConfig; terms?: MakerTerms }) {
+  const [read, setRead] = useState(readAck);
+  if (!network || network.network !== 'mainnet') return null;
+  const max = terms && terms.network === 'mainnet' ? `${formatZec(terms.maxZats)} ZEC` : undefined;
+  const facts = (
+    <ul className="plain-list">
+      <li>{network.label}. Real ZEC and real USDC move.</li>
+      {max && <li>The maker takes at most {max} per swap.</li>}
+      {(network.honesty ?? []).map((l) => (
+        <li key={l}>{l}</li>
+      ))}
+    </ul>
+  );
+  if (read)
+    return (
+      <Banner testId="mainnet-banner" lead={<><strong>Mainnet.</strong> Real money. Unaudited hackathon software{max ? `, at most ${max} per swap` : ''}.</>}>
+        {facts}
+      </Banner>
+    );
+  return (
+    <div className="mainnet-notice" data-testid="mainnet-notice">
+      <Notice tone="warn" title="Real money. Unaudited hackathon software." role="alert">
+        {facts}
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => {
+            try {
+              localStorage.setItem(MAINNET_ACK_KEY, '1');
+            } catch {
+              // Storage refused: the notice shows again on the next visit.
+            }
+            setRead(true);
+          }}
+        >
+          I understand
+        </button>
+      </Notice>
+    </div>
   );
 }
 

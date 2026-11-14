@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_ZECRET_CONFIG?: string;
   /** '1': ?config= may name any file or URL, with a warning on the page (local test runs). Off in production builds. */
   readonly VITE_ZECRET_ALLOW_CONFIG_URL?: string;
+  /** '1': this build may run on mainnet (?config=mainnet, VITE_ZECRET_CONFIG=mainnet). Off by default (docs/MAINNET.md). */
+  readonly VITE_ZECRET_ALLOW_MAINNET?: string;
   /** The mainnet escrow account and its code hash that the page trusts (unset: no mainnet swaps). */
   readonly VITE_MAINNET_ESCROW?: string;
   readonly VITE_MAINNET_ESCROW_CODE_HASH?: string;

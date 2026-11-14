@@ -9,6 +9,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { APP_PATH, hasMarkedSwap, onLinkClick } from '../app/route';
 import { DESTINATION_CHAIN_NAMES } from '../lib/chainNames';
+import { MAINNET_BUILD } from '../lib/netconfig';
 import { Icon, type IconName } from '../ui/Icon';
 import { Logo } from '../ui/bits';
 import { useReveal } from '../ui/reveal';
@@ -69,7 +70,7 @@ export function Landing() {
             )}
             <p className="badge appear">
               <span className="badge-dot" aria-hidden="true" />
-              Testnet · test money only
+              {MAINNET_BUILD ? 'Mainnet · real money · unaudited' : 'Testnet · test money only'}
             </p>
             <h1 id="hero-title" className="hero-title appear">
               Swap from fully shielded ZEC <em className="serif">to 30+ chains</em>
@@ -79,8 +80,9 @@ export function Landing() {
               holds your money or your keys.
             </p>
             <p className="hero-note appear">
-              This runs on Zcash testnet and NEAR testnet today, with test money. Mainnet is not deployed. On testnet the tokens arrive in your NEAR testnet account, and the price
-              shown for other chains is a mainnet preview.
+              {MAINNET_BUILD
+                ? 'This site runs on Zcash mainnet and NEAR mainnet with real money. It is hackathon software with no security audit. The maker takes only small swaps. Pay only what you can afford to lose.'
+                : 'This runs on Zcash testnet and NEAR testnet today, with test money. Mainnet is not deployed. On testnet the tokens arrive in your NEAR testnet account, and the price shown for other chains is a mainnet preview.'}
             </p>
             <div className="hero-ctas appear">
               <AppLink className="btn btn-light btn-lg">
@@ -90,6 +92,7 @@ export function Landing() {
                 Try the simulated demo
               </AppLink>
             </div>
+            {!MAINNET_BUILD && (
             <p className="hero-hint appear">
               On testnet you need no Zcash wallet for a swap of up to 1 ZEC: the{' '}
               <a href={FAUCET_URL} target="_blank" rel="noreferrer noopener">
@@ -97,6 +100,7 @@ export function Landing() {
               </a>{' '}
               pays 1 test ZEC to the swap’s address. The demo moves no money.
             </p>
+            )}
           </div>
           <HeroVisual />
         </section>
@@ -228,7 +232,9 @@ export function Landing() {
         <section id="status" className="section status" aria-labelledby="status-title">
           <div className="status-text" data-reveal>
             <SectionHead id="status" eyebrow="Status" title={<>Project <em className="serif">status</em></>} align="start">
-              Runs on Zcash testnet and NEAR testnet with a test USDC token that has no value. Mainnet is not deployed.
+              {MAINNET_BUILD
+                ? 'This site runs on Zcash mainnet and NEAR mainnet with real USDC. The results below are from the test networks. No audit was done.'
+                : 'Runs on Zcash testnet and NEAR testnet with a test USDC token that has no value. Mainnet is not deployed.'}
             </SectionHead>
             <ul className="check-list">
               <li>Tested in Chromium only. Firefox and Safari are not tested.</li>
@@ -260,7 +266,8 @@ export function Landing() {
           <div className="faq" data-reveal>
             <Faq q="Which wallets can pay?">
               A wallet that can send shielded ZEC to a unified address on the same network. On testnet, use testnet ZEC. In the tests, the payment came from the project’s own
-              command-line wallet. No wallet app has been tested yet. On testnet, the Fauzec faucet can also pay 1 test ZEC to the swap’s address.
+              command-line wallet. No wallet app has been tested yet.{' '}
+              {MAINNET_BUILD ? 'Zodl, Zingo, Zkool, Edge and Cake pay into the Ironwood pool per their release notes.' : 'On testnet, the Fauzec faucet can also pay 1 test ZEC to the swap’s address.'}
             </Faq>
             <Faq q="How long does a swap take?">
               The one swap on the public test networks took 222 s from the start to the USDC, and 322 s with the exit (2026-11-13, command-line programs). Zcash testnet blocks come
@@ -276,7 +283,9 @@ export function Landing() {
               Intents step set how much you receive. The swap form shows each amount before you pay. The maker’s stipend pays your gas on NEAR.
             </Faq>
             <Faq q="Do I need a NEAR account?">
-              On testnet, yes: the tokens go to a NEAR testnet account that is registered with the test USDC token. The swap itself uses a new NEAR key that your browser makes.
+              {MAINNET_BUILD
+                ? 'No. The USDC lands in NEAR Intents under a new key that your browser makes, and NEAR Intents sends the tokens to your address on the chain you chose.'
+                : 'On testnet, yes: the tokens go to a NEAR testnet account that is registered with the test USDC token. The swap itself uses a new NEAR key that your browser makes.'}
             </Faq>
           </div>
         </section>
@@ -284,10 +293,10 @@ export function Landing() {
         <section className="final on-dark" aria-labelledby="final-title" data-reveal>
           <p className="badge">
             <span className="badge-dot" aria-hidden="true" />
-            Testnet
+            {MAINNET_BUILD ? 'Mainnet' : 'Testnet'}
           </p>
           <h2 id="final-title" className="section-title">
-            Try it on <em className="serif">testnet</em>
+            Try it on <em className="serif">{MAINNET_BUILD ? 'mainnet' : 'testnet'}</em>
           </h2>
           <p className="final-hint">Opening the app downloads the swap engine (about 9 MB). Your browser then prepares its keys for about 20 s.</p>
           <div className="hero-ctas">

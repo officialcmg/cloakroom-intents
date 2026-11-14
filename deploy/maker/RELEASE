@@ -1,1 +1,1 @@
-2026-11-13: wallet sync follows chain reorganisations and repairs its tree; quotes not sent in 300 s are dropped
+2026-11-14: wallet accepts Zcash mainnet parameters; start script has a separate mainnet mode (off unless two variables are set)

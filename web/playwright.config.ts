@@ -30,13 +30,13 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
-      testIgnore: /screenshots\.spec/,
+      testIgnore: /screenshots\.spec|\/mainnet\//,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } },
     },
     {
       name: 'phone',
       // responsive.spec sets its own narrow viewports, so it runs once, in the desktop project.
-      testIgnore: /screenshots\.spec|responsive\.spec/,
+      testIgnore: /screenshots\.spec|responsive\.spec|\/mainnet\//,
       use: { ...devices['Pixel 7'] },
     },
     {
@@ -48,12 +48,12 @@ export default defineConfig({
       ? [
           {
             name: 'firefox',
-            testIgnore: /screenshots\.spec/,
+            testIgnore: /screenshots\.spec|\/mainnet\//,
             use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 900 } },
           },
           {
             name: 'webkit',
-            testIgnore: /screenshots\.spec/,
+            testIgnore: /screenshots\.spec|\/mainnet\//,
             use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 900 } },
           },
         ]
