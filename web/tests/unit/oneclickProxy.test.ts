@@ -231,6 +231,37 @@ describe('1Click proxy', () => {
     expect((await handleOneClick(get('tokens'), 'tokens', huge.deps())).status).toBe(502);
   });
 
+  it('answers an upstream status a Response cannot carry with an error, not a crash', async () => {
+    for (const s of [204, 205]) {
+      const u = upstream(() => new Response(null, { status: s }));
+      const r = await handleOneClick(get('tokens'), 'tokens', u.deps({ ONECLICK_JWT: KEY }));
+      expect(r.status, String(s)).toBe(502);
+      expect(r.headers.get('cache-control')).toBe('no-store');
+    }
+  });
+
+  it('never puts the key in an answer, on any path', async () => {
+    const answers: (() => Response)[] = [
+      () => Response.json({ ok: true }),
+      () => Response.json({ message: 'Invalid token' }, { status: 401 }),
+      () => Response.json({ message: 'busy' }, { status: 429, headers: { 'retry-after': '5' } }),
+      () => new Response(null, { status: 302, headers: { location: 'https://evil.example/' } }),
+      () => new Response(null, { status: 204 }),
+    ];
+    for (const a of answers) {
+      const u = upstream(a);
+      for (const r of [
+        await handleOneClick(post('quote', '{}'), 'quote', u.deps({ ONECLICK_JWT: KEY })),
+        await handleOneClick(get('status?depositAddress=a'), 'status', u.deps({ ONECLICK_JWT: KEY })),
+        await handleOneClick(post('quote', '{}', { 'sec-fetch-site': 'cross-site' }), 'quote', u.deps({ ONECLICK_JWT: KEY })),
+      ]) {
+        const text = `${JSON.stringify([...r.headers.entries()])}\n${await r.text()}`;
+        expect(text).not.toContain(KEY);
+        expect(text).not.toContain(KEY.split('.')[2]);
+      }
+    }
+  });
+
   it('never puts the key in a log line', async () => {
     const lines: string[] = [];
     const orig = { warn: console.warn, log: console.log, error: console.error, info: console.info };

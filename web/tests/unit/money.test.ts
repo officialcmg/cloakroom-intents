@@ -182,4 +182,14 @@ describe('1Click responses', () => {
     expect(list.zecUsd).toBe(948.32);
     expect(list.destinations.map((t) => `${t.symbol}/${t.blockchain}`)).toEqual(['USDC/base', 'SOL/sol']);
   });
+  it('drops a token whose decimals are not a small whole number (the list is not signed)', () => {
+    const list = selectDestinations([
+      { assetId: 'c', symbol: 'USDC', blockchain: 'base', decimals: 6 },
+      { assetId: 'd', symbol: 'HUGE', blockchain: 'base', decimals: 1e9 },
+      { assetId: 'e', symbol: 'NEG', blockchain: 'base', decimals: -1 },
+      { assetId: 'f', symbol: 'FRAC', blockchain: 'base', decimals: 6.5 },
+      { assetId: 'g', symbol: 'NAN', blockchain: 'base', decimals: NaN },
+    ]);
+    expect(list.destinations.map((t) => t.symbol)).toEqual(['USDC']);
+  });
 });

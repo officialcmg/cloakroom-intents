@@ -362,7 +362,7 @@ Build-time values (`web/src/vite-env.d.ts`):
 | Value | Where | Default | Testnet value |
 |---|---|---|---|
 | Maker directory URL | `VITE_DIRECTORY_URL` at build time, or `?directory=` in the page URL | `/maker-directory.json` (a bundled sample) | the URL where the maker's directory JSON is served |
-| 1Click API | `VITE_ONECLICK_URL` | `https://1click.chaindefuser.com` | the same (quotes only; there is no execution on testnet) |
+| 1Click API | `oneClickUrl` in the network configuration (`web/public/config/*.json`); an http(s) URL or a path on the site such as `/api/oneclick` (docs/ONECLICK_PROXY.md) | `https://1click.chaindefuser.com` | the same (quotes only; there is no execution on testnet) |
 
 The bundled sample `web/public/maker-directory.json` names
 `maker.zecret-3f109eea1e.testnet` and `escrow3.zecret-3f109eea1e.testnet`; its Zcash

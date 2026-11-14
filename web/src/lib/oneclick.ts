@@ -8,6 +8,8 @@ export const USDC_NEAR_ASSET = 'nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac
 export const ZEC_NEAR_ASSET = 'nep141:zec.omft.near';
 /** 1Click's own slippage for the exit, in basis points. */
 export const EXIT_SLIPPAGE_BPS = 100;
+/** The most decimals a destination token may have (NEAR tokens have 24). */
+export const MAX_TOKEN_DECIMALS = 36;
 
 export interface Token {
   assetId: string;
@@ -47,6 +49,9 @@ export function selectDestinations(raw: unknown): TokenList {
   const destinations: Token[] = [];
   for (const r of raw as Record<string, unknown>[]) {
     if (typeof r?.assetId !== 'string' || typeof r.symbol !== 'string' || typeof r.blockchain !== 'string' || typeof r.decimals !== 'number') continue;
+    // The token list is not signed (it may come through the site's proxy): a decimals value
+    // that is not a small whole number would break or freeze the amount display (10n ** d).
+    if (!Number.isInteger(r.decimals) || r.decimals < 0 || r.decimals > MAX_TOKEN_DECIMALS) continue;
     const t: Token = {
       assetId: r.assetId,
       symbol: r.symbol,

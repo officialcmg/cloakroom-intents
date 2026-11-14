@@ -211,6 +211,12 @@ export async function handleOneClick(request: Request, endpoint: Endpoint, deps:
     await upstream.body?.cancel().catch(() => undefined);
     return message(502, 'NEAR Intents answered with a redirect.', mode);
   }
+  // A status a Response cannot carry with a body (204, 205) or outside 200-599 would make the
+  // Response constructor throw; answer with an error instead of crashing the function.
+  if (upstream.status < 200 || upstream.status > 599 || upstream.status === 204 || upstream.status === 205) {
+    await upstream.body?.cancel().catch(() => undefined);
+    return message(502, 'NEAR Intents answered with an unexpected status.', mode);
+  }
   const bytes = await readCapped(upstream, MAX_RESPONSE_BYTES).catch(() => undefined);
   if (bytes === undefined) return message(502, 'The answer of NEAR Intents is too large or broke off.', mode);
   const extra: Record<string, string> = { 'cache-control': upstream.ok ? route.cache : NO_STORE };

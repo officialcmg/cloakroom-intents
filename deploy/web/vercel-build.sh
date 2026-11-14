@@ -78,8 +78,15 @@ npm run build
 # The 1Click partner key (ONECLICK_JWT, docs/ONECLICK_PROXY.md) is for the function in
 # web/api/ only. Vite puts only VITE_* variables into the bundle; this check stops the
 # deployment if the key's value is in the built site anyway. It never prints the key.
-if [ -n "${ONECLICK_JWT:-}" ] && grep -rqF -- "$ONECLICK_JWT" dist; then
-  echo "the 1Click partner key is in web/dist: stop (docs/ONECLICK_PROXY.md)" >&2
-  exit 1
+# The value is trimmed as the function trims it; a JWT's signature part is checked on its
+# own too, so a key cut into pieces or with its header changed is still found.
+ONECLICK_KEY="$(printf '%s' "${ONECLICK_JWT:-}" | tr -d '[:space:]')"
+if [ -n "$ONECLICK_KEY" ]; then
+  ONECLICK_SIG="${ONECLICK_KEY##*.}"
+  [ "${#ONECLICK_SIG}" -ge 16 ] || ONECLICK_SIG="$ONECLICK_KEY"
+  if grep -rqF -e "$ONECLICK_KEY" -e "$ONECLICK_SIG" dist; then
+    echo "the 1Click partner key is in web/dist: stop (docs/ONECLICK_PROXY.md)" >&2
+    exit 1
+  fi
 fi
 step "done"

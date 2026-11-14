@@ -49,4 +49,14 @@ describe('oneClickUrl', () => {
     expect(() => parseMainnet({ ...mainnet, oneClickUrl: 'http://attacker.example/1click', exit: { mode: 'oneclick' } })).toThrow(/oneClickUrl/);
     expect(parseNetworkConfig({ ...testnet, oneClickUrl: 'http://127.0.0.1:8787' }).oneClickUrl).toBe('http://127.0.0.1:8787');
   });
+
+  it('refuses site paths that a URL parser could read as another host or another directory, and URLs with credentials or whitespace', () => {
+    const bad = [
+      '/\t/evil.example', '/\n/evil.example', '/ /evil.example', '/%2f/evil.example', '/%2e%2e/x', '/api/../x', '/api/./x', '/..', '/api/oneclick\u0000',
+      'https://a@1click.chaindefuser.com', 'https://a:b@1click.chaindefuser.com', 'https://@1click.chaindefuser.com',
+      'https://1click.chaindefuser.com\t', ' https://1click.chaindefuser.com', 'https://1click.chain\ndefuser.com',
+    ];
+    for (const b of bad) expect(() => parseNetworkConfig({ ...testnet, oneClickUrl: b }), JSON.stringify(b)).toThrow(NetConfigError);
+    for (const b of ['/api/oneclick', '/api/one-click_v0/x~y']) expect(parseNetworkConfig({ ...testnet, oneClickUrl: b }).oneClickUrl).toBe(b);
+  });
 });

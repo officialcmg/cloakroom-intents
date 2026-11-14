@@ -151,3 +151,64 @@ fn a_status_the_proxy_forged_is_not_believed() {
     let e = oneclick_status(&t, &api(), &deposit).unwrap_err();
     assert_eq!((e.code, e.transient), ("NETWORK", true), "{e:?}");
 }
+
+#[test]
+fn a_status_for_another_signed_quote_is_not_believed() {
+    // The proxy answers the status call with a real, validly signed 1Click quote of another
+    // swap (another deposit address): the signature checks out, the binding does not.
+    let deposit = fixture()["exchanges"][1]["response"]["body"]["quote"]["depositAddress"].as_str().unwrap().to_owned();
+    let other: Value = serde_json::from_slice(&std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../zecret-intents/tests/fixtures/exit_nep413.json")).unwrap()).unwrap();
+    let other_quote = other["exchanges"][1]["response"]["body"].clone();
+    assert_ne!(other_quote["quote"]["depositAddress"].as_str().unwrap(), deposit);
+    let t = Proxy::new(move |path, b| if path.starts_with("/v0/status") {
+        b["status"] = "SUCCESS".into();
+        b["quoteResponse"] = other_quote.clone();
+    });
+    *t.next.borrow_mut() = 3;
+    let e = oneclick_status(&t, &api(), &deposit).unwrap_err();
+    assert_eq!((e.code, e.transient), ("NETWORK", true), "{e:?}");
+}
+
+#[test]
+fn the_status_word_itself_is_not_signed() {
+    // With the signed quote left intact, the proxy can change the status word and the swap
+    // details (amount out, destination transactions, refund). This layer passes them on; the
+    // web engine believes SUCCESS only when the key's Verifier balance dropped
+    // (exitPlan.ts believeSuccess), and REFUNDED or FAILED only as `wait` until tokens are
+    // back under the key (afterFinalStatus). This test records that limit.
+    let deposit = fixture()["exchanges"][1]["response"]["body"]["quote"]["depositAddress"].as_str().unwrap().to_owned();
+    for word in ["SUCCESS", "REFUNDED", "PENDING_DEPOSIT"] {
+        let t = Proxy::new(move |path, b| if path.starts_with("/v0/status") {
+            b["status"] = word.into();
+            b["swapDetails"]["amountOut"] = "999999999".into();
+        });
+        *t.next.borrow_mut() = 3;
+        let st = oneclick_status(&t, &api(), &deposit).expect("an intact signed quote binds the answer");
+        assert_eq!(st.status, word);
+        assert_eq!(st.amount_out.as_deref(), Some("999999999"));
+    }
+}
+
+#[test]
+fn a_replayed_quote_is_bounded_by_the_approval() {
+    // The proxy answers the firm quote call with a genuine, signed 1Click answer that is not
+    // the answer to this request. The dry quote of the same swap is refused. Another firm
+    // quote that 1Click signed for the same approval (same signer, amount, token, recipient
+    // and refund account, recorded 7 s later, another deposit address) is accepted: it is a
+    // quote for exactly what the user approved, at or above the approved minimum, and the
+    // signed timestamp bounds how old it may be (`Policy::max_quote_age`,
+    // tested in crates/zecret-intents). So a replay cannot move tokens anywhere
+    // the user did not approve.
+    let f = fixture();
+    let dry = f["exchanges"][0]["response"]["body"].clone();
+    let t = Proxy::new(move |path, b| if path == "/v0/quote" { *b = dry.clone() });
+    assert_eq!(oneclick_quote(&t, &api(), &approval(), now_ms()).unwrap_err().code, "EXIT_REFUSED");
+    assert!(!t.called("/v0/generate-intent"));
+
+    let other: Value = serde_json::from_slice(&std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../zecret-intents/tests/fixtures/exit_nep413.json")).unwrap()).unwrap();
+    let other_firm = other["exchanges"][1]["response"]["body"].clone();
+    let other_deposit = other_firm["quote"]["depositAddress"].as_str().unwrap().to_owned();
+    let t = Proxy::new(move |path, b| if path == "/v0/quote" { *b = other_firm.clone() });
+    let q = oneclick_quote(&t, &api(), &approval(), now_ms()).expect("a signed quote for the same approval");
+    assert_eq!(q.deposit_address, other_deposit);
+}

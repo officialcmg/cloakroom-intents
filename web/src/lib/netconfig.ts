@@ -238,8 +238,12 @@ function parseFile(json: unknown, anchors: MainnetAnchors): NetworkConfig {
   return parsed;
 }
 
-/** A path on this site: one leading slash, not two, no backslash. */
-const isSitePath = (u: string) => u.startsWith('/') && !u.startsWith('//') && !u.includes('\\');
+/**
+ * A path on this site: one leading slash, not two, only unreserved characters and slashes
+ * (no backslash, whitespace, control character or percent escape), and no `.` or `..`
+ * segment, so the path cannot be read as another host or climb out of its directory.
+ */
+const isSitePath = (u: string) => /^\/(?!\/)[A-Za-z0-9._~\-/]*$/.test(u) && !u.split('/').some((seg) => seg === '.' || seg === '..');
 
 /** `oneClickUrl`, or the older exit.oneClickUrl; both may be given only with the same value. */
 function parseOneClickUrl(top: unknown, legacy: unknown): string {
@@ -249,6 +253,10 @@ function parseOneClickUrl(top: unknown, legacy: unknown): string {
   const u = str(v, 'oneClickUrl');
   if (!isSitePath(u) && !isHttp(u)) throw new NetConfigError('oneClickUrl must be an http: or https: URL or a path on this site');
   if (/[?#]/.test(u)) throw new NetConfigError('oneClickUrl must not have a query or a fragment');
+  // No whitespace or control character (the URL parser drops some of them silently) and no
+  // user name or password (fetch refuses such a URL, which would stop every 1Click call).
+  if (/\s/.test(u) || [...u].some((ch) => ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f)) throw new NetConfigError('oneClickUrl must not contain whitespace or control characters');
+  if (!isSitePath(u) && (new URL(u).username || new URL(u).password || /^[a-z]+:\/\/[^/]*@/i.test(u))) throw new NetConfigError('oneClickUrl must not have a user name or password');
   const base = u.replace(/\/+$/, '');
   if (!base) throw new NetConfigError('oneClickUrl must name a path, not only /');
   return base;

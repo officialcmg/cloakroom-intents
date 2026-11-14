@@ -174,7 +174,7 @@ browser (no key; CORS is open).
 | Setting | Default | How to change |
 |---|---|---|
 | Maker directory | `/maker-directory.json` (a sample for Zcash testnet, in `public/`) | `VITE_DIRECTORY_URL` at build time, or `?directory=<url>` on the page (demo only; with a network configuration the page uses the configuration's directory) |
-| 1Click API | `https://1click.chaindefuser.com` | `VITE_ONECLICK_URL` at build time |
+| 1Click API | `https://1click.chaindefuser.com` | `oneClickUrl` in the network configuration (`public/config/*.json`): an http(s) URL, or a path on this site for the proxy (`../docs/ONECLICK_PROXY.md`) |
 | Engine | simulated (demo) | a network configuration: `?config=local`, `?config=testnet`, or `VITE_ZECRET_CONFIG` at build time (any other `?config=` only in development, see above); `?demo=1` forces the demo |
 | Mainnet escrow | none (mainnet refused) | `VITE_MAINNET_ESCROW`, `VITE_MAINNET_ESCROW_CODE_HASH` at build time |
 
