@@ -518,6 +518,10 @@ the API above did not ask for one on 2026-11-13.
 
 ## Light payout on testnet
 
+The switch rehearsal of 2026-11-14 05:00 UTC (a new maker `maker4` that had never used
+the Verifier, the site and taker configuration of the switch commit, one native and one
+browser swap) is in [`docs/LIGHT_PAYOUT_SWITCH.md`](LIGHT_PAYOUT_SWITCH.md), "Rehearsal".
+
 Date: 2026-11-14, 04:05 to 04:36 UTC. Branch `escrow-light-payout`. The live site and the
 hosted maker were not touched: they still use `escrow2`. These runs used a new escrow and
 a new maker next to them.

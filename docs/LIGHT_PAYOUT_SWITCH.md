@@ -177,7 +177,7 @@ final stages.
 
 ```sh
 cd /home/user/zecret && git fetch origin escrow-light-payout
-git merge --no-ff origin/escrow-light-payout   # conflicts: only testnet-directory.json if push 1 is not in the branch: keep "paused" and escrow3
+git merge --no-ff origin/escrow-light-payout   # a conflict can only be in web/public/config/testnet-directory.json (if push 1 also changed updatedAt): take the branch's file
 git push origin main
 ```
 
