@@ -74,3 +74,21 @@ test('testnet: a one-line banner with details, and a failed maker check says so'
   await expect(page.getByTestId('start-failure')).not.toContainText('may block Web Workers');
   await expect(page.getByTestId('failure-detail')).toContainText(/is not a key of maker\.zecret-3f109eea1e\.testnet/);
 });
+
+test('the chain strip shows a logo beside each chain name; the logos are hidden from screen readers', async ({ page }) => {
+  await mockOneClick(page);
+  await page.goto('/');
+  const strip = page.getByRole('region', { name: /destination chains in the swap form/ });
+  const items = strip.getByRole('listitem');
+  await expect(items).toHaveCount(35);
+  await expect(items.first()).toHaveAccessibleName('Ethereum');
+  await expect(items.nth(34)).toHaveAccessibleName('Aleo');
+  const icons = strip.locator('.chains-list:not([aria-hidden]) .chain-icon');
+  await expect(icons).toHaveCount(35);
+  for (const i of await icons.all()) {
+    await expect(i).toHaveAttribute('aria-hidden', 'true');
+    const box = await i.boundingBox();
+    expect(box && box.width >= 18 && box.width <= 28 && Math.abs(box.width - box.height) < 0.5).toBe(true);
+  }
+  await expect(strip.locator('.chains-list[aria-hidden="true"] li')).toHaveCount(35);
+});

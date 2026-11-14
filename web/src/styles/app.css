@@ -3070,12 +3070,56 @@ a.hash {
 }
 
 .chains-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42em;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: clamp(18px, 2.4vw, 24px);
+  line-height: 1.25;
   letter-spacing: -0.02em;
   white-space: nowrap;
   color: var(--text-3);
+}
+
+/* A logo on a small round tile. The tile is light in both themes, so dark logos
+   (Aptos, Stellar, X Layer, Aleo) stay readable on the dark page. */
+.chain-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 1.05em;
+  height: 1.05em;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  /* centre on the x-height, not on the line box */
+  transform: translateY(0.02em);
+}
+
+.chain-icon svg {
+  display: block;
+  width: 88%;
+  height: 88%;
+}
+
+.chain-icon-initial span {
+  font-size: 0.6em;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text-2, var(--text-3));
+}
+
+[data-theme='dark'] .chain-icon {
+  background: #e4ece8;
+  box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .chain-icon {
+    background: #e4ece8;
+    box-shadow: none;
+  }
 }
 
 @keyframes marquee {

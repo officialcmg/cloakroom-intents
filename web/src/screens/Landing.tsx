@@ -13,6 +13,7 @@ import { MAINNET_BUILD, NETWORK_SITES } from '../lib/netconfig';
 
 /** True for this build: whether a mainnet site is configured (VITE_ZECRET_MAINNET_URL). */
 const MAINNET_STATE = NETWORK_SITES.mainnet ? 'Mainnet runs on a separate site.' : 'Mainnet is not deployed.';
+import { ChainIcon } from '../ui/ChainIcon';
 import { Icon, type IconName } from '../ui/Icon';
 import { Logo } from '../ui/bits';
 import { useReveal } from '../ui/reveal';
@@ -406,12 +407,18 @@ function ChainStrip() {
       <div className="chains-track">
         <ul className="chains-list">
           {DESTINATION_CHAIN_NAMES.map((n) => (
-            <li key={n}>{n}</li>
+            <li key={n}>
+              <ChainIcon name={n} />
+              {n}
+            </li>
           ))}
         </ul>
         <ul className="chains-list" aria-hidden="true">
           {DESTINATION_CHAIN_NAMES.map((n) => (
-            <li key={n}>{n}</li>
+            <li key={n}>
+              <ChainIcon name={n} />
+              {n}
+            </li>
           ))}
         </ul>
       </div>
