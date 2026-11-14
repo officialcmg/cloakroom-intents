@@ -203,9 +203,10 @@
           <div class="mono" id="s3escrowNote" style="white-space:nowrap;font-size:22px;color:var(--mint-300);margin-top:10px">The maker locks USDC first</div></div>
       </div>
       <div class="coin usdc" id="s3usdc" style="left:${CX + 282}px;top:864px">USDC</div>
-      <div class="gcard" id="s3intents" style="left:${CX - 370}px;top:190px;width:740px;height:200px;padding:36px 40px">
+      <div class="gcard" id="s3intents" style="left:${CX - 370}px;top:158px;width:740px;height:246px;padding:34px 40px">
         <div class="display" style="font-size:52px;letter-spacing:-0.035em">NEAR Intents</div>
-        <div style="display:flex;gap:12px;margin-top:22px"><span class="chip" style="font-size:24px">${svg(ICON.key, 26, 2)}&nbsp; Key made in your browser</span><span class="chip" style="font-size:24px">Gas from the maker</span></div>
+        <div style="display:flex;gap:12px;margin-top:22px"><span class="chip" style="font-size:24px">${svg(ICON.key, 26, 2)}&nbsp; New key for each swap</span><span class="chip" style="font-size:24px">Gas from the maker</span></div>
+        <div style="margin-top:16px;font-size:25px;line-height:1.3;color:var(--mint, #9fe3c8)">Nothing links the swap to your existing accounts.</div>
       </div>
       <div class="abs" id="s3chips" style="left:0;top:0"></div>
       <div class="abs display" id="s3count" style="left:${CX - 400}px;width:800px;top:930px;text-align:center;font-size:44px;letter-spacing:-0.03em;color:#fff"><span id="s3countN">0</span> chains in the swap form</div>`;
