@@ -108,7 +108,7 @@ record is `deploy/deployment.testnet-light.json`; a copy is the section `light_p
 `deploy/deployment.testnet.json`. `zecret-deploy verify` also checks, at one final
 block, that the escrow's Verifier balance covers its `get_owed(token)`, and reports the
 maker's Verifier balance. The owner's balance was 0.83 NEAR before; the tool added one
-faucet account (10 NEAR) and spent 7.42 NEAR (escrow code storage 4.72 + 0.2 margin,
+faucet account (10 NEAR); the owner holds 3.90 NEAR after, so 6.93 NEAR went out (escrow account 4.72 for its code + 0.2 margin,
 maker 2, gas). Swaps on it: `docs/TESTNET.md`, "Light payout on testnet". How to move the
 live site and maker to it: `docs/LIGHT_PAYOUT_SWITCH.md`.
 
