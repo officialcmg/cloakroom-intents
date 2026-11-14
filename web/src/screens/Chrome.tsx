@@ -191,10 +191,6 @@ export function Footer({ full }: { full?: boolean }) {
           <a href={SITE_URL}>cloakroom.chrismg.dev</a>
         </div>
       </div>
-      <p className="site-footer-word" aria-hidden="true">
-        <span className="site-footer-word-2">Intents</span>
-        <span className="site-footer-word-1">CLOAKROOM</span>
-      </p>
     </footer>
   );
 }

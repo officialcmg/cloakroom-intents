@@ -111,11 +111,6 @@ export function Landing() {
         <ChainStrip />
 
         <section id="steps" className="panel panel-light steps-panel" aria-labelledby="steps-title">
-          <p className="marquee-words" aria-hidden="true">
-            <span>
-              Shielded ZEC <i>·</i> Escrow on NEAR <i>·</i> USDC <i>·</i> 30+ chains <i>·</i> Shielded ZEC <i>·</i> Escrow on NEAR <i>·</i> USDC <i>·</i> 30+ chains <i>·</i>
-            </span>
-          </p>
           <SectionHead id="steps" eyebrow="How it works" title={<>How a swap <em className="serif">works</em></>}>
             Five steps. You act in the first two, and your browser does the rest.
           </SectionHead>
@@ -234,7 +229,7 @@ export function Landing() {
 
         <section id="status" className="section status" aria-labelledby="status-title">
           <div className="status-text" data-reveal>
-            <SectionHead id="status" eyebrow="Status" title={<>Project <em className="serif">status</em></>} align="start">
+            <SectionHead id="status" eyebrow="Status" title="Project status" align="start">
               {MAINNET_BUILD
                 ? 'This site runs on Zcash mainnet and NEAR mainnet with real USDC. The results below are from the test networks. No audit was done.'
                 : `Runs on Zcash testnet and NEAR testnet with a test USDC token that has no value. ${MAINNET_STATE}`}
@@ -265,7 +260,7 @@ export function Landing() {
         </section>
 
         <section id="faq" className="section faq-section" aria-labelledby="faq-title">
-          <SectionHead id="faq" eyebrow="Questions" title={<>Questions and <em className="serif">answers</em></>} />
+          <SectionHead id="faq" eyebrow="Questions" title="Questions and answers" />
           <div className="faq" data-reveal>
             <Faq q="Which wallets can pay?">
               A wallet that can send shielded ZEC to a unified address on the same network. On testnet, use testnet ZEC. In the tests, the payment came from the project’s own
@@ -299,7 +294,7 @@ export function Landing() {
             {MAINNET_BUILD ? 'Mainnet' : 'Testnet'}
           </p>
           <h2 id="final-title" className="section-title">
-            Try it on <em className="serif">{MAINNET_BUILD ? 'mainnet' : 'testnet'}</em>
+            Try it on {MAINNET_BUILD ? 'mainnet' : 'testnet'}
           </h2>
           <p className="final-hint">Opening the app downloads the swap engine (about 9 MB). Your browser then prepares its keys for about 20 s.</p>
           <div className="hero-ctas">
