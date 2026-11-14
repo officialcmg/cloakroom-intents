@@ -3,7 +3,7 @@
   "version": 1,
   "network": "testnet",
   "updatedAt": "2026-11-13T11:01:08.800Z",
-  "status": "online",
+  "status": "paused",
   "maker": {
     "name": "Zecret testnet maker",
     "zcashAddress": "utest10kyef9lq7c637hlxx3fwdfrkukqnttzswcr4ukes5h3ewzca4e4nzycm73txxfgf44azfyngreys08dpzxqp8eah8dwacktj3s5yu0wv",
