@@ -12,3 +12,10 @@
 [hosted 05:19:47 +287s] stage escrow_open
 [hosted 05:20:18 +317s] stage funding_sent
 [hosted 05:20:35 +334s] stage funding_confirming
+[hosted 05:22:01 +421s] stage committing
+[hosted 05:22:03 +423s] stage claiming
+[hosted 05:22:09 +429s] stage claimed
+[hosted 05:22:17 +437s] stage exiting
+[hosted 05:22:22 +442s] stage done
+[hosted 05:22:22 +442s] PASS  the page reached done done ""
+[hosted 05:22:22 +442s] PASS  no Content-Security-Policy violation 

@@ -15,3 +15,9 @@
 - Not changed: the app. The maker and the browser engine already treat a failed Zcash
   read as a warning and read again on the next tick.
 - Open point for mainnet: the app depends on one public light-wallet server per network.
+
+## 06:09 UTC: soak paused for the switch to the light-payout escrow
+
+Slots 01 to 13 ran on `escrow2` (12 done, slot 09 failed in the test script, see above).
+The script was stopped between swaps. The site was paused, then the maker and the site
+were moved to `escrow3`. The slots that fall in this window are recorded as `switch`.
