@@ -174,22 +174,23 @@ python3 -I harness/run.py s1
 It ends with (amounts are in the stand-in token's base units):
 
 ```text
-[harness 06:27:43]   PASS  taker's balance inside intents.near equals the price 30000000000000000000000000
-[harness 06:27:43]   PASS  escrow credit of the taker is zero after withdraw
-[harness 06:27:43]   PASS  maker paid exactly the price 30000000000000000000000000
-[harness 06:27:43]   PASS  maker ZEC: +lot + premium - quote fee (exact) 100040000
-[harness 06:27:43]   PASS  taker ZEC: -(lot + sweep fee) - premium - 3 tx fees (exact) 100090000
-[harness 06:27:43]   PASS  privacy audit: all 5 Zcash txs by maker/taker are fully shielded Ironwood v6 (no transparent in/out) []
-[harness 06:27:43]   PASS  R4: per-swap secrets erased by every party in a terminal stage (b, s_M, e_M / a, s_T, e_T; joint FVK) checked=['maker:Swept', 'taker:Completed'] not_terminal=[] bad=[]
-[harness 06:27:45] SUMMARY: s1 PASS (79s)
+[harness 03:38:19]   PASS  taker's balance inside intents.near equals the price 30000000000000000000000000
+[harness 03:38:19]   PASS  escrow payout of the swap is Paid paid
+[harness 03:38:19]   PASS  the taker's key sent withdraw itself E8QMv2Ars135RCRRfpp13jdHfKoGpMbdWbWwxUXebBae
+[harness 03:38:20]   PASS  the escrow's Verifier balance covers what it owes (one final block) balance 0 owed 0 at block 146
+[harness 03:38:20]   PASS  maker paid exactly the price 30000000000000000000000000
+[harness 03:38:20]   PASS  maker ZEC: +lot + premium - quote fee (exact) 100040000
+[harness 03:38:20]   PASS  taker ZEC: -(lot + sweep fee) - premium - 3 tx fees (exact) 100090000
+[harness 03:38:20]   PASS  privacy audit: all 5 Zcash txs by maker/taker are fully shielded Ironwood v6 (no transparent in/out) []
+[harness 03:38:20]   PASS  R4: per-swap secrets erased by every party in a terminal stage (b, s_M, e_M / a, s_T, e_T; joint FVK) checked=['maker:Swept', 'taker:Completed'] not_terminal=[] bad=[]
 ```
 
 Above these lines the runner prints the earlier checks: the taker reached `Completed`, the
 maker reached `Swept`, the escrow is `Claimed` at a final block, the taker's NEAR account
 is the hex of its key and the stipend created it, and the taker sent `commit_claim` and
-`claim` itself. The scenario took 79 s on the build machine; the first run also compiles.
+`claim` itself. The scenario took 66 s on the build machine; the first run also compiles.
 
-Run all 22 scenarios:
+Run all 23 scenarios:
 
 ```sh
 python3 -I harness/run.py
@@ -197,11 +198,11 @@ python3 -I harness/run.py
 
 The last line is `SUMMARY:` with `PASS` for each scenario. The runner writes
 `harness/RESULTS.md` (what each scenario tests) and overwrites `harness/evidence/`. The
-last full run (2026-11-14 01:24 UTC) passed all 22. It builds the escrow and `zecret`
+last full run (2026-11-14 04:04 UTC, branch `escrow-light-payout`) passed all 23. It builds the escrow and `zecret`
 with the test-only `misbehave` feature, and uses ports 18232, 3030 and 24667; the browser
 runner uses 24667 too, so do not run both at once.
 
-The five browser scenarios run with `node harness/browser/run.mjs`
+The six browser scenarios run with `node harness/browser/run.mjs`
 ([`web/README.md`](web/README.md), "Against the local network").
 
 ### 4. Check the testnet deployment (read-only)
@@ -553,7 +554,7 @@ disclosure.
 | Browser | None (Cloakroom's UI drove a local client) | A taker engine in a Web Worker; a new website with a landing page |
 | Exit to other chains | None | `zecret-intents`: 1Click quote, check before signing, signed exit |
 | Deployment | Base | `zecret-deploy`; a NEAR testnet deployment; the website on Vercel and the maker on Railway, on testnet |
-| Tests | Scenarios on Zebra regtest and anvil | 22 scenarios on Zebra regtest and a NEAR sandbox; sandbox tests with live `intents.near`, `wrap.near` and USDC code; 5 browser scenarios; website unit and browser tests; six swaps on public test networks |
+| Tests | Scenarios on Zebra regtest and anvil | 23 scenarios on Zebra regtest and a NEAR sandbox; sandbox tests with live `intents.near`, `wrap.near` and USDC code; 6 browser scenarios; website unit and browser tests; six swaps on public test networks |
 | Security | Cloakroom audit notes for the Solidity escrow | Three reviews of the new code, with fixes |
 
 ### Libraries, templates and tools
