@@ -12,3 +12,6 @@
 {"slot": "12", "at": "2026-11-14T05:45:00Z", "secs": 449, "exit": 0, "result": "done", "stage": "done", "title": "You received 0.2877 test USDC on NEAR", "tail": ""}
 {"slot": "13", "at": "2026-11-14T06:00:00Z", "secs": 491, "exit": 0, "result": "done", "stage": "done", "title": "You received 0.2877 test USDC on NEAR", "tail": ""}
 {"slot": "14", "at": "2026-11-14T06:15:00Z", "result": "switch", "note": "site paused for the move to escrow3; a health swap on escrow3 passed at 06:25 (testnet/hosted/result-light-payout-first.json)"}
+{"slot":"15","at":"2026-11-14T06:30:00Z","result":"missed"}
+{"slot":"16","at":"2026-11-14T06:45:00Z","result":"missed"}
+{"slot":"17","at":"2026-11-14T07:00:00Z","result":"missed"}

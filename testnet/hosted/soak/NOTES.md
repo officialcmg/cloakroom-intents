@@ -34,3 +34,14 @@ were moved to `escrow3`. The slots that fall in this window are recorded as `swi
   state Claimed, payout paid; the taker's account held 0.0571 NEAR afterwards.
 - Slot 14 (06:15) is recorded as `switch`. Slots 15 and later run on `escrow3`. Two
   slots are added at the end (11:00 and 11:15) for slot 09 and slot 14.
+
+## Slots 15, 16, 17 (06:30 to 07:00 UTC): missed, the build machine restarted
+
+- Symptom: no result lines after slot 14; at 07:21 the soak script was not running.
+- Cause: the build machine (the cloud container that runs the test script) restarted at
+  about 06:35 and killed the script and the browser of slot 15. The site and the maker
+  run elsewhere and were not affected.
+- Fix: the hourly check started the script again at 07:21. Slots 15 to 17 are recorded
+  as `missed`. Three slots are added at the end (11:30, 11:45, 12:00) in their place.
+- Slot 15's swap was cut off in the test browser. Its recovery file is in
+  `.tools/testnet/hosted/` on the build machine.
