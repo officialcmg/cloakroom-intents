@@ -1,6 +1,6 @@
 # Launch film
 
-The launch film of Cloakroom Intents: 70 seconds, 1920 x 1080, 30 fps, silent. Every
+The launch film of Cloakroom Intents: 87.6 seconds, 1920 x 1080, 30 fps, silent. Every
 frame is rendered from HTML, CSS and SVG in headless Chromium, so a frame is the same on
 every render. The product scene uses one real swap, recorded on the live testnet site.
 
@@ -18,9 +18,11 @@ and timings, the speed of each sped-up part, and the source of every claim on sc
 | `src/engine.js` | Easing curves and helpers. Nothing reads the clock. |
 | `src/brand.js` | The name, URL and logo mark, in one place. |
 | `src/chains.js` | The destination chains, copied from `web/src/lib/chainNames.ts`. |
+| `src/chainIcons.js` | The chain logos of scene 3, written by `make_chain_icons.mjs` from `web/src/ui/chainIconData.ts`. Sources and licences of the logos: `web/src/assets/chains/SOURCES.md`. |
 | `src/footage.js` | Written by `cut_footage.py`: the footage frames and the page's boxes. |
 | `record.mjs` | Records one real swap on the live site (adapted from `testnet/hosted/record-demo.mjs`). |
 | `cut_footage.py` | Cuts the recording into the footage of scene 4. |
+| `make_chain_icons.mjs` | Writes `src/chainIcons.js`. Run it again when the site's logos change. |
 | `render.mjs` | Renders frames or stills. |
 | `render.sh` | Cuts, renders and encodes the film. |
 | `assets/fonts/` | The site's fonts (SIL OFL 1.1; licences next to them). |
@@ -46,6 +48,23 @@ video/render.sh /path/to/raw /path/to/work
 Stills while you edit: `node video/render.mjs stills /tmp/st 3,12.5,40` writes PNGs of
 those film times.
 
+## Timeline
+
+| Scene | Window (s) | Content |
+|---|---|---|
+| 1 Cold open | 0.0–8.4 | "Shielded ZEC → 30+ chains", then the wordmark |
+| 2 The problem | 7.6–20.9 | Unshielding first; the paragraph on bridged ZEC |
+| 3 The idea | 20.1–37.6 | Three numbered lines; the chains with their logos |
+| 4 The product | 36.8–67.2 | The real swap (footage from 37.7 s) |
+| 5 Proof | 66.4–79.0 | Four numbers; the status of the exit |
+| 6 End card | 78.2–87.6 | Design D, QR code still from 81.6 s |
+
+`SC` in `src/scenes.js` is computed from each scene's length. `HOLDS` there sets where a
+scene stops to let a text be read: the entrances keep their speed and only the time in
+which nothing moves gets longer. The speeds of the product scene are in `cut_footage.py`
+(form 4×, price and payment screen at real speed, progress about 73×, claim and delivery
+6.5×, the finished swap 6.4 s at real speed).
+
 ## Change a line of text
 
 - Scenes 1, 2, 5 and 6: edit the text in `src/film.html`. Headings with `data-text` mark
@@ -61,7 +80,7 @@ those film times.
 Scene 6 has four designs, A to D (`video/endcard-options.png`). `ENDCARD` at the top of
 `src/scenes.js` picks one. `ENDCARD=B node video/render.mjs stills ...` renders another
 for one run. The QR code is `src/qr.js`, written by `node video/make_qr.mjs` from the URL
-(error correction Q, quiet zone of 4 modules). It is still from 65.0 s to the end.
+(error correction Q, quiet zone of 4 modules). It is still from 81.6 s to the end (6 s).
 
 Every claim must have a source: add it to `launch-facts.json` when you change one.
 
@@ -70,5 +89,5 @@ Every claim must have a source: add it to `launch-facts.json` when you change on
 Record a new swap (step 1) and run `render.sh` with the new raw folder. The camera and
 the callouts follow the page by the boxes that `record.mjs` logs (`boxes.json`), so a new
 recording needs no hand-placed coordinates. The speed of the progress part is chosen so
-that it lasts about 9.6 seconds of film; the clock always shows the true time since the
-payment.
+that it lasts about 6 seconds of film; the clock always shows the true time since the
+payment. The length of scene 4 follows the footage.

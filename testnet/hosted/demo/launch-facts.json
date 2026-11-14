@@ -1,7 +1,7 @@
 {
   "film": {
     "file": "cloakroom-intents-launch.mp4",
-    "seconds": 70,
+    "seconds": 87.6,
     "size": "1920x1080",
     "fps": 30,
     "audio": "silent AAC"
@@ -208,56 +208,56 @@
     "paymentToDoneSecs": 470.6
   },
   "edit": {
-    "footageStartsAtFilmSecs": 26.7,
+    "footageStartsAtFilmSecs": 37.699999999999996,
     "segments": [
       {
         "sourceFromSecs": 12.9,
         "sourceToSecs": 24.94,
-        "speed": 5.0,
+        "speed": 4.0,
         "kind": "form",
-        "filmFromSecs": 26.7
+        "filmFromSecs": 37.7
       },
       {
         "sourceFromSecs": 24.72,
-        "sourceToSecs": 27.8,
+        "sourceToSecs": 28.6,
         "speed": 1.0,
         "kind": "price",
-        "filmFromSecs": 29.1
+        "filmFromSecs": 40.7
       },
       {
         "sourceFromSecs": 55.83,
         "sourceToSecs": 59.53,
         "speed": 1.0,
         "kind": "pay",
-        "filmFromSecs": 32.17
+        "filmFromSecs": 44.57
       },
       {
         "sourceFromSecs": 59.53,
         "sourceToSecs": 82.23,
         "speed": 18.91,
         "kind": "paying",
-        "filmFromSecs": 35.87
+        "filmFromSecs": 48.27
       },
       {
         "sourceFromSecs": 82.23,
         "sourceToSecs": 519.84,
         "speed": 73.0,
         "kind": "progress",
-        "filmFromSecs": 37.07
+        "filmFromSecs": 49.47
       },
       {
         "sourceFromSecs": 519.84,
         "sourceToSecs": 554.41,
-        "speed": 8.0,
+        "speed": 6.5,
         "kind": "claim",
-        "filmFromSecs": 43.07
+        "filmFromSecs": 55.47
       },
       {
         "sourceFromSecs": 554.41,
-        "sourceToSecs": 559.61,
+        "sourceToSecs": 560.81,
         "speed": 1.0,
         "kind": "done",
-        "filmFromSecs": 47.4
+        "filmFromSecs": 60.8
       }
     ],
     "note": "speed is source seconds per film second. The clock in the film shows the true time since the payment on every frame after it."
@@ -265,42 +265,42 @@
   "claims": [
     {
       "text": "Shielded ZEC → 30+ chains",
-      "when": "0–4 s",
+      "when": "0–5 s",
       "source": "README.md (top): \"swapping shielded ZEC for tokens on 30+ chains\"; web/src/lib/chainNames.ts lists 35 destination chains"
     },
     {
       "text": "Swapping ZEC today means unshielding it first. NEAR Intents can already swap ZEC. But that ZEC is a bridged token: it left the shielded pool for a transparent address first.",
-      "when": "6–14 s",
+      "when": "8–21 s",
       "source": "README.md \"The problem\": inside NEAR Intents ZEC is the NEP-141 token nep141:zec.omft.near (1Click token list, 2026-11-13), not shielded ZEC; Cloakroom paper quote on routes through a transparent address"
     },
     {
       "text": "The ZEC stays shielded the whole way.",
-      "when": "14–26 s",
+      "when": "20–37 s",
       "source": "README.md \"The problem\": \"Zecret keeps the ZEC in the shielded pool for the whole swap\"; web Landing.tsx privacy section"
     },
     {
       "text": "The ZEC goes to a shielded address. Its key is split in two halves. (Your browser / The maker)",
-      "when": "15–26 s",
+      "when": "21–37 s",
       "source": "README.md top: spending key split in two halves, the user holds one, the maker the other"
     },
     {
       "text": "An escrow on NEAR releases the USDC to whoever reveals the right half. The maker locks USDC first.",
-      "when": "18–26 s",
+      "when": "26–37 s",
       "source": "README.md top and Terms (\"Escrow\": claim(a) / refund(b)); Landing.tsx FlowDiagram \"Locks USDC first\""
     },
     {
       "text": "The USDC lands in NEAR Intents under a key made in your browser (gas from the maker). One signature sends it on.",
-      "when": "22–26 s",
+      "when": "31–37 s",
       "source": "README.md top; Terms \"Stipend\" (0.06 NEAR from the maker to the taker's new NEAR key)"
     },
     {
-      "text": "35 chains in the swap form (chain names as text)",
-      "when": "24–26 s",
-      "source": "web/src/lib/chainNames.ts (35 entries)"
+      "text": "35 chains in the swap form (chain names, each with its logo)",
+      "when": "33–37 s",
+      "source": "web/src/lib/chainNames.ts (35 entries); logos from web/src/ui/chainIconData.ts, sources and licences in web/src/assets/chains/SOURCES.md"
     },
     {
       "text": "Live on Zcash testnet and NEAR testnet · test money",
-      "when": "26–52 s (badge)",
+      "when": "37–67 s (badge)",
       "source": "README.md Status; visible in footage (site banner and network tag)"
     },
     {
@@ -335,37 +335,37 @@
     },
     {
       "text": "Real swaps on public test networks. 32 real swaps completed; 35 destination chains in the swap form",
-      "when": "52–62 s",
+      "when": "66–79 s",
       "source": "README.md Status (\"32 completed\"); web/src/lib/chainNames.ts (35 chains). Counts as of 2026-11-14, before this recording."
     },
     {
       "text": "6–9 minutes per swap, mostly waiting for Zcash blocks",
-      "when": "52–62 s",
+      "when": "66–79 s",
       "source": "docs/TESTNET.md soak: 12 back-to-back swaps took 364 to 574 s; README.md hosted runs 314–493 s"
     },
     {
       "text": "0 bridges or custodians holding the ZEC",
-      "when": "52–62 s",
+      "when": "66–79 s",
       "source": "README.md top: the ZEC goes to a shielded address spent only with both key halves"
     },
     {
       "text": "Exit to other chains: built. The live mainnet contract accepts its signed message in a read-only simulation. Not yet run with funds.",
-      "when": "56–62 s",
+      "when": "70–79 s",
       "source": "README.md Status, \"Exit through NEAR Intents on mainnet\" and the brief's fact list; docs/INTENTS.md"
     },
     {
       "text": "Shielded ZEC to 30+ chains. No bridge holds your coins.",
-      "when": "62–70 s",
+      "when": "78–88 s",
       "source": "as above"
     },
     {
       "text": "cloakroom.chrismg.dev",
-      "when": "62–70 s",
+      "when": "78–88 s",
       "source": "the live site, which showed \"Cloakroom Intents\" at the recording"
     },
     {
       "text": "Testnet today · Built on Cloakroom · NEAR HACKATHON 2026",
-      "when": "62–70 s",
+      "when": "78–88 s",
       "source": "README.md: testnet only, mainnet not deployed; built on Cloakroom (commit 2f8e2f7); NEAR HACKATHON 2026-11-01 to 2026-11-14"
     }
   ]

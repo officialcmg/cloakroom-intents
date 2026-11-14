@@ -127,7 +127,8 @@
     ro.querySelector('.lbl').textContent = paid ? 'Real time since payment' : fr.spd > 1 ? 'Sped up' : 'Real speed';
     $('s4clk').textContent = paid ? fmtClock(fr.e) : `${fr.spd}×`;
     $('s4clk').style.display = paid || fr.spd > 1 ? '' : 'none';
-    const spdTxt = fr.spd > 1 ? `${Math.round(fr.spd)}× speed` : 'real speed';
+    const spdN = Number.isInteger(fr.spd) ? String(fr.spd) : fr.spd.toFixed(1); // the factor in effect, not rounded to a whole number
+    const spdTxt = fr.spd > 1 ? `${spdN}× speed` : 'real speed';
     $('s4spd').textContent = spdTxt;
     $('s4spd').style.display = paid ? '' : 'none';
     // Callouts with leaders to the page.

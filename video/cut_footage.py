@@ -25,7 +25,7 @@ for f in FR.glob('*.jpg'):
     f.unlink()
 FPS = 30
 PROGRESS_SECS = 6.0  # film seconds for the time from payment to the claim's start
-CLAIM_SPEED = 8.0    # the claim and the delivery, about 30 s of real time
+CLAIM_SPEED = 6.5    # the claim and the delivery, about 35 s of real time
 
 marks = json.load(open(RAW / 'marks.json'))
 facts = json.load(open(RAW / 'facts.json'))
@@ -47,13 +47,13 @@ progress_factor = round((claim_from - pay_sent) / PROGRESS_SECS)
 
 # (source from, source to, speed, kind)
 segs = [
-    (m('form_ready') + 0.2, m('paste_return') + 0.5, 5.0, 'form'),
-    (m('price_wait_end') - 0.3, m('price_shown') + 0.7, 1.0, 'price'),
+    (m('form_ready') + 0.2, m('paste_return') + 0.5, 4.0, 'form'),
+    (m('price_wait_end') - 0.3, m('price_shown') + 1.5, 1.0, 'price'),
     (m('pay_screen') + 0.4, m('pay_start') + 0.6, 1.0, 'pay'),
     (m('pay_start') + 0.6, pay_sent, max(1.0, (pay_sent - m('pay_start') - 0.6) / 1.2), 'paying'),
     (pay_sent, claim_from, float(progress_factor), 'progress'),
     (claim_from, final, CLAIM_SPEED, 'claim'),
-    (final, final + 5.2, 1.0, 'done'),
+    (final, final + 6.4, 1.0, 'done'),
 ]
 
 frames, events, k = [], {}, 0

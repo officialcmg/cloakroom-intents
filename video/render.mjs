@@ -36,7 +36,7 @@ if (mode === 'stills') {
   const from = Number(a ?? 0), workers = Number(w ?? 1);
   const { browser, page } = await open();
   const dur = await page.evaluate(() => window.FILM.DURATION);
-  const to = Number(b ?? dur);
+  const to = b ? Number(b) : dur;
   const f0 = Math.round(from * FPS), f1 = Math.round(to * FPS);
   if (workers > 1) {
     await browser.close();

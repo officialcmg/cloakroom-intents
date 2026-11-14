@@ -16,17 +16,42 @@
   };
   const svg = (d, size, sw = 1.8, extra = '') => `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" stroke-width="${sw}" ${extra}><path d="${d}"/></svg>`;
 
-  // Scene windows on the film timeline (seconds). Each scene overlaps the one before it
-  // by its reveal.
-  const SC = {
-    s1: [0, 6.4],
-    s2: [5.6, 14.4],
-    s3: [13.6, 26.6],
-    s4: [25.8, 52.6],
-    s5: [51.8, 62.4],
-    s6: [61.6, 70.0],
+  // Holds: [scene time, seconds]. At each one the scene's choreography stops for that
+  // long, so a text that has fully entered stays still to be read. Entrances keep their
+  // speed; only the slow background drift goes on.
+  const HOLDS = {
+    s1: [[3.45, 0.8], [5.9, 1.2]],
+    s2: [[6.25, 4.5]],
+    s3: [[4.6, 1.2], [8.15, 1.3], [11.9, 2.0]],
+    s5: [[4.45, 2.0]],
   };
-  const DURATION = 70.0;
+  const warp = (t, holds = []) => {
+    let off = 0;
+    for (const [at, d] of holds) {
+      if (t - off <= at) break;
+      if (t - off < at + d) return at;
+      off += d;
+    }
+    return t - off;
+  };
+  const held = (id) => (HOLDS[id] || []).reduce((a, [, d]) => a + d, 0);
+  // Scene lengths (seconds) and the windows on the film timeline. Each scene overlaps the
+  // one before it by 0.8 s, its reveal. Scene 4 lasts as long as the footage plus its lead.
+  const LEN = {
+    s1: 6.4 + held('s1'),
+    s2: 8.8 + held('s2'),
+    s3: 13.0 + held('s3'),
+    s4: (window.FOOTAGE ? window.FOOTAGE.events.end : 25.9) + 0.9,
+    s5: 10.6 + held('s5'),
+    s6: 8.4 + 1.0,
+  };
+  const SC = {};
+  let at = 0;
+  for (const id of ['s1', 's2', 's3', 's4', 's5', 's6']) {
+    SC[id] = [Math.round(at * 30) / 30, Math.round((at + LEN[id]) * 30) / 30];
+    at += LEN[id] - 0.8;
+  }
+  const DURATION = SC.s6[1];
 
   // ---------- brand ----------
   // The end card has four designs. Pick one here; `?endcard=B` in the page URL (or
@@ -51,9 +76,10 @@
   // ---------- scene 1: cold open ----------
   const s1a = chars($('s1a'));
   const s1wordChars = [...$('s1word').children];
-  function scene1(t) {
-    T($('s1glow'), { x: Math.sin(t * 0.35) * 60 + t * 18, y: Math.cos(t * 0.3) * 30, o: 0.55 + 0.45 * prog(t, 0, 2.5, ease.inOutSine) });
-    T($('s1arc'), { y: (1 - prog(t, 0, 3.5, ease.outCubic)) * 200 - t * 6, o: prog(t, 0.2, 2.5) });
+  function scene1(t0) {
+    const t = warp(t0, HOLDS.s1);
+    T($('s1glow'), { x: Math.sin(t0 * 0.35) * 60 + t0 * 18, y: Math.cos(t0 * 0.3) * 30, o: 0.55 + 0.45 * prog(t0, 0, 2.5, ease.inOutSine) });
+    T($('s1arc'), { y: (1 - prog(t0, 0, 3.5, ease.outCubic)) * 200 - t0 * 6, o: prog(t0, 0.2, 2.5) });
     // "Shielded ZEC" tracks in.
     const out = prog(t, 3.8, 0.7, ease.inCubic);
     $('s1a').style.letterSpacing = `${lerp(0.06, -0.045, prog(t, 0.2, 2.2, ease.outQuart))}em`;
@@ -113,11 +139,12 @@
     html += `<div class="abs mono" id="s2tag" style="left:${NODES[1].x - 250}px;width:500px;top:${NY - 150}px;text-align:center"><span style="display:inline-block;white-space:nowrap;padding:10px 18px;border-radius:999px;background:#fbf0da;color:var(--warn);font-size:22px">Leaves the shielded pool</span></div>`;
     d.innerHTML = html;
   }
-  function scene2(t) {
+  function scene2(t0) {
+    const t = warp(t0, HOLDS.s2);
     // Reveal: a light panel rises over the cold open.
     const r = prog(t, 0, 0.95, ease.inOutQuint);
     $('s2').style.clipPath = r < 1 ? `inset(${(1 - r) * 100}% 0 0 0 round ${lerp(80, 0, r)}px ${lerp(80, 0, r)}px 0 0)` : 'none';
-    T($('s2arc'), { y: (1 - r) * 240 - t * 8 });
+    T($('s2arc'), { y: (1 - r) * 240 - t0 * 8 });
     appear($('s2eye'), prog(t, 0.55, 0.8, ease.outQuint), { dy: 18 });
     revealWords(s2h, t, 0.65, { stagger: 0.07, d: 1.0 });
     NODES.forEach((n, i) => {
@@ -139,7 +166,7 @@
     appear($('s2tag'), prog(t, 3.3, 0.7, ease.outQuint), { dy: 14 });
     appear($('s2p'), prog(t, 5.2, 1.0, ease.outQuint), { dy: 24 });
     // Parallax drift.
-    T($('s2diag'), { x: -t * 3 });
+    T($('s2diag'), { x: -t0 * 3 });
   }
 
   // ---------- scene 3: the idea ----------
@@ -191,12 +218,12 @@
       const body = ic.body.replace(/id="([^"]+)"/g, `id="${pre}$1"`).replace(/url\(#([^)]+)\)/g, `url(#${pre}$1)`).replace(/href="#([^"]+)"/g, `href="#${pre}$1"`);
       return `<span class="cicon"><svg viewBox="${ic.viewBox}" aria-hidden="true">${body}</svg></span>`;
     };
-    box.innerHTML = CHAINS.map((c, i) => `<span class="chip abs" id="s3c${i}" style="font-size:26px;padding:12px 20px">${icon(c, i)}${c}</span>`).join('');
+    box.innerHTML = CHAINS.map((c, i) => `<span class="chip abs" id="s3c${i}" style="font-size:26px;padding:12px 18px 12px 16px">${icon(c, i)}${c}</span>`).join('');
   }
   let chipPos = null;
   function layoutChips() {
     // Rows centred under the NEAR Intents card.
-    const W = 940, gap = 12, rowH = 52 + 14;
+    const W = 960, gap = 10, rowH = 52 + 12;
     const rows = [[]];
     let w = 0;
     CHAINS.forEach((_, i) => {
@@ -216,10 +243,11 @@
     });
   }
   const qb = (a, c, b, p) => (1 - p) * (1 - p) * a + 2 * (1 - p) * p * c + p * p * b;
-  function scene3(t) {
+  function scene3(t0) {
+    const t = warp(t0, HOLDS.s3);
     const r = prog(t, 0, 1.0, ease.inOutQuint);
     $('s3').style.clipPath = r < 1 ? `circle(${r * 2300}px at 760px ${NY}px)` : 'none';
-    T($('s3glow'), { x: Math.sin(t * 0.3) * 50, y: t * 4 });
+    T($('s3glow'), { x: Math.sin(t0 * 0.3) * 50, y: t0 * 4 });
     appear($('s3eye'), prog(t, 0.7, 0.8, ease.outQuint), { dy: 18 });
     revealWords(s3h, t, 0.8, { stagger: 0.07, d: 1.0 });
     // Beats: active one bright.
@@ -289,10 +317,11 @@
   ];
   $('s5stats').innerHTML = STATS.map((s, i) => `<div class="stat" id="s5s${i}" style="left:${144 + (i % 2) * 848}px;top:${336 + Math.floor(i / 2) * 264}px">
     <div class="num" id="s5n${i}">0</div><div class="txt">${s.txt}</div></div>`).join('');
-  function scene5(t) {
+  function scene5(t0) {
+    const t = warp(t0, HOLDS.s5);
     const r = prog(t, 0, 0.95, ease.inOutQuint);
     $('s5').style.clipPath = r < 1 ? `inset(0 0 ${(1 - r) * 100}% 0 round 0 0 ${lerp(80, 0, r)}px ${lerp(80, 0, r)}px)` : 'none';
-    T($('s5glow'), { x: -t * 10, y: Math.sin(t * 0.4) * 30 });
+    T($('s5glow'), { x: -t0 * 10, y: Math.sin(t0 * 0.4) * 30 });
     appear($('s5eye'), prog(t, 0.6, 0.8, ease.outQuint), { dy: 18 });
     revealWords(s5h, t, 0.7, { stagger: 0.07, d: 1.0 });
     STATS.forEach((s, i) => {
@@ -308,7 +337,7 @@
   }
 
   // ---------- scene 6: end card ----------
-  // Every design enters in the first 3.4 s; the QR code is then still to the end (5 s).
+  // Every design enters in the first 3.4 s; the QR code is then still to the end (6 s).
   const markIn = (el, t, a) => {
     const m = prog(t, a, 1.0, ease.spring);
     T(el, { s: lerp(0.6, 1, m), r: lerp(-12, 0, m), o: prog(t, a, 0.35), blur: (1 - prog(t, a, 0.5)) * 8 });
