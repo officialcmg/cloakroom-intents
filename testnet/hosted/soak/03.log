@@ -1,0 +1,22 @@
+[hosted 03:30:08 +7s] payer utest1zdyw8dscgrelws… holds 174789000 zats at height 4618071
+[hosted 03:30:12 +11s] PASS  the site opened with the real engine on testnet by default (network banner) Testnet. Test money only. Details
+[hosted 03:30:38 +38s] PASS  the recovery file was saved 
+[hosted 03:30:39 +38s] stage awaiting_deposit
+[hosted 03:30:39 +38s] PASS  the page shows a testnet deposit address and amount 1000000 zats
+[hosted 03:30:54 +53s] paid 1000000 zats in 0dff4038d985588ad826c07367d39e342aa6ce3dc6c56baf4dcb535200c0031a
+[hosted 03:30:54 +53s] stage awaiting_deposit
+[hosted 03:32:12 +131s] stage deposit_confirmed
+[hosted 03:32:50 +170s] stage request_sent
+[hosted 03:33:46 +225s] stage quote_received
+[hosted 03:34:20 +259s] stage accepted
+[hosted 03:34:57 +296s] stage escrow_open
+[hosted 03:35:29 +329s] stage funding_sent
+[hosted 03:35:48 +348s] stage funding_confirming
+[hosted 03:36:32 +391s] stage ready
+[hosted 03:36:38 +397s] stage committing
+[hosted 03:36:41 +400s] stage claiming
+[hosted 03:36:48 +407s] stage claimed
+[hosted 03:36:54 +413s] stage exiting
+[hosted 03:37:00 +419s] stage done
+[hosted 03:37:00 +419s] PASS  the page reached done done ""
+[hosted 03:37:00 +419s] PASS  no Content-Security-Policy violation 
