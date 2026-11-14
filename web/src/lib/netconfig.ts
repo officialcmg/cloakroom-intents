@@ -33,6 +33,9 @@ export const MAINNET_CONFIG = 'mainnet';
 /** Whether this build may run on mainnet: only a build made with VITE_ZECRET_ALLOW_MAINNET=1. */
 export const MAINNET_ALLOWED: boolean = import.meta.env.VITE_ZECRET_ALLOW_MAINNET === '1';
 
+/** The NEAR Intents 1Click API, called from the browser with no key. */
+export const ONECLICK_DIRECT_URL = 'https://1click.chaindefuser.com';
+
 /** In the shipped mainnet file: take this value from the bundle's MAINNET_ANCHORS. */
 export const FROM_BUILD = '@build';
 
@@ -124,8 +127,15 @@ export interface NetworkConfig {
   minStipend: string;
   quoteTimeoutSecs?: number;
   maxHorizonSecs?: number;
+  /**
+   * Base URL of the 1Click API for the price preview and the 1Click exit: an http(s) URL,
+   * or a path on this site such as /api/oneclick (the proxy that adds the partner key,
+   * docs/ONECLICK_PROXY.md). Unset in the file: ONECLICK_DIRECT_URL. `parseNetworkConfig`
+   * always sets it. Older files named it exit.oneClickUrl; that name still works.
+   */
+  oneClickUrl: string;
   exit:
-    | { mode: 'oneclick'; oneClickUrl: string }
+    | { mode: 'oneclick' }
     | {
         /** No 1Click for this Verifier: the engine signs an ft_withdraw of the token to a NEAR account the user names. */
         mode: 'direct';
@@ -206,9 +216,8 @@ function parseFile(json: unknown, anchors: MainnetAnchors): NetworkConfig {
   }
   if (!/^\d+$/.test(String(json.minStipend))) throw new NetConfigError('minStipend must be a whole number of yoctoNEAR');
   if (!isObj(json.exit)) throw new NetConfigError('exit is missing');
-  if (json.exit.mode === 'oneclick') str(json.exit.oneClickUrl, 'exit.oneClickUrl');
-  else if (json.exit.mode === 'direct') str(json.exit.relayUrl, 'exit.relayUrl');
-  else throw new NetConfigError('exit.mode must be oneclick or direct');
+  if (json.exit.mode === 'direct') str(json.exit.relayUrl, 'exit.relayUrl');
+  else if (json.exit.mode !== 'oneclick') throw new NetConfigError('exit.mode must be oneclick or direct');
   if (network === 'mainnet' && json.exit.mode !== 'oneclick') throw new NetConfigError('mainnet exits through 1Click');
   // Explorer links become links on the page: https only (review 3, H3).
   for (const [k, v] of [['zcash.explorer', json.zcash.explorer], ['near.explorer', json.near.explorer]] as const) {
@@ -217,13 +226,50 @@ function parseFile(json: unknown, anchors: MainnetAnchors): NetworkConfig {
   rpcs.forEach((u, i) => {
     if (!isHttp(u)) throw new NetConfigError(`near.rpc[${i}] must be an http: or https: URL`);
   });
-  for (const [k, v] of [['zcash.zebraRpc', json.zcash.zebraRpc], ['zcash.lightwalletd', json.zcash.lightwalletd], ['exit.relayUrl', json.exit.relayUrl], ['exit.oneClickUrl', json.exit.oneClickUrl]] as const) {
+  for (const [k, v] of [['zcash.zebraRpc', json.zcash.zebraRpc], ['zcash.lightwalletd', json.zcash.lightwalletd], ['exit.relayUrl', json.exit.relayUrl]] as const) {
     if (v !== undefined && !isHttp(v)) throw new NetConfigError(`${k} must be an http: or https: URL`);
   }
+  const oneClickUrl = parseOneClickUrl(json.oneClickUrl, json.exit.oneClickUrl);
+  const exit = { ...json.exit };
+  delete exit.oneClickUrl;
   // A copy with the endpoint list in `rpcs` and the first one in `rpc`.
-  const parsed = { ...json, near: { ...json.near, rpc: rpcs[0], rpcs } } as unknown as NetworkConfig;
+  const parsed = { ...json, oneClickUrl, exit, near: { ...json.near, rpc: rpcs[0], rpcs } } as unknown as NetworkConfig;
   if (network === 'mainnet') checkMainnet(parsed, anchors);
   return parsed;
+}
+
+/**
+ * A path on this site: one leading slash, not two, only unreserved characters and slashes
+ * (no backslash, whitespace, control character or percent escape), and no `.` or `..`
+ * segment, so the path cannot be read as another host or climb out of its directory.
+ */
+const isSitePath = (u: string) => /^\/(?!\/)[A-Za-z0-9._~\-/]*$/.test(u) && !u.split('/').some((seg) => seg === '.' || seg === '..');
+
+/** `oneClickUrl`, or the older exit.oneClickUrl; both may be given only with the same value. */
+function parseOneClickUrl(top: unknown, legacy: unknown): string {
+  if (top !== undefined && legacy !== undefined && top !== legacy) throw new NetConfigError('oneClickUrl and exit.oneClickUrl name different URLs');
+  const v = top ?? legacy;
+  if (v === undefined) return ONECLICK_DIRECT_URL;
+  const u = str(v, 'oneClickUrl');
+  if (!isSitePath(u) && !isHttp(u)) throw new NetConfigError('oneClickUrl must be an http: or https: URL or a path on this site');
+  if (/[?#]/.test(u)) throw new NetConfigError('oneClickUrl must not have a query or a fragment');
+  // No whitespace or control character (the URL parser drops some of them silently) and no
+  // user name or password (fetch refuses such a URL, which would stop every 1Click call).
+  if (/\s/.test(u) || [...u].some((ch) => ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f)) throw new NetConfigError('oneClickUrl must not contain whitespace or control characters');
+  if (!isSitePath(u) && (new URL(u).username || new URL(u).password || /^[a-z]+:\/\/[^/]*@/i.test(u))) throw new NetConfigError('oneClickUrl must not have a user name or password');
+  const base = u.replace(/\/+$/, '');
+  if (!base) throw new NetConfigError('oneClickUrl must name a path, not only /');
+  return base;
+}
+
+/**
+ * The absolute 1Click base URL for this page: the configuration's oneClickUrl (a path is
+ * taken on this page's origin), or ONECLICK_DIRECT_URL without a configuration (the demo).
+ * The price preview and the engine's exit both use it.
+ */
+export function oneClickBase(c?: Pick<NetworkConfig, 'oneClickUrl'>, origin: string = typeof location === 'undefined' ? '' : location.origin): string {
+  const u = c?.oneClickUrl || ONECLICK_DIRECT_URL;
+  return (isSitePath(u) ? `${origin}${u}` : u).replace(/\/+$/, '');
 }
 
 /** Mainnet: https everywhere, and exactly the contracts compiled into the bundle (review 3, NV3-01). */
@@ -232,9 +278,10 @@ function checkMainnet(c: NetworkConfig, anchors: MainnetAnchors): void {
   const urls: [string, unknown][] = [
     ...nearRpcs(c).map((u, i): [string, unknown] => [`near.rpc[${i}]`, u]),
     ['zcash.lightwalletd', c.zcash.lightwalletd],
-    ['exit.oneClickUrl', c.exit.mode === 'oneclick' ? c.exit.oneClickUrl : undefined],
   ];
   for (const [k, v] of urls) if (!isHttps(v)) throw new NetConfigError(`on mainnet ${k} must be an https: URL`);
+  // The proxy on this site is a path; anywhere else 1Click must be https.
+  if (!isSitePath(c.oneClickUrl) && !isHttps(c.oneClickUrl)) throw new NetConfigError('on mainnet oneClickUrl must be a path on this site or an https: URL');
   // A directory on the same site is a path; anywhere else it must be https.
   if (!c.directoryUrl.startsWith('/') || c.directoryUrl.startsWith('//')) {
     if (!isHttps(c.directoryUrl)) throw new NetConfigError('on mainnet directoryUrl must be a path on this site or an https: URL');

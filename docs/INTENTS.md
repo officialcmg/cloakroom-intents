@@ -214,7 +214,8 @@ Rate limit without a key: `x-ratelimit-limit-unauth: 1200` per 60 s.
 - The Verifier takes 1 pip (0.0001 %) per transfer.
 - A key (a JWT from `partners.near-intents.org`) changes the fee schedule and allows the
   partner's own `appFees` split. If the app uses a key, the key must stay in the
-  backend; a key in the browser is public.
+  backend; a key in the browser is public. The website has that backend: the proxy in
+  `docs/ONECLICK_PROXY.md`, which sends the key as `X-API-Key`.
 
 Example prices for 5 USDC, dry, 2026-11-13 03:02 UTC: Base USDC 4.996757
 (`minAmountOut` 4.946789 at 100 bp slippage, 12 s estimate); SOL 0.061934715 (9 s); ETH

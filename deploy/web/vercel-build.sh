@@ -11,7 +11,8 @@
 #   5. builds the site with VITE_ZECRET_CONFIG=testnet unless the variable is set. A
 #      mainnet build (VITE_ZECRET_CONFIG=mainnet, a separate Vercel project, docs/MAINNET.md)
 #      stops before any work unless VITE_ZECRET_ALLOW_MAINNET=1, VITE_MAINNET_ESCROW and
-#      VITE_MAINNET_ESCROW_CODE_HASH are set and web/public/config/mainnet-directory.json exists.
+#      VITE_MAINNET_ESCROW_CODE_HASH are set and web/public/config/mainnet-directory.json exists;
+#   6. stops if the value of ONECLICK_JWT (the 1Click partner key) is in the built site.
 #
 # It also runs on any Linux x86_64 machine with dnf or with these tools already present.
 set -euo pipefail
@@ -74,4 +75,18 @@ export VITE_ZECRET_CONFIG="${VITE_ZECRET_CONFIG:-testnet}"
 step "building the site with VITE_ZECRET_CONFIG=$VITE_ZECRET_CONFIG"
 cd "$ROOT/web"
 npm run build
+# The 1Click partner key (ONECLICK_JWT, docs/ONECLICK_PROXY.md) is for the function in
+# web/api/ only. Vite puts only VITE_* variables into the bundle; this check stops the
+# deployment if the key's value is in the built site anyway. It never prints the key.
+# The value is trimmed as the function trims it; a JWT's signature part is checked on its
+# own too, so a key cut into pieces or with its header changed is still found.
+ONECLICK_KEY="$(printf '%s' "${ONECLICK_JWT:-}" | tr -d '[:space:]')"
+if [ -n "$ONECLICK_KEY" ]; then
+  ONECLICK_SIG="${ONECLICK_KEY##*.}"
+  [ "${#ONECLICK_SIG}" -ge 16 ] || ONECLICK_SIG="$ONECLICK_KEY"
+  if grep -rqF -e "$ONECLICK_KEY" -e "$ONECLICK_SIG" dist; then
+    echo "the 1Click partner key is in web/dist: stop (docs/ONECLICK_PROXY.md)" >&2
+    exit 1
+  fi
+fi
 step "done"

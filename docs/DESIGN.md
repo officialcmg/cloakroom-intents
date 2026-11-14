@@ -69,6 +69,11 @@ This section is always current. The numbered sections below give the detail.
   command-line tool reads the recovery file, signs one transfer with the taker's key and
   sends it. The rest of the stipend pays the gas. The website has no button for this
   yet.
+- The website can call 1Click through its own server function. The function adds the
+  1Click partner key, which lowers the 1Click fee. The browser never gets the key. The
+  app checks 1Click's answers from the function as strictly as answers from 1Click
+  itself. One configuration value selects 1Click or the function, for the price and for
+  the exit.
 - If the user closes the page, the keys stay in the browser's storage. The user opens
   the page again and the swap continues. The app also gives a recovery file.
 - ZEC that is left in the temporary wallet goes back to a Zcash address that the user
@@ -154,6 +159,7 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-14 | The exit believes the balance of the taker's key in NEAR Intents, not only the status from 1Click. A delivery counts when the key holds less than it signed. A retry starts when tokens are under the key again, and it sends at most the payout. A swap restored after its exit watches the key for a refund for 96 hours. The status from 1Click must carry the signed quote of its deposit address. Reason: security review 6 (`docs/security/review-6-intents-exit.md`); the status is not signed, and a refund can arrive late or short. |
 | 2026-11-14 | With only the recovery file, `scripts/mainnet-exit-test.sh rescue` moves the USDC out of NEAR Intents without 1Click. The taker's key signs one `transfer` or `ft_withdraw`, and its own NEAR account sends it with the rest of the stipend. No free relay for such an intent exists. |
 | 2026-11-14 | The mainnet templates follow the light payout. The stipend is 0.06 NEAR, and the taker accepts 0.03 NEAR. The premium is 40,000 zats, and the maker counts 0.02 NEAR of other costs for each swap. The dry run reads `min_gas_purchase_price` from the protocol config and checks that the stipend is at least 2 times the largest balance NEAR checks before the taker's three calls. See `docs/MAINNET.md`. |
+| 2026-11-14 | The website has a proxy for 1Click: one Vercel function for each of the five calls that the app makes. It adds the partner key from the environment variable `ONECLICK_JWT` as `X-API-Key`. Without the variable, it forwards with no key. It answers pages of the same site only. The configuration value `oneClickUrl` is 1Click or the path `/api/oneclick`; the price preview and the exit both use it. The app treats the proxy as untrusted transport: the checks before signing do not change. Reason: a key in the browser is public, and without a key 1Click adds 25 bp to each quote (its docs). Option B, a route on the maker on Railway, was not chosen: the proxy would be on another origin, so it would need CORS and a CSP entry, and the maker would carry public traffic. See `docs/ONECLICK_PROXY.md`. |
 
 **Open**
 

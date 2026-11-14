@@ -21,7 +21,8 @@
   "timing": { "inclusion_secs": 30, "finality_secs": 10, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 600, "k_z": 3 },
   "minStipend": "30000000000000000000000",
   "quoteTimeoutSecs": 600,
-  "exit": { "mode": "oneclick", "oneClickUrl": "https://1click.chaindefuser.com" },
+  "oneClickUrl": "https://1click.chaindefuser.com",
+  "exit": { "mode": "oneclick" },
   "honesty": [
     "This is hackathon software. No security audit was done. Reviews by the project found and fixed bugs; others can remain.",
     "The escrow keeps the swap's USDC inside NEAR Intents (intents.near) from the open to the payout. The operators of NEAR Intents can move or freeze those tokens during the whole swap.",

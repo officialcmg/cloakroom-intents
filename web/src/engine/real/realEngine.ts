@@ -41,7 +41,7 @@ import { parseDirectory, type MakerDirectory, type MakerTerms } from '../../lib/
 import { validateZcashReturnAddress } from '../../lib/address/zcash';
 import { validateDestinationAddress } from '../../lib/address/chains';
 import { paymentUri } from '../../lib/zip321';
-import { coreNetwork, explorerUrl, nearRpcs, safeLink, type NetworkConfig } from '../../lib/netconfig';
+import { coreNetwork, explorerUrl, nearRpcs, oneClickBase, safeLink, type NetworkConfig } from '../../lib/netconfig';
 import { StaleWriteError, type RecordStore } from './idb';
 import { judgePayout, readPayoutFacts, type PayoutReader } from './payoutCheck';
 import { afterFinalStatus, believeSuccess, planExitAmount, REFUND_WATCH_MS, restoredExit } from './exitPlan';
@@ -1460,7 +1460,9 @@ export class RealEngine implements EngineBackend {
     const s = this.state!;
     const m = this.meta!;
     if (cfg.exit.mode !== 'oneclick') return null;
-    const base = cfg.exit.oneClickUrl;
+    // The same base URL as the price preview: 1Click, or the site's proxy (docs/ONECLICK_PROXY.md).
+    // The proxy is untrusted transport: the engine checks 1Click's signature on the quote.
+    const base = oneClickBase(cfg);
     const exit = s.exit!;
     if (exit.phase === 'quoting') {
       // An earlier signed exit may have delivered although its submit answer was lost

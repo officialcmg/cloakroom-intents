@@ -47,6 +47,12 @@ truth (the commit) and needs no extra secret. The other ways were not chosen: co
 engine files can drift from the source; a GitHub Actions workflow would need a Vercel
 token as a repository secret.
 
+- The 1Click proxy: the functions in `web/api/oneclick/v0/` are part of the same project.
+  They forward the site's 1Click calls and add the partner key from the environment
+  variable `ONECLICK_JWT` (Production only, Secret). Without the variable they forward
+  with no key. The configurations point at the proxy only after it is checked with a key:
+  `docs/ONECLICK_PROXY.md`.
+
 ### Maker and relay (Railway)
 
 - Service settings: source `officialcmg/zecret`, branch `main`, Dockerfile
@@ -116,6 +122,7 @@ No secret is in git or in a log.
 | Maker NEAR key (`near_key.json`) | Railway volume, `/data/near_key.json` | same |
 | Maker request key (`rfq_key.json`) | Railway volume, `/data/rfq_key.json` | same |
 | NEAR keys of the testnet deployment | `deploy/.keys/testnet/` on the build machine (not in git) | the build machine |
+| 1Click partner key (`ONECLICK_JWT`), when the owner sets it | Vercel project → Settings → Environment Variables, Production, Secret | Vercel project members can replace it, not read it; the functions in `web/api/oneclick/v0/` (`docs/ONECLICK_PROXY.md`) |
 
 The hosted maker made its own wallet and its own NEAR key on the volume at its first
 start. Only the public values were printed: the wallet's address, the NEAR public key and

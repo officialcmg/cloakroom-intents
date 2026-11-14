@@ -1,15 +1,15 @@
 // NEAR Intents 1Click API: the token list and quotes for the exit (USDC on NEAR -> any token).
-// No API key. Docs: https://docs.near-intents.org/llms.txt
+// The browser sends no API key. The base URL comes from the network configuration
+// (netconfig.ts oneClickBase): 1Click itself, or the site's proxy that adds the partner key
+// (docs/ONECLICK_PROXY.md). Docs: https://docs.near-intents.org/llms.txt
 import { chainInfo } from './address/chains';
 
 export const USDC_NEAR_ASSET = 'nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1';
 export const ZEC_NEAR_ASSET = 'nep141:zec.omft.near';
 /** 1Click's own slippage for the exit, in basis points. */
 export const EXIT_SLIPPAGE_BPS = 100;
-
-export function oneClickBase(): string {
-  return (import.meta.env.VITE_ONECLICK_URL || 'https://1click.chaindefuser.com').replace(/\/$/, '');
-}
+/** The most decimals a destination token may have (NEAR tokens have 24). */
+export const MAX_TOKEN_DECIMALS = 36;
 
 export interface Token {
   assetId: string;
@@ -49,6 +49,9 @@ export function selectDestinations(raw: unknown): TokenList {
   const destinations: Token[] = [];
   for (const r of raw as Record<string, unknown>[]) {
     if (typeof r?.assetId !== 'string' || typeof r.symbol !== 'string' || typeof r.blockchain !== 'string' || typeof r.decimals !== 'number') continue;
+    // The token list is not signed (it may come through the site's proxy): a decimals value
+    // that is not a small whole number would break or freeze the amount display (10n ** d).
+    if (!Number.isInteger(r.decimals) || r.decimals < 0 || r.decimals > MAX_TOKEN_DECIMALS) continue;
     const t: Token = {
       assetId: r.assetId,
       symbol: r.symbol,
@@ -91,10 +94,10 @@ export function classifyError(status: number, message: string): OneClickError {
   return new OneClickError(message || `1Click answered ${status}`, status, 'other');
 }
 
-async function call(path: string, init: RequestInit | undefined, signal?: AbortSignal): Promise<unknown> {
+async function call(base: string, path: string, init: RequestInit | undefined, signal?: AbortSignal): Promise<unknown> {
   let res: Response;
   try {
-    res = await fetch(`${oneClickBase()}${path}`, { ...init, signal });
+    res = await fetch(`${base}${path}`, { ...init, signal });
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e;
     throw new OneClickError('NEAR Intents could not be reached. Check your connection.', 0, 'network');
@@ -107,8 +110,9 @@ async function call(path: string, init: RequestInit | undefined, signal?: AbortS
   return body;
 }
 
-export async function fetchTokens(signal?: AbortSignal): Promise<TokenList> {
-  return selectDestinations(await call('/v0/tokens', undefined, signal));
+/** `base`: the absolute 1Click base URL (netconfig.ts oneClickBase). */
+export async function fetchTokens(base: string, signal?: AbortSignal): Promise<TokenList> {
+  return selectDestinations(await call(base, '/v0/tokens', undefined, signal));
 }
 
 export interface ExitQuoteRequest {
@@ -166,7 +170,7 @@ export function parseQuote(body: unknown, deadline: string): ExitQuote {
   };
 }
 
-export async function fetchExitQuote(req: ExitQuoteRequest, signal?: AbortSignal): Promise<ExitQuote> {
+export async function fetchExitQuote(base: string, req: ExitQuoteRequest, signal?: AbortSignal): Promise<ExitQuote> {
   const deadline = (req.deadline ?? new Date(Date.now() + 30 * 60 * 1000)).toISOString();
   const body = {
     dry: req.dry,
@@ -182,7 +186,7 @@ export async function fetchExitQuote(req: ExitQuoteRequest, signal?: AbortSignal
     recipientType: 'DESTINATION_CHAIN',
     deadline,
   };
-  const res = await call('/v0/quote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }, signal);
+  const res = await call(base, '/v0/quote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }, signal);
   return parseQuote(res, deadline);
 }
 

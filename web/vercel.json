@@ -5,6 +5,7 @@
   "buildCommand": "bash ../deploy/web/vercel-build.sh",
   "ignoreCommand": "bash ../deploy/web/vercel-ignore.sh",
   "outputDirectory": "dist",
+  "functions": { "api/oneclick/v0/*.ts": { "maxDuration": 20 } },
   "rewrites": [{ "source": "/swap", "destination": "/index.html" }],
   "headers": [
     {
