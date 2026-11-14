@@ -183,7 +183,15 @@
       <div class="abs" id="s3chips" style="left:0;top:0"></div>
       <div class="abs display" id="s3count" style="left:${CX - 400}px;width:800px;top:930px;text-align:center;font-size:44px;letter-spacing:-0.03em;color:#fff"><span id="s3countN">0</span> chains in the swap form</div>`;
     const box = $('s3chips');
-    box.innerHTML = CHAINS.map((c, i) => `<span class="chip abs" id="s3c${i}" style="font-size:26px;padding:12px 20px">${c}</span>`).join('');
+    // Each chip has the chain's logo (chainIcons.js). The ids inside a logo get a prefix per
+    // chip, so no two elements share an id.
+    const icon = (c, i) => {
+      const ic = window.CHAIN_ICONS[c];
+      const pre = `s3c${i}-`;
+      const body = ic.body.replace(/id="([^"]+)"/g, `id="${pre}$1"`).replace(/url\(#([^)]+)\)/g, `url(#${pre}$1)`).replace(/href="#([^"]+)"/g, `href="#${pre}$1"`);
+      return `<span class="cicon"><svg viewBox="${ic.viewBox}" aria-hidden="true">${body}</svg></span>`;
+    };
+    box.innerHTML = CHAINS.map((c, i) => `<span class="chip abs" id="s3c${i}" style="font-size:26px;padding:12px 20px">${icon(c, i)}${c}</span>`).join('');
   }
   let chipPos = null;
   function layoutChips() {
