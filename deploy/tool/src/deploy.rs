@@ -557,6 +557,20 @@ pub async fn ft_balance(ctx: &Ctx, token: &str, who: &str) -> Res<u128> {
     Ok(v.as_str().ok_or("ft_balance_of: not a string")?.parse()?)
 }
 
+/// `who`'s balance of `nep141:<token>` in the Verifier.
+pub async fn verifier_balance(ctx: &Ctx, intents: &str, token: &str, who: &str) -> Res<u128> {
+    let v = ctx
+        .chain
+        .rpc
+        .view_ok(
+            intents,
+            "mt_balance_of",
+            &json!({ "account_id": who, "token_id": format!("nep141:{token}") }),
+        )
+        .await?;
+    Ok(v.as_str().unwrap_or("0").parse()?)
+}
+
 pub async fn storage_funds(ctx: &Ctx, escrow: &str, who: &str, token: &str) -> Res<u128> {
     let v = ctx
         .chain
@@ -581,7 +595,7 @@ async fn ensure_maker(ctx: &mut Ctx, ids: &Ids) -> Res<()> {
 
     let target: u128 = ctx.cfg.maker.token_target.parse()?;
     let mut have = ft_balance(ctx, &ids.token, &ids.maker).await?;
-    if ctx.cfg.token.deploy {
+    if ctx.cfg.token.deploy || ctx.cfg.token.open_mint {
         while have < target {
             let amount = (target - have).min(test_usdc_max_mint());
             ctx.chain
@@ -633,6 +647,45 @@ async fn ensure_maker(ctx: &mut Ctx, ids: &Ids) -> Res<()> {
             .await?
             .require_ok()?;
     }
+    // The maker opens swaps from its own Verifier account (`mt_transfer_call`).
+    let vtarget: u128 = ctx.cfg.maker.verifier_target.parse()?;
+    let vhave = verifier_balance(ctx, &ids.intents, &ids.token, &ids.maker).await?;
+    if vhave < vtarget {
+        let add = vtarget - vhave;
+        let plain = ft_balance(ctx, &ids.token, &ids.maker).await?;
+        if plain < add {
+            return Err(format!(
+                "maker holds {plain} of {} outside the Verifier; the Verifier target needs {add} more",
+                ids.token
+            )
+            .into());
+        }
+        // The result of a deposit can be a failure after the Verifier credited the
+        // maker (USDC, docs/security/nv02-usdc.md): read the balance afterwards.
+        let o = ctx
+            .chain
+            .track(
+                &format!("token.ft_transfer_call {add} into the maker's Verifier account"),
+                true,
+                maker
+                    .call(&ids.token.parse()?, "ft_transfer_call")
+                    .args_json(
+                        json!({ "receiver_id": ids.intents, "amount": add.to_string(), "msg": "" }),
+                    )
+                    .deposit(NearToken::from_yoctonear(1))
+                    .gas(Gas::from_tgas(100))
+                    .transact_async(),
+            )
+            .await?;
+        let now = verifier_balance(ctx, &ids.intents, &ids.token, &ids.maker).await?;
+        if now < vtarget {
+            return Err(format!(
+                "after the deposit the maker holds {now} in the Verifier, below {vtarget} ({:?})",
+                o.failure()
+            )
+            .into());
+        }
+    }
     ctx.chain.record.maker = Some(MakerRec {
         account_id: ids.maker.clone(),
         public_key: maker.secret_key().public_key().to_string(),
@@ -640,6 +693,11 @@ async fn ensure_maker(ctx: &mut Ctx, ids: &Ids) -> Res<()> {
         storage_funds_yocto: storage_funds(ctx, &ids.escrow, &ids.maker, &ids.token)
             .await?
             .to_string(),
+        verifier_balance: Some(
+            verifier_balance(ctx, &ids.intents, &ids.token, &ids.maker)
+                .await?
+                .to_string(),
+        ),
     });
     ctx.chain.save()?;
     Ok(())
@@ -662,9 +720,9 @@ pub async fn deploy(ctx: &mut Ctx) -> Res<()> {
     ensure_token(ctx, &ids.token).await?;
     ensure_intents(ctx, &ids.intents).await?;
     ensure_escrow(ctx, &ids.escrow, &ids.intents).await?;
-    for who in [ids.escrow.clone(), ids.intents.clone()] {
-        ensure_registered(ctx, &ids.token, &who).await?;
-    }
+    // The escrow keeps its tokens inside the Verifier and never holds the plain token,
+    // so only the Verifier needs a storage registration on the token.
+    ensure_registered(ctx, &ids.token, &ids.intents).await?;
     ensure_maker(ctx, &ids).await?;
     Ok(())
 }

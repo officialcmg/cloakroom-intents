@@ -157,15 +157,39 @@ impl Rpc {
         method: &str,
         args: &Value,
     ) -> Res<Result<Value, RpcError>> {
-        let r = self
-            .query(json!({
-                "request_type": "call_function",
-                "finality": "final",
-                "account_id": contract,
-                "method_name": method,
-                "args_base64": B64.encode(args.to_string()),
-            }))
-            .await?;
+        self.view_where(contract, method, args, json!({ "finality": "final" }))
+            .await
+    }
+
+    /// A view call at block height `height` (read two views at the same block).
+    pub async fn view_at(
+        &self,
+        contract: &str,
+        method: &str,
+        args: &Value,
+        height: u64,
+    ) -> Res<Result<Value, RpcError>> {
+        self.view_where(contract, method, args, json!({ "block_id": height }))
+            .await
+    }
+
+    async fn view_where(
+        &self,
+        contract: &str,
+        method: &str,
+        args: &Value,
+        at: Value,
+    ) -> Res<Result<Value, RpcError>> {
+        let mut q = json!({
+            "request_type": "call_function",
+            "account_id": contract,
+            "method_name": method,
+            "args_base64": B64.encode(args.to_string()),
+        });
+        for (k, v) in at.as_object().into_iter().flatten() {
+            q[k] = v.clone();
+        }
+        let r = self.query(q).await?;
         Ok(match r {
             Ok(v) => {
                 let bytes: Vec<u8> = v["result"]

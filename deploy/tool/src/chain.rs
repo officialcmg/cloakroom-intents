@@ -163,6 +163,9 @@ pub struct MakerRec {
     pub public_key: String,
     pub token_balance: String,
     pub storage_funds_yocto: String,
+    /// The maker's token balance in its own Verifier account.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verifier_balance: Option<String>,
 }
 
 /// `deployment.<network>.json`. Public ids, hashes and heights only. No keys.

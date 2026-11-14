@@ -84,6 +84,10 @@ pub struct TokenCfg {
     pub margin_near: String,
     /// Decimals the token must report.
     pub decimals: u8,
+    /// true: the existing token (deploy = false) is the stand-in test-usdc, whose `mint`
+    /// is open to any account; the tool mints the maker's tokens. Testnet only.
+    #[serde(default)]
+    pub open_mint: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -121,6 +125,15 @@ pub struct MakerCfg {
     pub token_target: String,
     /// NEAR of escrow storage funds (`add_storage_funds`) the maker should have.
     pub storage_funds_near: String,
+    /// Token units the maker should hold in its own Verifier account. The escrow takes
+    /// swaps only from there (`mt_transfer_call`). The tool deposits the difference from
+    /// the maker's plain token balance. Default 0: no deposit.
+    #[serde(default = "zero")]
+    pub verifier_target: String,
+}
+
+fn zero() -> String {
+    "0".into()
 }
 
 impl Config {
