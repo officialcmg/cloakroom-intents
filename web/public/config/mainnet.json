@@ -23,6 +23,7 @@
   "quoteTimeoutSecs": 600,
   "oneClickUrl": "https://1click.chaindefuser.com",
   "exit": { "mode": "oneclick" },
+  "maxSwapZats": "500000",
   "honesty": [
     "This is hackathon software. No security audit was done. Reviews by the project found and fixed bugs; others can remain.",
     "The escrow keeps the swap's USDC inside NEAR Intents (intents.near) from the open to the payout. The operators of NEAR Intents can move or freeze those tokens during the whole swap.",

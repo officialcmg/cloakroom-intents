@@ -71,8 +71,13 @@ Screenshots of each screen, light and dark, desktop and phone, are in `web/scree
 
 ### Swap form
 
-- **You pay.** ZEC, with the maker's limits under the field, and the amount in US
-  dollars at the 1Click market price.
+- **You pay.** ZEC, with the payment range under the field, and the amount in US
+  dollars at the 1Click market price. The range comes from one place
+  (`effectiveTerms` in `web/src/lib/directory.ts`), which the form, the notices and the
+  engine all use: the maker's signed limits apply to the ZEC sold, so the range adds the
+  four Zcash fees and the premium to them; the directory's own `limits` narrow it; and the
+  network configuration's `maxSwapZats`, when set, caps it ("This site takes at most …").
+  The mainnet file sets 500,000 zats (0.005 ZEC) and a mainnet build requires it.
 - **You receive.** A searchable list of every token that 1Click offers on a chain the
   page can check addresses for (35 chains). Exact symbol matches come first, so "sol"
   finds SOL before USDC on Solana. The list uses coloured initials, not logos, so the
@@ -94,6 +99,17 @@ Screenshots of each screen, light and dark, desktop and phone, are in `web/scree
   floor (the swap stops and the ZEC comes back), no signed delivery whose firm minimum is
   below this amount unless the user accepts a lower one; NEAR Intents then delivers at
   least the signed minimum or returns the USDC. Delivery itself is not guaranteed.
+- **Maker liquidity.** One quiet line under the price: "Maker liquidity: 58.20 USDC",
+  with "What is this?" for the explanation. It is the maker account's token balance in the
+  Verifier (`mt_balance_of`, token id `nep141:<token>`) plus its plain token balance
+  (`ft_balance_of`), read at one final block through the configuration's NEAR RPC
+  endpoints in order (`web/src/lib/liquidity.ts`). That is what the maker counts before
+  it opens (`crates/zecret-core/src/maker.rs`). The page reads it when the form opens,
+  every minute, and when the tab is shown again, at most once per 30 s. When the swap's
+  expected USDC is more than that, the line says "The maker holds 3.10 USDC now. This swap
+  needs about 4.50." and Continue is off. A failed read shows nothing and blocks nothing.
+  The line keeps its height while it loads. The demo shows a fixed number from its
+  directory (`demo.makerLiquidityUsdc`), marked "(simulated)", and reads no network.
 - **Errors from 1Click** have their own words: "no price for this pair at this moment"
   (retried after 20 s), "too small for this route, at least N USDC", "no liquidity",
   "cannot reach NEAR Intents".
@@ -231,6 +247,7 @@ Which screen shows is a function of the swap's stage (`web/src/App.tsx`,
 | The page makes dry quotes only. | Price display needs no deposit address. Firm quotes belong to the engine. |
 | The user's minimum is 1Click's `minAmountOut` (1% slippage), scaled down to the lowest USDC the engine accepts (1% below the indicative rate). It is called "Your minimum", not a guarantee. | `minAmountOut` is exactly `amountOut × 0.99`. Measured drift over 10 minutes was at most 0.32% (docs/INTENTS.md §5), so the minimum is reachable. The engine takes a fresh firm quote at exit and does not sign below the minimum; delivery can still fail and refund (security review 3, H9). |
 | `?config=` takes only the shipped names in production builds; mainnet settings must match constants in the bundle. | The configuration chooses the escrow, the servers and the maker. A link must not choose them (security review 3, NV3-01). |
+| The header's "Testnet \| Mainnet" switch is two links to two deployments, set at build time (`VITE_ZECRET_TESTNET_URL`, default `https://cloakroom.chrismg.dev`; `VITE_ZECRET_MAINNET_URL`, unset: "Mainnet is not deployed yet"). It keeps the path (`/` or `/swap`) and drops the query. | Each build serves one network, so a link cannot switch a page to real money. Each origin keeps its own storage. The current side has `aria-current="page"`. |
 | One tab runs the engine (Web Lock), and the real engine's store refuses a write from a tab with an older copy (`web/version`). | Two engines on one swap overwrite each other's records (security review 3, NV3-02). |
 | After a failed write the engine calls nothing in the core until the write succeeds. | Nothing that reveals a secret or broadcasts may run on state that storage does not hold (security review 3, H1). |
 | Links from 1Click, configuration explorer templates and recovery files must be https. | They become links on the page (security review 3, H3). |

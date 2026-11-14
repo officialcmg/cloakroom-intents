@@ -7,6 +7,7 @@ import { usePref } from '../app/prefs';
 import { onLinkClick } from '../app/route';
 import { Icon } from '../ui/Icon';
 import { Logo } from '../ui/bits';
+import { MAINNET_BUILD, NETWORK_SITES } from '../lib/netconfig';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -33,7 +34,56 @@ const SECTIONS: [string, string][] = [
   ['#faq', 'Questions'],
 ];
 
+/**
+ * Testnet | Mainnet. Each build serves one network, so this is navigation: the other side
+ * is a plain link to the other deployment (VITE_ZECRET_TESTNET_URL, VITE_ZECRET_MAINNET_URL),
+ * at `path`, with no query. When the other deployment is not set, that side is shown off,
+ * with the reason.
+ */
+export function NetworkSwitch({ current, path, sites = NETWORK_SITES }: { current: 'testnet' | 'mainnet'; path: string; sites?: { testnet?: string; mainnet?: string } }) {
+  const items: ['testnet' | 'mainnet', string, string][] = [
+    ['testnet', 'Testnet', 'Test'],
+    ['mainnet', 'Mainnet', 'Main'],
+  ];
+  return (
+    <nav className="net-switch" aria-label="Network" data-testid="network-switch">
+      {items.map(([net, label, short]) => {
+        const text = (
+          <>
+            <span className="net-long">{label}</span>
+            <span className="net-short" aria-hidden="true">
+              {short}
+            </span>
+          </>
+        );
+        if (net === current)
+          return (
+            <a key={net} href={path} className={`net-item is-current net-${net}`} aria-current="page" aria-label={label} onClick={onLinkClick}>
+              {text}
+            </a>
+          );
+        const site = sites[net];
+        if (!site)
+          return (
+            <span key={net} className="net-item is-off" title={`${label} is not deployed yet`} data-testid={`net-${net}-off`}>
+              <span aria-hidden="true">{text}</span>
+              <span className="sr-only">{label} is not deployed yet</span>
+            </span>
+          );
+        return (
+          <a key={net} href={`${site}${path}`} className={`net-item net-${net}`} aria-label={`${label} (opens the ${label.toLowerCase()} site)`} rel="noopener">
+            {text}
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function Header({ init, network, sections, children }: { init?: InitStatus; network?: string; sections?: boolean; children?: ReactNode }) {
+  // The landing page has no network loaded: the build decides (MAINNET_BUILD).
+  const current = network === 'mainnet' || (!network && MAINNET_BUILD) ? 'mainnet' : network === undefined || network === 'testnet' ? 'testnet' : undefined;
+  const path = sections ? '/' : '/swap';
   const [theme, toggle] = useTheme();
   const systemDark = typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;
   const dark = theme === 'dark' || (theme === 'system' && systemDark);
@@ -53,7 +103,16 @@ export function Header({ init, network, sections, children }: { init?: InitStatu
           </nav>
         )}
         <div className="topbar-right">
-          {network && <span className={`pill pill-${network === 'mainnet' ? 'main' : 'test'}`}>{network === 'mainnet' ? 'Mainnet' : <><span className="pill-long">Zcash&nbsp;</span>{network}</>}</span>}
+          {current ? (
+            <NetworkSwitch current={current} path={path} />
+          ) : (
+            network && (
+              <span className="pill pill-test">
+                <span className="pill-long">Zcash&nbsp;</span>
+                {network}
+              </span>
+            )
+          )}
           {init?.engine === 'simulated' && <span className="pill pill-demo">Demo</span>}
           <button type="button" className="btn btn-ghost btn-icon theme-toggle" onClick={toggle} aria-label={dark ? 'Use light theme' : 'Use dark theme'} title={dark ? 'Light theme' : 'Dark theme'}>
             <Icon name={dark ? 'sun' : 'moon'} />
@@ -125,7 +184,10 @@ export function Footer({ full }: { full?: boolean }) {
           </nav>
         </div>
         <div className="site-footer-note">
-          <p>Testnet only. Mainnet is not deployed. Delivery prices come from NEAR Intents. Amounts round down.</p>
+          <p>
+            {MAINNET_BUILD ? 'Mainnet: real money, unaudited software.' : NETWORK_SITES.mainnet ? 'Testnet: test money only.' : 'Testnet only. Mainnet is not deployed.'} Delivery prices come from
+            NEAR Intents. Amounts round down.
+          </p>
           <a href={SITE_URL}>cloakroom.chrismg.dev</a>
         </div>
       </div>

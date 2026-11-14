@@ -9,7 +9,10 @@
 import { useEffect, type ReactNode } from 'react';
 import { APP_PATH, hasMarkedSwap, onLinkClick } from '../app/route';
 import { DESTINATION_CHAIN_NAMES } from '../lib/chainNames';
-import { MAINNET_BUILD } from '../lib/netconfig';
+import { MAINNET_BUILD, NETWORK_SITES } from '../lib/netconfig';
+
+/** True for this build: whether a mainnet site is configured (VITE_ZECRET_MAINNET_URL). */
+const MAINNET_STATE = NETWORK_SITES.mainnet ? 'Mainnet runs on a separate site.' : 'Mainnet is not deployed.';
 import { Icon, type IconName } from '../ui/Icon';
 import { Logo } from '../ui/bits';
 import { useReveal } from '../ui/reveal';
@@ -82,7 +85,7 @@ export function Landing() {
             <p className="hero-note appear">
               {MAINNET_BUILD
                 ? 'This site runs on Zcash mainnet and NEAR mainnet with real money. It is hackathon software with no security audit. The maker takes only small swaps. Pay only what you can afford to lose.'
-                : 'This runs on Zcash testnet and NEAR testnet today, with test money. Mainnet is not deployed. On testnet the tokens arrive in your NEAR testnet account, and the price shown for other chains is a mainnet preview.'}
+                : `This runs on Zcash testnet and NEAR testnet, with test money. ${MAINNET_STATE} On testnet the tokens arrive in your NEAR testnet account, and the price shown for other chains is a mainnet preview.`}
             </p>
             <div className="hero-ctas appear">
               <AppLink className="btn btn-light btn-lg">
@@ -234,7 +237,7 @@ export function Landing() {
             <SectionHead id="status" eyebrow="Status" title={<>Project <em className="serif">status</em></>} align="start">
               {MAINNET_BUILD
                 ? 'This site runs on Zcash mainnet and NEAR mainnet with real USDC. The results below are from the test networks. No audit was done.'
-                : 'Runs on Zcash testnet and NEAR testnet with a test USDC token that has no value. Mainnet is not deployed.'}
+                : `Runs on Zcash testnet and NEAR testnet with a test USDC token that has no value. ${MAINNET_STATE}`}
             </SectionHead>
             <ul className="check-list">
               <li>Tested in Chromium only. Firefox and Safari are not tested.</li>

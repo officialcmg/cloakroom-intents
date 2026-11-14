@@ -67,6 +67,8 @@ check "configs: mainnet templates parse and name intents.near and Circle's USDC"
   for f in crates/zecret-node/config/mainnet-maker.json crates/zecret-node/config/mainnet-taker.json web/public/config/mainnet.json; do jq -e . "$f" >/dev/null; done &&
   jq -e ".chains.intents == \"intents.near\" and .chains.token == \"17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1\" and .chains.network == \"main\"" crates/zecret-node/config/mainnet-maker.json &&
   jq -e ".near.verifier == \"intents.near\" and .exit.mode == \"oneclick\" and .near.escrow == \"@build\"" web/public/config/mainnet.json &&
+  jq -e "(.maxSwapZats | test(\"^[1-9][0-9]*$\")) and (.maxSwapZats | tonumber) <= 500000" web/public/config/mainnet.json &&
+  jq -e ".max_zats <= 500000 and .min_zats < .max_zats" crates/zecret-node/config/mainnet-maker.json &&
   grep -q "^network = \"mainnet\"" deploy/configs/mainnet.toml'
 check "configs: testnet files unchanged in meaning (testnet network, direct exit, relay)" '
   jq -e ".network == \"testnet\" and .exit.mode == \"direct\"" web/public/config/testnet.json &&
@@ -74,7 +76,7 @@ check "configs: testnet files unchanged in meaning (testnet network, direct exit
 if [ -n "${MAKER_CONFIG:-}" ]; then
   check "maker config: no placeholder, price, premium_check, birthday, https, main" "
     ! grep -Eq 'OWNER|REPLACE' '$MAKER_CONFIG' &&
-    jq -e '.chains.network == \"main\" and ((.price_per_zec|tostring|tonumber) > 0) and .premium_check.yocto_near_per_zec != null and (.chains.birthday // 0) > 0 and ([.chains.near_rpc]|flatten|length > 0 and all(startswith(\"https://\"))) and (.chains.lightwalletd|startswith(\"https://\"))' '$MAKER_CONFIG'"
+    jq -e '.chains.network == \"main\" and .max_zats <= 500000 and ((.price_per_zec|tostring|tonumber) > 0) and .premium_check.yocto_near_per_zec != null and (.chains.birthday // 0) > 0 and ([.chains.near_rpc]|flatten|length > 0 and all(startswith(\"https://\"))) and (.chains.lightwalletd|startswith(\"https://\"))' '$MAKER_CONFIG'"
 fi
 
 # 3. Tests.

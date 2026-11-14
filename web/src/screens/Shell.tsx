@@ -94,7 +94,7 @@ export function MainnetNotice({ network, terms }: { network?: NetworkConfig; ter
   const facts = (
     <ul className="plain-list">
       <li>{network.label}. Real ZEC and real USDC move.</li>
-      {max && <li>The maker takes at most {max} per swap.</li>}
+      {max && <li>{terms?.maxBy === 'site' ? `This site takes at most ${max} per swap.` : `The maker takes at most ${max} per swap.`}</li>}
       {(network.honesty ?? []).map((l) => (
         <li key={l}>{l}</li>
       ))}

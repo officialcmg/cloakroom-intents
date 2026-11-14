@@ -5,7 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
 // stand-in escrow. Run: npx playwright test -c playwright.mainnet.config.ts
 // The default config (playwright.config.ts) tests the default build, which refuses mainnet.
 const PORT = 4174;
-const env = 'VITE_ZECRET_ALLOW_MAINNET=1 VITE_ZECRET_CONFIG=mainnet VITE_MAINNET_ESCROW=escrow.zecret.near VITE_MAINNET_ESCROW_CODE_HASH=DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1';
+const env = 'VITE_ZECRET_ALLOW_MAINNET=1 VITE_ZECRET_CONFIG=mainnet VITE_MAINNET_ESCROW=escrow.zecret.near VITE_MAINNET_ESCROW_CODE_HASH=DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1 VITE_ZECRET_TESTNET_URL=https://testnet.example.org';
 
 export default defineConfig({
   testDir: './e2e/mainnet',

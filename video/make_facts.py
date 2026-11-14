@@ -33,7 +33,7 @@ claims = [
     ('Claimed with a key made here', 'scene 4', 'footage: step "You claim the USDC"; README.md Terms ("Key half", "Stipend")'),
     ('Delivered', 'scene 4', f'footage: "{facts.get("doneTitle", "")}"'),
     (f'Real time: {int(cut["paymentToFinalSecs"] // 60)} min {round(cut["paymentToFinalSecs"] % 60)} s from payment to done', 'scene 4', 'this recording, marks.json (pay_sent to stage done)'),
-    ('Real swaps on public test networks. 32 real swaps completed; 26 of them in one overnight soak test', '52–62 s', 'README.md Status ("32 completed, 26 of them in a soak test on 2026-11-14"); docs/TESTNET.md "Soak test". Counts as of 2026-11-14, before this recording.'),
+    ('Real swaps on public test networks. 32 real swaps completed; 35 destination chains in the swap form', '52–62 s', 'README.md Status ("32 completed"); web/src/lib/chainNames.ts (35 chains). Counts as of 2026-11-14, before this recording.'),
     ('6–9 minutes per swap, mostly waiting for Zcash blocks', '52–62 s', 'docs/TESTNET.md soak: 12 back-to-back swaps took 364 to 574 s; README.md hosted runs 314–493 s'),
     ('0 bridges or custodians holding the ZEC', '52–62 s', 'README.md top: the ZEC goes to a shielded address spent only with both key halves'),
     ('Exit to other chains: built. The live mainnet contract accepts its signed message in a read-only simulation. Not yet run with funds.', '56–62 s', 'README.md Status, "Exit through NEAR Intents on mainnet" and the brief\'s fact list; docs/INTENTS.md'),

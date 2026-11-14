@@ -334,9 +334,9 @@
       "source": "this recording, marks.json (pay_sent to stage done)"
     },
     {
-      "text": "Real swaps on public test networks. 32 real swaps completed; 26 of them in one overnight soak test",
+      "text": "Real swaps on public test networks. 32 real swaps completed; 35 destination chains in the swap form",
       "when": "52–62 s",
-      "source": "README.md Status (\"32 completed, 26 of them in a soak test on 2026-11-14\"); docs/TESTNET.md \"Soak test\". Counts as of 2026-11-14, before this recording."
+      "source": "README.md Status (\"32 completed\"); web/src/lib/chainNames.ts (35 chains). Counts as of 2026-11-14, before this recording."
     },
     {
       "text": "6–9 minutes per swap, mostly waiting for Zcash blocks",

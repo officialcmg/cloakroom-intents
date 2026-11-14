@@ -260,7 +260,7 @@
   const s5h = words($('s5h'));
   const STATS = [
     { n: 32, txt: 'real swaps completed on public test networks' },
-    { n: 26, txt: 'of them in one overnight soak test' },
+    { n: 35, txt: 'destination chains in the swap form' },
     { n: '6–9', txt: 'minutes for a typical swap, mostly waiting for Zcash blocks' },
     { n: 0, txt: 'bridges or custodians holding the ZEC' },
   ];

@@ -2,6 +2,8 @@ import { useId, useMemo, useState } from 'react';
 import type { CreateSwapParams, EngineError } from '../engine';
 import { appStore, useApp, usePref } from '../app/useZecret';
 import { usePrice, useTokens } from '../app/usePrice';
+import { useMakerLiquidity, type Liquidity } from '../app/useLiquidity';
+import { exceedsLiquidity } from '../lib/liquidity';
 import { chainInfo, validateDestinationAddress } from '../lib/address/chains';
 import { validateZcashReturnAddress } from '../lib/address/zcash';
 import { oneClickBase } from '../lib/netconfig';
@@ -50,6 +52,10 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
   const parsed = parseUnits(amount, ZEC_DECIMALS);
   const payZats = parsed.ok && parsed.value > 0n ? parsed.value : undefined;
   const price = usePrice(payZats, token, address, terms, oneClick);
+  const liquidity = useMakerLiquidity(app.network, app.directory, terms);
+  // The maker pays about the expected USDC; when it holds less, it would refuse after the user paid fees.
+  const needUsdc = price.status === 'ok' ? price.price.usdcExpected : undefined;
+  const short = needUsdc !== undefined && exceedsLiquidity(needUsdc, liquidity.microUsdc);
 
   const addrCheck = token ? (direct ? { ok: true as const, address: '', note: undefined } : validateDestinationAddress(token.blockchain, address)) : undefined;
   const nearOk = /^(?=.{2,64}$)[a-z0-9]+([-_][a-z0-9]+)*(\.[a-z0-9]+([-_][a-z0-9]+)*)*$/.test(nearAccount.trim());
@@ -64,7 +70,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
   const inputs = [amount, tokenId, address, returnAddress, nearAccount].join('|');
   const submitError = submitFailure?.inputs === inputs ? submitFailure.message : undefined;
 
-  const ready = price.status === 'ok' && addrCheck?.ok && (direct ? nearOk : price.recipientChecked) && (!retCheck || retCheck.ok) && !!token;
+  const ready = !short && price.status === 'ok' && addrCheck?.ok && (direct ? nearOk : price.recipientChecked) && (!retCheck || retCheck.ok) && !!token;
   const blocker = !payZats
     ? 'Enter an amount.'
     : price.status === 'invalid'
@@ -81,7 +87,9 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
               ? 'Getting the price…'
               : price.status === 'error'
                 ? 'No price yet.'
-                : undefined;
+                : short
+                  ? 'The maker does not hold enough USDC for this swap now.'
+                  : undefined;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +116,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
     }
   };
 
-  const limits = `${formatZec(terms.minZats, 4)} to ${formatZec(terms.maxZats, 4)} ZEC`;
+  const limits = `${formatZec(terms.minZats)} to ${formatZec(terms.maxZats)} ZEC`;
   const zecUsd = tokens.list?.zecUsd;
 
   return (
@@ -150,7 +158,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
             {amtErr ? (
               <span className="text-danger">{amtErr}</span>
             ) : price.status === 'invalid' ? (
-              <span className="text-danger">{limitMessage(price.error, terms.network)}</span>
+              <span className="text-danger">{limitMessage(price.error, terms.network, terms.maxBy)}</span>
             ) : (
               <>
                 Shielded ZEC, {limits}.{payZats && zecUsd ? ` About $${(Number(toDecimalString(payZats, 8)) * zecUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}.` : ''}
@@ -293,6 +301,8 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
 
         <PriceCard price={price} token={token} payZats={payZats} zecUsd={zecUsd} />
 
+        <LiquidityLine liquidity={liquidity} needUsdc={short ? needUsdc : undefined} />
+
         {submitError && (
           <Notice tone="danger" title="The swap could not start" role="alert">
             {submitError}
@@ -300,7 +310,7 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
         )}
 
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={submitting}>
+          <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={submitting || short}>
             {submitting ? <Spinner /> : null}
             {submitting ? 'Making the swap’s keys…' : 'Continue'}
             {!submitting && <Icon name="arrow" />}
@@ -322,17 +332,67 @@ export function SwapForm({ onCreated, onRestore }: { onCreated: () => void; onRe
   );
 }
 
-function limitMessage(e: Extract<ReturnType<typeof usePrice>, { status: 'invalid' }>['error'], network: string): string {
+function limitMessage(e: Extract<ReturnType<typeof usePrice>, { status: 'invalid' }>['error'], network: string, maxBy?: 'maker' | 'site'): string {
   switch (e.kind) {
     case 'below_min':
-      return `The maker takes at least ${formatZec(e.minZats, 4)} ZEC.`;
+      return `The maker takes at least ${formatZec(e.minZats)} ZEC.`;
     case 'above_max':
-      return `The maker takes at most ${formatZec(e.maxZats, 4)} ZEC per swap.`;
+      return maxBy === 'site' ? `This site takes at most ${formatZec(e.maxZats)} ZEC per swap.` : `The maker takes at most ${formatZec(e.maxZats)} ZEC per swap.`;
     case 'fees_exceed_amount':
       return `Fees and premium (${formatZec(e.costZats)} ZEC) are more than this amount.`;
     case 'maker_paused':
       return `The maker on ${network} is not taking swaps right now. Try again later.`;
   }
+}
+
+/**
+ * One quiet line under the price: what the maker can pay now. It keeps its place while it
+ * loads and after a failed read, so nothing below it moves.
+ */
+function LiquidityLine({ liquidity, needUsdc }: { liquidity: Liquidity; needUsdc?: bigint }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  if (!liquidity.enabled) return null;
+  const v = liquidity.microUsdc;
+  const unit = payTokenLabel();
+  return (
+    <div className="liquidity" data-testid="liquidity">
+      <p className="hint liquidity-line" aria-live="polite">
+        {v === undefined ? (
+          <span className="liquidity-empty" aria-hidden="true">
+            &nbsp;
+          </span>
+        ) : needUsdc !== undefined ? (
+          <span className="text-danger" data-testid="liquidity-short">
+            The maker holds {formatUsdc(v)} {unit} now. This swap needs about {formatUsdc(needUsdc)}. Pay less ZEC, or try later.
+          </span>
+        ) : (
+          <span data-testid="liquidity-value">
+            Maker liquidity: <strong>{formatUsdc(v)} {unit}</strong>
+            {liquidity.simulated ? ' (simulated)' : ''}
+          </span>
+        )}
+        {v !== undefined && (
+          <button
+            type="button"
+            className="liquidity-more"
+            aria-expanded={open}
+            aria-controls={id}
+            aria-label="What is maker liquidity?"
+            title="What is maker liquidity?"
+            onClick={() => setOpen((o) => !o)}
+          >
+            <Icon name="info" size={16} />
+          </button>
+        )}
+      </p>
+      <p id={id} className="hint liquidity-note" hidden={!open || v === undefined}>
+        {liquidity.simulated
+          ? 'In the demo this is a fixed number from the simulated maker directory. Nothing is read from NEAR.'
+          : `The ${unit} the maker can pay now: its balance in NEAR Intents plus its own token balance, read from NEAR when this form opened and every minute after. It can change at any time. The maker checks it again before it locks the ${unit}.`}
+      </p>
+    </div>
+  );
 }
 
 function Ago({ at }: { at: number }) {

@@ -42,7 +42,10 @@ Smaller known gaps:
 - `mainnet.zcashexplorer.app` and `nearblocks.io` (the explorer links in
   `web/public/config/mainnet.json`) answered HTTP 403 to `curl` from the build machine
   (bot protection, presumably). Not checked from a browser.
-- `max_pending_quotes`: the maker does not check its USDC balance before it quotes. An
+- `max_pending_quotes`: the maker does not check its USDC balance before it quotes. The
+  form reads the maker's USDC (`mt_balance_of` in `intents.near` plus `ft_balance_of`)
+  and refuses to continue when the swap needs more; two takers at once can still both
+  pass that check. An
   open that the float cannot pay fails after the taker paid the premium. The taker then
   stops after `quote_timeout_secs` and gets the ZEC back, without the premium. The
   mainnet template keeps 3 requests at a time, and the float must cover 3 maximum swaps.
@@ -118,10 +121,11 @@ The float is the USDC the maker holds on NEAR. It limits the loss from a wrong p
 from any bug on the maker's side.
 
 - One swap at the maximum pays `max_zats × price_per_zec / 10^8` USDC units. With the
-  template's `max_zats` 2,000,000 (0.02 ZEC) and a price of 890 USDC per ZEC: 17.8 USDC.
+  template's `max_zats` 500,000 (0.005 ZEC) and a price of 890 USDC per ZEC: 4.45 USDC.
+  The site's cap (section 3) keeps the ZEC sold at 420,000 zats or less: 3.74 USDC.
 - The maker does not check its float before it quotes. Up to `max_pending_quotes` (3 in
-  the template) requests can wait at once, so the float must cover 3 maximum swaps: 53.4
-  USDC. **Send 60 USDC** (native USDC on NEAR, the contract above; not bridged USDC.e).
+  the template) requests can wait at once, so the float must cover 3 maximum swaps: 13.4
+  USDC. **Send 60 USDC** (it leaves room to raise `max_zats` later) (native USDC on NEAR, the contract above; not bridged USDC.e).
 - A larger float allows a larger `max_zats` or more requests at once. Raise them later,
   together.
 - The maker gets ZEC for the USDC it pays. To refill the float you sell that ZEC
@@ -166,9 +170,28 @@ The template (`crates/zecret-node/config/mainnet-maker.json`) proposes:
 | Setting | Template | Why |
 |---|---|---|
 | `min_zats` | 200,000 (0.002 ZEC, about 1.8 USDC) | Smaller swaps pay a premium of more than 12 % and are of no use. |
-| `max_zats` | 2,000,000 (0.02 ZEC, about 18 USDC) | Real money, unaudited code. The first-run notice on the site shows this number. |
+| `max_zats` | 500,000 (0.005 ZEC, about 4.5 USDC) | Real money, unaudited code. The owner's limit: at most 0.005 ZEC per swap. |
 | `max_pending_quotes` | 3 | The float must cover this many maximum swaps. |
 | `max_refusals_per_hour` | 6 | Each refusal costs a Zcash fee. |
+
+The signed limits apply to the ZEC sold: the payment less the four Zcash fees (40,000
+zats) and the premium (40,000 zats). The page shows them as a payment range: with the
+template, 280,000 to 580,000 zats, before the site's cap.
+
+**The site's own cap.** `web/public/config/mainnet.json` sets `"maxSwapZats": "500000"`:
+no payment above 0.005 ZEC, also when a directory entry allows more. The form and the
+engine's `createSwap` both refuse a larger amount, and a mainnet build refuses a mainnet
+file without `maxSwapZats`. The form shows one range, with the smaller of the two maximums:
+"Shielded ZEC, 0.0028 to 0.005 ZEC." The notice says "This site takes at most 0.005 ZEC
+per swap." At the cap the ZEC sold is 0.0042 ZEC, about 3.7 USDC at 890 USDC per ZEC.
+
+Which destinations work at these sizes depends on 1Click's minimum per route, and those
+change. Measured on 2026-11-14 (security review 6, smallest amounts per route): USDC and
+ETH on Base and Arbitrum, SOL, XLM and TON need less than 0.1 USDC; ZEC needs about 1.19
+USDC; BTC needs about 5.61 USDC, so BTC does not work at the cap. The form has no
+hard-coded list: before anything is paid, it shows 1Click's own answer for the chosen
+route ("NEAR Intents needs at least 5.61 USDC for this route. Pay more ZEC, or choose
+another token."). At the smallest payment (0.0028 ZEC) the maker pays about 1.78 USDC.
 
 ### Price
 
@@ -209,7 +232,8 @@ market)`, and all swaps together at most the float.
   0.08 NEAR of stipend and costs, and 0.108 NEAR at the market. The smallest premium
   that passes at 200 NEAR per ZEC is 40,000 zats. The taker template accepts up to
   50,000 zats (`max_premium`).
-- 40,000 zats is about 0.36 USDC: 20 % of a 0.002 ZEC swap, 2 % of a 0.02 ZEC swap.
+- 40,000 zats is about 0.36 USDC: 14 % of the smallest payment (0.0028 ZEC), 8 % of the
+  largest (0.005 ZEC).
 - The dry run checks that `yocto_near_per_zec` is not above the market.
 
 ### NEAR RPC
@@ -450,6 +474,17 @@ The rate (`890`) must be `price_per_zec / 10^6`.
 | `VITE_ZECRET_ALLOW_MAINNET` | `1` |
 | `VITE_MAINNET_ESCROW` | `escrow.<owner>` |
 | `VITE_MAINNET_ESCROW_CODE_HASH` | `ESCROW_HASH` |
+| `VITE_ZECRET_TESTNET_URL` | `https://cloakroom.chrismg.dev` (the default; set it only if the testnet site moves) |
+| `VITE_ZECRET_MAINNET_URL` | `https://mainnet.cloakroom.chrismg.dev` |
+
+- The network switch: the header shows "Testnet | Mainnet". Each side is a plain link to
+  that network's own deployment; the page never changes network in place, and the link
+  carries no query. The URLs are build settings only: `VITE_ZECRET_TESTNET_URL` and
+  `VITE_ZECRET_MAINNET_URL` (an https origin; anything else is ignored). Without
+  `VITE_ZECRET_MAINNET_URL`, a site shows "Mainnet" switched off, with "Mainnet is not
+  deployed yet". **After the mainnet site works (7.3), set
+  `VITE_ZECRET_MAINNET_URL=https://mainnet.cloakroom.chrismg.dev` on the testnet project
+  `zecret` too, and redeploy it.**
 
 - Optional, the 1Click partner key (lower 1Click fee, `docs/ONECLICK_PROXY.md`): add
   `ONECLICK_JWT` (Production, Secret) to this project too. After the first deployment,
@@ -464,8 +499,12 @@ The build stops at once if a variable or `mainnet-directory.json` is missing
 
 7.3. Check: open `https://mainnet.cloakroom.chrismg.dev`. The landing page badge says
 "Mainnet · real money · unaudited". `/swap` shows the notice "Real money. Unaudited
-hackathon software." with "The maker takes at most 0.02 ZEC per swap.", and no testnet
-banner. Then check that `https://cloakroom.chrismg.dev/swap?config=mainnet` still says "This
+hackathon software." with "This site takes at most 0.005 ZEC per swap.", and no testnet
+banner. The form says "Shielded ZEC, 0.0028 to 0.005 ZEC." Under the price it says "Maker
+liquidity: … USDC": the maker account's USDC in `intents.near` (`mt_balance_of`) plus its
+plain USDC (`ft_balance_of`), read from the configured NEAR RPC endpoints. It must match
+the float you sent in step 5. The header switch shows "Mainnet" as the current page and
+"Testnet" as a link to `https://cloakroom.chrismg.dev/`. Then check that `https://cloakroom.chrismg.dev/swap?config=mainnet` still says "This
 site does not run on mainnet".
 
 ### Step 8. The first swap (about 10 minutes)
@@ -504,8 +543,9 @@ than 3 maximum swaps. `verify` shows the maker's NEAR, USDC and storage funds.
 
 ## 6. The first swap
 
-- **Amount:** 0.002 ZEC, the maker's minimum (about 1.8 USDC). Small enough to lose. The
-  page asks for the amount plus the premium (0.0004 ZEC) and the temporary wallet's fees.
+- **Amount:** 0.0028 ZEC, the smallest payment: the maker's minimum of 0.002 ZEC sold,
+  plus the premium (0.0004 ZEC) and four Zcash fees (0.0001 ZEC each). About 1.8 USDC.
+  Small enough to lose.
 - **Who pays:** you, as the taker, from your own wallet app (gap G5). The exit goes to
   your own USDC on Base address.
 - **Before you pay:** save the recovery file (the page asks). Keep the tab open.
@@ -657,7 +697,7 @@ the project. The testnet site is not affected.
 
 | Risk | What limits the loss |
 |---|---|
-| Wrong or stale price (G7) | `max_zats` per swap (0.02 ZEC); the float (60 USDC); the price rule and step 11; pausing. |
+| Wrong or stale price (G7) | `max_zats` per swap (0.005 ZEC) and the site's cap (0.005 ZEC paid); the float (60 USDC); the price rule and step 11; pausing. |
 | A bug in the maker or the escrow | The float; `max_pending_quotes` 3; the escrow's refund windows: before Ready the maker refunds; after `t2` the punish path pays the taker. Each exit publishes one key half, so neither side can take both. |
 | The taker's funds in a failed swap | The refund path returns the ZEC less fees and the premium; the deadlines are enforced by the escrow, not by the maker. |
 | Single trusted NEAR RPC (G11) | Small swaps; your own swaps first. |
