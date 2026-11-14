@@ -138,6 +138,13 @@ NEAR"; no Content-Security-Policy violation. Result:
 All transactions of both swaps were read with RPC `tx` (`wait_until: FINAL`): each
 succeeded with no failed receipt.
 
+Both swaps ended `Swept` on the maker's side. After them: `get_owed(usdc)` = 0 and the
+escrow's Verifier balance = 0; maker4 holds 0.7592 NEAR of its 1 NEAR (0.0909 NEAR of
+the 0.1 NEAR storage funds remain in `escrow3`; the rest is two stipends, two account
+creations, the gas of its own calls and of the relayed exit: about 0.07 NEAR per swap)
+and 199.4123 tUSDC plain, 0 in the Verifier (it deposits exactly what each swap needs).
+The rehearsal maker and the local site were stopped afterwards.
+
 ## The switch: three pushes, the switch itself is one
 
 The escrow is not in the maker's signature, so the hosted maker's entry stays valid and

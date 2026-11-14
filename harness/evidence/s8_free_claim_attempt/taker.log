@@ -1,30 +1,43 @@
 
 ===== start taker --zats 100000000 =====
-[taker 1794627816] new swap 8c2f0735 for 100000000 zats; NEAR account ecfeaab1e9af2dd86161fb7092f58c7a2535d7e747470ceedc2cacf33c27aa30; wallet uregtest1vm6zxm28knxmhq57laffts7e66rl3qcw5m40mz89fjf9vdrnn8s2kl92hmcc8ec38606q6l6mhvm7vajw6nk35lextrvun7lm5aah9d5
-[taker 1794627816] 8c2f0735 stage WaitingDeposit
-[taker 1794627817] balance 208333333 zats
-[taker 1794627817] {"type":"activity","swap":"8c2f073575ad4a6dffc2d208c19d81cb","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794627825] balance 0 zats
-[taker 1794627825] {"type":"zcash_tx","swap":"8c2f073575ad4a6dffc2d208c19d81cb","what":"rfq","txid":"f2f6c753bef4484d5d8b5dc832f1aa7ee23ab9491fe39d89577e8899d7e4b292"}
-[taker 1794627825] 8c2f0735 encrypted RFQ for 100000000 zats sent to the maker in shielded tx f2f6c753bef4484d5d8b5dc832f1aa7ee23ab9491fe39d89577e8899d7e4b292
-[taker 1794627825] 8c2f0735 stage RfqSent
-[taker 1794627826] balance 208323333 zats
-[taker 1794627836] 8c2f0735 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
-[taker 1794627836] {"type":"quote","swap":"8c2f073575ad4a6dffc2d208c19d81cb","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1ypp963pq747324jmplghykzrwe3sfm84suzkfzeuh2cptyzrxt3xu5ygjfrdaps8vwrnd20c45vx9axgqmpat5gpks49g950fqxwy4pr"}
-[taker 1794627836] {"type":"activity","swap":"8c2f073575ad4a6dffc2d208c19d81cb","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
-[taker 1794627840] balance 0 zats
-[taker 1794627840] {"type":"zcash_tx","swap":"8c2f073575ad4a6dffc2d208c19d81cb","what":"accept","txid":"edf32df5cbd0273b111726342fa5b9ecb5f59f620231cefaad18ff2cb0f9c683"}
-[taker 1794627840] 8c2f0735 encrypted ACCEPT with 50000 zats premium sent in tx edf32df5cbd0273b111726342fa5b9ecb5f59f620231cefaad18ff2cb0f9c683; joint address uregtest1ypp963pq747324jmplghykzrwe3sfm84suzkfzeuh2cptyzrxt3xu5ygjfrdaps8vwrnd20c45vx9axgqmpat5gpks49g950fqxwy4pr
-[taker 1794627840] 8c2f0735 stage Accepted
-[taker 1794627842] balance 208263333 zats
-[taker 1794627847] 8c2f0735 escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)
-[taker 1794627850] 8c2f0735 escrow 62f7fa2f verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
-[taker 1794627850] {"type":"escrow_verified","swap":"8c2f073575ad4a6dffc2d208c19d81cb","escrow_id":"62f7fa2fd4b6646b96ad27f2891d42db6ffa91441b40dd90a428909fee4b672d","t0":1794628505,"t1":1794628565,"t2":1794628625}
-[taker 1794627850] 8c2f0735 [MISBEHAVE free-claim] escrow verified; NOT funding; will try to claim after t0
-[taker 1794627850] 8c2f0735 stage Funded
-[taker 1794627860] 8c2f0735 [MISBEHAVE free-claim] commit_claim without Ready before t2 REJECTED by the escrow: {"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: NotClaimable: commit_claim needs Ready before t1, or any time from t2"}}}} at escrow.test.near; waiting for t2
-[taker 1794627864] 8c2f0735 R2c: claim window closed (NEAR time 1794628561, t1 1794628565, budget 15s); not committing; waiting for the maker's refund or for t2 1794628625
-[taker 1794627872] 8c2f0735 maker REFUNDED; no joint note above the fee, nothing to recover
-[taker 1794627872] 8c2f0735 stage Recovered
-[taker 1794627872] 8c2f0735 DONE Recovered
-[taker 1794627872] finished: Recovered
+Error: misbehave is a test-only setting; this build does not accept it (build with the cargo feature `misbehave`)
+
+Stack backtrace:
+   0: <anyhow::Error as core::convert::From<serde_json::error::Error>>::from
+             at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/backtrace.rs:10:14
+   1: <core::result::Result<(), anyhow::Error> as core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, serde_json::error::Error>>>::from_residual
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/result.rs:2189:27
+   2: zecret::run_taker
+             at ./crates/zecret-node/src/main.rs:226:28
+   3: zecret::main
+             at ./crates/zecret-node/src/main.rs:172:20
+   4: <fn() -> core::result::Result<(), anyhow::Error> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+   5: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/sys/backtrace.rs:166:18
+   6: std::rt::lang_start::<core::result::Result<(), anyhow::Error>>::{closure#0}
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:206:18
+   7: <&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:287:21
+   8: std::panicking::catch_unwind::do_call::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
+   9: std::panicking::catch_unwind::<i32, &dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
+  10: std::panic::catch_unwind::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
+  11: std::rt::lang_start_internal::{closure#0}
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:175:24
+  12: std::panicking::catch_unwind::do_call::<std::rt::lang_start_internal::{closure#0}, isize>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
+  13: std::panicking::catch_unwind::<isize, std::rt::lang_start_internal::{closure#0}>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
+  14: std::panic::catch_unwind::<std::rt::lang_start_internal::{closure#0}, isize>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
+  15: std::rt::lang_start_internal
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:171:5
+  16: main
+  17: __libc_start_call_main
+             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+  18: __libc_start_main_impl
+             at ./csu/../csu/libc-start.c:360:3
+  19: _start

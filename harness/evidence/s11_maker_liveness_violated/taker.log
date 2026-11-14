@@ -1,45 +1,43 @@
 
 ===== start taker --zats 100000000 =====
-[taker 1794628061] new swap b62b2b4c for 100000000 zats; NEAR account 88d90416119a0d9f71825bac06be549f632339ddc3ad4ae50ee17ea12018f29a; wallet uregtest1wqknyrc7gk63ufn4t7lr2ey4yx459de4s5hp54cr4ms30h7rqp67yanczyajzdlu0krjwkurnjsvzj4hclmaxlz4rprh6l3luqv0kcgk
-[taker 1794628061] b62b2b4c stage WaitingDeposit
-[taker 1794628061] balance 208333333 zats
-[taker 1794628061] {"type":"activity","swap":"b62b2b4cf2d724e23bd5c9607fbd9124","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794628068] balance 0 zats
-[taker 1794628068] {"type":"zcash_tx","swap":"b62b2b4cf2d724e23bd5c9607fbd9124","what":"rfq","txid":"53a37c630173f3c848e8f1b4da1fbd4d80c5e00b5ced7e81b4b18328591b1610"}
-[taker 1794628068] b62b2b4c encrypted RFQ for 100000000 zats sent to the maker in shielded tx 53a37c630173f3c848e8f1b4da1fbd4d80c5e00b5ced7e81b4b18328591b1610
-[taker 1794628068] b62b2b4c stage RfqSent
-[taker 1794628070] balance 208323333 zats
-[taker 1794628076] b62b2b4c QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
-[taker 1794628076] {"type":"quote","swap":"b62b2b4cf2d724e23bd5c9607fbd9124","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest192j9e8g950h97u6j0swvrllcsvf8yh6qv86ure98ctz3rrtk4c4ll3nlap2u0wnt5dm0jtq8z25sd98shckfzsknhcv95xzhecqvwg7w"}
-[taker 1794628076] {"type":"activity","swap":"b62b2b4cf2d724e23bd5c9607fbd9124","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
-[taker 1794628080] balance 0 zats
-[taker 1794628080] {"type":"zcash_tx","swap":"b62b2b4cf2d724e23bd5c9607fbd9124","what":"accept","txid":"01c638caac1d4be3e17b939c27a375d25c02dca1545209e577471bcf58e0f30b"}
-[taker 1794628080] b62b2b4c encrypted ACCEPT with 50000 zats premium sent in tx 01c638caac1d4be3e17b939c27a375d25c02dca1545209e577471bcf58e0f30b; joint address uregtest192j9e8g950h97u6j0swvrllcsvf8yh6qv86ure98ctz3rrtk4c4ll3nlap2u0wnt5dm0jtq8z25sd98shckfzsknhcv95xzhecqvwg7w
-[taker 1794628080] b62b2b4c stage Accepted
-[taker 1794628082] balance 208263333 zats
-[taker 1794628086] b62b2b4c escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)
-[taker 1794628090] b62b2b4c escrow 4d0eea7c verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
-[taker 1794628090] {"type":"escrow_verified","swap":"b62b2b4cf2d724e23bd5c9607fbd9124","escrow_id":"4d0eea7c68fa7d0471a662bf1bad9347c9c0961a43da7c6df39d08e90a3f0a44","t0":1794629095,"t1":1794629155,"t2":1794629215}
-[taker 1794628090] b62b2b4c [MISBEHAVE free-claim] escrow verified; NOT funding; will try to claim after t0
-[taker 1794628090] b62b2b4c stage Funded
-[taker 1794628095] b62b2b4c [MISBEHAVE free-claim] commit_claim without Ready before t2 REJECTED by the escrow: {"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: NotClaimable: commit_claim needs Ready before t1, or any time from t2"}}}} at escrow.test.near; waiting for t2
-[taker 1794628095] b62b2b4c R2c: claim window closed (NEAR time 1794629208, t1 1794629155, budget 15s); not committing; waiting for the maker's refund or for t2 1794629215
-[taker 1794628100] {"type":"near_tx","swap":"b62b2b4cf2d724e23bd5c9607fbd9124","what":"commit_claim","hash":"GVDiYPzn3objF35AABNg6yC3ax5e4DCqL7hf34VkDpyD"}
-[taker 1794628100] b62b2b4c past t2 with escrow Open: LOCKED via the punish path, tx GVDiYPzn3objF35AABNg6yC3ax5e4DCqL7hf34VkDpyD [MISBEHAVE free-claim, never funded]
-[taker 1794628100] b62b2b4c stage Committed
-[taker 1794628102] b62b2b4c lock final (block 2001); revealing a before the deadline 1794629264
-[taker 1794628102] b62b2b4c stage Revealed
-[taker 1794628102] b62b2b4c claim(a) signed and stored, tx 8Sdqky2mKNpPauAeHv3LAoyhkRAeLaTpd7qGRfN3gTn5; it goes out on the next step
-[taker 1794628104] {"type":"near_tx","swap":"b62b2b4cf2d724e23bd5c9607fbd9124","what":"claim","hash":"8Sdqky2mKNpPauAeHv3LAoyhkRAeLaTpd7qGRfN3gTn5"}
-[taker 1794628104] b62b2b4c REVEALED a with claim, tx 8Sdqky2mKNpPauAeHv3LAoyhkRAeLaTpd7qGRfN3gTn5; waiting for the claim to be final
-[taker 1794628106] b62b2b4c claim is final (block 2008)
-[taker 1794628106] b62b2b4c stage Claimed
-[taker 1794628109] {"type":"near_tx","swap":"b62b2b4cf2d724e23bd5c9607fbd9124","what":"withdraw","hash":"7ZwgdbaAGdTeUikaCPTW4fsaj6DQkYGs2FRqjZp55XdU"}
-[taker 1794628109] b62b2b4c withdraw(id) sent by the taker, tx 7ZwgdbaAGdTeUikaCPTW4fsaj6DQkYGs2FRqjZp55XdU (executed)
-[taker 1794628109] b62b2b4c claim final; waiting for the payout (Due)
-[taker 1794628109] b62b2b4c claim final; waiting for the payout (Sending)
-[taker 1794628111] b62b2b4c PAYOUT: 30000000000000000000000000 of wrap.test.near paid into the Verifier, owned by 88d90416119a0d9f71825bac06be549f632339ddc3ad4ae50ee17ea12018f29a (holds 30000000000000000000000000 now)
-[taker 1794628111] b62b2b4c payout 30000000000000000000000000 wrap.test.near to 88d90416119a0d9f71825bac06be549f632339ddc3ad4ae50ee17ea12018f29a in intents
-[taker 1794628111] b62b2b4c stage Completed
-[taker 1794628111] b62b2b4c DONE Completed
-[taker 1794628111] finished: Completed
+Error: misbehave is a test-only setting; this build does not accept it (build with the cargo feature `misbehave`)
+
+Stack backtrace:
+   0: <anyhow::Error as core::convert::From<serde_json::error::Error>>::from
+             at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/backtrace.rs:10:14
+   1: <core::result::Result<(), anyhow::Error> as core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, serde_json::error::Error>>>::from_residual
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/result.rs:2189:27
+   2: zecret::run_taker
+             at ./crates/zecret-node/src/main.rs:226:28
+   3: zecret::main
+             at ./crates/zecret-node/src/main.rs:172:20
+   4: <fn() -> core::result::Result<(), anyhow::Error> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+   5: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/sys/backtrace.rs:166:18
+   6: std::rt::lang_start::<core::result::Result<(), anyhow::Error>>::{closure#0}
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:206:18
+   7: <&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:287:21
+   8: std::panicking::catch_unwind::do_call::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
+   9: std::panicking::catch_unwind::<i32, &dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
+  10: std::panic::catch_unwind::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
+  11: std::rt::lang_start_internal::{closure#0}
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:175:24
+  12: std::panicking::catch_unwind::do_call::<std::rt::lang_start_internal::{closure#0}, isize>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
+  13: std::panicking::catch_unwind::<isize, std::rt::lang_start_internal::{closure#0}>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
+  14: std::panic::catch_unwind::<std::rt::lang_start_internal::{closure#0}, isize>
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
+  15: std::rt::lang_start_internal
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:171:5
+  16: main
+  17: __libc_start_call_main
+             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+  18: __libc_start_main_impl
+             at ./csu/../csu/libc-start.c:360:3
+  19: _start
