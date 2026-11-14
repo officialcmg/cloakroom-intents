@@ -7,8 +7,8 @@ public. The proxy is a small Vercel function in the website project. It forwards
 calls the site makes to `https://1click.chaindefuser.com` and adds the key from a server
 environment variable. The browser never sees the key.
 
-Status: built and tested on 2026-11-14 (branch `oneclick-proxy`). It has not run on
-Vercel yet. The shipped configurations still point at 1Click itself, so the site works as
+Status: built and tested on 2026-11-14 (branch `oneclick-proxy`); its GET calls ran on a
+Vercel preview deployment (last section). The shipped configurations still point at 1Click itself, so the site works as
 before until the owner turns the proxy on (below).
 
 ## What the key changes
@@ -175,15 +175,23 @@ sites' pages. What Vercel offers without paid add-ons:
 No per-user limit is built in. A per-instance counter in the function would not be one:
 Vercel runs several instances.
 
-## Not verified
+## What was checked, and what was not
 
-- The function has not run on Vercel. The checks here ran the handler in vitest with a
-  mocked upstream, and the compiled functions under a local Node server against the live
-  1Click API (tokens, a dry quote, a firm quote for a throwaway key checked by the engine,
-  a status; without a key, and with a fake key, which showed `key-rejected`).
-- Vercel's handling, read in its docs and not tried: functions in `api/` of the Root
-  Directory `web` are built next to the Vite output (`outputDirectory: dist`); the
-  filesystem, including functions, is matched before rewrites, so the `/swap` rewrite does
-  not touch `/api/*`; the `/(.*)` headers apply to function answers.
+- On a Vercel preview deployment of branch `oneclick-proxy` (commit `2bda619`, no key,
+  2026-11-14): `GET /api/oneclick/v0/tokens` answered 200 with 231 tokens,
+  `x-oneclick-auth: none` and `cache-control: public, max-age=60` (Vercel's CDN keeps
+  `s-maxage` for itself); `GET /api/oneclick/v0/status?depositAddress=…` answered 200
+  with the signed quote and `no-store`; `GET /api/oneclick/v0/quote` answered 405
+  `allow: POST`; `/api/oneclick/v0/orders` answered Vercel's 404; every answer carried
+  the CSP, `X-Frame-Options` and the other headers of `web/vercel.json`, and no
+  `access-control-allow-origin`; `/swap` still served the page. So Vercel builds the
+  functions in `web/api/` next to the Vite output, the `/swap` rewrite does not touch
+  `/api/*`, and the security headers apply to function answers.
+- Not checked on Vercel: a POST (the preview is behind Vercel Authentication), the
+  same-site rule with the browser's `Origin` and `Sec-Fetch-Site` on Vercel's real
+  request headers, and the key mode. Locally, the compiled functions under a Node server
+  ran against the live 1Click API: tokens, a dry quote, a firm quote for a throwaway key
+  that the engine's `oneclick_quote` accepted, a status; without a key, and with a fake
+  key, which showed `key-rejected`.
 - Whether 1Click charges less with the key can only be seen in a quote's `appFees` and
   amounts, and in a funded swap.
