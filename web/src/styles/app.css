@@ -1,4 +1,4 @@
-/* Zecret styles. Tokens are in tokens.css; the style reference is design-system/vaynex-notes.md.
+/* Cloakroom Intents styles. Tokens are in tokens.css; the style reference is design-system/vaynex-notes.md.
    Sections: base, type, layout, top bar and banners, buttons, cards and fields, token picker,
    price, notices, progress parts, app screens, landing page, footer, motion. */
 
@@ -432,6 +432,27 @@ h1:focus {
   line-height: 1;
   letter-spacing: 0.01em;
   color: var(--text);
+}
+
+.logo-word-2 {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.12em;
+  letter-spacing: 0;
+}
+
+.logo-word {
+  white-space: nowrap;
+}
+
+/* Below 440 px the header shows the mark and "Cloakroom", and the network pill drops
+   "Zcash"; the link's accessible name stays "Cloakroom Intents, home". */
+@media (max-width: 439px) {
+  .topbar .logo-word-2,
+  .topbar .pill-long {
+    display: none;
+  }
 }
 
 .topbar-nav {
@@ -2646,6 +2667,10 @@ a.hash {
   font-size: 17px;
 }
 
+.phone-top .logo-word-2 {
+  display: none;
+}
+
 .phone-swap {
   display: flex;
   flex-direction: column;
@@ -3848,21 +3873,35 @@ a.hash {
   color: var(--text-2);
 }
 
+/* The big wordmark: "CLOAKROOM" across the width, "Intents" above it in the serif italic. */
 .site-footer-word {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   margin: clamp(-8px, -1vw, 0px) 0 0;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: clamp(110px, 27vw, 380px);
+  font-size: clamp(44px, 14.5vw, 220px);
   line-height: 0.78;
   letter-spacing: -0.06em;
   text-align: center;
   white-space: nowrap;
-  background: linear-gradient(180deg, rgb(255 255 255 / 92%) 0%, rgb(255 255 255 / 0%) 95%);
+  background: linear-gradient(180deg, rgb(255 255 255 / 92%) 0%, rgb(255 255 255 / 6%) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  transform: translateY(14%);
+  transform: translateY(8%);
   user-select: none;
+}
+
+.site-footer-word-2 {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 0.42em;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.08em;
 }
 
 /* ------------------------------------------------------------ motion */

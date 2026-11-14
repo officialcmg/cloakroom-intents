@@ -56,7 +56,7 @@ Smaller known gaps:
 | Verifier | stand-in with the code of `intents.near` | `intents.near` (code hash `BtA1BEFNS619KkvXFsgcpQ21Tb5yMm32aaUkn7xNothk`, equal to the copy in `.tools/wasm`; `current_salt` `252812b3`; registered on USDC) |
 | Exit | direct: `ft_withdraw` to a NEAR testnet account, sent by the maker's relay | 1Click: one signed `transfer` to a 1Click deposit address; no relay |
 | Maker | Railway service `zecret-maker` with relay | a second Railway service, mainnet mode, no relay (section 5) |
-| Website | `zecret.chrismg.dev`, testnet build | a second Vercel project on its own hostname, built with `VITE_ZECRET_ALLOW_MAINNET=1` (section 5) |
+| Website | `cloakroom.chrismg.dev`, testnet build | a second Vercel project on its own hostname, built with `VITE_ZECRET_ALLOW_MAINNET=1` (section 5) |
 
 **Never run with funds anywhere** (exact list): the 1Click exit execution; any Zcash
 mainnet transaction by this code; the escrow with the real USDC contract and the real
@@ -226,8 +226,8 @@ the start script warns when the list has one endpoint.
 
 ### Hostname
 
-Run mainnet on its own hostname, for example `mainnet.zecret.chrismg.dev`, as a second
-Vercel project, and keep `zecret.chrismg.dev` on testnet:
+Run mainnet on its own hostname, for example `mainnet.cloakroom.chrismg.dev`, as a second
+Vercel project, and keep `cloakroom.chrismg.dev` on testnet:
 
 - The testnet site's build has no switch: a link cannot point it at mainnet
   (`?config=mainnet` shows "This site does not run on mainnet").
@@ -381,7 +381,7 @@ maker's address from 6.2.
 
 6.4. Create the second Railway service (do not touch the testnet service `zecret-maker`):
 
-- In the Railway project `zecret`: New service → GitHub repo `officialcmg/zecret`.
+- In the Railway project `zecret`: New service → GitHub repo `officialcmg/cloakroom-intents`.
   Name it `zecret-maker-mainnet`.
 - Settings → Source: branch **`mainnet-release`** (create it from `main` at the merged
   commit; then a push to `main` does not restart the mainnet maker). Builder: Dockerfile,
@@ -439,7 +439,7 @@ The rate (`890`) must be `price_per_zec / 10^6`.
 
 7.2. Create the second Vercel project (do not change the project `zecret`):
 
-- Import `officialcmg/zecret` again as project `zecret-mainnet`. Root directory `web`,
+- Import `officialcmg/cloakroom-intents` again as project `zecret-mainnet`. Root directory `web`,
   include files outside the root directory, framework Vite. `web/vercel.json` sets the
   build commands.
 - Environment variables (Production):
@@ -451,15 +451,15 @@ The rate (`890`) must be `price_per_zec / 10^6`.
 | `VITE_MAINNET_ESCROW` | `escrow.<owner>` |
 | `VITE_MAINNET_ESCROW_CODE_HASH` | `ESCROW_HASH` |
 
-- Domains: add `mainnet.zecret.chrismg.dev` (a CNAME at your DNS host, as Vercel shows).
+- Domains: add `mainnet.cloakroom.chrismg.dev` (a CNAME at your DNS host, as Vercel shows).
 
 The build stops at once if a variable or `mainnet-directory.json` is missing
 (`deploy/web/vercel-build.sh`).
 
-7.3. Check: open `https://mainnet.zecret.chrismg.dev`. The landing page badge says
+7.3. Check: open `https://mainnet.cloakroom.chrismg.dev`. The landing page badge says
 "Mainnet · real money · unaudited". `/swap` shows the notice "Real money. Unaudited
 hackathon software." with "The maker takes at most 0.02 ZEC per swap.", and no testnet
-banner. Then check that `https://zecret.chrismg.dev/swap?config=mainnet` still says "This
+banner. Then check that `https://cloakroom.chrismg.dev/swap?config=mainnet` still says "This
 site does not run on mainnet".
 
 ### Step 8. The first swap (about 10 minutes)

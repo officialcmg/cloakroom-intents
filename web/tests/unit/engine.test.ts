@@ -287,7 +287,8 @@ describe('simulated engine', () => {
     const a = await started(undefined, store);
     const created = await a.client.createSwap(PARAMS);
     const file = await a.client.exportRecovery();
-    expect(file.fileName).toBe(`zecret-recovery-${created.id.slice(0, 8)}.json`);
+    expect(file.fileName).toBe(`cloakroom-intents-recovery-${created.id.slice(0, 8)}.json`);
+    // The format label stays "zecret-recovery" after the rename, so files saved before it restore.
     expect(JSON.parse(file.text)).toMatchObject({ format: 'zecret-recovery', swapId: created.id, network: 'testnet' });
     await a.client.sim.pay();
     await a.t.until(at('request_sent'));

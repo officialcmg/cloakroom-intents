@@ -22,13 +22,13 @@ const KEEP_OPEN = new Set(['ready', 'committing', 'claiming']);
 function useDocumentTitle(swap: SwapState | null) {
   useEffect(() => {
     if (!swap) {
-      document.title = 'Zecret: swap shielded ZEC';
+      document.title = 'Cloakroom Intents: swap shielded ZEC';
       return;
     }
     const groups = groupsFor(swap);
     const i = groups.findIndex((g) => g.stages.includes(swap.stage));
     const step = i >= 0 && swap.stage !== 'done' && swap.stage !== 'refunded' ? `(${i + 1}/${groups.length}) ` : '';
-    document.title = `${step}${nowCopy(swap).title} · Zecret`;
+    document.title = `${step}${nowCopy(swap).title} · Cloakroom Intents`;
   }, [swap]);
 }
 
@@ -107,7 +107,7 @@ export default function App() {
     content = (
       <div className="loading" role="status">
         <Spinner />
-        <p>Starting Zecret in this browser…</p>
+        <p>Starting Cloakroom Intents in this browser…</p>
       </div>
     );
   } else if (app.phase === 'other_tab') {
@@ -120,7 +120,7 @@ export default function App() {
           <h1 id="other-tab-title" className="h1">
             This swap is open in another tab
           </h1>
-          <p>Zecret runs a swap in one tab at a time, so that two tabs never act on it at once. This tab does nothing while the other one is open.</p>
+          <p>Cloakroom Intents runs a swap in one tab at a time, so that two tabs never act on it at once. This tab does nothing while the other one is open.</p>
           <p>Use the other tab, or close it: this tab then continues the swap by itself.</p>
           {app.failure && (
             <>

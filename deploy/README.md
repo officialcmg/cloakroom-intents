@@ -1,6 +1,6 @@
 # deploy
 
-Tools to put Zecret's NEAR contracts on a network and check them.
+Tools to put Cloakroom Intents' NEAR contracts on a network and check them.
 
 | Path | What it is |
 |---|---|

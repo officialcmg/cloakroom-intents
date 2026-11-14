@@ -1,7 +1,8 @@
 # Design: trustless shielded ZEC to NEAR, then anywhere
 
-Status: in revision, 2026-11-14. The project is Zecret. The repository is
-`officialcmg/zecret`.
+Status: in revision, 2026-11-14. The project is Cloakroom Intents. It was named Zecret
+until 2026-11-14. The repository is `officialcmg/cloakroom-intents` (before the rename,
+`officialcmg/zecret`).
 
 ## The design in plain words
 
@@ -123,6 +124,7 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | On local and testnet networks, NEAR Intents has no 1Click. There the app signs one transfer from NEAR Intents to a NEAR account that the user gives. The maker sends that transfer and pays its gas. The stipend cannot pay for it: the transfer needs 40 Tgas, and the rest of the stipend pays for about 25 Tgas. Measured in `crates/zecret-wasm/tests/sandbox.rs`. The maker sends only transfers that its own takers signed. |
 | 2026-11-13 | The recovery file holds the temporary wallet key, key half `a`, the swap seeds, the NEAR key and the swap settings. It is not encrypted. A file saved before the payment is enough: after a restore, the app reads from the chains which messages and payments already went out, and it sends nothing twice. |
 | 2026-11-13 | The project name is Zecret. The repository is `officialcmg/zecret`. |
+| 2026-11-14 | The project name is Cloakroom Intents. The repository is `officialcmg/cloakroom-intents`. The site is `https://cloakroom.chrismg.dev`. Technical names keep "zecret": accounts, crates, the binary, environment variables, wire labels, storage keys and file names (README, "Names"). Reason: the project is Cloakroom, rebuilt on NEAR with NEAR Intents as the exit. |
 | 2026-11-13 | Correction to the withdraw entry above. The withdraw call needs 200 Tgas. NEAR accepts it only if the sender holds about 0.2 NEAR, not 0.1 NEAR. The stipend cannot pay that. |
 | 2026-11-13 | The maker answers a request that it does not quote with a refusal memo. The memo has a reason code: over the limit, under the minimum, busy, or not supported. It also has the maker's limits and the maker's signature. The taker stops at once and pays no premium. Reason: on testnet the taker waited 30 minutes for an answer that never came. |
 | 2026-11-13 | A refusal costs the maker one Zcash fee and one proof. So the maker sends at most 6 refusals in one hour (setting `max_refusals_per_hour`; 0 turns them off) and at most one for each request. It builds a refusal only when no request waits for a quote and the cycle's quote budget is unused. A refusal that is not sent within the request lifetime is dropped. |

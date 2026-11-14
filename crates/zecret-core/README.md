@@ -1,6 +1,6 @@
 # zecret-core
 
-The code both parties of a Zecret swap share. It has no I/O of its own and builds
+The code both parties of a Cloakroom Intents swap share. It has no I/O of its own and builds
 natively and for `wasm32-unknown-unknown`.
 
 | Module | Contents |

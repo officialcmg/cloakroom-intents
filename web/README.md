@@ -1,4 +1,4 @@
-# Zecret website
+# Cloakroom Intents website
 
 The page where a user swaps shielded ZEC for a token on another chain. It is a static
 site (Vite, React, TypeScript) with no backend. The swap engine runs in a Web Worker
@@ -11,7 +11,7 @@ design decisions: [`../docs/WEB.md`](../docs/WEB.md).
 
 | URL | Page |
 |---|---|
-| `/` | The landing page: what Zecret does, who holds the money, what is private, failures, status, questions. It loads no engine, no maker directory and no network settings. |
+| `/` | The landing page: what Cloakroom Intents does, who holds the money, what is private, failures, status, questions. It loads no engine, no maker directory and no network settings. |
 | `/swap` | The swap app. The engine (worker and WebAssembly) starts only here. Vercel serves it with a rewrite to `index.html` (`vercel.json`; the headers of `/(.*)` apply to it as to every path). |
 | `/?demo=1`, `/?config=testnet`, `/?speed=20`, … | The swap app as well: a link to `/` that names an app setting (`demo`, `config`, `speed`, `fail`, `pause`, `cpu`, `directory`) keeps working and keeps its URL (`src/app/route.ts`). |
 
@@ -132,7 +132,7 @@ The automatic check runs five scenarios through the page the same way:
 `../deploy/deployment.testnet.json`, and the relay of the hosted testnet maker
 (`https://zecret-maker-production.up.railway.app/execute-intents`).
 `public/config/testnet-directory.json` holds that maker's signed entry. The hosted site
-(https://zecret.chrismg.dev/swap, also https://zecret-chrismgs-projects.vercel.app/swap) uses these files; see
+(https://cloakroom.chrismg.dev/swap, also https://zecret-chrismgs-projects.vercel.app/swap) uses these files; see
 [`../docs/HOSTING.md`](../docs/HOSTING.md).
 
 A swap needs testnet ZEC in a wallet that can pay a unified address, and a NEAR testnet

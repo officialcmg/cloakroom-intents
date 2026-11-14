@@ -283,6 +283,21 @@ describe('H2: a recovery file cannot choose the payment address', () => {
     expect(st.txs[0].url).toBeUndefined();
   });
 
+  it('names a new file cloakroom-intents-recovery-<id>.json and keeps the format label, so files saved as zecret-recovery-<id>.json still restore', async () => {
+    const core = new Core();
+    const { engine } = await start(memoryRecords(), core);
+    const created = await engine.createSwap(params);
+    const out = await engine.exportRecovery();
+    expect(out.fileName).toBe(`cloakroom-intents-recovery-${created.id.slice(0, 8)}.json`);
+    const file = JSON.parse(out.text);
+    expect(file).toMatchObject({ format: 'zecret-recovery', version: 1, engine: 'wasm' });
+    // A file from before the rename has the same content; the restore never reads the name.
+    const st = await (await start(memoryRecords(), new Core())).engine.importRecovery(out.text);
+    expect(st.id).toBe(created.id);
+    const renamed = { ...file, format: 'cloakroom-intents-recovery' };
+    await expect((await start(memoryRecords(), new Core())).engine.importRecovery(JSON.stringify(renamed))).rejects.toMatchObject({ code: 'RECOVERY_INVALID' });
+  });
+
   it('checks the addresses in the file as createSwap does', async () => {
     const file = await exported();
     const engineFor = async () => (await start(memoryRecords(), new Core())).engine;

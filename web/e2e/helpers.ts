@@ -42,6 +42,7 @@ export async function createAndSave(page: Page): Promise<string> {
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save recovery file' }).click();
   const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^cloakroom-intents-recovery-[0-9a-z-]{8}\.json$/);
   const path = await file.path();
   await expect(page.getByText('Recovery file saved')).toBeVisible();
   await page.getByRole('button', { name: 'Continue to payment' }).click();

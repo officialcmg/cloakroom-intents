@@ -1,7 +1,10 @@
-# Zecret
+# Cloakroom Intents
 
-Zecret is a website for swapping shielded ZEC for tokens on 30+ chains with no
-custodian. A maker locks USDC in an escrow contract on NEAR. The user's ZEC goes to a
+Cloakroom Intents is a website for swapping shielded ZEC for tokens on 30+ chains with no
+custodian. NEAR Intents already swaps ZEC, but only from a transparent address, as a bridged
+token; here the ZEC stays in the shielded pool on its way to the maker, no bridge or
+custodian holds it, the USDC lands in NEAR Intents under a key made in the user's browser,
+and NEAR Intents sends it on. A maker locks USDC in an escrow contract on NEAR. The user's ZEC goes to a
 shielded Zcash address whose spending key is split in two halves: the user holds one,
 the maker holds the other. When the user claims the USDC, the claim publishes the user's
 half, and the maker can then take the ZEC. If the maker refunds instead, the refund
@@ -10,13 +13,13 @@ Intents under a key that only the user's browser holds, and one signature sends 
 a token on another chain.
 
 **What runs today:** the website and one maker on Zcash testnet and NEAR testnet, at
-<https://zecret.chrismg.dev>. There a swap pays shielded testnet ZEC for test USDC,
+<https://cloakroom.chrismg.dev>. There a swap pays shielded testnet ZEC for test USDC,
 delivered to a NEAR testnet account. 32 swaps completed on these networks, 31 of them through the website (see
 [Try it](#try-it)). **Built, not run with funds:** the delivery to other chains through
 NEAR Intents' 1Click API. It is tested against the live `intents.near` code in a sandbox
 and against recorded 1Click answers. Mainnet is planned and not deployed.
 
-![The landing page of Zecret](docs/img/landing.jpg)
+![The landing page of Cloakroom Intents](docs/img/landing.jpg)
 
 | Price | Payment | Progress | Done |
 |---|---|---|---|
@@ -30,15 +33,19 @@ The first picture is the hosted site. The four phone pictures are from the simul
 shielded Zcash today passes through a transparent address held by an exchange, a bridge
 or an intent network, which publishes amounts and timing and can hold funds." Inside
 NEAR Intents, ZEC is the NEP-141 token `nep141:zec.omft.near` (1Click token list, read
-on 2026-11-13), not shielded ZEC. Zecret keeps the ZEC in the shielded pool for the whole
+on 2026-11-13), not shielded ZEC. Cloakroom Intents keeps the ZEC in the shielded pool for the whole
 swap. The protocol is designed so that neither party can take both sides, provided the
 user's browser acts before the deadlines and its NEAR RPC endpoint answers honestly; the
 open issues are listed under [Security](#security).
 
-Zecret builds on Cloakroom, my earlier protocol for shielded ZEC and ERC-20 tokens on
-Base (built for ZECATHON). Cloakroom is the disclosed baseline: commit `2f8e2f7`, on the
+Cloakroom Intents is Cloakroom, my earlier protocol for shielded ZEC and ERC-20 tokens on
+Base (built for ZECATHON), rebuilt on NEAR with NEAR Intents as the exit. The split-key swap and its wallet rules
+come from Cloakroom. The NEAR escrow, the NEAR client, the taker engine in the browser,
+the website, the exit through NEAR Intents and the testnet deployment were built in the
+hackathon window. Cloakroom is the disclosed baseline: commit `2f8e2f7`, on the
 branch `pre-hackathon-baseline`. See [Baseline and what is new](#baseline-and-what-is-new).
-Built at NEAR HACKATHON (2026-11-01 to 2026-11-14).
+Built at NEAR HACKATHON (2026-11-01 to 2026-11-14). The project was named Zecret until
+2026-11-14; see [Names](#names).
 
 ## Terms
 
@@ -86,10 +93,10 @@ No install and no wallet.
 
 | Do | See |
 |---|---|
-| Open <https://zecret.chrismg.dev>. | The landing page: how a swap works, who holds the money, what stays private and what is public, what happens on a failure, status, questions. |
+| Open <https://cloakroom.chrismg.dev>. | The landing page: how a swap works, who holds the money, what stays private and what is public, what happens on a failure, status, questions. |
 | Press "Try the simulated demo" (or open `/?demo=1`). | The swap form with a one-line banner: "Demo. No real money moves." |
 | Enter `1` in "You pay". Keep USDC on Base. Paste `0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed` as the address. | One price line, for example "You pay 1.00 ZEC. You receive at least 918.9879 USDC on Base." Prices are live from 1Click. |
-| Press "Continue", then "Save recovery file", then "Continue to payment". | A file `zecret-recovery-<id>.json` downloads. "Send exactly 1.00 ZEC", a QR code and a `utest1…` address. |
+| Press "Continue", then "Save recovery file", then "Continue to payment". | A file `cloakroom-intents-recovery-<id>.json` downloads. "Send exactly 1.00 ZEC", a QR code and a `utest1…` address. |
 | Press "Simulate the payment". | The progress screen with six step groups, then "You received … USDC on Base" and "What this swap revealed". |
 | Press "Details" in the banner, then "Demo controls". | Each failure case: the maker does not answer, the maker refunds, delivery below the minimum, a cleared browser and restore, and more. |
 
@@ -114,7 +121,7 @@ near contract call-function as-transaction usdc.zecret-3f109eea1e.testnet storag
 
 | Do | See |
 |---|---|
-| Open <https://zecret.chrismg.dev> and press "Start a swap". | The app at `/swap` with the banner "Testnet. Test money only." The engine downloads (9 MB) and prepares its keys (20 s in the recorded runs). |
+| Open <https://cloakroom.chrismg.dev> and press "Start a swap". | The app at `/swap` with the banner "Testnet. Test money only." The engine downloads (9 MB) and prepares its keys (20 s in the recorded runs). |
 | Enter an amount between 0.001 and 0.1 TAZ (the hosted maker's limits), a token and chain, and the NEAR testnet account. If you have a Zcash testnet wallet, add its address as the return address. | One price line. The price for the chosen chain is a mainnet preview: on testnet the swap pays test USDC to the NEAR account. |
 | Save the recovery file and continue to payment. | "Send exactly …", a QR code and a `utest1…` address. |
 | Copy that address into the form on <https://fauzec.com> (it has a human check) and claim. Or pay the exact amount from a wallet. | The progress screen. Keep the tab open while it says so (during the claim). |
@@ -557,7 +564,7 @@ disclosure.
   the baseline commit was written for NEAR HACKATHON.
   Details: [`BASELINE.md`](BASELINE.md).
 - **The diff:**
-  [`https://github.com/officialcmg/zecret/compare/pre-hackathon-baseline...main`](https://github.com/officialcmg/zecret/compare/pre-hackathon-baseline...main).
+  [`https://github.com/officialcmg/cloakroom-intents/compare/pre-hackathon-baseline...main`](https://github.com/officialcmg/cloakroom-intents/compare/pre-hackathon-baseline...main).
 
 | Part | Baseline (Cloakroom) | Built in the hackathon window |
 |---|---|---|
@@ -606,6 +613,31 @@ Exact versions are in the `Cargo.lock` files and `web/package-lock.json`.
 |---|---|
 | `defi`: Unstoppable DeFi | An exchange with no custodian, built to settle across chains through NEAR Intents: the escrow holds the maker's USDC, and the user exits to a token on another chain with one signed intent (on testnet today: to a NEAR account). |
 | `privacy`: Privacy & Private AI | Private finance: the user's ZEC stays in Zcash's shielded pool for the whole swap, the messages are encrypted memos, and the user's NEAR key is new for each swap and paid by the maker, so no gas payment links the user to the swap. |
+
+## Names
+
+The project was named Zecret until 2026-11-14. The product name is now Cloakroom
+Intents, and the site is <https://cloakroom.chrismg.dev> (<https://zecret.chrismg.dev>
+still works). These technical names keep "zecret", because a change would break deployed
+contracts, stored swaps or saved files:
+
+- NEAR testnet accounts: `zecret-3f109eea1e.testnet` and its sub-accounts (escrow, maker,
+  test USDC, Verifier).
+- The hosted maker's address `zecret-maker-production.up.railway.app` (in the site's
+  configuration and Content-Security-Policy), and the Vercel and Railway project names.
+- Crates and packages (`zecret-core`, `zecret-node`, `zecret-wasm`, `zecret-intents`,
+  `zecret-deploy`, `zecret-web`), the binary `zecret`, the engine files
+  `zecret_wasm*`, and file and directory names in this repository.
+- Environment variables (`ZECRET_*`, `VITE_ZECRET_*`).
+- Wire formats and domain strings: memo labels, signing and digest domains, and the
+  `format` values of the configuration, the maker directory and the recovery file
+  (`zecret-recovery`).
+- Browser storage keys and database names (`zecret.*`, `zecret-engine`, `zecret-sim`).
+  Renaming them would hide swaps that a browser already holds.
+
+A recovery file is now saved as `cloakroom-intents-recovery-<id>.json`. A file saved
+earlier as `zecret-recovery-<id>.json` restores the same way: the restore reads the
+content, not the file name.
 
 ## Licence
 

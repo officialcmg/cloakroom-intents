@@ -1,5 +1,8 @@
 # Status
 
+The project was named Zecret until 2026-11-14 and is now Cloakroom Intents (README,
+"Names"). Entries below keep the names that were true when they were written.
+
 Updated: 2026-11-14 01:30 UTC. Deadline: 2026-11-14 23:59 UTC.
 
 Any session can resume from this file. Read `docs/BUILD_PLAN.md` for the packages and
@@ -43,7 +46,7 @@ a funded run can prove".
 
 - [x] Screenshots in the README (`docs/img/`, taken after the redesign). Retake if the
   design changes again.
-- [x] Docs name the site as `https://zecret.chrismg.dev`.
+- [x] Docs name the site as `https://cloakroom.chrismg.dev` (renamed from `https://zecret.chrismg.dev`, which keeps working).
 - [x] Screening dry run (`docs/reviews/screening-dry-run.md`, 72/100) worked through:
   pinned Rust (`rust-toolchain.toml`) and Node (`web/.nvmrc`), host and tool checks in
   `scripts/setup-env.sh`, clean-clone website test order in the README, missing engine
@@ -166,8 +169,8 @@ with "WIP".
 
 Read this section first if you continue the build. Then `CLAUDE.md`, `docs/BUILD_PLAN.md`.
 
-Live and verified: the site https://zecret.chrismg.dev (landing at `/`, app at `/swap`,
-demo at `/?demo=1`; also https://zecret-chrismgs-projects.vercel.app) and the maker with
+Live and verified: the site https://cloakroom.chrismg.dev (landing at `/`, app at `/swap`,
+demo at `/?demo=1`; also https://zecret.chrismg.dev and https://zecret-chrismgs-projects.vercel.app) and the maker with
 relay on Railway. The redesign is live from commit `23b1b9a`. A push to `main` redeploys
 both; Vercel skips commits whose message starts with "WIP".
 

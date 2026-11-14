@@ -140,7 +140,7 @@ Or with systemd and no container:
 ```ini
 # /etc/systemd/system/zecret-maker.service
 [Unit]
-Description=Zecret maker
+Description=Cloakroom Intents maker
 After=network-online.target
 Wants=network-online.target
 

@@ -35,7 +35,7 @@ const out = {
   network,
   updatedAt: new Date().toISOString(),
   status: 'online',
-  maker: { name: network === 'testnet' ? 'Zecret testnet maker' : 'Zecret maker', zcashAddress: e.ua, requestKey: e.rfq_pub, nearAccount: e.near_account, escrowContract: escrow, nearPublicKey: e.near_pk, epoch: e.epoch, signedLimits: e.limits },
+  maker: { name: network === 'testnet' ? 'Cloakroom Intents testnet maker' : 'Cloakroom Intents maker', zcashAddress: e.ua, requestKey: e.rfq_pub, nearAccount: e.near_account, escrowContract: escrow, nearPublicKey: e.near_pk, epoch: e.epoch, signedLimits: e.limits },
   rate: { usdcPerZec: rate, validForSeconds: 300 },
   limits: { minZec: zec(e.limits.min_zats), maxZec: zec(e.limits.max_zats) },
   premium: { bps: 0, minZec: zec(e.limits.premium_zats) },

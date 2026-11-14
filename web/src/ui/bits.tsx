@@ -15,9 +15,12 @@ export function Logo() {
         </defs>
         <rect width="30" height="30" rx="9" fill={`url(#${id})`} />
         <rect x="0.5" y="0.5" width="29" height="29" rx="8.5" fill="none" stroke="#fff" strokeOpacity="0.18" />
-        <path d="M9.5 10h11l-11 10h11" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        {/* A coat hanger: the cloakroom holds the coat (the ZEC) and hands it back. */}
+        <path d="M12.6 10.1a2.4 2.4 0 1 1 2.4 2.4V14M15 14 7.2 20.9h15.6z" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="logo-word">Zecret</span>
+      <span className="logo-word">
+        Cloakroom<span className="logo-word-2"> Intents</span>
+      </span>
     </span>
   );
 }

@@ -345,7 +345,7 @@ export class SimEngine implements EngineBackend {
       simulatedChain: this.chain,
     };
     return {
-      fileName: `zecret-recovery-${s.id.slice(0, 8)}.json`,
+      fileName: `cloakroom-intents-recovery-${s.id.slice(0, 8)}.json`,
       mimeType: 'application/json',
       text: JSON.stringify(file, null, 2),
     };
@@ -357,10 +357,10 @@ export class SimEngine implements EngineBackend {
     try {
       file = JSON.parse(text);
     } catch {
-      throw new EngineError('RECOVERY_INVALID', 'This file is not a Zecret recovery file.');
+      throw new EngineError('RECOVERY_INVALID', 'This file is not a recovery file of Cloakroom Intents.');
     }
     if (file?.format !== 'zecret-recovery' || file.version !== 1 || typeof file.swapId !== 'string')
-      throw new EngineError('RECOVERY_INVALID', 'This file is not a Zecret recovery file.');
+      throw new EngineError('RECOVERY_INVALID', 'This file is not a recovery file of Cloakroom Intents.');
     if (file.engine !== 'simulated') throw new EngineError('RECOVERY_INVALID', 'This file belongs to a real swap. Open it on the live site, not in the demo.');
     if (file.network !== this.network) throw new EngineError('RECOVERY_MISMATCH', `This file is for Zcash ${String(file.network)}, and this page runs on ${this.network}.`);
     const secrets = file.secrets as LocalRecord['secrets'] | undefined;

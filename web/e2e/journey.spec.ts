@@ -175,7 +175,9 @@ test('restore in a fresh browser that never saw the swap', async ({ page, browse
   const other = await fresh.newPage();
   await open(other);
   await other.getByRole('button', { name: /Restore a swap/ }).click();
-  await other.getByTestId('recovery-input').setInputFiles(filePath);
+  // Files saved before the rename to Cloakroom Intents are named zecret-recovery-<id>.json.
+  // The restore reads the content (format "zecret-recovery", unchanged), not the name.
+  await other.getByTestId('recovery-input').setInputFiles({ name: 'zecret-recovery-0a1b2c3d.json', mimeType: 'application/json', buffer: readFileSync(filePath) });
   await expect(other.getByRole('heading', { name: /Send exactly 1.00 ZEC/ })).toBeVisible();
   await expect(other.getByTestId('deposit-address')).toHaveText(await page.getByTestId('deposit-address').innerText());
   await fresh.close();
