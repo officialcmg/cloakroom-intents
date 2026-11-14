@@ -82,3 +82,10 @@ were moved to `escrow3`. The slots that fall in this window are recorded as `swi
   key is gone and the contract allows no refund after t2 for an Open swap.
 - Slots 18 to 28 are recorded as `paused`. The soak runs again from slot 29 (10:00) to
   slot 41 (13:00).
+
+## Slot 29 (10:00 UTC): lost, the build machine restarted again
+
+- The cloud machine that runs the test script restarted during slot 29 and killed the
+  script. The hourly check started it again at 10:21; slot 30 ran at once. The maker's
+  health route stayed `ok` throughout. This is a fault of the test machine, not of the
+  app. If slot 29's swap had opened an escrow, the maker refunds it by itself.

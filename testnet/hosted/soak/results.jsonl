@@ -26,3 +26,4 @@
 {"slot": "26", "at": "2026-11-14T09:15:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
 {"slot": "27", "at": "2026-11-14T09:30:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
 {"slot": "28", "at": "2026-11-14T09:45:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot":"29","at":"2026-11-14T10:00:00Z","result":"missed"}
