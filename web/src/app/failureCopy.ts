@@ -49,6 +49,15 @@ export function failureCopy(failure: AppState['failure'], { hasSwap = false }: {
   const kind = failure?.kind ?? 'engine';
 
   if (kind === 'config') {
+    if (/does not run on mainnet/.test(message))
+      return {
+        cause: 'config_refused',
+        title: 'This site does not run on mainnet',
+        body: `This build of the site runs only on test networks. A link cannot switch it to mainnet. ${NOTHING_SENT}`,
+        next: 'Open the site without the "config" part of the link.',
+        detail: message,
+        retry: false,
+      };
     if (/loads only its own network settings/.test(message))
       return {
         cause: 'config_refused',

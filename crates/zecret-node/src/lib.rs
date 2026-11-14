@@ -7,3 +7,6 @@ pub mod relay;
 
 #[cfg(test)]
 mod testnet_config;
+
+#[cfg(test)]
+mod mainnet_config;

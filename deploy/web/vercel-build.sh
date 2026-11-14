@@ -8,7 +8,10 @@
 #      profile), if missing;
 #   3. downloads the wasm-bindgen 0.2.129 release binary and checks its SHA-256;
 #   4. builds the engine into web/public/engine/ (crates/zecret-wasm/build.sh);
-#   5. builds the site with VITE_ZECRET_CONFIG=testnet unless the variable is set.
+#   5. builds the site with VITE_ZECRET_CONFIG=testnet unless the variable is set. A
+#      mainnet build (VITE_ZECRET_CONFIG=mainnet, a separate Vercel project, docs/MAINNET.md)
+#      stops before any work unless VITE_ZECRET_ALLOW_MAINNET=1, VITE_MAINNET_ESCROW and
+#      VITE_MAINNET_ESCROW_CODE_HASH are set and web/public/config/mainnet-directory.json exists.
 #
 # It also runs on any Linux x86_64 machine with dnf or with these tools already present.
 set -euo pipefail
@@ -23,6 +26,13 @@ mkdir -p "$TOOLS/bin"
 export PATH="$TOOLS/bin:$HOME/.cargo/bin:$PATH"
 t0=$(date +%s)
 step() { echo "[vercel-build +$(( $(date +%s) - t0 ))s] $*"; }
+
+if [ "${VITE_ZECRET_CONFIG:-}" = mainnet ]; then
+  [ "${VITE_ZECRET_ALLOW_MAINNET:-}" = 1 ] || { echo "mainnet build: set VITE_ZECRET_ALLOW_MAINNET=1" >&2; exit 1; }
+  [ -n "${VITE_MAINNET_ESCROW:-}" ] && [ -n "${VITE_MAINNET_ESCROW_CODE_HASH:-}" ] || { echo "mainnet build: set VITE_MAINNET_ESCROW and VITE_MAINNET_ESCROW_CODE_HASH" >&2; exit 1; }
+  [ -s "$ROOT/web/public/config/mainnet-directory.json" ] || { echo "mainnet build: web/public/config/mainnet-directory.json is missing (docs/MAINNET.md, the directory entry)" >&2; exit 1; }
+  step "mainnet build: escrow $VITE_MAINNET_ESCROW, code hash $VITE_MAINNET_ESCROW_CODE_HASH"
+fi
 
 # 1. C compiler for wasm32.
 if ! command -v clang >/dev/null || ! command -v llvm-ar >/dev/null; then

@@ -10,7 +10,7 @@ import { PayScreen, RecoveryStep } from './screens/Pay';
 import { ProgressScreen } from './screens/Progress';
 import { DoneScreen, RefundedScreen } from './screens/Finished';
 import { RestoreScreen } from './screens/Restore';
-import { ConfigOverrideBanner, DemoBanner, EngineWarnings, Footer, Header, NetworkBanner } from './screens/Shell';
+import { ConfigOverrideBanner, DemoBanner, EngineWarnings, Footer, Header, MainnetNotice, NetworkBanner } from './screens/Shell';
 import { failureCopy } from './app/failureCopy';
 import { hasMarkedSwap, markSwap } from './app/route';
 
@@ -160,6 +160,7 @@ export default function App() {
       <DemoBanner settings={app.settings} init={app.init} swap={swap} />
       <ConfigOverrideBanner choice={app.configOverride} />
       <NetworkBanner network={app.network} />
+      <MainnetNotice network={app.network} terms={app.terms} />
       <main id="main" ref={main} className={`main main-${screenKey}`}>
         <EngineWarnings warnings={app.warnings} restartedAt={app.restartedAt} />
         {content}

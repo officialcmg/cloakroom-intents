@@ -137,7 +137,8 @@ pub fn wallet_for(chains: &Chains, t: SharedTransport) -> Result<Wallet> {
             let birthday = chains.birthday.ok_or_else(|| anyhow!("birthday is required with lightwalletd"))?;
             let net = match chains.network.as_deref() {
                 Some("test") | Some("testnet") => Net::Test,
-                other => bail!("lightwalletd is supported on testnet only (network {other:?})"),
+                Some("main") | Some("mainnet") => Net::Main,
+                other => bail!("lightwalletd needs network test or main (network {other:?})"),
             };
             Ok(Wallet::new(Backend::Lwd(Lwd::new(t, url, birthday)), net))
         }

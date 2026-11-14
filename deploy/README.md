@@ -33,6 +33,8 @@ T=./target/debug/zecret-deploy
 $T rehearse --config configs/sandbox.toml   # local sandbox: deploy, deploy again (must send nothing), e2e
 $T deploy   --config configs/testnet.toml   # create or complete the deployment; safe to run again
 $T verify   --config configs/testnet.toml   # read-only checks at a final block; exit 1 if one fails
+$T plan     --config configs/mainnet.toml --owner ACCOUNT [--maker-config F] [--expect-escrow-hash H]
+                                            # the dry run: read-only checks, the plan and its cost (docs/MAINNET.md)
 $T e2e      --config configs/testnet.toml   # one swap end to end with real transactions
 $T maker-key --config configs/testnet.toml --out DIR   # DIR/near_key.json for `zecret maker --dir DIR`
 $T hash FILE.wasm                           # the NEAR code hash of a wasm file
@@ -44,7 +46,8 @@ The sandbox needs `LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD`.
 `--escrow-wasm FILE` replaces the escrow wasm path of the config.
 
 On mainnet, `deploy` refuses to run without
-`--i-am-the-owner-and-accept-spending-real-funds`. `e2e` and `rehearse` never run on
+`--i-am-the-owner-and-accept-spending-real-funds`. `plan` and `verify` only read and run
+on mainnet without it; `plan` has no signer at all. `e2e` and `rehearse` never run on
 mainnet. `e2e` attaches 200 Tgas to `withdraw` (the escrow's two-step Intents withdraw
 needs at least 110 Tgas) and checks that the escrow's own Verifier balance is 0 after it. `verify` runs on mainnet; it only reads.
 

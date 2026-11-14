@@ -1,7 +1,18 @@
 #!/bin/sh
-# Start script of the hosted testnet maker (deploy/maker/railway/Dockerfile,
-# docs/HOSTING.md). It runs as root, prepares the maker folder on the volume, then
-# starts `zecret maker` with its relay as the unprivileged user zecret (uid 10001).
+# Start script of the hosted maker (deploy/maker/railway/Dockerfile, docs/HOSTING.md).
+# It runs as root, prepares the maker folder on the volume, then starts `zecret maker` as
+# the unprivileged user zecret (uid 10001).
+#
+# Two modes. The default is testnet: the settings come from the image (the repository's
+# testnet template) and the maker runs with its relay. Mainnet is a separate, deliberate
+# mode (docs/MAINNET.md): it needs both ZECRET_NETWORK=main and
+# ZECRET_ALLOW_MAINNET=1. On mainnet:
+#   - the settings come from ZECRET_MAKER_CONFIG (base64 of config.json; it holds no
+#     secret) or from the volume, never from the image;
+#   - the settings must say chains.network "main", hold no template placeholder, set
+#     price_per_zec, premium_check and chains.birthday, and use https endpoints;
+#   - the maker runs without the relay (the exit runs through 1Click);
+#   - key material comes only from the service's variables or the volume, as on testnet.
 #
 # The volume is the source of truth. This script never overwrites the wallet, the RFQ
 # key, the swap records or the relay counters. It writes:
@@ -14,14 +25,15 @@
 #     and only its public key is printed;
 #   - a new wallet with ZECRET_NEW_WALLET=1, when the volume has none and
 #     ZECRET_MAKER_STATE is not set;
-#   - config.json from the image (the repository's testnet template): when absent, or
-#     when the image's settings differ and no swap is open. With an open swap it keeps
-#     the volume's settings: the maker uses them for its deadlines.
+#   - config.json from the image (testnet) or from ZECRET_MAKER_CONFIG (mainnet): when
+#     absent, or when the wanted settings differ and no swap is open. With an open swap it
+#     keeps the volume's settings: the maker uses them for its deadlines.
 # Secret values are never printed.
 set -eu
 
 D="${ZECRET_DATA:-/data}"
 IMAGE_CONFIG="${ZECRET_IMAGE_CONFIG:-/etc/zecret/config.testnet.json}"
+NETWORK="${ZECRET_NETWORK:-test}"
 PORT="${PORT:-8080}"
 ZECRET_BIN="${ZECRET_BIN:-/usr/local/bin/zecret}"
 UID_ZECRET=10001
@@ -30,6 +42,14 @@ die() { log "error: $*"; exit 1; }
 stamp() { date -u +%Y%m%dT%H%M%SZ; }
 
 [ "$(id -u)" = 0 ] || die "must start as root to prepare $D (Railway mounts volumes as root)"
+case "$NETWORK" in
+  test) ;;
+  main)
+    [ "${ZECRET_ALLOW_MAINNET:-}" = 1 ] || die "ZECRET_NETWORK=main needs ZECRET_ALLOW_MAINNET=1: this service would move real funds"
+    log "MAINNET mode: real funds"
+    ;;
+  *) die "ZECRET_NETWORK must be test or main, not '$NETWORK'" ;;
+esac
 mkdir -p "$D"
 chmod 0700 "$D"
 umask 077
@@ -105,29 +125,56 @@ open_swaps=0
 if ls "$D"/swap/*.json >/dev/null 2>&1; then
   open_swaps="$(jq -s '[.[] | select((.stage | type) == "string" and .stage != "Swept" and .stage != "Refunded")] | length' "$D"/swap/*.json)"
 fi
-if [ ! -e "$D/config.json" ]; then
-  cp "$IMAGE_CONFIG" "$D/config.json"
-  log "wrote config.json from the image"
-elif jq -e --slurpfile a "$D/config.json" --slurpfile b "$IMAGE_CONFIG" -n '$a[0] == $b[0]' >/dev/null; then
-  log "config.json matches the image"
+# The settings this start wants: the image's testnet template, or on mainnet the
+# service's ZECRET_MAKER_CONFIG (or nothing: then the volume's config.json is used).
+want=""
+if [ "$NETWORK" = main ]; then
+  if [ -n "${ZECRET_MAKER_CONFIG:-}" ]; then
+    want="$(mktemp)"
+    printf '%s' "$ZECRET_MAKER_CONFIG" | base64 -d > "$want" 2>/dev/null || die "ZECRET_MAKER_CONFIG is not base64"
+    jq -e . "$want" >/dev/null 2>&1 || die "ZECRET_MAKER_CONFIG is not JSON"
+  elif [ ! -e "$D/config.json" ]; then
+    die "mainnet: no config.json on the volume and ZECRET_MAKER_CONFIG is not set"
+  fi
+else
+  want="$IMAGE_CONFIG"
+fi
+if [ -z "$want" ]; then
+  log "config.json from the volume"
+elif [ ! -e "$D/config.json" ]; then
+  cp "$want" "$D/config.json"
+  log "wrote config.json from $( [ "$NETWORK" = main ] && echo ZECRET_MAKER_CONFIG || echo the image )"
+elif jq -e --slurpfile a "$D/config.json" --slurpfile b "$want" -n '$a[0] == $b[0]' >/dev/null; then
+  log "config.json matches the wanted settings"
 elif [ "$open_swaps" = 0 ]; then
   old="config.json.prev-$(stamp)"
   cp "$D/config.json" "$D/$old"
-  cp "$IMAGE_CONFIG" "$D/config.json"
-  log "config.json updated from the image (no open swap); the old one is $old"
+  cp "$want" "$D/config.json"
+  log "config.json updated (no open swap); the old one is $old"
 else
-  log "WARNING: the image's settings differ from config.json, but $open_swaps swap(s) are open: kept config.json; it is updated at the first start with no open swap"
+  log "WARNING: the wanted settings differ from config.json, but $open_swaps swap(s) are open: kept config.json; it is updated at the first start with no open swap"
 fi
+[ "$NETWORK" = main ] && [ -n "$want" ] && rm -f "$want"
 network="$(jq -r '.chains.network' "$D/config.json")"
-[ "$network" = test ] || die "chains.network is '$network': this service runs on testnet only"
-log "settings: $(jq -c '{escrow: .chains.escrow, near_account, birthday: .chains.birthday, min_zats, max_zats, premium_zats, price_per_zec, timing, windows}' "$D/config.json")"
+[ "$network" = "$NETWORK" ] || die "chains.network is '$network', but this service runs with ZECRET_NETWORK=$NETWORK"
+if [ "$NETWORK" = main ]; then
+  # Refuse what would lose money or cannot work. Maker::open refuses a missing
+  # premium_check too; this stops earlier and says why.
+  if grep -Eq 'OWNER|REPLACE' "$D/config.json"; then die "mainnet: config.json still holds a template placeholder (OWNER or REPLACE)"; fi
+  jq -e '(.price_per_zec | tostring | tonumber) > 0' "$D/config.json" >/dev/null || die "mainnet: price_per_zec is 0 or missing: set the maker's price (docs/MAINNET.md, the price rule)"
+  jq -e '.premium_check.yocto_near_per_zec != null' "$D/config.json" >/dev/null || die "mainnet: premium_check is required"
+  jq -e '(.chains.birthday // 0) > 0' "$D/config.json" >/dev/null || die "mainnet: set chains.birthday to a Zcash height before the maker's wallet was made"
+  jq -e '(.misbehave // null) == null' "$D/config.json" >/dev/null || die "mainnet: misbehave is a test setting"
+  jq -e '(.chains.near_rpc | startswith("https://")) and (.chains.lightwalletd | startswith("https://"))' "$D/config.json" >/dev/null || die "mainnet: near_rpc and lightwalletd must be https URLs"
+fi
+log "settings: $(jq -c '{network: .chains.network, escrow: .chains.escrow, near_account, birthday: .chains.birthday, min_zats, max_zats, premium_zats, price_per_zec, timing, windows}' "$D/config.json")"
 log "open swaps: $open_swaps"
 
 # 4. Ownership, then drop privileges.
 chown -R "$UID_ZECRET:$UID_ZECRET" "$D"
 find "$D" -type f -exec chmod 0600 {} +
 find "$D" -type d -exec chmod 0700 {} +
-unset ZECRET_MAKER_STATE ZECRET_NEAR_KEY
+unset ZECRET_MAKER_STATE ZECRET_NEAR_KEY ZECRET_MAKER_CONFIG
 
 run() { setpriv --reuid="$UID_ZECRET" --regid="$UID_ZECRET" --clear-groups -- env HOME="$D" "$@"; }
 # Public values only: the wallet's address, the NEAR public key, the directory entry.
@@ -141,6 +188,12 @@ if entry="$(run "$ZECRET_BIN" directory --dir "$D" 2>&1)"; then
   log "directory entry: $entry"
 else
   log "WARNING: zecret directory failed: $entry"
+fi
+if [ "$NETWORK" = main ]; then
+  # No relay on mainnet: the exit runs through 1Click (zecret maker refuses --relay there).
+  log "starting: zecret maker --dir $D (mainnet, no relay)"
+  exec setpriv --reuid="$UID_ZECRET" --regid="$UID_ZECRET" --clear-groups -- \
+    env HOME="$D" "$ZECRET_BIN" maker --dir "$D"
 fi
 log "starting: zecret maker --dir $D --relay 0.0.0.0:$PORT"
 exec setpriv --reuid="$UID_ZECRET" --regid="$UID_ZECRET" --clear-groups -- \
