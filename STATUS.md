@@ -78,6 +78,19 @@ maker). To release maker code: change `deploy/maker/RELEASE` (one line, the date
 what is released) in the same commit. Vercel still skips commits whose message starts
 with "WIP".
 
+## Soak result (2026-11-14 12:45 UTC)
+
+- 26 swaps completed through the live site today: 12 on `escrow2`, 14 on `escrow3`
+  (13 of them after the maker's RPC fix, 12 back to back with no failure). Table:
+  `docs/TESTNET.md`, "Soak test". Notes on every failure: `testnet/hosted/soak/NOTES.md`.
+- Found and fixed: the maker missed a refund when its only NEAR endpoint rate-limited it
+  (`docs/incidents/2026-11-14-maker-missed-refund.md`, commit `213ad19`).
+- The live services run on `escrow3` (light payout) with three NEAR endpoints.
+- The build machine is suspended whenever the build session is idle. A long test must be
+  driven by foreground commands (`.tools/soak/next.sh <label>` pattern), not left alone.
+- 0.2877 tUSDC of the hosted maker stay locked in `escrow3` (swap `c2b9fa50…`).
+- Not merged back: nothing. Branches `escrow-light-payout` and `mainnet-ready` are in `main`.
+
 ## Overnight (2026-11-14, owner asleep)
 
 - Soak test: `testnet/hosted/soak.sh` runs one real 0.01 TAZ swap through the live site

@@ -490,6 +490,31 @@ Two swaps through the site completed after the fix, each 0.01 TAZ for 0.2877 tes
 The transactions of these two runs come from the page's result files. They were not
 audited separately.
 
+## Soak test, 2026-11-14
+
+Real 0.01 TAZ swaps through the hosted site (`https://zecret.chrismg.dev`), driven by
+`testnet/hosted/soak.sh` and `testnet/hosted/soak-one.sh` in headless Chromium, paid from
+the command-line testnet wallet. Result lines: `testnet/hosted/soak/results.jsonl`. Every
+failure and fix: `testnet/hosted/soak/NOTES.md`.
+
+| Phase (UTC) | Escrow | Completed | Not completed |
+|---|---|---|---|
+| 03:00 to 06:07, one swap every 15 minutes | `escrow2` | 12 | 1: the test script's payer wallet got HTTP 502 from the light-wallet server before the site was opened |
+| 06:25, health swap after the switch | `escrow3` | 1 | |
+| 06:30 to 09:45 | `escrow3` | 0 | The test machine stopped during a swap. The maker then missed that swap's refund: its only NEAR endpoint refused every request (`docs/incidents/2026-11-14-maker-missed-refund.md`). Site paused, fix released at 09:29 |
+| 09:40, deliberate abandoned swap | `escrow3` | refund in 5 minutes | |
+| 10:21 | `escrow3` | 1 | 2 slots lost: the test machine is suspended when the build session is idle |
+| 11:08 to 12:44, 12 swaps back to back | `escrow3` | 12 | 0 |
+
+Totals: 26 swaps completed through the site on this day (25 soak lines and the health
+swap). No swap that ran to its end failed. The 12 back-to-back swaps took 364 to 574 s each
+(mean 472 s). After them the maker's health route showed `ok`, 900 NEAR requests since
+its start at 09:31, and no rate limiting.
+
+The lost slots are faults of the test setup, except the missed refund, which was a fault
+of the maker and is fixed. The transactions of these swaps are in the per-slot result
+files; they were not audited one by one.
+
 ## A fresh testnet payer
 
 These commands make a new command-line wallet, fund it from the faucet and pay an address.
