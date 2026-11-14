@@ -15,3 +15,14 @@
 {"slot":"15","at":"2026-11-14T06:30:00Z","result":"missed"}
 {"slot":"16","at":"2026-11-14T06:45:00Z","result":"missed"}
 {"slot":"17","at":"2026-11-14T07:00:00Z","result":"missed"}
+{"slot": "18", "at": "2026-11-14T07:15:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "19", "at": "2026-11-14T07:30:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "20", "at": "2026-11-14T07:45:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "21", "at": "2026-11-14T08:00:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "22", "at": "2026-11-14T08:15:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "23", "at": "2026-11-14T08:30:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "24", "at": "2026-11-14T08:45:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "25", "at": "2026-11-14T09:00:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "26", "at": "2026-11-14T09:15:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "27", "at": "2026-11-14T09:30:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
+{"slot": "28", "at": "2026-11-14T09:45:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}

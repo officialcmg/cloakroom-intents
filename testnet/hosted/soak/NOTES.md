@@ -59,3 +59,26 @@ were moved to `escrow3`. The slots that fall in this window are recorded as `swi
   longer exists. On mainnet the same fault would let a taker who never paid claim real
   USDC. The maker also cannot serve new swaps while it is rate-limited.
 - The soak was stopped at 07:27 until this is fixed.
+
+## 07:27 to 09:50 UTC: cause, fix and live check of the missed refund
+
+- Cause (full note: `docs/incidents/2026-11-14-maker-missed-refund.md`): the maker read
+  the escrow about once per second for a swap whose taker was gone (about 120 requests a
+  minute). Its only NEAR endpoint began to refuse it at 06:43:47. The maker decided to
+  refund at 06:43:55, which was correct, and tried 28 times; every send was refused. It
+  had no second endpoint and no back-off.
+- Fix (commit `213ad19`, released 09:29): an ordered list of three NEAR endpoints with
+  failover and back-off; sends that protect funds go first and try every endpoint; the
+  maker reads on a plan (2 to 4 requests a minute for the same state); a swap past its
+  last deadline is watched every 200 s with one alert; `GET /health` on the relay port.
+  New scenarios s26 (RPC rate-limited during the refund window) and s27.
+- Checks by the main session before release: core and node tests, start-script tests,
+  website unit tests, and scenarios s1, s3, s25, s26.
+- Live check, 09:40 to 09:50: a swap was started through the site and the browser was
+  closed when the escrow opened (09:45:09, escrow id `61bcde2a…`). At 09:50 `get_swap`
+  showed state Refunded, payout paid. The maker's health route showed 59 NEAR requests
+  in total since its start at 09:31 and no rate limiting.
+- The first stuck swap (`c2b9fa50…`, 0.2877 tUSDC) stays locked in `escrow3`: its taker
+  key is gone and the contract allows no refund after t2 for an Open swap.
+- Slots 18 to 28 are recorded as `paused`. The soak runs again from slot 29 (10:00) to
+  slot 41 (13:00).
