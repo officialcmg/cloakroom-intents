@@ -5,3 +5,8 @@
 [hosted 06:34:02 +35s] PASS  the page shows a testnet deposit address and amount 1000000 zats
 [hosted 06:34:18 +51s] paid 1000000 zats in 0431f3ef5884009bbdb765acb53cbe7bb1e5c7ca7644d2198800ff0f038102ac
 [hosted 06:34:18 +51s] stage awaiting_deposit
+[hosted 06:34:58 +92s] stage deposit_confirmed
+[hosted 06:35:27 +121s] stage request_sent
+[hosted 06:37:31 +245s] stage quote_received
+[hosted 06:38:01 +275s] stage accepted
+[hosted 06:39:05 +338s] stage escrow_open
