@@ -7,9 +7,9 @@ public. The proxy is a small Vercel function in the website project. It forwards
 calls the site makes to `https://1click.chaindefuser.com` and adds the key from a server
 environment variable. The browser never sees the key.
 
-Status: built and tested on 2026-11-14 (branch `oneclick-proxy`); its GET calls ran on a
-Vercel preview deployment (last section). The shipped configurations still point at 1Click itself, so the site works as
-before until the owner turns the proxy on (below).
+Status: built and tested on 2026-11-14 (branch `oneclick-proxy`). Its GET calls ran on a
+Vercel preview deployment (last section). The shipped configurations still point at
+1Click itself, so the site works as before until the owner turns the proxy on (below).
 
 ## What the key changes
 
