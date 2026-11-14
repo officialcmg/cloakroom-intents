@@ -6,6 +6,7 @@ mod chain;
 mod config;
 mod deploy;
 mod e2e;
+mod fund;
 mod keys;
 mod rpc;
 mod verify;
@@ -32,6 +33,9 @@ commands:
   e2e       --config FILE   one swap end to end on the deployment (testnet, sandbox)
   rehearse  --config FILE   sandbox config only: deploy, verify and e2e in a new local sandbox
   hash      WASM_FILE       print the NEAR code hash (sha256, base58) of a wasm file
+  fund      --config FILE ACCOUNT_ID NEAR
+                            testnet only: send at least NEAR to the existing account
+                            ACCOUNT_ID through faucet accounts (10 NEAR each)
   maker-key --config FILE --out DIR
                             write the maker's NEAR key to DIR/near_key.json (mode 600),
                             the file the maker daemon (zecret maker --dir DIR) reads,
@@ -50,6 +54,8 @@ struct Args {
     escrow_wasm: Option<String>,
     mainnet_ok: bool,
     file: Option<PathBuf>,
+    /// `fund` only: the target account id and the NEAR amount.
+    fund: Option<(String, String)>,
 }
 
 fn parse_args(argv: &[String]) -> Res<Args> {
@@ -61,7 +67,9 @@ fn parse_args(argv: &[String]) -> Res<Args> {
         escrow_wasm: None,
         mainnet_ok: false,
         file: None,
+        fund: None,
     };
+    let mut pos: Vec<String> = Vec::new();
     while let Some(x) = it.next() {
         match x.as_str() {
             "--config" => a.config = Some(it.next().ok_or("--config needs a file")?.into()),
@@ -71,9 +79,24 @@ fn parse_args(argv: &[String]) -> Res<Args> {
             }
             MAINNET_FLAG => a.mainnet_ok = true,
             "-h" | "--help" => return Err(USAGE.into()),
-            s if !s.starts_with('-') && a.file.is_none() => a.file = Some(s.into()),
+            s if !s.starts_with('-') => pos.push(s.to_string()),
             s => return Err(format!("unknown argument {s}\n\n{USAGE}").into()),
         }
+    }
+    if a.command == "fund" {
+        match <[String; 2]>::try_from(pos) {
+            Ok([id, amount]) => a.fund = Some((id, amount)),
+            Err(_) => {
+                return Err(
+                    format!("fund needs an account id and a NEAR amount\n\n{USAGE}").into(),
+                );
+            }
+        }
+    } else if let Some(s) = pos.first() {
+        if pos.len() > 1 || a.file.is_some() {
+            return Err(format!("unknown argument {}\n\n{USAGE}", pos[pos.len() - 1]).into());
+        }
+        a.file = Some(s.into());
     }
     Ok(a)
 }
@@ -81,6 +104,14 @@ fn parse_args(argv: &[String]) -> Res<Args> {
 /// The mainnet guard. Commands that send transactions refuse to run on mainnet without
 /// the explicit flag; the end-to-end check never runs on mainnet.
 fn guard(network: Network, command: &str, mainnet_ok: bool) -> Res<()> {
+    // fund uses the testnet faucet and nothing else.
+    if command == "fund" && network != Network::Testnet {
+        return Err(format!(
+            "refusing to run fund on {}: it runs on testnet only (it uses the testnet faucet)",
+            network.as_str()
+        )
+        .into());
+    }
     if network != Network::Mainnet {
         return Ok(());
     }
@@ -181,6 +212,9 @@ async fn run(argv: Vec<String>) -> Res<bool> {
         .ok_or_else(|| format!("--config is required\n\n{USAGE}"))?;
     let (mut cfg, base) = Config::load(&cfg_path)?;
     guard(cfg.network, &a.command, a.mainnet_ok)?;
+    if let Some((id, amount)) = &a.fund {
+        return fund::run(&cfg, &base, id, amount).await.map(|_| true);
+    }
     if let Some(w) = &a.escrow_wasm {
         // A command-line path is relative to the current directory.
         cfg.escrow.wasm = std::fs::canonicalize(w)?.to_string_lossy().into_owned();
@@ -375,6 +409,65 @@ mod tests {
         assert!(guard(Network::Mainnet, "verify", false).is_ok());
         assert!(guard(Network::Testnet, "deploy", false).is_ok());
         assert!(guard(Network::Testnet, "e2e", false).is_ok());
+    }
+
+    #[test]
+    fn fund_runs_on_testnet_only() {
+        assert!(guard(Network::Testnet, "fund", false).is_ok());
+        for net in [Network::Mainnet, Network::Sandbox] {
+            for flag in [false, true] {
+                let e = guard(net, "fund", flag).unwrap_err().to_string();
+                assert!(e.contains("testnet only"), "{e}");
+            }
+        }
+    }
+
+    #[test]
+    fn fund_arguments() {
+        let a = parse_args(&args(&["fund", "--config", "c.toml", "x.testnet", "4"])).unwrap();
+        assert_eq!(a.fund, Some(("x.testnet".into(), "4".into())));
+        assert_eq!(a.file, None);
+        assert!(parse_args(&args(&["fund", "--config", "c.toml", "x.testnet"])).is_err());
+        assert!(parse_args(&args(&["fund", "--config", "c.toml"])).is_err());
+        assert!(parse_args(&args(&["fund", "--config", "c.toml", "a", "1", "2"])).is_err());
+        // Other commands keep one positional argument.
+        let a = parse_args(&args(&["hash", "f.wasm"])).unwrap();
+        assert_eq!(a.file, Some(PathBuf::from("f.wasm")));
+        assert_eq!(a.fund, None);
+        assert!(parse_args(&args(&["hash", "a.wasm", "b.wasm"])).is_err());
+        assert!(parse_args(&args(&["maker-key", "--out", "d", "x"])).is_err());
+    }
+
+    #[tokio::test]
+    async fn fund_on_mainnet_stops_before_any_network_access() {
+        let cfg = Path::new(env!("CARGO_MANIFEST_DIR")).join("../configs/mainnet.toml");
+        let e = run(args(&[
+            "fund",
+            "--config",
+            cfg.to_str().unwrap(),
+            "someone.near",
+            "1",
+        ]))
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(e.contains("testnet only"), "{e}");
+    }
+
+    #[tokio::test]
+    async fn fund_on_the_sandbox_config_is_refused() {
+        let cfg = Path::new(env!("CARGO_MANIFEST_DIR")).join("../configs/sandbox.toml");
+        let e = run(args(&[
+            "fund",
+            "--config",
+            cfg.to_str().unwrap(),
+            "x.testnet",
+            "1",
+        ]))
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(e.contains("testnet only"), "{e}");
     }
 
     #[test]
