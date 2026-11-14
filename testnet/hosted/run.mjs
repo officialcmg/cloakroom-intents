@@ -151,6 +151,16 @@ try {
   }
   result.facts.payTx = payTx;
   log(`paid ${zats} zats in ${payTx}`);
+  // ZECRET_ABANDON_AT=<stage>: the taker disappears. The browser is closed when the page
+  // reaches that stage, and the run ends. Used to check that the maker refunds in time.
+  if (process.env.ZECRET_ABANDON_AT) {
+    const at = await waitState(page, (s) => s.stage === process.env.ZECRET_ABANDON_AT, 30 * 60_000, process.env.ZECRET_ABANDON_AT);
+    result.facts.abandonedAt = { stage: at.stage, at: new Date().toISOString(), escrow: at.escrow, txs: at.txs };
+    log(`abandoned at ${at.stage}: escrow ${JSON.stringify(at.escrow)}`);
+    fs.writeFileSync(path.join(HERE, 'result.json'), JSON.stringify(result, null, 2));
+    await browser.close();
+    process.exit(0);
+  }
   const st = await waitState(page, (s) => ['done', 'refunded', 'exit_retry', 'failed'].includes(s.stage), 45 * 60_000, 'a final stage');
   await page.getByTestId('done-title').waitFor({ timeout: 30_000 }).catch(() => undefined);
   await shot(page, '3-done');
