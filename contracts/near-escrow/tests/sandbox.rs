@@ -1,501 +1,185 @@
 //! Sandbox integration tests: the escrow with the live `wrap.near` (NEP-141) and
-//! `intents.near` contract code.
+//! `intents.near` (the Verifier) contract code.
 //!
 //! Run from `contracts/near-escrow/`:
 //!
 //! ```sh
 //! source ../../.tools/env.sh
-//! LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test sandbox -- --nocapture
+//! LD_PRELOAD=$ZECRET_SANDBOX_PRELOAD cargo test --test sandbox -- --nocapture --test-threads 1
 //! ```
 //!
 //! The escrow wasm is built by the test with `cargo build --target wasm32-unknown-unknown
-//! --release`, unless `ESCROW_WASM` names a prebuilt file. The live contract code is read
-//! from `$ZECRET_WASM_DIR` (default `../../.tools/wasm`).
+//! --release`, unless `ESCROW_WASM` names a prebuilt file.
+
+mod common;
 
 use base64::Engine;
-use ed25519_dalek::{Signer, SigningKey};
-use near_workspaces::network::Sandbox;
-use near_workspaces::operations::Function;
-use near_workspaces::result::ExecutionFinalResult;
-use near_workspaces::types::{Gas, NearToken, SecretKey};
-use near_workspaces::{Account, AccountId, Contract, Worker};
-use serde_json::{json, Value};
-use std::path::PathBuf;
-use std::sync::OnceLock;
+use common::*;
+use ed25519_dalek::Signer;
+use near_workspaces::types::{Gas, NearToken};
+use near_workspaces::AccountId;
+use serde_json::json;
 
 /// 1 wNEAR (24 decimals).
 const ONE: u128 = 1_000_000_000_000_000_000_000_000;
 const AMOUNT: u128 = 3 * ONE;
 
-// Key shares from contracts/test/CloakroomEscrow.t.sol, converted to the encodings of this
-// contract (32-byte little-endian scalars, 32-byte compressed points).
-const A_SEC: &str = "195661e2e4789b7f57137b2e777736d79720270638d12e4882fd95e52a73d6b3";
-const B_SEC: &str = "2b8bbfabc504814096b330ffba3d828335e8db236f79aa7fded4d77640369e2a";
-const A_PUB: &str = "4c303c9656ca22dedd75957bc56c364c6f5461cb0fadca1e589495ebb182a197";
-const B_PUB: &str = "950e78fd9d3129d85922bdef19d501fbec46b8c0c0f563d8df66f5e5b86d3a18";
-
-type R<T> = Result<T, Box<dyn std::error::Error>>;
-
-fn le_hex(be: &str) -> String {
-    let mut b = hex::decode(be).unwrap();
-    b.reverse();
-    hex::encode(b)
-}
-
-fn escrow_wasm() -> &'static [u8] {
-    static WASM: OnceLock<Vec<u8>> = OnceLock::new();
-    WASM.get_or_init(|| {
-        if let Ok(p) = std::env::var("ESCROW_WASM") {
-            return std::fs::read(p).expect("read ESCROW_WASM");
-        }
-        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let status = std::process::Command::new(env!("CARGO"))
-            .args(["build", "--target", "wasm32-unknown-unknown", "--release"])
-            .current_dir(&dir)
-            .env_remove("LD_PRELOAD")
-            .status()
-            .expect("run cargo build");
-        assert!(status.success(), "wasm build failed");
-        let target = std::env::var("CARGO_TARGET_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| dir.join("target"));
-        std::fs::read(target.join("wasm32-unknown-unknown/release/near_escrow.wasm"))
-            .expect("read escrow wasm")
-    })
-}
-
-fn live_wasm(name: &str) -> Vec<u8> {
-    let dir = std::env::var("ZECRET_WASM_DIR")
-        .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/../../.tools/wasm").into());
-    std::fs::read(format!("{dir}/{name}")).unwrap_or_else(|e| panic!("read {dir}/{name}: {e}"))
-}
-
-fn tgas(o: &ExecutionFinalResult) -> f64 {
-    o.total_gas_burnt.as_gas() as f64 / 1e12
-}
-
-/// Prints the gas of a call and fails the test if any receipt failed (unless allowed).
-fn report(label: &str, o: &ExecutionFinalResult) {
-    println!(
-        "GAS {label:<44} {:>7.2} Tgas  ok={}",
-        tgas(o),
-        o.is_success()
-    );
-    for f in o.receipt_failures() {
-        println!(
-            "    receipt failure at {}: {:?}",
-            f.executor_id,
-            f.clone().into_result().err()
-        );
-    }
-}
-
-/// Reports the call, asserts that it and all its receipts succeeded, and returns it.
-fn okr(label: &str, o: ExecutionFinalResult) -> ExecutionFinalResult {
-    report(label, &o);
-    assert!(
-        o.is_success(),
-        "{label} failed: {:?}",
-        o.clone().into_result().err()
-    );
-    assert!(
-        o.receipt_failures().is_empty(),
-        "{label} had a failed receipt"
-    );
-    o
-}
-
-fn ok(label: &str, o: ExecutionFinalResult) {
-    let _ = okr(label, o);
-}
-
-fn events(o: &ExecutionFinalResult, name: &str) -> Vec<Value> {
-    o.logs()
-        .iter()
-        .filter_map(|l| l.strip_prefix("EVENT_JSON:"))
-        .map(|j| serde_json::from_str::<Value>(j).unwrap())
-        .filter(|e| e["standard"] == "near_escrow" && e["event"] == name)
-        .collect()
-}
-
-struct Env {
-    worker: Worker<Sandbox>,
-    token: Contract,
-    intents: Contract,
-    escrow: Contract,
-    maker: Account,
-}
-
-/// Deploys the escrow as the README says. The escrow account sends one transaction to
-/// itself: deploy the code, call `new` (private, so only the account itself can call it)
-/// and delete its only access key. After it, the escrow has no keys and nobody can change
-/// its code or state except through its methods.
-async fn deploy_escrow(worker: &Worker<Sandbox>, intents: &AccountId) -> R<Contract> {
-    let account = worker.dev_create_account().await?;
-    let key = account.secret_key().public_key();
-    ok(
-        "escrow deploy + new + delete key (one transaction)",
-        account
-            .batch(account.id())
-            .deploy(escrow_wasm())
-            .call(Function::new("new").args_json(json!({ "intents_account": intents })))
-            .delete_key(key)
-            .transact()
-            .await?,
-    );
-    Ok(Contract::from_secret_key(
-        account.id().clone(),
-        account.secret_key().clone(),
-        worker,
-    ))
-}
-
-async fn storage_deposit(payer: &Account, token: &Contract, who: &AccountId) -> R<()> {
-    ok(
-        "token.storage_deposit",
-        payer
-            .call(token.id(), "storage_deposit")
-            .args_json(json!({ "account_id": who }))
-            .deposit(NearToken::from_millinear(10))
-            .transact()
-            .await?,
-    );
-    Ok(())
-}
-
-async fn new_maker(
-    env_worker: &Worker<Sandbox>,
-    token: &Contract,
-    escrow: &Contract,
-    wnear: u128,
-) -> R<Account> {
-    let maker = env_worker.dev_create_account().await?;
-    ok(
-        "token.near_deposit",
-        maker
-            .call(token.id(), "near_deposit")
-            .deposit(NearToken::from_yoctonear(wnear))
-            .transact()
-            .await?,
-    );
-    ok(
-        "escrow.add_storage_funds (0.1 NEAR)",
-        maker
-            .call(escrow.id(), "add_storage_funds")
-            .args_json(json!({ "token": token.id() }))
-            .deposit(NearToken::from_millinear(100))
-            .transact()
-            .await?,
-    );
-    Ok(maker)
-}
-
 async fn setup() -> R<Env> {
     let worker = near_workspaces::sandbox().await?;
     let token = worker.dev_deploy(&live_wasm("wrap.near.wasm")).await?;
     ok("token.new", token.call("new").transact().await?);
-    let intents = worker.dev_deploy(&live_wasm("intents.near.wasm")).await?;
+    name_account(token.id(), "wnear");
+    let vadmin = worker.dev_create_account().await?;
+    let intents = deploy_verifier(&worker, token.id(), &vadmin).await?;
+    let escrow = deploy_escrow(&worker, intents.id()).await?;
+    let maker = worker.dev_create_account().await?;
+    name_account(maker.id(), "maker");
     ok(
-        "intents.new",
-        intents
-            .call("new")
-            .args_json(json!({ "config": {
-                "wnear_id": token.id(),
-                "fees": { "fee": 0, "fee_collector": intents.id() }
-            }}))
-            .gas(Gas::from_tgas(300))
+        "token.near_deposit",
+        maker
+            .call(token.id(), "near_deposit")
+            .deposit(NearToken::from_near(40))
             .transact()
             .await?,
     );
-    let escrow = deploy_escrow(&worker, intents.id()).await?;
-    let maker = new_maker(&worker, &token, &escrow, 10 * ONE).await?;
-    storage_deposit(&maker, &token, escrow.id()).await?;
-    storage_deposit(&maker, &token, intents.id()).await?;
-    Ok(Env {
+    ok(
+        "token.storage_deposit (Verifier)",
+        maker
+            .call(token.id(), "storage_deposit")
+            .args_json(json!({ "account_id": intents.id() }))
+            .deposit(NearToken::from_millinear(10))
+            .transact()
+            .await?,
+    );
+    ok(
+        "escrow.add_storage_funds (1 NEAR)",
+        maker
+            .call(escrow.id(), "add_storage_funds")
+            .args_json(json!({ "token": token.id() }))
+            .deposit(NearToken::from_near(1))
+            .transact()
+            .await?,
+    );
+    let env = Env {
         worker,
         token,
         intents,
         escrow,
         maker,
-    })
+        vadmin,
+    };
+    // The maker keeps its tokens in its own Verifier account and opens swaps from there.
+    ok(
+        "maker deposit 30 wNEAR into its Verifier account",
+        maker_deposit(&env, 30 * ONE).await?,
+    );
+    assert_eq!(vbal(&env, env.maker.id().as_str()).await?, 30 * ONE);
+    Ok(env)
 }
 
-async fn now_s(worker: &Worker<Sandbox>) -> R<u64> {
-    Ok(worker.view_block().await?.timestamp() / 1_000_000_000)
-}
+// ================================================================== happy path
 
-/// Moves sandbox time forward until the block timestamp is at least `target` seconds.
-async fn advance_to(worker: &Worker<Sandbox>, target: u64) -> R<()> {
-    while now_s(worker).await? < target {
-        worker.fast_forward(50).await?;
-    }
-    Ok(())
-}
-
-async fn ft_balance(token: &Contract, who: &AccountId) -> R<u128> {
-    let v: String = token
-        .view("ft_balance_of")
-        .args_json(json!({ "account_id": who }))
-        .await?
-        .json()?;
-    Ok(v.parse()?)
-}
-
-async fn intents_balance(intents: &Contract, token: &Contract, who: &str) -> R<u128> {
-    let v: String = intents
-        .view("mt_balance_of")
-        .args_json(json!({ "account_id": who, "token_id": format!("nep141:{}", token.id()) }))
-        .await?
-        .json()?;
-    Ok(v.parse()?)
-}
-
-async fn get_swap(escrow: &Contract, id: &str) -> R<Value> {
-    Ok(escrow
-        .view("get_swap")
-        .args_json(json!({ "id": id }))
-        .await?
-        .json()?)
-}
-
-async fn get_credit(escrow: &Contract, token: &Contract, owner: &str) -> R<Value> {
-    Ok(escrow
-        .view("get_credit")
-        .args_json(json!({ "token": token.id(), "owner": owner }))
-        .await?
-        .json()?)
-}
-
-struct Taker {
-    key: SigningKey,
-    id: String,
-}
-
-fn taker(seed: u8) -> Taker {
-    let key = SigningKey::from_bytes(&[seed; 32]);
-    let id = hex::encode(key.verifying_key().to_bytes());
-    Taker { key, id }
-}
-
-fn taker_account(t: &Taker, worker: &Worker<Sandbox>) -> R<Account> {
-    let mut kp = t.key.to_bytes().to_vec();
-    kp.extend_from_slice(&t.key.verifying_key().to_bytes());
-    let sk: SecretKey = format!("ed25519:{}", bs58::encode(kp).into_string()).parse()?;
-    Ok(Account::from_secret_key(t.id.parse()?, sk, worker))
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn open(
-    env: &Env,
-    maker: &Account,
-    salt: u8,
-    taker: &Taker,
-    amount: u128,
-    t0: u64,
-    t1: u64,
-    t2: u64,
-    w: u64,
-) -> R<(String, ExecutionFinalResult)> {
-    let terms = json!({
-        "salt": hex::encode([salt; 32]),
-        "taker_pk": taker.id,
-        "a": A_PUB,
-        "b": B_PUB,
-        "t0": t0,
-        "t1": t1,
-        "t2": t2,
-        "reveal_window": w,
-    });
-    let o = maker
-        .call(env.token.id(), "ft_transfer_call")
-        .args_json(json!({
-            "receiver_id": env.escrow.id(),
-            "amount": amount.to_string(),
-            "msg": terms.to_string(),
-        }))
-        .deposit(NearToken::from_yoctonear(1))
-        .gas(Gas::from_tgas(100))
-        .transact()
-        .await?;
-    let id: String = env
-        .escrow
-        .view("swap_id")
-        .args_json(json!({ "maker": maker.id(), "salt": hex::encode([salt; 32]) }))
-        .await?
-        .json()?;
-    Ok((id, o))
-}
-
-/// Gas attached to `withdraw`. The Intents route needs at least 110 Tgas (measured in
-/// tests/usdc.rs, `withdraw_gas_needed`); 200 Tgas also covers a direct and an Intents
-/// credit of the same owner in one call.
-const WITHDRAW_GAS: u64 = 200;
-
-async fn withdraw(caller: &Account, env: &Env, owner: &str) -> R<ExecutionFinalResult> {
-    Ok(caller
-        .call(env.escrow.id(), "withdraw")
-        .args_json(json!({ "token": env.token.id(), "owner": owner }))
-        .gas(Gas::from_tgas(WITHDRAW_GAS))
-        .transact()
-        .await?)
-}
-
-// =============================================================================== (a)
-
+/// The design's swap with the stipend as the taker's only NEAR: the taker's new key sends
+/// commit_claim, claim and withdraw itself and ends with the tokens under its key in the
+/// Verifier. Then it signs one ft_withdraw intent (the exit) and submits it itself.
 #[tokio::test]
-async fn happy_path_claim_into_intents_then_signed_exit() -> R<()> {
+async fn happy_path_taker_completes_alone_then_signed_exit() -> R<()> {
     let env = setup().await?;
     let t = taker(7);
+    let id = open(&env, 1, &t, AMOUNT).await?;
+    let s = get_swap(&env, &id).await?;
+    assert_eq!(s["state"], "Open");
+    assert_eq!(s["payout"], "none");
+    assert_eq!(s["recipient"], serde_json::Value::Null);
+    assert_eq!(vbal(&env, env.escrow.id().as_str()).await?, AMOUNT);
+    assert_eq!(owed(&env).await?, AMOUNT);
+    assert_eq!(
+        ft_balance(&env.token, env.escrow.id()).await?,
+        0,
+        "the escrow holds no plain tokens"
+    );
+    assert_backed(&env, "after open").await?;
 
-    // Step 11 of the design: the maker's stipend creates the taker's implicit account.
-    // In this test the taker also sends withdraw (200 Tgas) and execute_intents (50 Tgas)
-    // herself. A signer must hold the attached gas at a pessimistic price before NEAR
-    // accepts the transaction (see stipend_needed_for_taker_commit_and_claim), so this
-    // test sends 0.4 NEAR.
     ok(
-        "maker -> taker stipend 0.4 NEAR",
+        "maker -> taker stipend",
         env.maker
-            .transfer_near(&t.id.parse()?, NearToken::from_millinear(400))
+            .transfer_near(&t.id.parse()?, NearToken::from_millinear(STIPEND_MILLINEAR))
             .await?,
     );
     let taker_acc = taker_account(&t, &env.worker)?;
-
-    let now = now_s(&env.worker).await?;
-    let funds_before: String = env
-        .escrow
-        .view("get_storage_funds")
-        .args_json(json!({ "account_id": env.maker.id(), "token": env.token.id() }))
-        .await?
-        .json()?;
-    let (id, o) = open(
-        &env,
-        &env.maker,
-        1,
-        &t,
-        AMOUNT,
-        now + 600,
-        now + 1200,
-        now + 1800,
-        600,
-    )
-    .await?;
-    let o = okr("open (ft_transfer_call -> ft_on_transfer)", o);
-    assert_eq!(events(&o, "opened").len(), 1);
-    let used: String = o.json()?;
-    assert_eq!(
-        used,
-        AMOUNT.to_string(),
-        "the token reports the whole amount as used"
-    );
-    let funds_after: String = env
-        .escrow
-        .view("get_storage_funds")
-        .args_json(json!({ "account_id": env.maker.id(), "token": env.token.id() }))
-        .await?
-        .json()?;
-    println!(
-        "storage cost of one swap: {} yoctoNEAR",
-        funds_before.parse::<u128>()? - funds_after.parse::<u128>()?
-    );
-    assert_eq!(ft_balance(&env.token, env.escrow.id()).await?, AMOUNT);
-    assert_eq!(get_swap(&env.escrow, &id).await?["state"], "Open");
-
-    ok(
-        "set_ready",
-        env.maker
-            .call(env.escrow.id(), "set_ready")
-            .args_json(json!({ "id": id }))
-            .transact()
-            .await?,
-    );
-
-    // The taker signs the exact bytes the escrow returns, and sends the commit herself.
-    let a = le_hex(A_SEC);
-    let commitment: String = env
-        .escrow
-        .view("commitment_of")
-        .args_json(json!({ "id": id, "a": a }))
-        .await?
-        .json()?;
-    let msg: String = env
-        .escrow
-        .view("commit_message")
-        .args_json(json!({ "id": id, "commitment": commitment }))
-        .await?
-        .json()?;
-    let sig = t.key.sign(&hex::decode(&msg)?).to_bytes();
+    set_ready(&env, &id).await?;
     let o = okr(
-        "commit_claim (ed25519_verify)",
-        taker_acc
-            .call(env.escrow.id(), "commit_claim")
-            .args_json(json!({ "id": id, "commitment": commitment, "signature": hex::encode(sig) }))
-            .gas(Gas::from_tgas(10))
-            .transact()
-            .await?,
+        "commit_claim by the taker",
+        call(
+            &taker_acc,
+            &env,
+            "commit_claim",
+            commit_args(&env, &t, &id).await?,
+            GAS_COMMIT,
+        )
+        .await?,
     );
     assert_eq!(events(&o, "locked").len(), 1);
 
+    // claim with the client's gas: a is published, the payout stays Due (not enough gas
+    // left for it in 25 Tgas).
     let o = okr(
-        "claim (Pallas a·G == A)",
-        taker_acc
-            .call(env.escrow.id(), "claim")
-            .args_json(json!({ "id": id, "a": a }))
-            .gas(Gas::from_tgas(30))
-            .transact()
-            .await?,
+        "claim by the taker (25 Tgas)",
+        claim(&taker_acc, &env, &id, GAS_CLAIM).await?,
     );
-    assert_eq!(events(&o, "claimed")[0]["data"][0]["a"], a);
-    let swap = get_swap(&env.escrow, &id).await?;
-    assert_eq!(swap["state"], "Claimed");
-    assert_eq!(swap["a"], a, "the maker reads a from contract state");
+    assert_eq!(events(&o, "claimed")[0]["data"][0]["a"], le_hex(A_SEC));
+    let s = get_swap(&env, &id).await?;
+    assert_eq!(s["state"], "Claimed");
     assert_eq!(
-        get_credit(&env.escrow, &env.token, &t.id).await?["intents"],
-        AMOUNT.to_string()
+        s["a"],
+        le_hex(A_SEC),
+        "the maker reads a from contract state"
     );
+    assert_eq!(s["payout"], "due");
+    assert_eq!(s["recipient"], t.id);
+    assert_backed(&env, "after claim").await?;
 
-    // on_withdraw is private.
+    // on_payout is private.
     let o = env
         .maker
-        .call(env.escrow.id(), "on_withdraw")
-        .args_json(
-            json!({ "token": env.token.id(), "owner": t.id, "route": "intents", "amount": "1" }),
-        )
+        .call(env.escrow.id(), "on_payout")
+        .args_json(json!({ "id": id }))
         .transact()
         .await?;
-    assert!(o.is_failure(), "on_withdraw must reject outside callers");
+    assert!(o.is_failure(), "on_payout must reject outside callers");
+    assert!(format!("{:?}", o.into_result().err()).contains("is private"));
 
     let o = okr(
-        "withdraw (taker -> intents, ft_transfer_call)",
-        withdraw(&taker_acc, &env, &t.id).await?,
+        "withdraw by the taker (25 Tgas)",
+        withdraw(&taker_acc, &env, &id, GAS_WITHDRAW).await?,
     );
-    let w = events(&o, "withdrawn");
-    assert_eq!(w.len(), 1);
-    assert_eq!(w[0]["data"][0]["amount"], AMOUNT.to_string());
-    assert_eq!(w[0]["data"][0]["restored"], "0");
-    assert_eq!(
-        get_credit(&env.escrow, &env.token, &t.id).await?["intents"],
-        "0"
-    );
-    assert_eq!(ft_balance(&env.token, env.escrow.id()).await?, 0);
-    // The deposit went to the escrow's own Intents account and mt_transfer moved it on.
-    assert_eq!(
-        intents_balance(&env.intents, &env.token, env.escrow.id().as_str()).await?,
-        0
-    );
-    let held = intents_balance(&env.intents, &env.token, &t.id).await?;
-    println!("taker {} holds {held} inside Intents", t.id);
-    assert_eq!(held, AMOUNT);
+    let p = events(&o, "paid");
+    assert_eq!(p.len(), 1);
+    assert_eq!(p[0]["data"][0]["recipient"], t.id);
+    assert_eq!(p[0]["data"][0]["amount"], AMOUNT.to_string());
+    assert_eq!(get_swap(&env, &id).await?["payout"], "paid");
+    assert_eq!(vbal(&env, &t.id).await?, AMOUNT);
+    assert_eq!(vbal(&env, env.escrow.id().as_str()).await?, 0);
+    assert_eq!(owed(&env).await?, 0);
+    assert_backed(&env, "after payout").await?;
 
-    // A second withdraw pays nothing.
-    let o = okr(
-        "withdraw again (nothing to pay)",
-        withdraw(&taker_acc, &env, &t.id).await?,
-    );
-    assert!(events(&o, "withdrawn").is_empty());
+    // A second withdraw is refused and pays nothing.
+    let o = withdraw(&env.maker, &env, &id, GAS_WITHDRAW).await?;
+    report("withdraw again (refused)", &o);
+    assert!(format!("{:?}", o.into_result().err()).contains("payout is not Due"));
+    assert_eq!(vbal(&env, &t.id).await?, AMOUNT);
 
     // The taker key signs one ft_withdraw intent; the taker submits it with the stipend.
     let destination = env.worker.dev_create_account().await?;
-    storage_deposit(&env.maker, &env.token, destination.id()).await?;
+    ok(
+        "token.storage_deposit (destination)",
+        env.maker
+            .call(env.token.id(), "storage_deposit")
+            .args_json(json!({ "account_id": destination.id() }))
+            .deposit(NearToken::from_millinear(10))
+            .transact()
+            .await?,
+    );
     let deadline = (chrono::Utc::now() + chrono::Duration::hours(1))
         .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let nonce = base64::engine::general_purpose::STANDARD.encode([9u8; 32]);
@@ -521,7 +205,7 @@ async fn happy_path_claim_into_intents_then_signed_exit() -> R<()> {
         "signature": format!("ed25519:{}", bs58::encode(signature).into_string()),
     });
     ok(
-        "intents.execute_intents (ft_withdraw)",
+        "intents.execute_intents (ft_withdraw) by the taker",
         taker_acc
             .call(env.intents.id(), "execute_intents")
             .args_json(json!({ "signed": [signed] }))
@@ -530,526 +214,625 @@ async fn happy_path_claim_into_intents_then_signed_exit() -> R<()> {
             .await?,
     );
     assert_eq!(ft_balance(&env.token, destination.id()).await?, AMOUNT);
-    assert_eq!(intents_balance(&env.intents, &env.token, &t.id).await?, 0);
+    assert_eq!(vbal(&env, &t.id).await?, 0);
     Ok(())
 }
 
-// =============================================================================== (b)
-
+/// With enough gas, claim pays in the same call. Measures the smallest prepaid gas for a
+/// claim that pays, for a claim that only publishes, and for withdraw, and checks that the
+/// clients' values (claim 25 Tgas, withdraw 25 Tgas) are on the right side of them.
 #[tokio::test]
-async fn refund_paths_and_maker_withdraw() -> R<()> {
+async fn gas_needed_for_claim_and_withdraw() -> R<()> {
     let env = setup().await?;
-    let t = taker(8);
-    let start_balance = ft_balance(&env.token, env.maker.id()).await?;
-    let b = le_hex(B_SEC);
-
-    // Window 1: Open, before t0. Anyone can send the refund; here a third party does.
-    let now = now_s(&env.worker).await?;
-    let (id1, o) = open(
-        &env,
-        &env.maker,
-        1,
-        &t,
-        AMOUNT,
-        now + 600,
-        now + 1200,
-        now + 1800,
-        600,
-    )
-    .await?;
-    ok("open", o);
-    let third = env.worker.dev_create_account().await?;
-    let wrong = third
-        .call(env.escrow.id(), "refund")
-        .args_json(json!({ "id": id1, "b": le_hex(A_SEC) }))
-        .gas(Gas::from_tgas(100))
-        .transact()
-        .await?;
-    report("refund with the wrong share (rejected)", &wrong);
-    assert!(format!("{:?}", wrong.into_result().err()).contains("BadSecret"));
-    let o = okr(
-        "refund (Open, before t0)",
-        third
-            .call(env.escrow.id(), "refund")
-            .args_json(json!({ "id": id1, "b": b }))
-            .gas(Gas::from_tgas(100))
-            .transact()
-            .await?,
-    );
-    assert_eq!(events(&o, "refunded")[0]["data"][0]["b"], b);
-    let swap = get_swap(&env.escrow, &id1).await?;
-    assert_eq!(swap["state"], "Refunded");
-    assert_eq!(swap["b"], b, "the taker reads b from contract state");
-
-    // Window 2: Open, in [t1, t2). Short windows and sandbox fast-forward.
-    let now = now_s(&env.worker).await?;
-    let (t0, t1, t2) = (now + 20, now + 40, now + 1_000_000);
-    let (id2, o) = open(&env, &env.maker, 2, &t, AMOUNT, t0, t1, t2, 600).await?;
-    ok("open (short windows)", o);
-    advance_to(&env.worker, t0).await?;
-    let early = env
-        .maker
-        .call(env.escrow.id(), "refund")
-        .args_json(json!({ "id": id2, "b": b }))
-        .gas(Gas::from_tgas(100))
-        .transact()
-        .await?;
-    report("refund in [t0, t1) (rejected)", &early);
-    assert!(format!("{:?}", early.into_result().err()).contains("TooEarly"));
-    advance_to(&env.worker, t1).await?;
-    println!(
-        "sandbox time advanced to t1 + {} s",
-        now_s(&env.worker).await? - t1
-    );
-    ok(
-        "refund (Open, in [t1, t2))",
-        env.maker
-            .call(env.escrow.id(), "refund")
-            .args_json(json!({ "id": id2, "b": b }))
-            .gas(Gas::from_tgas(100))
-            .transact()
-            .await?,
-    );
-
-    assert_eq!(
-        get_credit(&env.escrow, &env.token, env.maker.id().as_str()).await?["direct"],
-        (2 * AMOUNT).to_string()
-    );
-    assert_eq!(
-        ft_balance(&env.token, env.maker.id()).await?,
-        start_balance - 2 * AMOUNT
-    );
-    let o = okr(
-        "withdraw (maker, ft_transfer)",
-        withdraw(&third, &env, env.maker.id().as_str()).await?,
-    );
-    assert_eq!(
-        events(&o, "withdrawn")[0]["data"][0]["amount"],
-        (2 * AMOUNT).to_string()
-    );
-    assert_eq!(ft_balance(&env.token, env.maker.id()).await?, start_balance);
-    assert_eq!(ft_balance(&env.token, env.escrow.id()).await?, 0);
-    assert_eq!(
-        get_credit(&env.escrow, &env.token, env.maker.id().as_str()).await?["direct"],
-        "0"
-    );
-    Ok(())
-}
-
-// =============================================================================== (c)
-
-#[tokio::test]
-async fn failed_withdraw_restores_credit() -> R<()> {
-    let env = setup().await?;
-    let t = taker(9);
-    let b = le_hex(B_SEC);
-
-    // Direct route: a maker who is no longer registered on the token.
-    let maker2 = new_maker(&env.worker, &env.token, &env.escrow, AMOUNT).await?;
-    // wrap.near takes its storage fee out of the first deposit, so open with the balance.
-    let amt2 = ft_balance(&env.token, maker2.id()).await?;
-    let now = now_s(&env.worker).await?;
-    let (id, o) = open(
-        &env,
-        &maker2,
-        1,
-        &t,
-        amt2,
-        now + 600,
-        now + 1200,
-        now + 1800,
-        600,
-    )
-    .await?;
-    ok("open (maker2, whole balance)", o);
-    assert_eq!(ft_balance(&env.token, maker2.id()).await?, 0);
-    ok(
-        "token.storage_unregister (maker2)",
-        maker2
-            .call(env.token.id(), "storage_unregister")
-            .args_json(json!({ "force": false }))
-            .deposit(NearToken::from_yoctonear(1))
-            .transact()
-            .await?,
-    );
-    ok(
-        "refund",
-        maker2
-            .call(env.escrow.id(), "refund")
-            .args_json(json!({ "id": id, "b": b }))
-            .gas(Gas::from_tgas(100))
-            .transact()
-            .await?,
-    );
-    let o = withdraw(&maker2, &env, maker2.id().as_str()).await?;
-    report("withdraw to unregistered maker (ft_transfer fails)", &o);
-    // The transaction succeeds; the token's receipt fails and the callback restores.
-    assert!(o.is_success());
-    assert_eq!(o.receipt_failures().len(), 1);
-    let w = events(&o, "withdrawn");
-    assert_eq!(w[0]["data"][0]["amount"], "0");
-    assert_eq!(w[0]["data"][0]["restored"], amt2.to_string());
-    assert_eq!(
-        get_credit(&env.escrow, &env.token, maker2.id().as_str()).await?["direct"],
-        amt2.to_string()
-    );
-    assert_eq!(ft_balance(&env.token, env.escrow.id()).await?, amt2);
-    // After registering again, the same credit pays out.
-    storage_deposit(&maker2, &env.token, maker2.id()).await?;
-    let o = withdraw(&maker2, &env, maker2.id().as_str()).await?;
-    ok("withdraw after re-registering", o);
-    assert_eq!(ft_balance(&env.token, maker2.id()).await?, amt2);
-    assert_eq!(
-        get_credit(&env.escrow, &env.token, maker2.id().as_str()).await?["direct"],
-        "0"
-    );
-
-    // Intents route, two failures, each with its own escrow:
-    // (1) the Intents account is not registered on the token, so ft_transfer_call fails;
-    // (2) the Intents account has no contract, so the token's ft_resolve_transfer returns
-    //     the whole amount as unused.
-    let unregistered = env.worker.dev_create_account().await?;
-    let no_code = env.worker.dev_create_account().await?;
-    storage_deposit(&env.maker, &env.token, no_code.id()).await?;
-    for (label, intents_account) in [
-        ("intents account not registered", unregistered.id()),
-        ("intents account without code", no_code.id()),
-    ] {
-        let escrow = deploy_escrow(&env.worker, intents_account).await?;
-        storage_deposit(&env.maker, &env.token, escrow.id()).await?;
+    let prober = env.worker.dev_create_account().await?;
+    // claim that publishes a: the smallest prepaid gas that works.
+    let mut seed = 20u8;
+    let mut claim_min = None;
+    for g in [17u64, 18, 19, 20] {
+        seed += 1;
+        let t = taker(seed);
+        let id = open(&env, seed, &t, ONE).await?;
+        set_ready(&env, &id).await?;
         ok(
-            "escrow.add_storage_funds",
-            env.maker
-                .call(escrow.id(), "add_storage_funds")
-                .args_json(json!({ "token": env.token.id() }))
-                .deposit(NearToken::from_millinear(100))
-                .transact()
-                .await?,
+            "commit",
+            call(
+                &prober,
+                &env,
+                "commit_claim",
+                commit_args(&env, &t, &id).await?,
+                GAS_COMMIT,
+            )
+            .await?,
         );
-        let env2 = Env {
-            worker: env.worker.clone(),
-            token: env.token.clone(),
-            intents: env.intents.clone(),
-            escrow,
-            maker: env.maker.clone(),
-        };
-        let now = now_s(&env.worker).await?;
-        let (id, o) = open(
-            &env2,
-            &env.maker,
-            1,
-            &t,
-            AMOUNT,
-            now + 600,
-            now + 1200,
-            now + 1800,
-            600,
-        )
-        .await?;
-        ok("open", o);
-        ok(
-            "set_ready",
-            env.maker
-                .call(env2.escrow.id(), "set_ready")
-                .args_json(json!({ "id": id }))
-                .transact()
-                .await?,
+        let o = claim(&prober, &env, &id, g).await?;
+        let st = get_swap(&env, &id).await?;
+        println!(
+            "claim with {g} Tgas: ok={} state={} payout={}",
+            o.is_success(),
+            st["state"],
+            st["payout"]
         );
-        let a = le_hex(A_SEC);
-        let commitment: String = env2
-            .escrow
-            .view("commitment_of")
-            .args_json(json!({ "id": id, "a": a }))
-            .await?
-            .json()?;
-        let msg: String = env2
-            .escrow
-            .view("commit_message")
-            .args_json(json!({ "id": id, "commitment": commitment }))
-            .await?
-            .json()?;
-        let sig = hex::encode(t.key.sign(&hex::decode(&msg)?).to_bytes());
-        // Anyone may send the commit; here the maker relays the taker's signature.
-        ok(
-            "commit_claim (sent by a third party)",
-            env.maker
-                .call(env2.escrow.id(), "commit_claim")
-                .args_json(json!({ "id": id, "commitment": commitment, "signature": sig }))
-                .transact()
-                .await?,
-        );
-        ok(
-            "claim",
-            env.maker
-                .call(env2.escrow.id(), "claim")
-                .args_json(json!({ "id": id, "a": a }))
-                .gas(Gas::from_tgas(100))
-                .transact()
-                .await?,
-        );
-        let o = withdraw(&env.maker, &env2, &t.id).await?;
-        report(&format!("withdraw, {label}"), &o);
-        assert!(o.is_success());
-        let w = events(&o, "withdrawn");
-        assert_eq!(w[0]["data"][0]["amount"], "0", "{label}");
-        assert_eq!(w[0]["data"][0]["restored"], AMOUNT.to_string(), "{label}");
-        assert_eq!(
-            get_credit(&env2.escrow, &env.token, &t.id).await?["intents"],
-            AMOUNT.to_string()
-        );
-        assert_eq!(
-            ft_balance(&env.token, env2.escrow.id()).await?,
-            AMOUNT,
-            "{label}"
-        );
-        assert_eq!(
-            ft_balance(&env.token, intents_account).await.unwrap_or(0),
-            0,
-            "{label}"
-        );
+        if o.is_success() {
+            report(&format!("claim {g} Tgas (publishes a, payout Due)"), &o);
+            assert_eq!(st["payout"], "due");
+            claim_min.get_or_insert(g);
+        }
+        // withdraw: smallest prepaid gas that pays.
+        if st["payout"] == "due" && g == 20 {
+            let mut wmin = None;
+            for wg in [14u64, 16, 18, 19, 20, 21, 22, 25] {
+                let o = withdraw(&prober, &env, &id, wg).await?;
+                let st = get_swap(&env, &id).await?;
+                println!(
+                    "withdraw with {wg} Tgas: ok={} payout={}",
+                    o.is_success(),
+                    st["payout"]
+                );
+                if st["payout"] == "paid" {
+                    report(&format!("withdraw {wg} Tgas (pays)"), &o);
+                    wmin = Some(wg);
+                    break;
+                }
+                assert_eq!(
+                    st["payout"], "due",
+                    "a withdraw without the gas changes nothing"
+                );
+            }
+            let wmin = wmin.ok_or("no withdraw paid")?;
+            println!("SMALLEST withdraw prepaid gas tried that pays: {wmin} Tgas");
+            assert!(
+                wmin <= GAS_WITHDRAW,
+                "clients attach {GAS_WITHDRAW} Tgas to withdraw"
+            );
+        }
     }
+    let claim_min = claim_min.ok_or("no claim worked")?;
+    println!("SMALLEST claim prepaid gas tried that works: {claim_min} Tgas");
+    // claim that also pays.
+    let mut paying_min = None;
+    for g in [26u64, 30, 32, 34, 35, 36, 38, 40] {
+        seed += 1;
+        let t = taker(seed);
+        let id = open(&env, seed, &t, ONE).await?;
+        set_ready(&env, &id).await?;
+        ok(
+            "commit",
+            call(
+                &prober,
+                &env,
+                "commit_claim",
+                commit_args(&env, &t, &id).await?,
+                GAS_COMMIT,
+            )
+            .await?,
+        );
+        let o = okr(
+            &format!("claim {g} Tgas"),
+            claim(&prober, &env, &id, g).await?,
+        );
+        let st = get_swap(&env, &id).await?;
+        println!("claim with {g} Tgas: payout={}", st["payout"]);
+        if st["payout"] == "paid" {
+            assert_eq!(events(&o, "paid").len(), 1);
+            assert_eq!(vbal(&env, &t.id).await?, ONE);
+            paying_min = Some(g);
+            break;
+        }
+        assert_eq!(st["payout"], "due");
+        assert!(g > GAS_CLAIM || g == 26);
+    }
+    let paying_min = paying_min.ok_or("no claim paid")?;
+    println!("SMALLEST claim prepaid gas tried that also pays: {paying_min} Tgas");
+    assert!(
+        paying_min > GAS_CLAIM,
+        "the client's 25 Tgas claim leaves the payout Due"
+    );
+    assert_backed(&env, "end").await?;
     Ok(())
 }
 
-// =============================================================================== open guards
+// ================================================================== refunds
 
+/// Refunds pay the maker inside the Verifier, and the maker can take plain tokens out.
 #[tokio::test]
-async fn bad_open_is_refunded_by_the_token() -> R<()> {
+async fn refund_paths_pay_the_maker_in_the_verifier() -> R<()> {
+    let env = setup().await?;
+    let maker_v0 = vbal(&env, env.maker.id().as_str()).await?;
+
+    // (1) Open, refunded by the maker before t0 (early refund). Paid in the same call.
+    let t = taker(1);
+    let id = open(&env, 1, &t, AMOUNT).await?;
+    let o = okr(
+        "refund before t0 (50 Tgas)",
+        refund(&env.maker, &env, &id, GAS_REFUND).await?,
+    );
+    assert_eq!(events(&o, "refunded")[0]["data"][0]["b"], le_hex(B_SEC));
+    assert_eq!(
+        events(&o, "paid")[0]["data"][0]["recipient"],
+        env.maker.id().to_string()
+    );
+    let s = get_swap(&env, &id).await?;
+    assert_eq!(
+        (s["state"].clone(), s["payout"].clone()),
+        (json!("Refunded"), json!("paid"))
+    );
+    assert_eq!(vbal(&env, env.maker.id().as_str()).await?, maker_v0);
+
+    // (2) Ready, nobody commits; refund in [t1, t2) with little gas: payout Due, then
+    // anyone's withdraw pays the maker.
+    let now = now_s(&env.worker).await?;
+    let t2_ = taker(2);
+    let msg = terms(2, &t2_, now + 30, now + 60, now + 6000, 600).to_string();
+    let (id, o) = open_msg(&env, 2, msg, AMOUNT).await?;
+    ok("open", o);
+    set_ready(&env, &id).await?;
+    advance_to(&env.worker, now + 61).await?;
+    ok(
+        "refund in [t1, t2) (20 Tgas)",
+        refund(&env.maker, &env, &id, 20).await?,
+    );
+    assert_eq!(get_swap(&env, &id).await?["payout"], "due");
+    assert_backed(&env, "refund due").await?;
+    let stranger = env.worker.dev_create_account().await?;
+    ok(
+        "withdraw by a stranger",
+        withdraw(&stranger, &env, &id, GAS_WITHDRAW).await?,
+    );
+    assert_eq!(get_swap(&env, &id).await?["payout"], "paid");
+    assert_eq!(vbal(&env, env.maker.id().as_str()).await?, maker_v0);
+    assert_eq!(vbal(&env, stranger.id().as_str()).await?, 0);
+
+    // (3) Locked, the taker does not reveal: refund from locked_at + W.
+    let now = now_s(&env.worker).await?;
+    let t3 = taker(3);
+    let msg = terms(3, &t3, now + 600, now + 1200, now + 1800, 40).to_string();
+    let (id, o) = open_msg(&env, 3, msg, AMOUNT).await?;
+    ok("open", o);
+    set_ready(&env, &id).await?;
+    ok(
+        "commit",
+        call(
+            &env.maker,
+            &env,
+            "commit_claim",
+            commit_args(&env, &t3, &id).await?,
+            GAS_COMMIT,
+        )
+        .await?,
+    );
+    let o = refund(&env.maker, &env, &id, GAS_REFUND).await?;
+    assert!(o.is_failure(), "no refund while the reveal window is open");
+    let locked_at = get_swap(&env, &id).await?["locked_at"].as_u64().unwrap();
+    advance_to(&env.worker, locked_at + 41).await?;
+    ok(
+        "refund after locked_at + W",
+        refund(&env.maker, &env, &id, GAS_REFUND).await?,
+    );
+    assert_eq!(get_swap(&env, &id).await?["payout"], "paid");
+    assert_eq!(vbal(&env, env.maker.id().as_str()).await?, maker_v0);
+    assert_eq!(owed(&env).await?, 0);
+    assert_eq!(vbal(&env, env.escrow.id().as_str()).await?, 0);
+
+    // The maker takes plain wNEAR out of the Verifier when it wants (ft_withdraw).
+    let before = ft_balance(&env.token, env.maker.id()).await?;
+    ok(
+        "maker ft_withdraw from the Verifier",
+        env.maker
+            .call(env.intents.id(), "ft_withdraw")
+            .args_json(json!({ "token": env.token.id(), "receiver_id": env.maker.id(), "amount": AMOUNT.to_string() }))
+            .deposit(NearToken::from_yoctonear(1))
+            .gas(Gas::from_tgas(50))
+            .transact()
+            .await?,
+    );
+    assert_eq!(
+        ft_balance(&env.token, env.maker.id()).await? - before,
+        AMOUNT
+    );
+    Ok(())
+}
+
+// ================================================================== bad opens
+
+/// A bad open leaves no swap, and the Verifier returns the tokens to the maker in the same
+/// transaction. Nobody but the Verifier can call mt_on_transfer.
+#[tokio::test]
+async fn bad_open_is_refunded_by_the_verifier() -> R<()> {
     let env = setup().await?;
     let t = taker(10);
-    let before = ft_balance(&env.token, env.maker.id()).await?;
+    let maker_v0 = vbal(&env, env.maker.id().as_str()).await?;
     let now = now_s(&env.worker).await?;
-    // t1 <= t0: ft_on_transfer panics and the token returns the whole amount.
-    let (id, o) = open(
-        &env,
-        &env.maker,
-        1,
-        &t,
-        AMOUNT,
-        now + 600,
-        now + 600,
-        now + 1800,
-        600,
-    )
-    .await?;
-    report("open with bad windows (refunded by token)", &o);
-    let used: String = o.json()?;
-    assert_eq!(used, "0");
-    assert_eq!(ft_balance(&env.token, env.maker.id()).await?, before);
-    assert!(get_swap(&env.escrow, &id).await?.is_null());
+    let cases = [
+        (
+            "t1 <= t0",
+            terms(1, &t, now + 600, now + 600, now + 1800, 600).to_string(),
+        ),
+        (
+            "t0 in the past",
+            terms(1, &t, now - 10, now + 600, now + 1800, 600).to_string(),
+        ),
+        (
+            "W = 0",
+            terms(1, &t, now + 600, now + 1200, now + 1800, 0).to_string(),
+        ),
+        ("not JSON", "hello".to_string()),
+        ("unknown field", {
+            let mut v = terms(1, &t, now + 600, now + 1200, now + 1800, 600);
+            v["relayer_fee"] = json!("1");
+            v.to_string()
+        }),
+    ];
+    for (label, msg) in cases {
+        let (id, o) = open_msg(&env, 1, msg, AMOUNT).await?;
+        report(&format!("open with {label} (refunded by the Verifier)"), &o);
+        assert!(
+            o.is_success(),
+            "the Verifier's call succeeds; the escrow's receipt fails"
+        );
+        assert_eq!(failures_at(&o, env.escrow.id()).len(), 1);
+        assert_eq!(
+            o.json::<Vec<String>>()?,
+            vec!["0".to_string()],
+            "{label}: nothing used"
+        );
+        assert!(get_swap(&env, &id).await?.is_null());
+        assert_eq!(
+            vbal(&env, env.maker.id().as_str()).await?,
+            maker_v0,
+            "{label}"
+        );
+        assert_eq!(vbal(&env, env.escrow.id().as_str()).await?, 0, "{label}");
+        assert_eq!(owed(&env).await?, 0);
+    }
 
-    // A maker with no storage funds cannot open.
+    // A maker with no storage funds cannot open; its tokens come back.
     let poor = env.worker.dev_create_account().await?;
     ok(
-        "token.near_deposit",
+        "poor: near_deposit",
         poor.call(env.token.id(), "near_deposit")
-            .deposit(NearToken::from_yoctonear(ONE))
+            .deposit(NearToken::from_near(2))
             .transact()
             .await?,
     );
-    // wrap.near takes its storage fee out of the first deposit, so read the balance.
-    let poor_balance = ft_balance(&env.token, poor.id()).await?;
-    assert!(poor_balance > 0);
-    let (id, o) = open(
-        &env,
-        &poor,
+    let poor_env = Env {
+        worker: env.worker.clone(),
+        token: env.token.clone(),
+        intents: env.intents.clone(),
+        escrow: env.escrow.clone(),
+        maker: poor.clone(),
+        vadmin: env.vadmin.clone(),
+    };
+    ok(
+        "poor: deposit into the Verifier",
+        maker_deposit(&poor_env, ONE).await?,
+    );
+    let (id, o) = open_msg(
+        &poor_env,
         1,
-        &t,
-        poor_balance,
-        now + 600,
-        now + 1200,
-        now + 1800,
-        600,
+        terms(1, &t, now + 600, now + 1200, now + 1800, 600).to_string(),
+        ONE,
     )
     .await?;
-    report("open without storage funds (refunded by token)", &o);
-    assert_eq!(o.json::<String>()?, "0");
-    assert_eq!(ft_balance(&env.token, poor.id()).await?, poor_balance);
-    assert!(get_swap(&env.escrow, &id).await?.is_null());
+    report("open without storage funds", &o);
+    assert!(failures_at(&o, env.escrow.id())[0].contains("InsufficientStorage"));
+    assert!(get_swap(&env, &id).await?.is_null());
+    assert_eq!(vbal(&env, poor.id().as_str()).await?, ONE);
 
-    // A fake "token" calls ft_on_transfer directly and names the maker as sender. It
-    // cannot spend the maker's storage funds for the real token, and nobody can add
-    // storage funds for the maker in the fake token (review-1 F-01), so no swap is stored.
+    // A contract that is not the Verifier calls mt_on_transfer and names the maker.
     let fake = env.worker.dev_create_account().await?;
     let o = fake
-        .call(env.escrow.id(), "add_storage_funds")
-        .args_json(json!({ "token": fake.id(), "account_id": env.maker.id() }))
-        .deposit(NearToken::from_millinear(100))
-        .transact()
-        .await?;
-    report("add_storage_funds for another account (rejected)", &o);
-    assert!(format!("{:?}", o.into_result().err()).contains("BadParams"));
-    let terms = json!({
-        "salt": hex::encode([2u8; 32]),
-        "taker_pk": t.id,
-        "a": A_PUB,
-        "b": B_PUB,
-        "t0": now + 600,
-        "t1": now + 1200,
-        "t2": now + 1800,
-        "reveal_window": 600,
-    });
-    let o = fake
-        .call(env.escrow.id(), "ft_on_transfer")
+        .call(env.escrow.id(), "mt_on_transfer")
         .args_json(json!({
             "sender_id": env.maker.id(),
-            "amount": AMOUNT.to_string(),
-            "msg": terms.to_string(),
+            "previous_owner_ids": [env.maker.id()],
+            "token_ids": [token_id(&env)],
+            "amounts": [AMOUNT.to_string()],
+            "msg": terms(2, &t, now + 600, now + 1200, now + 1800, 600).to_string(),
         }))
         .gas(Gas::from_tgas(50))
         .transact()
         .await?;
-    report("ft_on_transfer from a fake token (rejected)", &o);
-    assert!(format!("{:?}", o.into_result().err()).contains("InsufficientStorage"));
+    report("mt_on_transfer from another account (rejected)", &o);
+    assert!(format!("{:?}", o.into_result().err()).contains("NotVerifier"));
 
-    // The maker opens with that salt; then the same id again is rejected.
-    let (_, o) = open(
+    // A good open, then the same id again: refunded.
+    let id = open(&env, 2, &t, AMOUNT).await?;
+    let (_, o) = open_msg(
         &env,
-        &env.maker,
         2,
-        &t,
+        terms(2, &t, now + 600, now + 1200, now + 1800, 600).to_string(),
         AMOUNT,
-        now + 600,
-        now + 1200,
-        now + 1800,
-        600,
     )
     .await?;
-    ok("open", o);
-    let (_, o) = open(
-        &env,
-        &env.maker,
-        2,
-        &t,
-        AMOUNT,
-        now + 600,
-        now + 1200,
-        now + 1800,
-        600,
-    )
-    .await?;
-    report("open with a used swap id (refunded by token)", &o);
-    assert_eq!(o.json::<String>()?, "0");
-    assert_eq!(ft_balance(&env.token, env.escrow.id()).await?, AMOUNT);
+    report("open with a used swap id (refunded)", &o);
+    assert!(failures_at(&o, env.escrow.id())[0].contains("swap id already used"));
+    assert_eq!(
+        vbal(&env, env.maker.id().as_str()).await?,
+        maker_v0 - AMOUNT
+    );
+    assert_eq!(vbal(&env, env.escrow.id().as_str()).await?, AMOUNT);
+    assert_eq!(owed(&env).await?, AMOUNT);
+    assert_eq!(get_swap(&env, &id).await?["amount"], AMOUNT.to_string());
+
+    // Two tokens in one batch: refused and refunded.
+    let o = env
+        .maker
+        .call(env.intents.id(), "mt_batch_transfer_call")
+        .args_json(json!({
+            "receiver_id": env.escrow.id(),
+            "token_ids": [token_id(&env), token_id(&env)],
+            "amounts": ["1", "1"],
+            "msg": terms(3, &t, now + 600, now + 1200, now + 1800, 600).to_string(),
+        }))
+        .deposit(NearToken::from_yoctonear(1))
+        .gas(Gas::from_tgas(GAS_OPEN))
+        .transact()
+        .await?;
+    report("open with two tokens (refunded)", &o);
+    assert!(failures_at(&o, env.escrow.id())[0].contains("exactly one token"));
+    assert_eq!(
+        vbal(&env, env.maker.id().as_str()).await?,
+        maker_v0 - AMOUNT
+    );
+    assert_backed(&env, "end").await?;
     Ok(())
 }
 
-// =============================================================================== stipend
+// ================================================================== stipend
 
-/// Step 11 of the design plans a stipend of about 0.01 NEAR for the taker's key. NEAR
-/// checks before it accepts a transaction that the signer holds the attached gas at a
-/// pessimistic price (measured here: about 10 times the gas price), plus the fees. This
-/// test shows that 0.01 NEAR cannot send even a 10 Tgas commit_claim, and that 0.03 NEAR
-/// lets the taker send commit_claim and claim herself.
+/// A fresh implicit account holding exactly the stipend completes commit_claim, claim and
+/// the payout alone, and ends with the tokens under its key in the Verifier. The test
+/// prints the NEAR balance before and after each call, and the cost that NEAR checks
+/// before it accepts each transaction (read from a rejection with a too-small balance).
 #[tokio::test]
-async fn stipend_needed_for_taker_commit_and_claim() -> R<()> {
+async fn stipend_alone_completes_commit_claim_and_payout() -> R<()> {
     let env = setup().await?;
-    let price = env.worker.gas_price().await?;
     println!(
         "sandbox gas price: {} yoctoNEAR per gas",
-        price.as_yoctonear()
+        env.worker.gas_price().await?.as_yoctonear()
     );
-    let t = taker(11);
-    ok(
-        "maker -> taker stipend 0.01 NEAR",
-        env.maker
-            .transfer_near(&t.id.parse()?, NearToken::from_millinear(10))
+    for (seed, stipend_milli) in [(40u8, STIPEND_MILLINEAR), (41, 30)] {
+        let t = taker(seed);
+        let id = open(&env, seed, &t, AMOUNT).await?;
+        set_ready(&env, &id).await?;
+        let o = okr(
+            &format!("stipend {stipend_milli} mNEAR (creates the implicit account)"),
+            env.maker
+                .transfer_near(&t.id.parse()?, NearToken::from_millinear(stipend_milli))
+                .await?,
+        );
+        let burnt: u128 = o
+            .outcomes()
+            .iter()
+            .map(|x| x.tokens_burnt.as_yoctonear())
+            .sum();
+        println!("STIPEND {stipend_milli} mNEAR: the maker's transfer burnt {burnt} yoctoNEAR on top of the stipend");
+        let acc = taker_account(&t, &env.worker)?;
+        let settle = || tokio::time::sleep(std::time::Duration::from_secs(3));
+        let b0 = near_balance(&env.worker, &t.id).await?;
+        let o = okr(
+            "taker commit_claim",
+            call(
+                &acc,
+                &env,
+                "commit_claim",
+                commit_args(&env, &t, &id).await?,
+                GAS_COMMIT,
+            )
             .await?,
-    );
-    let taker_acc = taker_account(&t, &env.worker)?;
-    let now = now_s(&env.worker).await?;
-    let (id, o) = open(
-        &env,
-        &env.maker,
-        1,
-        &t,
-        AMOUNT,
-        now + 600,
-        now + 1200,
-        now + 1800,
-        600,
-    )
-    .await?;
-    ok("open", o);
-    ok(
-        "set_ready",
-        env.maker
-            .call(env.escrow.id(), "set_ready")
-            .args_json(json!({ "id": id }))
-            .transact()
-            .await?,
-    );
-    let a = le_hex(A_SEC);
-    let commitment: String = env
-        .escrow
-        .view("commitment_of")
-        .args_json(json!({ "id": id, "a": a }))
-        .await?
-        .json()?;
-    let msg: String = env
-        .escrow
-        .view("commit_message")
-        .args_json(json!({ "id": id, "commitment": commitment }))
-        .await?
-        .json()?;
-    let sig = hex::encode(t.key.sign(&hex::decode(&msg)?).to_bytes());
-    let commit = || {
-        taker_acc
-            .call(env.escrow.id(), "commit_claim")
-            .args_json(json!({ "id": id, "commitment": commitment, "signature": sig }))
-            .gas(Gas::from_tgas(10))
-            .transact()
-    };
-    let rejected = commit().await;
-    let reason = format!("{:?}", rejected.as_ref().err());
-    println!("commit_claim with a 0.01 NEAR stipend: {reason}");
-    assert!(reason.contains("NotEnoughBalance"));
+        );
+        let _ = o;
+        settle().await;
+        let b1 = near_balance(&env.worker, &t.id).await?;
+        ok("taker claim", claim(&acc, &env, &id, GAS_CLAIM).await?);
+        settle().await;
+        let b2 = near_balance(&env.worker, &t.id).await?;
+        assert_eq!(get_swap(&env, &id).await?["payout"], "due");
+        ok(
+            "taker withdraw",
+            withdraw(&acc, &env, &id, GAS_WITHDRAW).await?,
+        );
+        settle().await;
+        let b3 = near_balance(&env.worker, &t.id).await?;
+        println!(
+            "TAKER stipend {stipend_milli} mNEAR: start {b0}; after commit {b1} (-{}); after claim {b2} (-{}); after withdraw {b3} (-{}); total spent {}",
+            b0 - b1,
+            b1 - b2,
+            b2 - b3,
+            b0 - b3
+        );
+        assert_eq!(get_swap(&env, &id).await?["payout"], "paid");
+        assert_eq!(
+            vbal(&env, &t.id).await?,
+            AMOUNT,
+            "tokens under the taker's key in the Verifier"
+        );
+    }
 
+    // The cost NEAR checks before it accepts a transaction: read it from the rejection of
+    // a transaction sent by an account that holds 1 milliNEAR.
+    let t = taker(42);
     ok(
-        "maker -> taker stipend top-up to 0.03 NEAR",
+        "1 mNEAR",
         env.maker
-            .transfer_near(&t.id.parse()?, NearToken::from_millinear(20))
+            .transfer_near(&t.id.parse()?, NearToken::from_millinear(1))
             .await?,
     );
+    let acc = taker_account(&t, &env.worker)?;
+    for (method, g) in [
+        ("commit_claim", GAS_COMMIT),
+        ("claim", GAS_CLAIM),
+        ("withdraw", GAS_WITHDRAW),
+    ] {
+        let r = acc
+            .call(env.escrow.id(), method)
+            .args_json(json!({ "id": hex::encode([0u8; 32]) }))
+            .gas(Gas::from_tgas(g))
+            .transact()
+            .await;
+        let e = format!("{:?}", r.err());
+        let cost = e
+            .split("cost: NearToken { inner: ")
+            .nth(1)
+            .and_then(|s| s.split(' ').next())
+            .ok_or("no NotEnoughBalance cost in the error")?
+            .to_string();
+        println!("UPFRONT COST {method} with {g} Tgas attached: {cost} yoctoNEAR");
+        let cost: u128 = cost.parse()?;
+        // Attached gas at 1e9 yoctoNEAR per gas (min_gas_purchase_price) is most of it.
+        assert!(cost >= u128::from(g) * 1_000_000_000_000 * 1_000_000_000);
+        assert!(cost < (u128::from(g) + 3) * 1_000_000_000_000 * 1_000_000_000);
+    }
+    Ok(())
+}
+
+/// The taker's backing check holds through many swaps in any order.
+#[tokio::test]
+async fn escrow_balance_backs_every_unpaid_swap() -> R<()> {
+    let env = setup().await?;
+    let prober = env.worker.dev_create_account().await?;
+    let mut ids = Vec::new();
+    for s in 1..=3u8 {
+        ids.push((
+            taker(s),
+            open(&env, s, &taker(s), u128::from(s) * ONE).await?,
+        ));
+        assert_backed(&env, "open").await?;
+    }
+    // Pay swap 2 to the taker; swap 1 refunded with Due payout; swap 3 still open.
+    let (t2, id2) = &ids[1];
+    set_ready(&env, id2).await?;
     ok(
-        "commit_claim by the taker (10 Tgas attached)",
-        commit().await?,
+        "commit",
+        call(
+            &prober,
+            &env,
+            "commit_claim",
+            commit_args(&env, t2, id2).await?,
+            GAS_COMMIT,
+        )
+        .await?,
     );
+    ok("claim with payout", claim(&prober, &env, id2, 60).await?);
+    let (bal, o) = assert_backed(&env, "after claim 2").await?;
+    assert_eq!((bal, o), (4 * ONE, 4 * ONE));
     ok(
-        "claim by the taker (25 Tgas attached)",
-        taker_acc
-            .call(env.escrow.id(), "claim")
-            .args_json(json!({ "id": id, "a": a }))
-            .gas(Gas::from_tgas(25))
+        "refund 1 (Due)",
+        refund(&env.maker, &env, &ids[0].1, 20).await?,
+    );
+    let (bal, o) = assert_backed(&env, "after refund 1 Due").await?;
+    assert_eq!((bal, o), (4 * ONE, 4 * ONE));
+    ok(
+        "withdraw 1",
+        withdraw(&prober, &env, &ids[0].1, GAS_WITHDRAW).await?,
+    );
+    let (bal, o) = assert_backed(&env, "after payout 1").await?;
+    assert_eq!((bal, o), (3 * ONE, 3 * ONE));
+    // Someone sends tokens to the escrow outside a swap: a surplus nobody can take.
+    ok(
+        "plain mt_transfer to the escrow",
+        env.maker
+            .call(env.intents.id(), "mt_transfer")
+            .args_json(json!({ "receiver_id": env.escrow.id(), "token_id": token_id(&env), "amount": "5" }))
+            .deposit(NearToken::from_yoctonear(1))
             .transact()
             .await?,
     );
-    // Gas refunds arrive in later blocks; wait for them before reading the balance.
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    let left = env
-        .worker
-        .view_account(&t.id.parse()?)
-        .await?
-        .balance
-        .as_yoctonear();
-    println!("taker NEAR left of the 0.03 NEAR stipend after refunds: {left} yoctoNEAR");
-    assert_eq!(get_swap(&env.escrow, &id).await?["state"], "Claimed");
+    let (bal, o) = assert_backed(&env, "after a gift").await?;
+    assert_eq!((bal, o), (3 * ONE + 5, 3 * ONE));
+    Ok(())
+}
+
+// ================================================================== Verifier refuses
+
+/// The Verifier's operators pause mt_transfer or lock the escrow's Verifier account. The
+/// payout fails, nothing moves, the payout is Due again; after they stop, one withdraw
+/// pays once.
+#[tokio::test]
+async fn verifier_refuses_payout_then_one_retry_pays_once() -> R<()> {
+    let env = setup().await?;
+    let prober = env.worker.dev_create_account().await?;
+    for (seed, how) in [(1u8, "pause"), (2, "lock")] {
+        let (t, id) = claimed(&env, &prober, seed, AMOUNT, GAS_CLAIM).await?;
+        match how {
+            "pause" => {
+                vadmin_call(&env, "pa_pause_feature", json!({ "key": "mt_transfer" })).await?
+            }
+            _ => {
+                vadmin_call(
+                    &env,
+                    "force_lock_account",
+                    json!({ "account_id": env.escrow.id() }),
+                )
+                .await?
+            }
+        }
+        let o = withdraw(&prober, &env, &id, GAS_WITHDRAW).await?;
+        report(&format!("withdraw while the Verifier refuses ({how})"), &o);
+        assert_eq!(events(&o, "payout_failed").len(), 1);
+        assert_eq!(get_swap(&env, &id).await?["payout"], "due");
+        assert_eq!(vbal(&env, &t.id).await?, 0);
+        assert_eq!(vbal(&env, env.escrow.id().as_str()).await?, AMOUNT);
+        assert_backed(&env, how).await?;
+        match how {
+            "pause" => {
+                vadmin_call(&env, "pa_unpause_feature", json!({ "key": "mt_transfer" })).await?
+            }
+            _ => {
+                vadmin_call(
+                    &env,
+                    "force_unlock_account",
+                    json!({ "account_id": env.escrow.id() }),
+                )
+                .await?
+            }
+        }
+        let o = okr(
+            "withdraw after",
+            withdraw(&prober, &env, &id, GAS_WITHDRAW).await?,
+        );
+        assert_eq!(events(&o, "paid").len(), 1);
+        let o = withdraw(&prober, &env, &id, GAS_WITHDRAW).await?;
+        assert!(o.is_failure(), "paid once");
+        assert_eq!(vbal(&env, &t.id).await?, AMOUNT);
+        assert_eq!(owed(&env).await?, 0);
+    }
+    Ok(())
+}
+
+/// Two withdraws of the same Due payout in the same block: one starts, the other is
+/// refused; the taker is paid once.
+#[tokio::test]
+async fn concurrent_withdraws_pay_once() -> R<()> {
+    let env = setup().await?;
+    let prober = env.worker.dev_create_account().await?;
+    let other = env.worker.dev_create_account().await?;
+    let (t, id) = claimed(&env, &prober, 5, AMOUNT, GAS_CLAIM).await?;
+    let (a, b) = tokio::join!(
+        withdraw(&prober, &env, &id, GAS_WITHDRAW),
+        withdraw(&other, &env, &id, GAS_WITHDRAW)
+    );
+    let (a, b) = (a?, b?);
+    report("withdraw A", &a);
+    report("withdraw B", &b);
+    let paid = events(&a, "paid").len() + events(&b, "paid").len();
+    assert_eq!(paid, 1);
+    assert_eq!(vbal(&env, &t.id).await?, AMOUNT);
+    assert_eq!(owed(&env).await?, 0);
     Ok(())
 }
 
 // ============================================================================ deployment
 
-/// Review-1 NV-01. `new` is private: once the code is deployed, no other account can
-/// initialise the escrow with its own `intents_account`. The documented deployment (one
-/// transaction: deploy, `new`, delete the key) leaves an escrow with the reviewed code, no
-/// access keys and the configured Intents account, which is what a taker checks.
+/// Review-1 NV-01. `new` is private, and the documented deployment (one transaction:
+/// deploy, `new`, delete the key) leaves an escrow with the reviewed code, no access keys
+/// and the configured Intents account, which is what a taker checks.
 #[tokio::test]
 async fn new_is_private_and_deployment_leaves_no_keys() -> R<()> {
     let worker = near_workspaces::sandbox().await?;
     let intents = worker.dev_create_account().await?;
     let attacker = worker.dev_create_account().await?;
 
-    // Code deployed, `new` not yet called (two separate transactions).
     let escrow = worker.dev_deploy(escrow_wasm()).await?;
     let o = attacker
         .call(escrow.id(), "new")
@@ -1073,7 +856,6 @@ async fn new_is_private_and_deployment_leaves_no_keys() -> R<()> {
     let got: AccountId = escrow.view("get_intents_account").await?.json()?;
     assert_eq!(&got, intents.id());
 
-    // The documented deployment.
     let escrow = deploy_escrow(&worker, intents.id()).await?;
     let keys = escrow.view_access_keys().await?;
     assert!(
@@ -1084,7 +866,6 @@ async fn new_is_private_and_deployment_leaves_no_keys() -> R<()> {
     assert_eq!(escrow.view_code().await?, escrow_wasm());
     let got: AccountId = escrow.view("get_intents_account").await?.json()?;
     assert_eq!(&got, intents.id());
-    // Nobody can initialise it again.
     let o = attacker
         .call(escrow.id(), "new")
         .args_json(json!({ "intents_account": attacker.id() }))

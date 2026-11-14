@@ -1,0 +1,54 @@
+{
+  "scenario": "f_maker_vanishes_after_claim",
+  "title": "The maker process is killed the moment the browser shows the claim final. The browser engine sends withdraw(id) from the taker key with what the stipend left, and the USDC ends under the taker key in the Verifier with no other party. The local exit goes through the maker's relay, so with the maker gone the swap stops at the exit; the scenario ends there",
+  "checks": [
+    {
+      "check": "the maker sent no withdraw before it was killed",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "the page reached paid_out with the maker gone",
+      "pass": true,
+      "detail": "awaiting_deposit,deposit_seen,deposit_confirmed,request_sent,quote_received,accepted,escrow_open,funding_sent,funding_confirming,ready,committing,claiming,claimed,paid_out,exiting"
+    },
+    {
+      "check": "escrow payout Paid to the taker key",
+      "pass": true,
+      "detail": "paid c4336bb15aa2754252b52b9b55c5fe7eb2cb2b753c39928b1e1467f6acde29ba"
+    },
+    {
+      "check": "the taker key holds exactly the price in the Verifier",
+      "pass": true,
+      "detail": "29988000000000000000000000 vs 29988000000000000000000000"
+    },
+    {
+      "check": "the browser sent commit_claim, claim and withdraw itself",
+      "pass": true,
+      "detail": "request,accept,funding,commit,claim,withdraw"
+    },
+    {
+      "check": "the exit did not complete without the relay (expected on local networks)",
+      "pass": true,
+      "detail": "exiting"
+    },
+    {
+      "check": "privacy audit: all 5 Zcash transactions (user payment, browser taker, maker) are fully shielded Ironwood, no transparent or Sapling parts",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "facts": {
+    "taker_account": "c4336bb15aa2754252b52b9b55c5fe7eb2cb2b753c39928b1e1467f6acde29ba",
+    "stage": "exiting",
+    "zcash_txs": [
+      "a6dcdbfe192f7bc59251be70c0aca7528c1624742d9f5f5755a8ca885fb5bedd",
+      "b685c112921840365d9e4a90d45e8b5ebd7261a86789e01dced82ab1758e284c",
+      "d5c69c1f604e3aaa7cac590230a3cd2cd0e6a8ab7221e2a72370fdf2009eb4bd",
+      "480ad62924ab4154fa86437701a3e92e8a41606c9d03de0e26e29ab4327bda8d",
+      "a40161ab6b06205e6cd06a9207c896f5a5498b6721a2517e14348a7081e57e0e"
+    ]
+  },
+  "secs": 165,
+  "ran_at": "2026-11-14T06:01:10.495Z"
+}

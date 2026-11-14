@@ -5,7 +5,10 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreateSwapParams, EngineEvent, SwapState } from '../../src/engine/api';
 import { memoryRecords } from '../../src/engine/real/idb';
-import { GONE_STABLE_MS, judgePayout, type PayoutFacts, type PayoutReader } from '../../src/engine/real/payoutCheck';
+import { judgePayout, type PayoutFacts, type PayoutReader } from '../../src/engine/real/payoutCheck';
+
+/** A long wait, in place of the old stability window. */
+const WAIT_MS = 30_000;
 import { RealEngine } from '../../src/engine/real/realEngine';
 import type { WasmModule, WasmTaker } from '../../src/engine/real/wasm';
 import { parseNetworkConfig } from '../../src/lib/netconfig';
@@ -40,28 +43,32 @@ const params: CreateSwapParams = {
   shown: { usdcExpected: '1487700', destinationExpected: '1487700', premiumZats: '1000', networkFeeZats: '30000' },
 };
 
-const facts = (creditIntents: string, verifierBalance: string, escrowState: string | undefined = 'Claimed'): PayoutFacts => ({ escrowState, amount: PRICE, creditIntents, verifierBalance });
+const facts = (payout: string, verifierBalance: string, escrowState: string | undefined = 'Claimed'): PayoutFacts => ({ escrowState, amount: PRICE, payout, verifierBalance });
 
 describe('judgePayout', () => {
-  it('not yet paid: the escrow still holds the credit (also when the maker never withdraws)', () => {
-    expect(judgePayout(facts(PRICE, '0'))).toBe('not_paid');
+  it('not yet paid: the payout is due or in flight', () => {
+    expect(judgePayout(facts('due', '0'))).toBe('not_paid');
+    expect(judgePayout(facts('sending', '0'))).toBe('not_paid');
+    // A balance alone does not count: the escrow's payout state decides.
+    expect(judgePayout(facts('due', PRICE))).toBe('not_paid');
   });
   it('not yet paid: the claim is not visible at a final block', () => {
-    expect(judgePayout(facts('0', '0', 'Locked'))).toBe('not_paid');
-    expect(judgePayout({ ...facts('0', '0'), escrowState: undefined })).toBe('not_paid');
+    expect(judgePayout(facts('none', '0', 'Locked'))).toBe('not_paid');
+    expect(judgePayout({ ...facts('paid', '0'), escrowState: undefined })).toBe('not_paid');
+    expect(judgePayout({ ...facts('paid', '0'), payout: undefined })).toBe('not_paid');
   });
   it('paid and still in the Verifier', () => {
-    expect(judgePayout(facts('0', PRICE))).toBe('in_verifier');
+    expect(judgePayout(facts('paid', PRICE))).toBe('in_verifier');
   });
   it('paid and already moved out of the taker key', () => {
-    expect(judgePayout(facts('0', '0'))).toBe('gone');
+    expect(judgePayout(facts('paid', '0'))).toBe('gone');
   });
 });
 
-/** The core, waiting in `Claimed` as `Taker::on_claimed` does: it completes once the Verifier holds the price. */
+/** The core, waiting in `Claimed` as `Taker::on_claimed` does: it completes once a final block shows the payout paid. */
 class Core {
   stage = 'Claimed';
-  chain: PayoutFacts = facts(PRICE, '0');
+  chain: PayoutFacts = facts('due', '0');
   walletZats = 95_000_000;
   leftoverTx?: string;
   /** Whether the leftover transaction is in a block. */
@@ -84,12 +91,12 @@ class Core {
       record = () => swap();
       start = () => swap();
       tick(now: number) {
-        if (core.stage === 'Claimed' && core.chain.creditIntents === '0' && BigInt(core.chain.verifierBalance) >= BigInt(PRICE)) {
+        if (core.stage === 'Claimed' && core.chain.payout === 'paid') {
           core.stage = 'Completed';
           return JSON.stringify({
             next: { kind: 'done' },
             events: [
-              { type: 'payout', swap: SWAP, account: TAKER, token: cfg.near.token, amount: core.chain.verifierBalance },
+              { type: 'payout', swap: SWAP, account: TAKER, token: cfg.near.token, amount: PRICE },
               { type: 'stage', swap: SWAP, stage: 'Completed' },
             ],
           });
@@ -183,11 +190,11 @@ afterEach(() => {
 });
 
 describe('a restored claimed swap', () => {
-  it('not yet paid: waits in claimed while the escrow holds the credit', async () => {
+  it('not yet paid: waits in claimed while the payout is due', async () => {
     const core = new Core();
-    core.chain = facts(PRICE, '0');
+    core.chain = facts('due', '0');
     const { engine, reads } = await start(core);
-    await vi.advanceTimersByTimeAsync(10 * GONE_STABLE_MS);
+    await vi.advanceTimersByTimeAsync(10 * WAIT_MS);
     const s = (await engine.getState())!;
     expect(reads.length).toBeGreaterThan(3);
     expect(s.stage).toBe('claimed');
@@ -195,21 +202,21 @@ describe('a restored claimed swap', () => {
     expect(core.leftoverTx).toBeUndefined();
   });
 
-  it('PayoutPending (the maker never withdraws): stays on claimed', async () => {
+  it('PayoutPending (the payout keeps failing): stays on claimed', async () => {
     const core = new Core();
     core.stage = 'PayoutPending';
-    core.chain = facts(PRICE, '0');
+    core.chain = facts('due', '0');
     const { engine } = await start(core);
-    await vi.advanceTimersByTimeAsync(10 * GONE_STABLE_MS);
+    await vi.advanceTimersByTimeAsync(10 * WAIT_MS);
     expect((await engine.getState())!.stage).toBe('claimed');
     expect(core.leftoverTx).toBeUndefined();
   });
 
   it('paid and still in the Verifier: the core completes and the engine runs the exit', async () => {
     const core = new Core();
-    core.chain = facts('0', PRICE);
+    core.chain = facts('paid', PRICE);
     const { engine } = await start(core);
-    await vi.advanceTimersByTimeAsync(GONE_STABLE_MS * 2);
+    await vi.advanceTimersByTimeAsync(WAIT_MS);
     const s = (await engine.getState())!;
     expect(s.history.map((h) => h.stage)).toContain('paid_out');
     expect(s.stage).toBe('exiting');
@@ -220,12 +227,9 @@ describe('a restored claimed swap', () => {
 
   it('paid and already withdrawn: done (delivery not invented), then the leftover goes to the return address', async () => {
     const core = new Core();
-    core.chain = facts('0', '0');
+    core.chain = facts('paid', '0');
     const { engine } = await start(core);
-    // Not before the answer held for GONE_STABLE_MS.
-    await vi.advanceTimersByTimeAsync(GONE_STABLE_MS / 2);
-    expect((await engine.getState())!.stage).toBe('claimed');
-    await vi.advanceTimersByTimeAsync(GONE_STABLE_MS * 2);
+    await vi.advanceTimersByTimeAsync(WAIT_MS);
     const s = (await engine.getState())!;
     expect(s.stage).toBe('done');
     expect(s.history.map((h) => h.stage)).toEqual(['claimed', 'paid_out', 'done']);
@@ -240,12 +244,12 @@ describe('a restored claimed swap', () => {
 
   it('paid and withdrawn without a return address: done, and asks for one', async () => {
     const core = new Core();
-    core.chain = facts('0', '0');
+    core.chain = facts('paid', '0');
     const records = stored();
     const st = JSON.parse(records.get('web/state')!) as SwapState;
     records.set('web/state', JSON.stringify({ ...st, params: { ...st.params, returnAddress: undefined } }));
     const { engine } = await start(core, records);
-    await vi.advanceTimersByTimeAsync(GONE_STABLE_MS * 3);
+    await vi.advanceTimersByTimeAsync(WAIT_MS);
     const s = (await engine.getState())!;
     expect(s.stage).toBe('done');
     expect(s.needs).toBe('return_address');
@@ -255,16 +259,37 @@ describe('a restored claimed swap', () => {
     expect(core.leftoverTx).toBe('leftovertx');
   });
 
-  it('a withdraw in flight (credit 0, Verifier 0 for a moment) is not read as an exit', async () => {
+  it('a payout in flight (sending, Verifier 0 for a moment) is not read as an exit', async () => {
     const core = new Core();
-    core.chain = facts('0', '0');
+    core.chain = facts('sending', '0');
     const { engine } = await start(core);
-    await vi.advanceTimersByTimeAsync(GONE_STABLE_MS / 2);
-    core.chain = facts('0', PRICE);
-    await vi.advanceTimersByTimeAsync(GONE_STABLE_MS * 2);
+    await vi.advanceTimersByTimeAsync(WAIT_MS);
+    expect((await engine.getState())!.stage).toBe('claimed');
+    core.chain = facts('paid', PRICE);
+    await vi.advanceTimersByTimeAsync(WAIT_MS);
     const s = (await engine.getState())!;
     expect(s.stage).toBe('exiting');
     expect(s.exit?.doneElsewhere).toBeUndefined();
+  });
+
+  it('the exit waits while the payout check cannot read NEAR', async () => {
+    const core = new Core();
+    core.chain = facts('paid', PRICE);
+    let fail = true;
+    const records = stored();
+    const reader: PayoutReader = async () => {
+      if (fail) throw new Error('NEAR RPC answered 503');
+      return core.chain;
+    };
+    const engine = new RealEngine(memoryRecords(records), '/', async () => core.module(), reader);
+    engine.attach(() => {});
+    await engine.init({ network: 'testnet', directory, real: cfg });
+    await engine.resume();
+    await vi.advanceTimersByTimeAsync(WAIT_MS);
+    expect((await engine.getState())!.stage).toBe('paid_out');
+    fail = false;
+    await vi.advanceTimersByTimeAsync(WAIT_MS);
+    expect((await engine.getState())!.stage).toBe('exiting');
   });
 });
 

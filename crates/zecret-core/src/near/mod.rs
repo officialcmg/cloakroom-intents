@@ -11,6 +11,6 @@ pub mod escrow;
 pub mod rpc;
 pub mod tx;
 
-pub use escrow::{Escrow, SwapState, SwapView};
+pub use escrow::{Escrow, Payout, SwapState, SwapView};
 pub use rpc::{At, NearRpc, Signer, TxOutcome, WaitUntil};
 pub use tx::{Action, NearKey, ONE_NEAR, TGAS};

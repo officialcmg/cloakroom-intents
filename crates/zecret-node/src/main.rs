@@ -276,7 +276,14 @@ fn run_check(dir: &Path) -> Result<()> {
     if let Some(m) = cfg["near_account"].as_str() {
         let a = rpc.account(m, &At::Final)?.ok_or_else(|| anyhow!("maker account {m} does not exist"))?;
         let e = zecret_core::near::Escrow { rpc: &rpc, escrow: chains.escrow.clone(), token: chains.token.clone(), intents: chains.intents.clone() };
-        println!("maker {m}: {} yoctoNEAR, {} {} base units, escrow storage funds {}", a.amount, e.ft_balance(m, &At::Final)?, chains.token, e.storage_funds(m, &At::Final)?);
+        println!(
+            "maker {m}: {} yoctoNEAR, {} {} base units outside the Verifier and {} in it, escrow storage funds {}",
+            a.amount,
+            e.ft_balance(m, &At::Final)?,
+            chains.token,
+            e.intents_balance(m, &At::Final)?,
+            e.storage_funds(m, &At::Final)?
+        );
     }
     let mut w = engine::wallet_for(&chains, t)?;
     println!("Zcash {}: tip {}", chains.lightwalletd.as_deref().or(chains.zebra_rpc.as_deref()).unwrap_or("?"), w.tip()?);

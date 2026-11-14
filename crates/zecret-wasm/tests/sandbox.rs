@@ -1,8 +1,10 @@
 //! The direct exit against a NEAR 2.14.1 sandbox with the live `intents.near` and
 //! `wrap.near` code: the taker key signs one `ft_withdraw` and the maker's relay
 //! (`zecret_node::relay`) sends it with `execute_intents`. Also measured here: what is left
-//! of the maker's 0.03 NEAR stipend after commit and claim (0.0281 NEAR, measured in
-//! contracts/near-escrow) cannot pay for that call from the taker's own account.
+//! of a 0.03 NEAR stipend after commit, claim and withdraw (0.0272 NEAR, measured in
+//! contracts/near-escrow) cannot pay for that call from the taker's own account, and what
+//! is left of the 0.06 NEAR stipend (0.0572 NEAR) can. The engine still sends the exit
+//! through the maker's relay.
 //!
 //! ```sh
 //! source .tools/env.sh
@@ -158,7 +160,11 @@ fn relay(w: &World, takers: &[&str]) -> String {
     format!("http://{addr}/execute-intents")
 }
 
-const STIPEND_LEFT: u128 = 28_100_000_000_000_000_000_000; // 0.0281 NEAR
+/// What a 0.03 NEAR stipend leaves after commit, claim and withdraw (0.0272 NEAR; the old
+/// escrow left 0.0281 after commit and claim).
+const STIPEND_LEFT: u128 = 27_200_000_000_000_000_000_000;
+/// What the 0.06 NEAR stipend leaves after the same three calls.
+const STIPEND_LEFT_NOW: u128 = 57_100_000_000_000_000_000_000;
 
 #[test]
 fn direct_exit_through_the_makers_relay() {
@@ -201,11 +207,21 @@ fn the_rest_of_the_stipend_cannot_pay_and_bad_receivers_are_refused() {
     // ft_withdraw needs: NEAR refuses the transaction before it runs.
     let plan = direct_prepare(&w.t, &w.rpc.url, &w.intents, &w.wrap, &seed, &receiver, now_ms()).expect("prepare");
     let e = direct_submit_with_gas(&w.t, &w.rpc.url, &seed, &plan, now_ms(), DIRECT_EXIT_GAS).unwrap_err();
-    println!("taker pays {} Tgas from 0.0281 NEAR: {}", DIRECT_EXIT_GAS / TGAS, e.message);
+    println!("taker pays {} Tgas from 0.0272 NEAR: {}", DIRECT_EXIT_GAS / TGAS, e.message);
     assert_eq!(e.code, "EXIT_FAILED");
     assert!(e.message.contains("NotEnoughBalance"), "{e:?}");
     w.settle();
     assert_eq!(w.balance(&w.intents, "mt_balance_of", json!({"account_id": acct, "token_id": format!("nep141:{}", w.wrap)})), 5 * ONE_NEAR, "nothing moved");
+
+    // What is left of the 0.06 NEAR stipend pays the 40 Tgas.
+    let (seed3, acct3, receiver3) = w.taker(STIPEND_LEFT_NOW, 5 * ONE_NEAR, "dave", true);
+    w.settle();
+    let plan = direct_prepare(&w.t, &w.rpc.url, &w.intents, &w.wrap, &seed3, &receiver3, now_ms()).expect("prepare");
+    let r = direct_submit_with_gas(&w.t, &w.rpc.url, &seed3, &plan, now_ms(), DIRECT_EXIT_GAS).expect("the taker pays the exit itself");
+    println!("taker pays {} Tgas from 0.0571 NEAR: tx {:?}", DIRECT_EXIT_GAS / TGAS, r.tx_hash);
+    w.settle();
+    assert_eq!(w.balance(&w.intents, "mt_balance_of", json!({"account_id": acct3, "token_id": format!("nep141:{}", w.wrap)})), 0);
+    assert_eq!(w.balance(&w.wrap, "ft_balance_of", json!({"account_id": receiver3})), 5 * ONE_NEAR);
 
     let e = direct_prepare(&w.t, &w.rpc.url, &w.intents, &w.wrap, &seed2, &unregistered, now_ms()).unwrap_err();
     assert_eq!(e.code, "EXIT_REFUSED", "{e:?}");

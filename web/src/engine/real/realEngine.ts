@@ -43,7 +43,7 @@ import { validateDestinationAddress } from '../../lib/address/chains';
 import { paymentUri } from '../../lib/zip321';
 import { coreNetwork, explorerUrl, safeLink, type NetworkConfig } from '../../lib/netconfig';
 import { StaleWriteError, type RecordStore } from './idb';
-import { GONE_STABLE_MS, judgePayout, readPayoutFacts, type PayoutReader } from './payoutCheck';
+import { judgePayout, readPayoutFacts, type PayoutReader } from './payoutCheck';
 import { abortReason, coreStageName, loadWasm, type CoreEvent, type CoreSwap, type WasmModule, type WasmTaker } from './wasm';
 
 const STATE = 'web/state';
@@ -128,8 +128,6 @@ export class RealEngine implements EngineBackend {
   private directEmptySince?: number;
   /** When the claimed swap's payout was last checked against the escrow and the Verifier. */
   private payoutCheckedAt?: number;
-  /** Since when the escrow shows the payout made and the taker key's Verifier balance reads 0. */
-  private payoutGoneSince?: number;
   /**
    * Records a failed write did not store (review 3, H1). Until they are written, the engine
    * calls nothing in the core: every call first retries this write.
@@ -807,7 +805,7 @@ export class RealEngine implements EngineBackend {
       if (tickMs > 3_000) log(`tick took ${tickMs} ms`);
       await this.applyCoreEvents(r.events);
       await this.afterTick();
-      if (await this.exitedBeforeThisBrowser()) return 0;
+      if ((await this.exitedBeforeThisBrowser(false)) === 'moved') return 0;
       if (r.next.kind === 'done') {
         const core = this.coreSwap();
         const name = core ? coreStageName(core.stage) : '';
@@ -870,7 +868,14 @@ export class RealEngine implements EngineBackend {
           break;
         }
         case 'near_tx': {
-          const label = e.what === 'commit_claim' ? 'Claim commitment (reveals nothing)' : e.what === 'claim' ? 'Claim with your key half' : e.what;
+          const label =
+            e.what === 'commit_claim'
+              ? 'Claim commitment (reveals nothing)'
+              : e.what === 'claim'
+                ? 'Claim with your key half'
+                : e.what === 'withdraw'
+                  ? 'Payout into NEAR Intents (withdraw, sent by your key)'
+                  : e.what;
           txs.push(this.nearTx(e.what === 'commit_claim' ? 'commit' : e.what, label, e.hash));
           break;
         }
@@ -956,13 +961,14 @@ export class RealEngine implements EngineBackend {
       case 'Claimed':
         return this.stage('claimed', { addTxs });
       case 'PayoutPending':
-        // The claim is final, but the maker has not sent `withdraw` (the stipend cannot pay
-        // its gas). The core's `payout_pending` event and log name the call; any NEAR
-        // account can send it. The page stays on `claimed` and says so.
+        // The claim is final, but the payout is not paid after the core's wait: the
+        // taker's own withdraw calls did not pay (for example NEAR Intents refuses the
+        // transfer). The core keeps trying. The core's `payout_pending` event and log name
+        // the call; any NEAR account can send it. The page stays on `claimed` and says so.
         if (!this.reached('claimed')) await this.stage('claimed', { addTxs });
         return this.activity({
           kind: 'waiting',
-          label: `Claimed. The payout is pending: the maker has not sent withdraw. Any NEAR account can send it: call ${this.cfg!.near.escrow} withdraw for the owner ${core?.taker_account ?? ''} with 200 Tgas.`,
+          label: `Claimed. The payout into NEAR Intents is not done yet. The app keeps sending it from your swap key. Any NEAR account can also send it: call ${this.cfg!.near.escrow} withdraw with the swap id ${core?.escrow_id ?? ''} and 25 Tgas. The USDC can only go to your swap key.`,
           startedAt: now(),
           estimatedMs: 60_000,
         });
@@ -1040,19 +1046,20 @@ export class RealEngine implements EngineBackend {
 
   /**
    * A claimed swap whose payout already left the taker key (a swap restored after its exit
-   * finished). The core waits in `Claimed` for the price to appear in the Verifier, which
-   * never happens then. When the escrow shows the payout made (state `Claimed`, Intents
-   * credit 0) and the taker key's Verifier balance reads 0, at final blocks, for
-   * GONE_STABLE_MS, the exit happened before: the swap moves to `done` (with
-   * `exit.doneElsewhere`), and the leftover step follows. Returns true when it moved.
+   * finished). When the escrow shows the payout `paid` and the taker key's Verifier balance
+   * is 0, at one final block, the exit happened before (`payoutCheck.ts`): the swap moves
+   * to `done` (with `exit.doneElsewhere`), and the leftover step follows.
+   *
+   * In `claimed` it checks at most every 10 s. In `paid_out`, before the exit starts, it
+   * always checks (`force`), and a failed read returns `unknown` so that the exit waits.
    */
-  private async exitedBeforeThisBrowser(): Promise<boolean> {
+  private async exitedBeforeThisBrowser(force: boolean): Promise<'moved' | 'not' | 'unknown'> {
     const s = this.state!;
     const m = this.meta!;
-    if (s.stage !== 'claimed') return false;
+    if (s.stage !== 'claimed' && !(s.stage === 'paid_out' && force)) return 'not';
     const core = this.coreSwap();
-    if (!core?.escrow_id || !core.taker_account || !['Claimed', 'PayoutPending'].includes(coreStageName(core.stage))) return false;
-    if (this.payoutCheckedAt !== undefined && now() - this.payoutCheckedAt < 10_000) return false;
+    if (!core?.escrow_id || !core.taker_account || !['Claimed', 'PayoutPending', 'Completed'].includes(coreStageName(core.stage))) return 'not';
+    if (!force && this.payoutCheckedAt !== undefined && now() - this.payoutCheckedAt < 10_000) return 'not';
     this.payoutCheckedAt = now();
     const { cfg } = this.need();
     let facts;
@@ -1060,29 +1067,22 @@ export class RealEngine implements EngineBackend {
       facts = await this.readPayout({ rpc: cfg.near.rpc, escrow: cfg.near.escrow, verifier: cfg.near.verifier, token: cfg.near.token, swapId: core.escrow_id, taker: core.taker_account });
     } catch (e) {
       log(`payout check: ${(e as Error).message}`);
-      return false;
+      return 'unknown';
     }
-    if (judgePayout(facts) !== 'gone') {
-      this.payoutGoneSince = undefined;
-      return false;
-    }
-    if (this.payoutGoneSince === undefined) {
-      this.payoutGoneSince = now();
-      log('payout check: the escrow paid the taker key and its Verifier balance is 0; checking again before concluding that the exit already happened');
-    }
-    if (now() - this.payoutGoneSince < GONE_STABLE_MS) return false;
-    this.payoutGoneSince = undefined;
+    if (judgePayout(facts) !== 'gone') return 'not';
     log(`payout check: the escrow paid ${facts.amount ?? '?'} to ${core.taker_account} and the tokens left that key: the exit happened before this browser followed the swap`);
     m.coreDone = true;
     await this.persist();
     const direct = cfg.exit.mode === 'direct';
-    await this.emit({
-      type: 'stage',
-      swapId: s.id,
-      stage: 'paid_out',
-      at: now(),
-      patch: { payout: { usdc: this.toMicro(facts.amount ?? core.quote?.price ?? '0'), intentsAccount: core.taker_account } },
-    });
+    if (s.stage !== 'paid_out') {
+      await this.emit({
+        type: 'stage',
+        swapId: s.id,
+        stage: 'paid_out',
+        at: now(),
+        patch: { payout: { usdc: this.toMicro(facts.amount ?? core.quote?.price ?? '0'), intentsAccount: core.taker_account } },
+      });
+    }
     await this.emit({
       type: 'stage',
       swapId: s.id,
@@ -1100,7 +1100,7 @@ export class RealEngine implements EngineBackend {
         lastError: null,
       },
     });
-    return true;
+    return 'moved';
   }
 
   // ------------------------------------------------------------ restore
@@ -1282,6 +1282,10 @@ export class RealEngine implements EngineBackend {
     const { cfg, wasm } = this.need();
     const direct = cfg.exit.mode === 'direct';
     if (s.stage === 'paid_out') {
+      // A restored swap whose exit already happened must not start it again.
+      const before = await this.exitedBeforeThisBrowser(true);
+      if (before === 'moved') return 0;
+      if (before === 'unknown') return 3_000;
       await this.stage('exiting', {
         exit: {
           attempts: 1,

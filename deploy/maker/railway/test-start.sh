@@ -66,6 +66,8 @@ run main-refuses-price-zero fail "price_per_zec is 0" ZECRET_NETWORK=main ZECRET
   ZECRET_MAKER_CONFIG="$(fill '.chains.birthday = 3570000' | base64 -w0)"
 run main-refuses-no-premium-check fail "premium_check is required" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \
   ZECRET_MAKER_CONFIG="$(fill "$FILLED | del(.premium_check)" | base64 -w0)"
+run main-refuses-a-low-stipend fail "stipend below 0.06 NEAR" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \
+  ZECRET_MAKER_CONFIG="$(fill "$FILLED | .stipend = \"30000000000000000000000\"" | base64 -w0)"
 run main-refuses-no-birthday fail "chains.birthday" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \
   ZECRET_MAKER_CONFIG="$(fill '.price_per_zec = "900000000"' | base64 -w0)"
 run main-refuses-http fail "https" ZECRET_NETWORK=main ZECRET_ALLOW_MAINNET=1 \

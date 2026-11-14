@@ -163,6 +163,9 @@ pub struct MakerRec {
     pub public_key: String,
     pub token_balance: String,
     pub storage_funds_yocto: String,
+    /// The maker's token balance in its own Verifier account.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verifier_balance: Option<String>,
 }
 
 /// `deployment.<network>.json`. Public ids, hashes and heights only. No keys.
@@ -186,6 +189,11 @@ pub struct Deployment {
     pub maker: Option<MakerRec>,
     #[serde(default)]
     pub transactions: Vec<TxRec>,
+    /// A second deployment next to this one, kept as written (the light-payout escrow on
+    /// testnet: deploy/configs/testnet-light.toml, docs/TESTNET.md). The tool never changes
+    /// it; it only keeps it when it saves this file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub light_payout: Option<serde_json::Value>,
 }
 
 pub struct Chain {

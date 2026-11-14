@@ -1,6 +1,6 @@
 # Design: trustless shielded ZEC to NEAR, then anywhere
 
-Status: in revision, 2026-11-13. The project is Zecret. The repository is
+Status: in revision, 2026-11-14. The project is Zecret. The repository is
 `officialcmg/zecret`.
 
 ## The design in plain words
@@ -23,7 +23,8 @@ This section is always current. The numbered sections below give the detail.
 - The **taker** is the user. The taker software is a website. It runs in the user's
   browser. It makes a temporary Zcash wallet and holds the keys in the browser. Our
   backend never holds them.
-- The **escrow** is a contract on NEAR. It holds the maker's USDC during the swap.
+- The **escrow** is a contract on NEAR. It holds the maker's USDC during the swap. The
+  USDC stays inside NEAR Intents, in the escrow's own account there.
 
 **How one swap runs**
 
@@ -34,16 +35,20 @@ This section is always current. The numbered sections below give the detail.
 2. The maker sends a quote. The quote is also an encrypted memo.
 3. The taker sends an acceptance memo. The same transaction pays a small premium to the
    maker.
-4. The maker locks USDC in the escrow. The maker also sends 0.03 NEAR to a
-   new key that the taker made. This NEAR pays for the taker's transactions.
-5. The taker sends the ZEC to a shared address. The key of this address has two halves.
+4. The maker locks USDC in the escrow. The maker sends the USDC from its own account in
+   NEAR Intents to the escrow's account in NEAR Intents. The escrow records the swap only
+   after NEAR Intents moved the USDC. The maker also sends 0.06 NEAR to a new key that the
+   taker made. This NEAR pays for the taker's transactions.
+5. The taker checks the escrow. The escrow's USDC in NEAR Intents must cover all the
+   USDC that the escrow owes. Then the taker sends the ZEC to a shared address. The key of this address has two halves.
    The taker holds one half. The maker holds the other half.
 6. The maker sees the ZEC. The maker sets the escrow to Ready.
 7. The taker claims the USDC with the new key. The claim publishes the taker's half of
    the key.
 8. The maker now has the two halves. The maker takes the ZEC.
-9. The maker sends the withdraw call. The escrow puts the USDC into NEAR Intents and
-   moves it to the taker's new key there.
+9. The taker sends the withdraw call with the new key. The escrow moves the USDC inside
+   NEAR Intents to the taker's new key. The NEAR from step 4 pays for this call. No other
+   party is necessary.
 10. The app signs one message with that key. NEAR Intents sends the destination tokens
     to the user's address on the selected chain.
 
@@ -65,9 +70,15 @@ This section is always current. The numbered sections below give the detail.
 - If the Zcash chain changes its last blocks, the wallets go back to the last common
   block and scan the new blocks. If a node refuses a transaction because the wallet's
   tree is wrong, the wallet rebuilds its tree and sends again.
-- If the maker does not send the withdraw call after the claim, the USDC stays in the
-  escrow as a credit for the taker. After 5 minutes the app shows the exact call. Any
-  NEAR account can send it. The USDC can only go to the taker.
+- If the maker stops after the claim, the taker sends the withdraw call alone. The USDC
+  goes to the taker's new key in NEAR Intents. On local and testnet networks, the last
+  transfer to the user's NEAR account goes through the maker's relay. While the maker is
+  away, the USDC waits under the taker's key.
+- If NEAR Intents refuses the payout (for example its operators pause transfers), the
+  USDC stays in the escrow. The app tries again. After 5 minutes the app shows the exact
+  call. Any NEAR account can send it. The USDC can only go to the taker.
+- The operators of NEAR Intents can move or freeze the escrow's USDC at any time during
+  the swap, from the open to the payout. The design accepts this risk. Swaps stay small.
 
 **Decided**
 
@@ -104,18 +115,26 @@ This section is always current. The numbered sections below give the detail.
 | 2026-11-13 | The Zcash wallet follows chain reorganisations. It checks that each block links to the block before. It keeps the last 100 blocks. After a reorganisation it goes back to the last common block and scans the new blocks. It applies a block completely or not at all. Reason: on testnet the hosted maker kept a tree that was not the chain's tree. For 35 minutes the node refused every quote ("unknown Ironwood anchor"). Two takers got their ZEC back after the 10-minute quote timeout. See `docs/incidents/2026-11-13-maker-unknown-anchor.md`. |
 | 2026-11-13 | If a node refuses a transaction because of its anchor, the wallet compares its tree with the server's tree. If they differ, it rescans from its birthday. Then it builds the transaction again. The anchor is the tree two blocks below the tip, or the tree of the newest block with a spent note if that is newer. |
 | 2026-11-13 | The maker drops a request if no node takes its quote within 5 minutes (setting `quote_send_secs`). The taker stops waiting for a quote after 10 minutes. A later quote is of no use. |
+| 2026-11-14 | The escrow keeps the USDC inside NEAR Intents for the whole swap. The maker opens a swap with `mt_transfer_call` from its own Intents account. Only NEAR Intents can open a swap, and only after it moved the USDC. The payout is one `mt_transfer` inside NEAR Intents, to the taker after a claim or to the maker after a refund. No escrow call touches the token contract. Reason: the old payout needed 200 Tgas, and the taker's key could not pay for it. Replaces the two-step payout of 2026-11-13. See `docs/experiments/light-payout.md`. |
+| 2026-11-14 | Each swap has a payout state: none, due, sending, paid. `claim` and `refund` set it to due. They start the payout in the same call only if 18 Tgas are left. `withdraw(id)` starts a due payout. Anyone can send it. A payout is paid once: only a successful `mt_transfer` sets paid. |
+| 2026-11-14 | The taker's key sends `withdraw(id)` (25 Tgas) after the claim. The maker sends it too, but only if the payout is still due after 2 × (D + F). |
+| 2026-11-14 | The stipend is 0.06 NEAR, not 0.03. NEAR accepts a transaction only if the sender holds its attached gas at 10^9 yoctoNEAR per gas (`min_gas_purchase_price`, protocol 85 and later). Today that is 10 times the gas price. The largest balance that the taker's key needs is 0.0278 NEAR, before `withdraw`. 0.06 NEAR is 2.16 times that. The taker accepts a stipend of at least 0.03 NEAR. |
+| 2026-11-14 | Before the taker sends ZEC, it also checks the backing: at one final block, the escrow's balance in NEAR Intents is at least `get_owed(token)`. If the check fails, the taker reads again. It stops when the funding window is about to close. |
+| 2026-11-14 | The maker keeps its USDC in its own NEAR Intents account. If that holds less than a swap needs, the maker deposits the difference from its plain USDC before the open. A refund pays the maker inside NEAR Intents. The maker reads its balance there; it does not trust the result of a deposit (`docs/security/nv02-usdc.md`). |
+| 2026-11-14 | The escrow has no `sweep`, no credits and no in-flight sum. Tokens that reach the escrow outside a swap stay there. Nobody can take them. |
 | 2026-11-14 | The wallet runs on Zcash mainnet. The Zcash library in use has no mainnet height for NU7. The wallet sets 3,543,405 (ZIP 218). The chain agrees: the branch id changes at that block. |
 | 2026-11-14 | The mainnet settings use the measured Zcash mainnet block times (mean 24.9 s; three blocks took at most 299 s). They keep the testnet windows: the funding window is 600 s. |
 | 2026-11-14 | The website runs on mainnet only in a build with `VITE_ZECRET_ALLOW_MAINNET=1`. Mainnet gets its own hostname. The testnet site stays as it is. A link cannot switch a site to mainnet. The mainnet escrow and its code hash come from the build, not from a file. |
 | 2026-11-14 | On mainnet the maker's price is one fixed number. The code has no price feed. The owner sets the market price less 3 %. The dry run (`zecret-deploy plan`) fails when the price is less than 2 % below the market. The maker takes at most 3 requests at a time, so the float can cover them. See `docs/MAINNET.md`. |
+| 2026-11-14 | The mainnet templates follow the light payout. The stipend is 0.06 NEAR, and the taker accepts 0.03 NEAR. The premium is 40,000 zats, and the maker counts 0.02 NEAR of other costs for each swap. The dry run reads `min_gas_purchase_price` from the protocol config and checks that the stipend is at least 2 times the largest balance NEAR checks before the taker's three calls. See `docs/MAINNET.md`. |
 
 **Open**
 
 | Question | Status |
 |---|---|
 | The taker trusts one NEAR RPC endpoint. | Open. A false endpoint that works with the maker can take the taker's ZEC. See section 10. |
-| Who sends withdraw if the maker stops after the claim? | Decided: the maker sends it. If it does not, the app shows the call after 5 minutes. Any account can send it. The USDC can only go to the taker. |
-| The residual USDC case. | Open. The tokens can stay in NEAR Intents, credited to nobody. Nobody is paid twice. See section 10. |
+| Who sends withdraw if the maker stops after the claim? | Decided 2026-11-14: the taker's key sends it from the stipend. Any account can also send it. The USDC can only go to the taker. |
+| The residual USDC case. | Closed with the light payout: the escrow does not call the token contract. A USDC pause can only make the maker's deposit into NEAR Intents fail, before a swap exists. |
 | The taker-side bugs of security review 2 (F2-01, F2-02, F2-03). | Fixed. See `docs/security/fixes-2-taker.md`. |
 
 ## 1. What we are building
@@ -161,7 +180,7 @@ premium), the shared address, and the escrow rules.
 What is new:
 
 - **Step 4, one payment.** The user's wallet never needs to know about the protocol.
-- **Step 11, the stipend.** After `open`, the maker sends 0.03 NEAR to the account
+- **Step 11, the stipend.** After `open`, the maker sends 0.06 NEAR to the account
   named by the taker's fresh ed25519 key. That creates the account.
 - **Steps 16 and 17, the taker sends her own commit and claim.** No relayer. The maker
   never sees `a` before it is on-chain, so the maker cannot take the ZEC and withhold
@@ -184,13 +203,13 @@ The state machine is the paper's Table 1, unchanged.
 
 | Call | Who sends it | NEAR-specific design |
 |---|---|---|
-| `open` | Maker | Sent as `ft_transfer_call` on the USDC contract with the swap terms in `msg`. The escrow's `ft_on_transfer` validates and stores the swap. The escrow sees exactly the amount that arrived. |
+| `open` | Maker | Sent as `mt_transfer_call` on the Verifier (`intents.near`), from the maker's Verifier account to the escrow's, with the swap terms in `msg`. The escrow's `mt_on_transfer` accepts calls only from the Verifier, validates and stores the swap. The escrow sees exactly the amount that arrived. On bad terms the Verifier returns the tokens. |
 | `set_ready` | Maker | Maker only, before `t0`. |
 | `commit_claim` | Anyone (the taker in practice) | Verifies an ed25519 signature by the taker's NEAR key over (escrow account, swap id, commitment). Stores only the hash. |
-| `claim(a)` | Anyone | Checks the hash, checks `a·G = A` on Pallas, stores `a` in contract state and credits the taker. No token movement. |
-| `refund(b)` | Anyone | Checks `b·G = B`, stores `b`, credits the maker. No token movement. |
-| `withdraw` | Anyone | Pays a credit. The maker's goes out by `ft_transfer`. The taker's goes out in two steps: `ft_transfer_call` puts the tokens into the escrow's own account inside `intents.near`, then `mt_transfer` moves them to the taker's account there. The credit is restored only if `mt_transfer` fails. Needs 200 Tgas. |
-| `sweep` | Anyone | Brings tokens that are stranded in the escrow's own Intents account back to the escrow. It changes no credit and can pay only the escrow. |
+| `claim(a)` | Anyone | Checks the hash, checks `a·G = A` on Pallas, stores `a` in contract state, sets the payout due. With at least 18 Tgas left it starts the payout. |
+| `refund(b)` | Anyone | Checks `b·G = B`, stores `b`, sets the payout due, starts it as `claim` does. |
+| `withdraw(id)` | Anyone | Starts a due payout: one `mt_transfer` inside the Verifier from the escrow to the recipient (taker after a claim, maker after a refund), then `on_payout`, which sets paid or due again. Needs 19 Tgas; clients attach 25. |
+| `get_owed(token)` | View | The sum of the swaps in `token` that are not paid. The escrow's Verifier balance must be at least this. |
 
 Design choices:
 
@@ -202,8 +221,9 @@ Design choices:
 - **Revealed halves are stored in contract state.** Clients read `a` or `b` with a view
   call at a final block.
 - **Swap id** is `sha256(maker account, salt)`.
-- **`claim` and `refund` make no cross-contract calls**, so a token problem can never
-  make a call that reveals a key half fail.
+- **`claim` and `refund` store the key half before any cross-contract call.** The payout
+  is a separate receipt. If it fails, the key half stays published and the payout stays
+  due.
 
 ## 5. The gas trail
 
@@ -215,8 +235,9 @@ nothing new is revealed, and the taker's own money never touches NEAR gas.
 
 Limits that stay:
 
-- The stipend costs the maker 0.03 NEAR for each opened swap. The premium covers it.
-  Commit and claim use about 0.002 NEAR of it; the rest stays in the taker's account.
+- The stipend costs the maker 0.06 NEAR for each opened swap, plus 0.007 NEAR that NEAR
+  charges for the new account. The premium covers it. Commit, claim and withdraw use
+  about 0.003 NEAR of it; the rest stays in the taker's account.
 - The light-wallet server, the NEAR RPC and the 1Click API each see the user's IP
   address unless the user uses Tor or a VPN.
 - The paper's timing analysis still applies: a swap that is not delayed hides among few
@@ -286,15 +307,16 @@ measurement before real parameters are fixed.
 | Does the ed25519 signature check work natively? | Yes: 1.8 Tgas. | `experiments/gas-spike` |
 | Can a key with no NEAR account own funds in Intents and move them with a signature? | Yes, against the code live on `intents.near`. | `experiments/intents-sandbox` |
 | Does a small stipend make a fresh key usable? | Yes. 0.01 NEAR creates the account, but 0.03 NEAR is needed to send the commit and the claim. | `contracts/near-escrow` sandbox tests |
+| Can the taker's key finish the payout alone? | Yes, with the light payout. A new implicit account with 0.06 NEAR (also 0.03) sends commit, claim and withdraw and ends with the USDC under its key in NEAR Intents. Largest balance needed: 0.0278 NEAR. | `docs/experiments/light-payout.md`, `contracts/near-escrow/tests/sandbox.rs`, harness `s25` |
 | Does an exit quote work without an API key? | Yes: 5 USDC to Base quoted at 4.997 USDC, 12 s. | 1Click dry run |
 | How fast is NEAR? | Two small samples on testnet: about 8 s to inclusion and 10 s to fully final (first client); 1.6 s and 4.5 s (second client). See section 7. | `experiments/near-timing`, `docs/DEPLOY.md` |
 | Does the prover run in a browser? | Yes: about 25 s for one proof in Chromium. | `experiments/wasm-prover` |
 | Can a browser read Zcash blocks? | Yes, over gRPC-web. | `experiments/grpc-web` |
 | Does a local Zcash node run in the build environment? | Yes, Zebra regtest in Docker. | manual |
 | Does the Zcash wallet run in a browser worker, end to end? | Yes, on Zebra regtest: it receives a shielded payment, reads its memo, and builds, proves and sends a shielded transaction. | `experiments/browser-wallet`, `spike/browser-wallet/` |
-| Do the native maker and taker complete a swap as two programs? | Yes: 22 scenarios on Zebra regtest and a NEAR sandbox, with the happy path, refund, punish and malicious-party cases. | `harness/RESULTS.md` |
+| Do the native maker and taker complete a swap as two programs? | Yes: 23 scenarios on Zebra regtest and a NEAR sandbox, with the happy path, refund, punish and malicious-party cases, and the maker killed after the claim (`s25`). | `harness/RESULTS.md` |
 | Does a full swap run on public test networks? | Yes, twice, happy path only. The native maker and taker swapped 0.1 testnet ZEC for 3 test USDC. The hosted website and the hosted maker swapped 0.05 testnet ZEC for 1.4877 test USDC, and after the price fix 0.01 testnet ZEC for 0.2877 test USDC. | `docs/TESTNET.md` |
-| Can the real USDC contract make the escrow pay twice? | Yes, with the old one-step payout: a USDC pause or blocklist between delivery and USDC's resolve step made a second withdraw pay again. Fixed with the two-step payout; 8 sandbox tests with the USDC code from mainnet pass on the new escrow and fail on the old one. | `docs/security/nv02-usdc.md`, `docs/security/fixes-2.md` |
+| Can the real USDC contract make the escrow pay twice? | Yes, with the old one-step payout: a USDC pause or blocklist between delivery and USDC's resolve step made a second withdraw pay again. Fixed with the two-step payout. The light payout removes token calls from the escrow; 6 sandbox tests with the USDC code from mainnet apply each restriction at each token call (the maker's deposit and withdrawal) and while swaps are paid. | `docs/security/nv02-usdc.md`, `docs/security/fixes-2.md`, `contracts/near-escrow/tests/usdc.rs` |
 | Does the taker run in the browser as the real engine, wired into the website? | Yes. Five browser scenarios pass in Chromium on Zebra regtest and a NEAR sandbox. One swap ran through the hosted website on testnet. | `harness/BROWSER_RESULTS.md`, `docs/TESTNET.md` |
 
 Tests must use NEAR sandbox 2.14.1, the version on mainnet. Version 2.9.0 rejects the
@@ -313,6 +335,7 @@ live Intents code.
 | Keys in browser storage | A cleared browser loses the swap's keys. | Recovery file, shown before any money moves. |
 | The build environment is temporary | Docker, the sandbox binary and helper tools must be set up again on a new machine. | Done: `scripts/setup-env.sh`. Commit and push often. |
 | The taker trusts one NEAR RPC endpoint | The taker reads every NEAR fact it acts on from one endpoint, without proofs. An endpoint that works with the maker can show an escrow that does not exist, and the maker then takes the taker's ZEC. An endpoint alone can only delay a swap. | Not built. Options: let the user choose the endpoint; compare two or more endpoints; light-client proofs. See `docs/security/fixes-2-core.md` section 4. |
-| The taker cannot pay for `withdraw` | `withdraw` needs 200 Tgas, so the sender must hold about 0.2 NEAR. The stipend leaves about 0.028 NEAR. If the maker stops after the claim, the USDC stays in the escrow, credited to the taker, until some account sends `withdraw`. Any account can send it, and the tokens can only go to the taker. | Decided: the maker sends it; after `payout_wait_secs` (300 s) the taker engine reports `PayoutPending` with the exact call. See `docs/security/fixes-2-taker.md`. |
-| The residual USDC case | If the deposit into NEAR Intents fails and USDC's resolve step panics in the same window, the tokens stay in the Intents contract, credited to nobody. The escrow pays nobody twice, but its last USDC withdraw fails until the Intents operators return the tokens. Not tested. | Open. See `docs/security/fixes-2.md` section 5. |
+| The taker cannot pay for `withdraw` | Closed by the light payout (2026-11-14): `withdraw(id)` needs 19 Tgas, and the taker's key sends it from the stipend. | Done. `docs/experiments/light-payout.md`. |
+| NEAR Intents operators | They can pause `mt_transfer` or lock the escrow's account in NEAR Intents. Then no payout and no refund moves until they stop. The taker's funds in NEAR Intents already depend on them. | Accepted. The payout stays due and is paid once later. |
+| Stray tokens | Tokens sent to the escrow outside a swap stay there. Nobody can take them. | Accepted. |
 | Taker-side bugs of security review 2 | F2-01 and F2-02 (medium) and F2-03 (low). | Fixed, with H1, H5 (taker side) and H6. See `docs/security/fixes-2-taker.md`. |

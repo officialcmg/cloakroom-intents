@@ -1,0 +1,35 @@
+{
+  "format": "zecret-maker-directory",
+  "version": 1,
+  "network": "testnet",
+  "updatedAt": "2026-11-14T05:01:30.367Z",
+  "status": "online",
+  "maker": {
+    "name": "Zecret testnet maker",
+    "zcashAddress": "utest1vp5u8vzlnxh6dhg9lser8dk9xwgk973wcc6m9c00zrxqh2rtx6arh7z52h420szvkj9t6ktfymzrdawzgugqn5406rp498zu9ygx0yry",
+    "requestKey": "b6c307d60ea631e9d1fd7d6cb3e4575738e2dc5a758de1887465171cdaa86b14",
+    "nearAccount": "maker4.zecret-3f109eea1e.testnet",
+    "escrowContract": "escrow3.zecret-3f109eea1e.testnet",
+    "nearPublicKey": "ed25519:AJZTPAudR1b1EfhwfUo2fd1cRyNHMvjVhJDz8fbxbQg9",
+    "epoch": 1,
+    "signedLimits": {
+      "min_zats": 100000,
+      "max_zats": 10000000,
+      "premium_zats": 1000
+    }
+  },
+  "rate": {
+    "usdcPerZec": "30",
+    "validForSeconds": 300
+  },
+  "limits": {
+    "minZec": "0.001",
+    "maxZec": "0.1"
+  },
+  "premium": {
+    "bps": 0,
+    "minZec": "0.00001"
+  },
+  "zcashFeePerSendZec": "0.0001",
+  "signature": "3cac601a81ceae9aa38a2a9e91cb00c321a88618bfa20d22d801d841b506cbb40f6b42dbd492dd587cb09949f773913c9ba5e8d3749bf207114381098edc3f0f"
+}

@@ -77,6 +77,30 @@ pub async fn verify(chain: &Chain, cfg: &Config, base: &Path, ids: &Ids) -> Res<
                 ),
                 Err(e) => r.check(false, format!("escrow get_intents_account: {e}")),
             }
+            // The escrow's tokens back what it owes, read at the same final block.
+            let h = fb["header"]["height"].as_u64().unwrap_or(0);
+            let owed = rpc
+                .view_at(&ids.escrow, "get_owed", &json!({ "token": ids.token }), h)
+                .await?;
+            let bal = rpc
+                .view_at(
+                    &ids.intents,
+                    "mt_balance_of",
+                    &json!({ "account_id": ids.escrow, "token_id": format!("nep141:{}", ids.token) }),
+                    h,
+                )
+                .await?;
+            match (owed, bal) {
+                (Ok(o), Ok(b)) => {
+                    let o: u128 = o.as_str().unwrap_or("x").parse().unwrap_or(u128::MAX);
+                    let b: u128 = b.as_str().unwrap_or("0").parse().unwrap_or(0);
+                    r.check(
+                        b >= o,
+                        format!("escrow Verifier balance {b} covers what it owes ({o}) at block {h}"),
+                    );
+                }
+                (o, b) => r.check(false, format!("escrow get_owed {o:?} / Verifier mt_balance_of {b:?}")),
+            }
         }
     }
 
@@ -101,7 +125,7 @@ pub async fn verify(chain: &Chain, cfg: &Config, base: &Path, ids: &Ids) -> Res<
             format!("token code hash {h} equals local test-usdc wasm"),
         );
     }
-    for who in [&ids.escrow, &ids.intents, &ids.maker] {
+    for who in [&ids.intents, &ids.maker] {
         let sb = rpc
             .view(
                 &ids.token,
@@ -160,9 +184,9 @@ pub async fn verify(chain: &Chain, cfg: &Config, base: &Path, ids: &Ids) -> Res<
                 .and_then(|v| v.as_str())
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(0);
-            if cfg.token.deploy {
+            if cfg.token.deploy || cfg.token.open_mint {
                 r.check(
-                    have > 0,
+                    have > 0 || cfg.maker.verifier_target != "0",
                     format!("maker token balance {have} (target {target})"),
                 );
             } else {
@@ -182,6 +206,26 @@ pub async fn verify(chain: &Chain, cfg: &Config, base: &Path, ids: &Ids) -> Res<
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(0);
             r.check(f > 0, format!("maker escrow storage funds {}", fmt_near(f)));
+            let vb = rpc
+                .view(
+                    &ids.intents,
+                    "mt_balance_of",
+                    &json!({ "account_id": ids.maker, "token_id": format!("nep141:{}", ids.token) }),
+                )
+                .await?;
+            let vb: u128 = vb
+                .as_ref()
+                .ok()
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let vt: u128 = cfg.maker.verifier_target.parse()?;
+            if vt > 0 {
+                // Swaps spend it, so after the deployment it is only expected to be above 0.
+                r.check(vb > 0, format!("maker Verifier balance {vb} (deploy target {vt})"));
+            } else {
+                r.info(format!("maker Verifier balance {vb}"));
+            }
         }
     }
     Ok(r)

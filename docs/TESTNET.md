@@ -515,3 +515,147 @@ $Z pay --dir $P --to <address from the page> --zats <amount in zats>
 The faucet gives one claim per address per 24 hours and has a cooldown per network, so a
 claim can be refused for a while. Its web form at <https://fauzec.com> has a human check;
 the API above did not ask for one on 2026-11-13.
+
+## Light payout on testnet
+
+The switch rehearsal of 2026-11-14 05:00 UTC (a new maker `maker4` that had never used
+the Verifier, the site and taker configuration of the switch commit, one native and one
+browser swap) is in [`docs/LIGHT_PAYOUT_SWITCH.md`](LIGHT_PAYOUT_SWITCH.md), "Rehearsal".
+
+Date: 2026-11-14, 04:05 to 04:36 UTC. Branch `escrow-light-payout`. The live site and the
+hosted maker were not touched: they still use `escrow2`. These runs used a new escrow and
+a new maker next to them.
+
+### What ran
+
+| Part | Value |
+|---|---|
+| Escrow | `escrow3.zecret-3f109eea1e.testnet`, code hash `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536` (471 730 bytes, source commit `dccd718`), no access keys, Verifier `intents.zecret-3f109eea1e.testnet` |
+| Deployed with | `zecret-deploy deploy --config deploy/configs/testnet-light.toml` (owner key used in place through a link, not copied); record in `deploy/deployment.testnet-light.json` and the section `light_payout` of `deploy/deployment.testnet.json` |
+| Deployment transactions | escrow account `62LaNpQ6CPAmTZ8FfTbHKckREomub9QxHG4g2mYaz1dE`; deploy + `new` + delete key `FMSRRYU8qsLwHaeWeMnjjyxPWCPcRaytqXQPxbYmgAmA`; maker account `D4MNN4zbLCY9L81gtLKArZA7yMyxDSMuqdBJ43VPzWgA`; token registration `Dahwa9SCEbo3Xng8pxRD6WqFQcZocrMb6989MSLvCwNA`; mint 200 tUSDC `3Wr1WEL12W8hUSBzh8euhYLT289jJt1N7jSEvnkAfh8Z`; storage funds `7ywR89HfwMxCnAg1W7R8Kdhmtvpr4pukTJdSk86qdav5`; deposit of 100 tUSDC into the maker's Verifier account `3n8s6Ejtbj8q5WWJ72xvkSZy8bC44CZjiUbrPg2zfHc7` |
+| Maker | `maker3.zecret-3f109eea1e.testnet`, a new account funded by the owner (2 NEAR); a new Zcash wallet; the native `zecret maker` on this computer with its relay on `127.0.0.1:3411`; stipend 0.06 NEAR |
+| Zcash funds | Fauzec faucet, one claim each for the new maker wallet and a new payer wallet (`97ad930b…c07c`, `5fbc637e…ebf4`, both accepted). The payer paid 0.03 TAZ to each of three new taker wallets. The old wallets in `.tools/testnet/` were not used. |
+| Binaries | `zecret` built from this branch (debug profile, optimised); `zecret-testnet-audit` from `testnet/tools` |
+
+`zecret-deploy verify --config deploy/configs/testnet-light.toml` after the runs: all
+checks pass; the escrow's Verifier balance is 0 and it owes 0; the maker holds 99.1123
+tUSDC in its Verifier account (100 minus 0.3 + 0.3 + 0.2877 paid out; the refunded 0.3
+came back there).
+
+### 1. Normal swap, native taker (`debfe1a4`)
+
+0.01 TAZ for 0.3 tUSDC. The taker's key sent `commit_claim`, `claim` and `withdraw(id)`.
+
+| Step | NEAR transaction | Signer | Result (RPC `tx`, final) |
+|---|---|---|---|
+| open (`mt_transfer_call` on the Verifier) | `5dEfDzDfurGBmKf7e4L7vJiUqsmVYNW9MnqNqWVKhdLL` | maker3 | ok, event `opened`, 15.51 Tgas |
+| stipend 0.06 NEAR | `RfhYw8d5b7LPyrcQQigADRPdbte4rW14EkhP1Ld5jW5` | maker3 | ok, 0.007115 NEAR burnt (account creation) |
+| `set_ready` | `8X8Sspi4MiNzFeM8og9aDeFBrLm5qAd3BHww4wAEgh7B` | maker3 | ok, `ready` |
+| `commit_claim` | `5B9nY5q3JxYM3ufgJ2B91QYQsUsQqF49bwRXH9HVNbeK` | taker key `5fbd6e68…d09c` | ok, `locked` |
+| `claim` (25 Tgas) | `7qutzFN2UWLBLTSoHap9mtGSGnaKesHpHRKiQtvriZrG` | taker key | ok, `claimed`; payout Due |
+| `withdraw(id)` (25 Tgas) | `38foMhdX32ewMLYJxTLZr4sZJ9Duf6g5mjegpVk8SEvb` | taker key | ok, `paid`; 0.3 tUSDC under the taker key in the Verifier |
+
+The taker key holds 0.057126 NEAR afterwards.
+
+### 2. The maker is killed when the claim is final (`336d13ce`)
+
+A watcher (`python3`, log `.tools/testnet-lp/logs/swap2-watch.log`, not in git) started the
+taker, read the taker account's NEAR balance every second, and killed the maker process
+(`kill -9`) when the taker logged "claim is final", at final height 277 607 377. The maker
+was then in stage Ready: it had not seen the claim and had sent no `withdraw`. The taker
+finished alone.
+
+| Step | NEAR transaction | Block | Signer |
+|---|---|---|---|
+| open | `2ZPgDGpeW9s8k7jyDp2xSeNcpwnN7YvxbvQ1twiqGccA` | 277 607 022 | maker3 |
+| stipend | `CEimbhGpU4j1ZRJ3vAspXghrq9eiRbSGBAtauz17RKLR` | 277 607 028 | maker3 |
+| `set_ready` | `CxrysAgGSfPcKTuAFzKgszbeT1EagbVffGsBunkFoRS5` | 277 607 354 | maker3 |
+| `commit_claim` | `EXcU4VYaFfTgPBeML5qaXLkLFQ7UijfWB4cAHg9kFNzU` | 277 607 362 | taker key `f0899f16…ab4` |
+| `claim` | `EFYy87ZFPQagaBZQLtvmn6LHVVZVjdo9eXAcGiVYcCW` | 277 607 373 | taker key |
+| maker killed | | final height 277 607 377 | |
+| `withdraw(id)` | `Bd2Wpzt9V1YS6BtYPgaRsxcEQM6SCM91iMrrzsJV6wTe` | 277 607 382 | taker key; event `paid` |
+
+All six succeeded with no failed receipt (RPC `tx`, `wait_until: FINAL`). After it:
+`get_swap` shows `Claimed`, payout `paid`, recipient the taker key;
+`mt_balance_of(taker key)` is 300 000 (0.3 tUSDC).
+
+The taker key's NEAR balance, read every second (yoctoNEAR / 10^24). Each call first
+lowers it by the cost NEAR checks (attached gas at 10^9 yoctoNEAR per gas), then the
+refund arrives:
+
+| Moment | Balance (NEAR) | Change |
+|---|---|---|
+| after the stipend | 0.060000 | |
+| `commit_claim` submitted | 0.044079 | −0.015921 held for 15 Tgas |
+| after its refund | 0.059739 | spent 0.000261 |
+| `claim` submitted | 0.033819 | −0.025920 held for 25 Tgas |
+| after its refund | 0.058074 | spent 0.001665 |
+| `withdraw` submitted | 0.032155 | −0.025919 held |
+| after its refund | 0.057124 | spent 0.000950 |
+
+Total spent by the taker's key: 0.002876 NEAR. The largest balance needed was before
+`withdraw`: 0.001926 already spent + 0.025919 held = 0.027845 NEAR.
+
+The maker was started again afterwards; it read `a` from the escrow and swept the ZEC
+(`f4c26153…783b`). With the maker gone, the taker could not have run the testnet exit,
+which goes through the maker's relay; the tokens waited under the taker's key.
+
+### 3. Maker refund (`9aaaae98`)
+
+The taker stopped after its acceptance (`--vanish-at Accepted`) and never funded. Once
+the funding window closed, the maker refunded before t0. The refund attached 50 Tgas, so
+its payout ran in the same transaction.
+
+| Step | NEAR transaction | Result |
+|---|---|---|
+| open | `6LbvPkgx5WszaDThbhNM1yHgGf9N4quZnRo7UhBZuuMx` | ok, `opened` |
+| stipend | `BA5KcGi7g8ynv5zVzPvLUvBf4WfTrJNQzD8ykM9FCgz1` | ok |
+| `refund` | `7UuTenAbf7HT9XrenU15vjPJ3imuWXqby9Tm7BiyJPhJ` | ok, events `refunded` and `paid`; 0.3 tUSDC back in the maker's Verifier account |
+
+### 4. One swap with the browser engine (`8fd1350b`)
+
+A production build of this branch's site (`VITE_ZECRET_CONFIG=testnet-light npx vite
+build --outDir dist-light`) with `testnet/light/testnet-light.json` (escrow3, its code
+hash, the local relay) and `testnet/light/testnet-light-directory.json` (maker3's signed
+entry), served by `testnet/light/serve.mjs` with the headers of `web/vercel.json`.
+`testnet/hosted/run.mjs` drove it in headless Chromium (with
+`ZECRET_PROXY_BYPASS=127.0.0.1,localhost`, because the browser otherwise sent the local
+requests to the outbound proxy and got 405). The payer wallet paid the page's address.
+Result: `testnet/light/browser-result.json`, screenshots `testnet/light/browser-*.jpg`.
+
+The page went from the payment to `done` in 311 s (04:31:27 to 04:35:55 UTC after the
+payment was seen; 577 s from opening the page). It showed "You received 0.2877 test USDC
+on NEAR". No Content-Security-Policy violation.
+
+| Step | Transaction | Signer |
+|---|---|---|
+| user payment | Zcash `57e7c881…0745` | payer wallet |
+| request, acceptance, funding | Zcash `8acae810…1989`, `42454bf3…4389`, `234ecf7b…6a50` | browser wallet |
+| open | `6xTTHskSatEkjdrPnq8LV6qLNtwpi4vUV8teWQ6s3c71` | maker3 |
+| stipend | `6kW9axRSTM5pSiV9SVJHjQ2n9FBqY57vtxJWMjCbfrQ` | maker3 |
+| `set_ready` | `J2xEMK6kSPbCNjdMEXhrktbYNKeg2uqvdU5V9pAfAHNR` | maker3 |
+| `commit_claim` | `97dAuu48hjSb5ok2NozAvGSUNJBABXgojPos9wbF5VRE` | browser's key `0b7d52b1…cf4c` |
+| `claim` | `9ZhqsNHmp8maUWrH6cH1fNk8vAEYWKPhE4SURmayEqMb` | browser's key |
+| `withdraw(id)` | `5rJeiMuJRecYXzbDHAmSKGB4JDnX5R9xZCkbfp2DMw4z` | browser's key; event `paid` |
+| exit (`execute_intents`, `ft_withdraw` signed by the browser's key) | `Et1d7ceCtbrDDhoh77RWfZRckbmSJrA3TSu2a71W3sen` | maker3 (relay) |
+
+The browser's key holds 0.057142 NEAR afterwards. Engine timings in the browser: proving
+key 19.9 s, proofs 27.7 s, 27.4 s and 30.9 s, exit relay 4.9 s.
+
+### Checks
+
+- Every NEAR transaction above was read back with RPC `tx` (`wait_until: FINAL`): signer,
+  receiver, method, status `SuccessValue`, no failed receipt, the escrow's events
+  (`.tools/testnet-lp/scripts/neartx.py`, not in git; output in this section).
+- Shielded audit (`zecret-testnet-audit`, through ChainSafe's gRPC-web server) of 22
+  Zcash transactions: the three payer payments to the takers and the one to the browser
+  wallet, both takers' and the browser's requests, acceptances and fundings, the maker's
+  four quotes and three sweeps, the refund taker's request and acceptance. Every one is
+  v6 with 2 Ironwood actions, 0 transparent inputs and outputs, 0 Sapling, 0 Orchard,
+  value balance 10 000 zats (the fee), and its txid recomputes.
+
+### Not verified here
+
+- The hosted website and the hosted maker with `escrow3` (see `docs/LIGHT_PAYOUT_SWITCH.md`).
+- A Verifier that refuses the payout on testnet (tested in the sandbox only).
+- Mainnet.

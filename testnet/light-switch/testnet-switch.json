@@ -1,0 +1,40 @@
+{
+  "format": "zecret-config",
+  "version": 1,
+  "network": "testnet",
+  "label": "Zcash testnet and NEAR testnet (switch rehearsal: the live testnet config, local maker4)",
+  "directoryUrl": "/config/testnet-switch-directory.json",
+  "zcash": {
+    "lightwalletd": "https://zcash-testnet.chainsafe.dev",
+    "explorer": "https://testnet.zcashexplorer.app/transactions/{txid}"
+  },
+  "near": {
+    "rpc": "https://rpc.testnet.fastnear.com",
+    "escrow": "escrow3.zecret-3f109eea1e.testnet",
+    "escrowCodeHash": "AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536",
+    "token": "usdc.zecret-3f109eea1e.testnet",
+    "tokenSymbol": "test USDC",
+    "tokenDecimals": 6,
+    "verifier": "intents.zecret-3f109eea1e.testnet",
+    "explorer": "https://testnet.nearblocks.io/txns/{hash}"
+  },
+  "timing": {
+    "inclusion_secs": 30,
+    "finality_secs": 10,
+    "reorg_budget": 2,
+    "margin_secs": 0,
+    "fund_secs": 600,
+    "k_z": 3
+  },
+  "minStipend": "30000000000000000000000",
+  "quoteTimeoutSecs": 600,
+  "exit": {
+    "mode": "direct",
+    "relayUrl": "http://127.0.0.1:3412/execute-intents"
+  },
+  "honesty": [
+    "A test USDC token with no value stands in for USDC.",
+    "The Verifier is a copy of the intents.near code on NEAR testnet. NEAR Intents has no testnet, so the tokens go to your NEAR testnet account, and the price for the chosen chain is a mainnet preview.",
+    "The exit needs the maker's relay. This file points at the hosted testnet maker."
+  ]
+}

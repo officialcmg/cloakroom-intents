@@ -4,7 +4,7 @@
 // Zebra regtest and a NEAR sandbox (real escrow, live wrap.near and intents.near code).
 //
 //   source .tools/env.sh
-//   node harness/browser/run.mjs              # scenarios a b c d e
+//   node harness/browser/run.mjs              # scenarios a b c d e f
 //   node harness/browser/run.mjs a e          # selected scenarios
 //   node harness/browser/run.mjs --serve      # chains, maker and site only, for a person
 //
@@ -109,6 +109,8 @@ async function wnearAtLeast(a, want) {
 }
 const intentsBal = async (a) => BigInt(await view(chains.intents, 'mt_balance_of', { account_id: a, token_id: `nep141:${chains.token}` }));
 const escrowSwap = (id) => view(chains.escrow, 'get_swap', { id });
+/** The maker's tokens: plain wNEAR plus its balance in the Verifier (it opens from there, and refunds pay it back there). */
+const makerTokens = async () => (await wnear(chains.maker)) + (await intentsBal(chains.maker));
 async function nearBlock(finality = 'final') {
   const h = (await nrpc('block', { finality })).header;
   return { height: h.height, ts: Math.floor(h.timestamp / 1e9) };
@@ -476,7 +478,7 @@ async function scenarioA() {
   const recv = receiver('alicea');
   await settle();
   if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
-  const makerBefore = await wnear(chains.maker);
+  const makerBefore = await makerTokens();
   const { page, ctx, timings } = await newPage(scen, 'main');
   const { deposit, preview } = await startSwap(page, url, { nearAccount: recv, returnAddress: user.ua, scen });
   c.facts.preview = preview;
@@ -513,7 +515,7 @@ async function scenarioA() {
   c.ok('the engine recorded the payout of the price (micro-units)', BigInt(st.payout?.usdc ?? 0) === PRICE / 10n ** 18n, st.payout?.usdc);
   c.ok('the exit delivered the whole price to the NEAR account', (await wnearAtLeast(recv, PRICE)) === PRICE, await wnear(recv));
   c.ok('nothing is left under the taker key in the Verifier', acct && (await intentsBal(acct)) === 0n);
-  c.ok('the maker paid exactly the price', makerBefore - (await wnear(chains.maker)) === PRICE);
+  c.ok('the maker paid exactly the price', makerBefore - (await makerTokens()) === PRICE);
   const e = await escrowSwap(st.escrow.swapId);
   c.ok('escrow Claimed at a final block', e?.state === 'Claimed', e?.state);
   c.ok('the browser sent commit_claim and claim itself', st.txs.some((t) => t.id === 'commit') && st.txs.some((t) => t.id === 'claim'));
@@ -536,7 +538,7 @@ async function scenarioB() {
   await settle();
   if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
   const userBefore = user.balance();
-  const makerBefore = await wnear(chains.maker);
+  const makerBefore = await makerTokens();
   const { page, ctx, timings } = await newPage(scen, 'main');
   const { deposit } = await startSwap(page, url, { nearAccount: recv, returnAddress: user.ua, scen });
   const payTx = user.pay(deposit.address, PAY_ZATS);
@@ -556,7 +558,7 @@ async function scenarioB() {
   c.ok('refund reason MAKER_REFUNDED', st.refund?.reason === 'MAKER_REFUNDED');
   const e = await escrowSwap(st.escrow.swapId);
   c.ok('escrow Refunded, a never published', e?.state === 'Refunded' && !e.a, e?.state);
-  c.ok('the maker got its tokens back', (await wnear(chains.maker)) === makerBefore);
+  c.ok('the maker got its tokens back', (await makerTokens()) === makerBefore);
   const expectRefund = PAY_ZATS - 5 * FEE - PREMIUM;
   c.ok('the refund sent everything left (pay - premium - 5 fees) to the return address', Number(st.refund?.amountZats) === expectRefund, `${st.refund?.amountZats} vs ${expectRefund}`);
   c.ok('the user wallet lost exactly its payment fee + premium + 5 swap fees', userBefore - userAfter === FEE + PREMIUM + 5 * FEE, userBefore - userAfter);
@@ -658,7 +660,7 @@ async function scenarioE() {
   await settle();
   if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
   const userBefore = user.balance();
-  const makerBefore = await wnear(chains.maker);
+  const makerBefore = await makerTokens();
   const { page, ctx, timings } = await newPage(scen, 'main');
   const { deposit } = await startSwap(page, url, { nearAccount: recv, returnAddress: user.ua, scen });
   const payTx = user.pay(deposit.address, PAY_ZATS);
@@ -670,7 +672,7 @@ async function scenarioE() {
   c.facts.timings = stageTimings(st, timings);
   c.ok('refund reason QUOTE_BELOW_MINIMUM', st.refund?.reason === 'QUOTE_BELOW_MINIMUM', st.refund?.reason);
   c.ok('stopped before the acceptance: no premium, no funding', !st.txs.some((t) => t.id === 'accept' || t.id === 'funding'));
-  c.ok('the maker opened no escrow and paid nothing', (await wnear(chains.maker)) === makerBefore);
+  c.ok('the maker opened no escrow and paid nothing', (await makerTokens()) === makerBefore);
   c.ok('the refund was the payment less the request fee and its own fee', Number(st.refund?.amountZats) === PAY_ZATS - 2 * FEE, st.refund?.amountZats);
   c.ok('the user wallet lost exactly three fees (payment, request, refund)', userBefore - user.balance() === 3 * FEE, userBefore - user.balance());
   await privacyAudit(c, [payTx, ...zcashTxids(st, maker)]);
@@ -678,7 +680,45 @@ async function scenarioE() {
   return c.save();
 }
 
-const SCENARIOS = { a: scenarioA, b: scenarioB, c: scenarioC, d: scenarioD, e: scenarioE };
+
+async function scenarioF() {
+  const scen = 'f_maker_vanishes_after_claim';
+  const c = new Checks(scen, 'The maker process is killed the moment the browser shows the claim final. The browser engine sends withdraw(id) from the taker key with what the stipend left, and the USDC ends under the taker key in the Verifier with no other party. The local exit goes through the maker\'s relay, so with the maker gone the swap stops at the exit; the scenario ends there');
+  const maker = new Maker(scen);
+  maker.start();
+  const url = writeRun(scen, maker, '30');
+  const user = new Wallet(path.join(WORK, scen, 'user'));
+  await coinbase(user.ua);
+  await coinbase(maker.ua);
+  const recv = receiver('alicef');
+  await settle();
+  if (user.balance() <= 0) throw new Error('the user wallet did not receive its coinbase');
+  const { page, ctx } = await newPage(scen, 'main');
+  const { deposit } = await startSwap(page, url, { nearAccount: recv, returnAddress: user.ua, scen });
+  const payTx = user.pay(deposit.address, PAY_ZATS);
+  log(`user paid ${PAY_ZATS} zats in ${payTx}`);
+  const claimed = await waitState(page, (s) => s.history.some((h) => h.stage === 'claimed'), 20 * 60_000, 'claimed');
+  await maker.stop();
+  const makerLogAtKill = maker.logText();
+  const acct = claimed.escrow.takerAccount;
+  log(`maker killed when the page showed claimed; taker account ${acct}`);
+  const st = await waitState(page, (s) => s.stage === 'exiting' || s.stage === 'done' || s.stage === 'exit_retry', 10 * 60_000, 'the payout (paid_out, then the exit)');
+  await page.screenshot({ path: path.join(EVID, scen, 'after-payout.png'), fullPage: true });
+  const e = await escrowSwap(st.escrow.swapId);
+  c.facts.taker_account = acct;
+  c.facts.stage = st.stage;
+  c.ok('the maker sent no withdraw before it was killed', !makerLogAtKill.includes('withdraw(id) for the taker'));
+  c.ok('the page reached paid_out with the maker gone', st.history.some((h) => h.stage === 'paid_out'), st.history.map((h) => h.stage).join(','));
+  c.ok('escrow payout Paid to the taker key', e?.payout === 'paid' && e?.recipient === acct, `${e?.payout} ${e?.recipient}`);
+  c.ok('the taker key holds exactly the price in the Verifier', (await intentsBal(acct)) === PRICE, `${await intentsBal(acct)} vs ${PRICE}`);
+  c.ok('the browser sent commit_claim, claim and withdraw itself', ['commit', 'claim', 'withdraw'].every((id) => st.txs.some((t) => t.id === id)), st.txs.map((t) => t.id).join(','));
+  c.ok('the exit did not complete without the relay (expected on local networks)', st.stage !== 'done', st.stage);
+  await privacyAudit(c, [payTx, ...zcashTxids(st, maker)]);
+  await ctx.close();
+  return c.save();
+}
+
+const SCENARIOS = { a: scenarioA, b: scenarioB, c: scenarioC, d: scenarioD, e: scenarioE, f: scenarioF };
 
 // ---------------------------------------------------------------- main
 
@@ -792,7 +832,7 @@ async function main() {
 }
 
 let lastScen;
-const SCEN_NAMES = { a: 'a_full_swap', b: 'b_maker_quiet_refund', c: 'c_reload_twice', d: 'd_restore_fresh_profile', e: 'e_quote_below_minimum' };
+const SCEN_NAMES = { a: 'a_full_swap', b: 'b_maker_quiet_refund', c: 'c_reload_twice', d: 'd_restore_fresh_profile', e: 'e_quote_below_minimum', f: 'f_maker_vanishes_after_claim' };
 async function runScenario(k, fn) {
   lastScen = SCEN_NAMES[k];
   fs.rmSync(path.join(EVID, lastScen), { recursive: true, force: true });

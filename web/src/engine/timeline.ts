@@ -10,7 +10,7 @@ export const KEY_BUILD_MS = 20_000;
 export const NEAR_FINAL_MS = 10_000;
 export const FUNDING_CONFIRMATIONS = 2;
 export const DEPOSIT_CONFIRMATIONS = 1;
-export const STIPEND_YOCTO = '30000000000000000000000'; // 0.03 NEAR
+export const STIPEND_YOCTO = '60000000000000000000000'; // 0.06 NEAR
 
 /** Normal path, in order. */
 export const NORMAL_PATH: readonly Stage[] = [

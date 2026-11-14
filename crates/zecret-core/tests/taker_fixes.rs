@@ -17,7 +17,10 @@
 #[path = "poc2_common.rs"]
 mod common;
 
-use std::{cell::Cell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 use base64::Engine;
 use group::GroupEncoding;
@@ -104,7 +107,13 @@ fn view(rec: &TakerSwap, near: &NearKey, state: &str, (t0, t1, t2): (u64, u64, u
         "taker_pk": hex::encode(near.public_bytes()), "taker_account": near.implicit_account(),
         "a_pub": hex::encode((keys::g() * a).to_bytes()), "b_pub": rec.quote.as_ref().unwrap().b_pub,
         "t0": t0, "t1": t1, "t2": t2, "reveal_window": w, "state": state,
-        "locked_at": locked_at, "commitment": null, "a": null, "b": b
+        "locked_at": locked_at, "commitment": null, "a": null, "b": b,
+        "payout": if state == "Claimed" || state == "Refunded" { "paid" } else { "none" },
+        "recipient": match state {
+            "Claimed" => json!(near.implicit_account()),
+            "Refunded" => json!("maker.near"),
+            _ => Value::Null,
+        }
     })
 }
 
@@ -115,30 +124,39 @@ fn ok_tx() -> Value {
 }
 
 /// Scripted chains: Zcash tip `tip` (or an error when `zcash_down`), NEAR final time
-/// `near_time`, the escrow answering `swap`, and the taker's credit and Verifier balance.
+/// `near_time`, the escrow answering `swap`, the escrow's owed sum and Verifier balance,
+/// and the taker's Verifier balance.
 struct Net {
     mock: Rc<Mock>,
     transport: Rc<Down>,
     near_time: Rc<Cell<u64>>,
     zcash_down: Rc<Cell<bool>>,
-    credit: Rc<Cell<u64>>,
+    swap: Rc<RefCell<Value>>,
+    owed: Rc<Cell<u64>>,
+    escrow_balance: Rc<Cell<u64>>,
     paid: Rc<Cell<u64>>,
 }
 
 fn net(tip: u64, swap: Value) -> Net {
     let near_time = Rc::new(Cell::new(NOW));
     let zcash_down = Rc::new(Cell::new(false));
-    let credit = Rc::new(Cell::new(0u64));
+    let swap = Rc::new(RefCell::new(swap));
+    let owed = Rc::new(Cell::new(5_000_000u64));
+    let escrow_balance = Rc::new(Cell::new(5_000_000u64));
     let paid = Rc::new(Cell::new(0u64));
-    let (nt, cr, pd) = (near_time.clone(), credit.clone(), paid.clone());
+    let (nt, sw, ow, eb, pd) = (near_time.clone(), swap.clone(), owed.clone(), escrow_balance.clone(), paid.clone());
     let mock = Rc::new(Mock::new(move |m, p| match m {
         "getblockcount" => json!(tip),
         "block" => block_result(nt.get()),
         "query" => match (p["request_type"].as_str(), view_method(p).as_deref()) {
-            (_, Some("get_swap")) => view_result(&swap),
+            (_, Some("get_swap")) => view_result(&sw.borrow()),
             (_, Some("get_intents_account")) => view_result(&json!("intents.near")),
-            (_, Some("get_credit")) => view_result(&json!({"direct": "0", "intents": cr.get().to_string()})),
-            (_, Some("mt_balance_of")) => view_result(&json!(pd.get().to_string())),
+            (_, Some("get_owed")) => view_result(&json!(ow.get().to_string())),
+            (_, Some("mt_balance_of")) => {
+                let args: Value = serde_json::from_slice(&base64::engine::general_purpose::STANDARD.decode(p["args_base64"].as_str().unwrap()).unwrap()).unwrap();
+                let who = if args["account_id"] == "escrow.near" { eb.get() } else { pd.get() };
+                view_result(&json!(who.to_string()))
+            }
             (Some("view_account"), _) => json!({"amount": "40000000000000000000000", "storage_usage": 0, "code_hash": "CODEHASH"}),
             (Some("view_access_key_list"), _) => json!({"keys": []}),
             (Some("view_access_key"), _) => json!({"nonce": 7, "permission": "FullAccess", "block_height": 1, "block_hash": "11111111111111111111111111111111"}),
@@ -148,7 +166,7 @@ fn net(tip: u64, swap: Value) -> Net {
         _ => Value::Null,
     }));
     let transport = Rc::new(Down { mock: mock.clone(), down: zcash_down.clone() });
-    Net { mock, transport, near_time, zcash_down, credit, paid }
+    Net { mock, transport, near_time, zcash_down, swap, owed, escrow_balance, paid }
 }
 
 /// The mock, with the Zcash node unreachable while `down` is set.
@@ -499,23 +517,33 @@ fn published_limits_are_checked_before_anything_is_sent() {
 
 // ------------------------------------------------------------------------- payout pending
 
-/// The claim is final, the maker does not withdraw: after `payout_wait_secs` the taker
-/// reports PayoutPending with the exact call. It does not send a withdraw it cannot pay
-/// for. When the payout arrives, the swap completes.
+/// The claim is final and the payout is Due: the taker's key sends `withdraw(id)` itself
+/// (its stipend pays for it), and again after a failed try. If the payout is still not
+/// Paid after `payout_wait_secs`, the taker reports PayoutPending with the exact call and
+/// keeps trying. When a final block shows the payout Paid, the swap completes.
 #[test]
-fn payout_pending_is_reported_with_the_call() {
+fn taker_sends_withdraw_itself_and_reports_payout_pending() {
     let f = fixture();
     let near = NearKey::from_seed([16u8; 32]);
     let a = keys::random_scalar();
     let mut rec = record(&f, TakerStage::Claimed, &a, &near);
     rec.stage_at = NOW;
-    let n = net(100, Value::Null);
-    n.credit.set(5_000_000);
+    let mut v = view(&rec, &near, "Claimed", (NOW - 100, NOW + 600, NOW + 1500), 600, Some(NOW - 50), None);
+    v["payout"] = json!("due");
+    let n = net(100, v.clone());
     let mut store = MemStore::new();
     let mut tk = open(&f, &rec, &n, 100, &mut store);
-    tk.tick(NOW + 10, &mut store);
+    let t = tk.tick(NOW + 10, &mut store);
     assert_eq!(tk.swap().unwrap().stage, TakerStage::Claimed);
-    assert!(sends(&n).is_empty(), "the stipend cannot pay a withdraw; the taker does not try");
+    assert_eq!(sends(&n).len(), 1, "the taker sends withdraw itself: {:?}", tk.swap().unwrap().log);
+    assert!(t.events.iter().any(|e| matches!(e, Event::NearTx { what, .. } if what == "withdraw")));
+    // Not again before the last one can be final.
+    tk.tick(NOW + 11, &mut store);
+    assert_eq!(sends(&n).len(), 1);
+    n.near_time.set(NOW + 200);
+    tk.tick(NOW + 200, &mut store);
+    assert_eq!(sends(&n).len(), 2, "a Due payout after a try is tried again");
+    n.near_time.set(NOW + 300);
     let t = tk.tick(NOW + 301, &mut store);
     let s = tk.swap().unwrap();
     assert_eq!(s.stage, TakerStage::PayoutPending, "log: {:?}", s.log);
@@ -524,13 +552,80 @@ fn payout_pending_is_reported_with_the_call() {
         _ => None,
     });
     let (receiver, method, args, gas, credit) = ev.expect("payout_pending event");
-    assert_eq!((receiver.as_str(), method.as_str(), gas.as_str(), credit.as_str()), ("escrow.near", "withdraw", "200000000000000", "5000000"));
+    assert_eq!((receiver.as_str(), method.as_str(), gas.as_str(), credit.as_str()), ("escrow.near", "withdraw", "25000000000000", "5000000"));
     let args: Value = serde_json::from_str(&args).unwrap();
-    assert_eq!(args, json!({"token": "usdc.near", "owner": near.implicit_account()}));
+    assert_eq!(args, json!({"id": rec.escrow_id}));
     assert!(s.log.last().unwrap().contains("Any NEAR account can send it"));
-    // Someone sends withdraw: the payout arrives.
-    n.credit.set(0);
+    // The payout succeeds (sent by anyone): the swap completes.
+    v["payout"] = json!("paid");
+    *n.swap.borrow_mut() = v;
     n.paid.set(5_000_000);
+    n.near_time.set(NOW + 320);
     tk.tick(NOW + 320, &mut store);
     assert_eq!(tk.swap().unwrap().stage, TakerStage::Completed);
+}
+
+/// A payout in flight (Sending) is not sent again; Paid completes even when the tokens
+/// already left the taker key (a restore after the exit).
+#[test]
+fn sending_payout_waits_and_paid_completes() {
+    let f = fixture();
+    let near = NearKey::from_seed([17u8; 32]);
+    let a = keys::random_scalar();
+    let mut rec = record(&f, TakerStage::Claimed, &a, &near);
+    rec.stage_at = NOW;
+    let mut v = view(&rec, &near, "Claimed", (NOW - 100, NOW + 600, NOW + 1500), 600, Some(NOW - 50), None);
+    v["payout"] = json!("sending");
+    let n = net(100, v.clone());
+    let mut store = MemStore::new();
+    let mut tk = open(&f, &rec, &n, 100, &mut store);
+    tk.tick(NOW + 10, &mut store);
+    assert!(sends(&n).is_empty());
+    assert_eq!(tk.swap().unwrap().stage, TakerStage::Claimed);
+    v["payout"] = json!("paid");
+    *n.swap.borrow_mut() = v;
+    tk.tick(NOW + 12, &mut store);
+    assert!(sends(&n).is_empty());
+    assert_eq!(tk.swap().unwrap().stage, TakerStage::Completed);
+}
+
+/// The escrow's Verifier balance must cover what it owes before the taker funds. A
+/// shortfall makes the taker wait and read again; near the end of the funding window it
+/// aborts with nothing funded.
+#[test]
+fn taker_funds_only_when_the_escrow_balance_backs_the_swap() {
+    let f = fixture();
+    let near = NearKey::from_seed([18u8; 32]);
+    let a = keys::random_scalar();
+    let mut rec = record(&f, TakerStage::Accepted, &a, &near);
+    rec.fund_txid = None;
+    rec.fund_expiry = None;
+    let n = net(100, view(&rec, &near, "Open", (NOW + 1800, NOW + 2400, NOW + 3300), 600, None, None));
+    n.owed.set(10_000_000);
+    n.escrow_balance.set(9_999_999);
+    let mut store = MemStore::new();
+    let mut tk = open(&f, &rec, &n, 100, &mut store);
+    let t = tk.tick(NOW, &mut store);
+    let s = tk.swap().unwrap();
+    assert_eq!(s.stage, TakerStage::Accepted, "{:?}", s.log);
+    assert!(!t.events.iter().any(|e| matches!(e, Event::EscrowVerified { .. })));
+    assert!(s.log.iter().any(|l| l.contains("backing check failed")), "{:?}", s.log);
+    // Balance back: verified.
+    n.escrow_balance.set(10_000_000);
+    let t = tk.tick(NOW + 5, &mut store);
+    assert!(t.events.iter().any(|e| matches!(e, Event::EscrowVerified { .. })), "{:?}", tk.swap().unwrap().log);
+    // A shortfall that lasts until the end of the funding window aborts.
+    let near = NearKey::from_seed([19u8; 32]);
+    let mut rec = record(&f, TakerStage::Accepted, &a, &near);
+    rec.fund_txid = None;
+    rec.fund_expiry = None;
+    let n = net(100, view(&rec, &near, "Open", (NOW + 200, NOW + 800, NOW + 1700), 600, None, None));
+    n.escrow_balance.set(1);
+    let mut store = MemStore::new();
+    let mut tk = open(&f, &rec, &n, 100, &mut store);
+    tk.tick(NOW, &mut store);
+    match &tk.swap().unwrap().stage {
+        TakerStage::Aborted(why) => assert!(why.contains("backing"), "{why}"),
+        other => panic!("stage {other:?}: {:?}", tk.swap().unwrap().log),
+    }
 }

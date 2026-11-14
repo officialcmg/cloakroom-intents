@@ -169,13 +169,25 @@ fn setup() -> Escrow {
     c
 }
 
-fn open_with(c: &mut Escrow, msg: serde_json::Value, amount: u128) -> U128 {
-    at(&token(), NOW);
-    c.ft_on_transfer(maker(), U128(amount), msg.to_string())
+/// The Verifier calls `mt_on_transfer` after it moved `amount` of `nep141:<token>` from
+/// `sender` to the escrow.
+fn deliver(c: &mut Escrow, sender: &AccountId, msg: &str, amount: u128) -> Vec<U128> {
+    at(&intents(), NOW);
+    c.mt_on_transfer(
+        sender.clone(),
+        vec![sender.clone()],
+        vec![nep141_id(&token())],
+        vec![U128(amount)],
+        msg.to_string(),
+    )
+}
+
+fn open_with(c: &mut Escrow, msg: serde_json::Value, amount: u128) -> Vec<U128> {
+    deliver(c, &maker(), &msg.to_string(), amount)
 }
 
 fn open(c: &mut Escrow) -> [u8; 32] {
-    assert_eq!(open_with(c, terms(1), AMT), U128(0));
+    assert_eq!(open_with(c, terms(1), AMT), vec![U128(0)]);
     compute_swap_id(&maker(), &[1; 32])
 }
 
@@ -202,10 +214,6 @@ fn commit_at(c: &mut Escrow, id: &[u8; 32], t: u64) {
     c.commit_claim(Hex32(*id), Hex32(cm), sig);
 }
 
-fn credit(c: &Escrow, owner: &AccountId) -> CreditView {
-    c.get_credit(token(), owner.clone())
-}
-
 /// Method, args, attached deposit, static gas and gas weight of a receipt's first action.
 fn call_of(r: &near_sdk::mock::Receipt) -> (String, Vec<u8>, NearToken, Gas, u64) {
     match &r.actions[0] {
@@ -224,6 +232,17 @@ fn call_of(r: &near_sdk::mock::Receipt) -> (String, Vec<u8>, NearToken, Gas, u64
             gas_weight.0,
         ),
         other => panic!("unexpected action {other:?}"),
+    }
+}
+
+/// The amount that swap `id` pays to `owner` now that it has ended; 0 if it has not
+/// ended or pays someone else.
+fn due(c: &Escrow, id: &[u8; 32], owner: &AccountId) -> U128 {
+    let v = c.get_swap(Hex32(*id)).unwrap();
+    if v.recipient.as_ref() == Some(owner) && v.payout != Payout::None {
+        v.amount
+    } else {
+        U128(0)
     }
 }
 
@@ -393,18 +412,17 @@ fn open_stores_swap_and_emits_opened() {
     let ev = events();
     assert_eq!(ev.len(), 1);
     assert_eq!(ev[0]["standard"], EVENT_STANDARD);
+    assert_eq!(ev[0]["version"], EVENT_VERSION);
     assert_eq!(ev[0]["event"], "opened");
     assert_eq!(ev[0]["data"][0]["id"], hex::encode(id));
     assert_eq!(ev[0]["data"][0]["amount"], AMT.to_string());
     // Storage was paid from the maker's storage funds.
     assert!(c.get_storage_funds(maker(), token()).0 < ONE_NEAR);
-    assert_eq!(
-        credit(&c, &maker()),
-        CreditView {
-            direct: U128(0),
-            intents: U128(0)
-        }
-    );
+    assert_eq!(v.payout, Payout::None);
+    assert_eq!(v.recipient, None);
+    assert_eq!(c.get_owed(token()), U128(AMT));
+    // No call leaves the escrow at open.
+    assert!(get_created_receipts().is_empty());
 }
 
 #[test]
@@ -535,6 +553,10 @@ fn open_rejects_duplicate_swap_id() {
     assert_err("BadState", || {
         open_with(&mut c, terms(1), AMT);
     });
+    // The failed open adds nothing to the owed sum (on chain the whole call reverts and
+    // the Verifier returns the tokens).
+    c.owed.flush();
+    assert_eq!(c.get_owed(token()), U128(AMT));
 }
 
 #[test]
@@ -545,8 +567,7 @@ fn swap_ids_are_maker_scoped() {
     let other = acc("attacker.near");
     at_with_deposit(&other, NOW, ONE_NEAR);
     c.add_storage_funds(token(), None);
-    at(&token(), NOW);
-    c.ft_on_transfer(other.clone(), U128(1), terms(1).to_string());
+    deliver(&mut c, &other, &terms(1).to_string(), 1);
     let id2 = compute_swap_id(&other, &[1; 32]);
     assert_ne!(id, id2);
     assert_eq!(c.get_swap(Hex32(id)).unwrap().maker, maker());
@@ -559,23 +580,77 @@ fn swap_ids_are_maker_scoped() {
     );
 }
 
-/// `ft_on_transfer` trusts the calling token for `sender_id`. A fake token that names the
-/// maker cannot spend the maker's storage funds for the real token. This alone does not
-/// stop a fake token from taking the maker's swap id: a third party could fund
-/// (maker, fake token) for it. That is review-1 F-01, and it is stopped only because
-/// `add_storage_funds` adds funds for the caller alone (see
-/// `poc_f01_third_party_cannot_take_the_makers_swap_id` and
-/// `add_storage_funds_only_for_the_caller`). (On chain the failed call is reverted; the
-/// mock does not revert, so this test only checks the panic and the funds.)
+/// Only the Verifier can open a swap. Another contract that calls `mt_on_transfer` and
+/// names the maker as sender is refused, so `sender_id` is always an account that the
+/// Verifier authenticated, and the tokens of a swap are always in the escrow's Verifier
+/// account before the swap exists.
 #[test]
-fn fake_token_cannot_spend_maker_storage_funds() {
+fn only_the_verifier_can_open() {
     let mut c = setup();
     let funds = c.get_storage_funds(maker(), token());
-    at(&acc("fake-token.near"), NOW);
-    assert_err("InsufficientStorage", || {
-        c.ft_on_transfer(maker(), U128(AMT), terms(1).to_string());
-    });
+    for caller in [acc("fake-verifier.near"), token(), maker(), escrow_id()] {
+        at(&caller, NOW);
+        assert_err("NotVerifier", || {
+            c.mt_on_transfer(
+                maker(),
+                vec![maker()],
+                vec![nep141_id(&token())],
+                vec![U128(AMT)],
+                terms(1).to_string(),
+            );
+        });
+    }
+    assert!(c
+        .get_swap(Hex32(compute_swap_id(&maker(), &[1; 32])))
+        .is_none());
     assert_eq!(c.get_storage_funds(maker(), token()), funds);
+    assert_eq!(c.get_owed(token()), U128(0));
+}
+
+/// The Verifier call must carry exactly one nep141 token, owned by the sender.
+#[test]
+fn open_rejects_bad_verifier_arguments() {
+    let mut c = setup();
+    let t = terms(1).to_string();
+    let n = nep141_id(&token());
+    let cases: Vec<(Vec<AccountId>, Vec<String>, Vec<U128>)> = vec![
+        (
+            vec![maker(), maker()],
+            vec![n.clone(), n.clone()],
+            vec![U128(1), U128(1)],
+        ),
+        (vec![maker()], vec![n.clone(), n.clone()], vec![U128(1)]),
+        (vec![maker()], vec![n.clone()], vec![]),
+        (vec![], vec![n.clone()], vec![U128(1)]),
+        (vec![acc("other.near")], vec![n.clone()], vec![U128(AMT)]),
+        (
+            vec![maker()],
+            vec![format!("nep245:{}:x", token())],
+            vec![U128(AMT)],
+        ),
+        (
+            vec![maker()],
+            vec![format!("nep171:{}:x", token())],
+            vec![U128(AMT)],
+        ),
+        (vec![maker()], vec![token().to_string()], vec![U128(AMT)]),
+        (vec![maker()], vec!["nep141:".into()], vec![U128(AMT)]),
+    ];
+    for (owners, ids, amounts) in cases {
+        at(&intents(), NOW);
+        assert_err("BadParams", || {
+            c.mt_on_transfer(
+                maker(),
+                owners.clone(),
+                ids.clone(),
+                amounts.clone(),
+                t.clone(),
+            );
+        });
+    }
+    assert!(c
+        .get_swap(Hex32(compute_swap_id(&maker(), &[1; 32])))
+        .is_none());
 }
 
 #[test]
@@ -594,7 +669,7 @@ fn storage_funds_deposit_and_withdraw() {
     open(&mut c);
     let after = c.get_storage_funds(maker(), token()).0;
     let per_swap = before - after;
-    // One swap with two new credit entries costs well under 0.01 NEAR.
+    // One swap and the token's owed entry cost well under 0.01 NEAR.
     assert!(
         per_swap > 0 && per_swap < ONE_NEAR / 100,
         "per swap {per_swap}"
@@ -641,7 +716,7 @@ fn set_ready_guards() {
 // ======================================================================== happy path
 
 #[test]
-fn happy_path_commit_claim_withdraw() {
+fn happy_path_commit_claim_pays_in_the_same_call() {
     let mut c = setup();
     let id = open(&mut c);
     ready(&mut c, &id);
@@ -653,111 +728,65 @@ fn happy_path_commit_claim_withdraw() {
         v.commitment,
         Some(Hex32(compute_commitment(&id, &le(A_SEC))))
     );
+    assert_eq!(v.payout, Payout::None);
     assert_eq!(events()[0]["event"], "locked");
 
     // Refund is closed while the reveal window is open.
     at(&maker(), T1 - 1 + W - 1);
     assert_err("TooEarly", || c.refund(Hex32(id), Hex32(le(B_SEC))));
 
+    // claim with enough gas (the mock attaches 300 Tgas) publishes a and starts the
+    // payout: mt_transfer from the escrow's Verifier account to the taker, then on_payout.
     at(&acc("anyone.near"), T1 - 1 + W - 1);
     c.claim(Hex32(id), Hex32(le(A_SEC)));
     let v = c.get_swap(Hex32(id)).unwrap();
     assert_eq!(v.state, State::Claimed);
     assert_eq!(v.a, Some(Hex32(le(A_SEC))));
     assert_eq!(v.b, None);
+    assert_eq!(v.payout, Payout::Sending);
+    assert_eq!(v.recipient, Some(taker_account()));
     let ev = events();
     assert_eq!(ev[0]["event"], "claimed");
     assert_eq!(ev[0]["data"][0]["a"], hex::encode(le(A_SEC)));
-    assert_eq!(credit(&c, &taker_account()).intents, U128(AMT));
-    assert_eq!(credit(&c, &taker_account()).direct, U128(0));
-    assert_eq!(credit(&c, &maker()).direct, U128(0));
+    assert_payout_receipts(&id, &taker_account());
+    // Not paid until on_payout says so.
+    assert_eq!(c.get_owed(token()), U128(AMT));
 
-    // Exactly one exit.
+    // Exactly one exit, and no second payout while one is in flight.
     assert_err("BadState", || c.claim(Hex32(id), Hex32(le(A_SEC))));
     at(&maker(), T2 + 2 * W);
     assert_err("TooEarly", || c.refund(Hex32(id), Hex32(le(B_SEC))));
-
-    // Withdraw zeroes the taker's credit first. Step 1 deposits into the escrow's own
-    // Intents account (msg = the escrow's account id), then on_deposit runs.
     at(&acc("anyone.near"), T2 + 2 * W);
-    c.withdraw(token(), taker_account());
-    assert_eq!(credit(&c, &taker_account()).intents, U128(0));
-    assert_eq!(c.get_in_flight(token()), U128(AMT));
-    let r = get_created_receipts();
-    assert_eq!(r.len(), 2);
-    assert_eq!(r[0].receiver_id, token());
-    assert_eq!(r[1].receiver_id, escrow_id());
-    let expected_args = json!({
-        "receiver_id": intents(),
-        "amount": AMT.to_string(),
-        "memo": null,
-        "msg": escrow_id(),
-    })
-    .to_string();
-    let (method, args, deposit, gas, weight) = call_of(&r[0]);
-    assert_eq!(method, "ft_transfer_call");
-    assert_eq!(String::from_utf8(args).unwrap(), expected_args);
-    assert_eq!(deposit, NearToken::from_yoctonear(1));
-    assert_eq!(gas, GAS_FT_TRANSFER_CALL);
-    assert_eq!(weight, 1, "the token call gets the unused gas");
-    let (method, args, _, gas, weight) = call_of(&r[1]);
-    assert_eq!(method, "on_deposit");
-    let a: serde_json::Value = serde_json::from_slice(&args).unwrap();
-    assert_eq!(
-        a,
-        json!({ "token": token(), "owner": taker_account(), "amount": AMT.to_string() })
-    );
-    assert_eq!(gas, GAS_ON_DEPOSIT);
-    assert_eq!(weight, 0);
+    assert_err("BadState", || c.withdraw(Hex32(id)));
 
-    // Step 2 runs whatever step 1 reported: mt_transfer to the taker from the escrow's
-    // own Intents balance, with 1 yoctoNEAR, then on_withdraw.
-    at_with_results(&escrow_id(), T2 + 2 * W, vec![PromiseResult::Failed]);
-    c.on_deposit(token(), taker_account(), U128(AMT));
-    let r = get_created_receipts();
-    assert_eq!(r.len(), 2);
-    assert_eq!(r[0].receiver_id, intents());
-    assert_eq!(r[1].receiver_id, escrow_id());
-    let (method, args, deposit, gas, weight) = call_of(&r[0]);
-    assert_eq!(method, "mt_transfer");
-    assert_eq!(
-        String::from_utf8(args).unwrap(),
-        json!({
-            "receiver_id": taker_account(),
-            "token_id": "nep141:usdc.near",
-            "amount": AMT.to_string(),
-            "approval": null,
-            "memo": null,
-        })
-        .to_string()
-    );
-    assert_eq!(deposit, NearToken::from_yoctonear(1));
-    assert_eq!(gas, GAS_MT_TRANSFER);
-    assert_eq!(weight, 0);
-    let (method, args, _, gas, weight) = call_of(&r[1]);
-    assert_eq!(method, "on_withdraw");
-    let a: serde_json::Value = serde_json::from_slice(&args).unwrap();
-    assert_eq!(a["route"], "intents");
-    assert_eq!(a["amount"], AMT.to_string());
-    assert_eq!(gas, GAS_ON_WITHDRAW);
-    assert_eq!(weight, 0);
-
-    // mt_transfer succeeded (it returns nothing): the taker is paid, nothing is restored.
+    // mt_transfer succeeded (it returns nothing): Paid, and the owed sum drops.
     at_with_results(
         &escrow_id(),
         T2 + 2 * W,
         vec![PromiseResult::Successful(vec![])],
     );
-    assert_eq!(
-        c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT)),
-        U128(AMT)
-    );
-    assert_eq!(credit(&c, &taker_account()).intents, U128(0));
-    assert_eq!(c.get_in_flight(token()), U128(0));
-    // A second withdraw has nothing to pay.
+    assert!(c.on_payout(Hex32(id)));
+    let v = c.get_swap(Hex32(id)).unwrap();
+    assert_eq!(v.payout, Payout::Paid);
+    assert_eq!(c.get_owed(token()), U128(0));
+    let ev = events();
+    assert_eq!(ev[0]["event"], "paid");
+    assert_eq!(ev[0]["data"][0]["recipient"], taker_account().to_string());
+    assert_eq!(ev[0]["data"][0]["amount"], AMT.to_string());
+    // Paid is final.
     at(&acc("anyone.near"), T2 + 2 * W);
-    c.withdraw(token(), taker_account());
+    assert_err("BadState", || c.withdraw(Hex32(id)));
     assert!(get_created_receipts().is_empty());
+    at_with_results(
+        &escrow_id(),
+        T2 + 2 * W,
+        vec![PromiseResult::Successful(vec![])],
+    );
+    assert!(err(|| {
+        c.on_payout(Hex32(id));
+    })
+    .contains("payout is not Sending"));
+    assert_eq!(c.get_owed(token()), U128(0));
 }
 
 #[test]
@@ -773,7 +802,7 @@ fn no_claim_without_ready_even_after_t0() {
     at(&maker(), T1);
     c.refund(Hex32(id), Hex32(le(B_SEC)));
     assert_eq!(state(&c, &id), State::Refunded);
-    assert_eq!(credit(&c, &maker()).direct, U128(AMT));
+    assert_eq!(due(&c, &id, &maker()), U128(AMT));
 }
 
 #[test]
@@ -807,8 +836,8 @@ fn locked_without_reveal_refunds_after_window() {
     assert_err("TooLate", || c.claim(Hex32(id), Hex32(le(A_SEC))));
     c.refund(Hex32(id), Hex32(le(B_SEC)));
     assert_eq!(state(&c, &id), State::Refunded);
-    assert_eq!(credit(&c, &maker()).direct, U128(AMT));
-    assert_eq!(credit(&c, &taker_account()).intents, U128(0));
+    assert_eq!(due(&c, &id, &maker()), U128(AMT));
+    assert_eq!(due(&c, &id, &taker_account()), U128(0));
 }
 
 // ======================================================================== refund windows
@@ -820,7 +849,7 @@ fn refund_window_open_before_t0() {
     at(&acc("anyone.near"), T0 - 1);
     c.refund(Hex32(id), Hex32(le(B_SEC)));
     assert_eq!(state(&c, &id), State::Refunded);
-    assert_eq!(credit(&c, &maker()).direct, U128(AMT));
+    assert_eq!(due(&c, &id, &maker()), U128(AMT));
 }
 
 #[test]
@@ -873,7 +902,7 @@ fn wrong_share_at_refund_door() {
         assert_err("BadSecret", || c.refund(Hex32(id), Hex32(bad)));
     }
     assert_eq!(state(&c, &id), State::Open);
-    assert_eq!(credit(&c, &maker()).direct, U128(0));
+    assert_eq!(due(&c, &id, &maker()), U128(0));
 }
 
 #[test]
@@ -883,7 +912,7 @@ fn refund_after_exit_or_unknown_rejected() {
     at(&maker(), NOW + 1);
     c.refund(Hex32(id), Hex32(le(B_SEC)));
     assert_err("TooEarly", || c.refund(Hex32(id), Hex32(le(B_SEC))));
-    assert_eq!(credit(&c, &maker()).direct, U128(AMT));
+    assert_eq!(due(&c, &id, &maker()), U128(AMT));
     assert_err("BadState", || c.refund(Hex32([5; 32]), Hex32(le(B_SEC))));
     // After a refund the taker cannot lock or claim.
     let cm = compute_commitment(&id, &le(A_SEC));
@@ -999,7 +1028,7 @@ fn claim_with_committed(value: [u8; 32]) {
     c.commit_claim(Hex32(id), Hex32(cm), sig);
     assert_err("BadSecret", || c.claim(Hex32(id), Hex32(value)));
     assert_eq!(state(&c, &id), State::Locked);
-    assert_eq!(credit(&c, &taker_account()).intents, U128(0));
+    assert_eq!(due(&c, &id, &taker_account()), U128(0));
 }
 
 #[test]
@@ -1046,7 +1075,7 @@ fn punish_path_from_open_after_t2() {
     at(&acc("anyone.near"), T2 + W - 1);
     c.claim(Hex32(id), Hex32(le(A_SEC)));
     assert_eq!(state(&c, &id), State::Claimed);
-    assert_eq!(credit(&c, &taker_account()).intents, U128(AMT));
+    assert_eq!(due(&c, &id, &taker_account()), U128(AMT));
 }
 
 #[test]
@@ -1106,7 +1135,7 @@ fn late_commit_signature_replayable_at_t2() {
 }
 
 /// Port of testFuzz_exactlyOneExit, run over a fixed grid of times instead of a fuzzer:
-/// for each path and each time, at most one exit happens and the credits never exceed
+/// for each path and each time, at most one exit happens and the payouts never exceed
 /// the amount.
 #[test]
 fn exactly_one_exit_over_time_grid() {
@@ -1144,7 +1173,12 @@ fn exactly_one_exit_over_time_grid() {
                 let claimed = err_or_ok(|| c.claim(Hex32(id), Hex32(le(A_SEC))));
                 let refunded = err_or_ok(|| c.refund(Hex32(id), Hex32(le(B_SEC))));
                 assert!(!(claimed && refunded));
-                let total = credit(&c, &maker()).direct.0 + credit(&c, &taker_account()).intents.0;
+                let total = due(&c, &id, &maker()).0 + due(&c, &id, &taker_account()).0;
+                assert_eq!(
+                    c.get_owed(token()),
+                    U128(AMT),
+                    "nothing is paid until on_payout"
+                );
                 assert!(total <= AMT);
                 let st = state(&c, &id);
                 assert_eq!(claimed, st == State::Claimed);
@@ -1161,463 +1195,313 @@ fn err_or_ok<F: FnOnce()>(f: F) -> bool {
     let r = catch_unwind(AssertUnwindSafe(f));
     r.is_ok()
 }
+// ======================================================================== payout
 
-// ======================================================================== withdraw
-
-/// A swap refunded to the maker, so the maker has a direct credit of AMT.
-fn refunded() -> Escrow {
-    let mut c = setup();
-    let id = open(&mut c);
-    at(&maker(), NOW + 1);
-    c.refund(Hex32(id), Hex32(le(B_SEC)));
-    c
-}
-
-/// A swap claimed by the taker, so the taker has an Intents credit of AMT.
-fn claimed() -> Escrow {
-    let mut c = setup();
-    let id = open(&mut c);
-    ready(&mut c, &id);
-    commit_at(&mut c, &id, NOW + 2);
-    at(&acc("anyone.near"), NOW + 3);
-    c.claim(Hex32(id), Hex32(le(A_SEC)));
-    c
-}
-
-#[test]
-fn withdraw_maker_uses_ft_transfer_and_zeroes_first() {
-    let mut c = refunded();
-    at(&acc("anyone.near"), NOW + 5);
-    c.withdraw(token(), maker());
-    assert_eq!(credit(&c, &maker()).direct, U128(0));
-    let r = get_created_receipts();
-    assert_eq!(r.len(), 2);
-    match &r[0].actions[0] {
-        near_sdk::mock::MockAction::FunctionCallWeight {
-            method_name,
-            args,
-            attached_deposit,
-            ..
-        } => {
-            assert_eq!(method_name, b"ft_transfer");
-            let a: serde_json::Value = serde_json::from_slice(args).unwrap();
-            assert_eq!(a["receiver_id"], "maker.near");
-            assert_eq!(a["amount"], AMT.to_string());
-            assert_eq!(*attached_deposit, NearToken::from_yoctonear(1));
-        }
-        other => panic!("unexpected action {other:?}"),
-    }
-}
-
-#[test]
-fn withdraw_with_no_credit_does_nothing() {
-    let mut c = setup();
-    at(&acc("anyone.near"), NOW);
-    c.withdraw(token(), maker());
-    assert!(get_created_receipts().is_empty());
-    assert!(events().is_empty());
-}
-
-#[test]
-fn on_withdraw_failed_transfer_restores_credit() {
-    for (mut c, owner, route) in [
-        (refunded(), maker(), Route::Direct),
-        (claimed(), taker_account(), Route::Intents),
-    ] {
-        at(&acc("anyone.near"), NOW + 5);
-        c.withdraw(token(), owner.clone());
-        let zero = CreditView {
-            direct: U128(0),
-            intents: U128(0),
-        };
-        assert_eq!(credit(&c, &owner), zero);
-        at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Failed]);
-        assert_eq!(
-            c.on_withdraw(token(), owner.clone(), route, U128(AMT)),
-            U128(0)
-        );
-        let cr = credit(&c, &owner);
-        assert_eq!(cr.direct.0 + cr.intents.0, AMT);
-        let ev = events();
-        assert_eq!(ev[0]["event"], "withdrawn");
-        assert_eq!(ev[0]["data"][0]["amount"], "0");
-        assert_eq!(ev[0]["data"][0]["restored"], AMT.to_string());
-    }
-}
-
-#[test]
-fn on_withdraw_success_keeps_credit_zero() {
-    let mut c = refunded();
-    at(&acc("anyone.near"), NOW + 5);
-    c.withdraw(token(), maker());
-    at_with_results(
-        &escrow_id(),
-        NOW + 6,
-        vec![PromiseResult::Successful(vec![])],
-    );
-    assert_eq!(
-        c.on_withdraw(token(), maker(), Route::Direct, U128(AMT)),
-        U128(AMT)
-    );
-    assert_eq!(credit(&c, &maker()).direct, U128(0));
-
-    let mut c = claimed();
-    at(&acc("anyone.near"), NOW + 5);
-    c.withdraw(token(), taker_account());
-    let used = format!("\"{AMT}\"").into_bytes();
-    at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Successful(used)]);
-    assert_eq!(
-        c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT)),
-        U128(AMT)
-    );
-    assert_eq!(credit(&c, &taker_account()).intents, U128(0));
-}
-
-/// NV-02: on the Intents route the result of step 1 (`ft_transfer_call`) is never used.
-/// A deposit that reports failure, partial use or full use leads to the same step 2, and
-/// only the result of `mt_transfer` decides whether the credit is restored.
-#[test]
-fn intents_withdraw_pays_only_through_mt_transfer() {
-    let amt = format!("\"{AMT}\"");
-    let step1_results: [Option<&[u8]>; 5] = [
-        None,
-        Some(b"\"0\""),
-        Some(b"\"1000\""),
-        Some(amt.as_bytes()),
-        Some(b"junk"),
-    ];
-    for step1 in step1_results {
-        let step1_result = || match step1 {
-            None => PromiseResult::Failed,
-            Some(b) => PromiseResult::Successful(b.to_vec()),
-        };
-        for (mt_result, delivered) in [
-            (PromiseResult::Successful(vec![]), AMT),
-            (PromiseResult::Failed, 0),
-        ] {
-            let mut c = claimed();
-            at(&acc("anyone.near"), NOW + 5);
-            c.withdraw(token(), taker_account());
-            at_with_results(&escrow_id(), NOW + 6, vec![step1_result()]);
-            c.on_deposit(token(), taker_account(), U128(AMT));
-            let r = get_created_receipts();
-            assert_eq!(call_of(&r[0]).0, "mt_transfer", "{step1:?}");
-            assert_eq!(credit(&c, &taker_account()).intents, U128(0));
-            at_with_results(&escrow_id(), NOW + 7, vec![mt_result]);
-            assert_eq!(
-                c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT)),
-                U128(delivered)
-            );
-            assert_eq!(
-                credit(&c, &taker_account()).intents,
-                U128(AMT - delivered),
-                "{step1:?}"
-            );
-            assert_eq!(c.get_in_flight(token()), U128(0));
-            let ev = events();
-            assert_eq!(ev[0]["event"], "withdrawn");
-            assert_eq!(ev[0]["data"][0]["amount"], delivered.to_string());
-            assert_eq!(ev[0]["data"][0]["restored"], (AMT - delivered).to_string());
-        }
-    }
-}
-
-/// A credit unit reaches at most one successful mt_transfer: after a failed one it is
-/// restored once, and the next withdraw starts a new deposit and a new mt_transfer.
-#[test]
-fn intents_credit_is_paid_at_most_once_over_retries() {
-    let mut c = claimed();
-    let mut paid = 0u128;
-    for mt_ok in [false, false, true] {
-        at(&acc("anyone.near"), NOW + 5);
-        c.withdraw(token(), taker_account());
-        let r = get_created_receipts();
-        if r.is_empty() {
-            break;
-        }
-        at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Failed]);
-        c.on_deposit(token(), taker_account(), U128(AMT));
-        let result = if mt_ok {
-            PromiseResult::Successful(vec![])
-        } else {
-            PromiseResult::Failed
-        };
-        at_with_results(&escrow_id(), NOW + 7, vec![result]);
-        paid += c
-            .on_withdraw(token(), taker_account(), Route::Intents, U128(AMT))
-            .0;
-    }
-    assert_eq!(paid, AMT);
-    at(&acc("anyone.near"), NOW + 8);
-    c.withdraw(token(), taker_account());
-    assert!(get_created_receipts().is_empty(), "nothing left to pay");
-}
-
-/// Two Intents withdraws in the same token in flight at once: the in-flight sum covers
-/// both, and each on_withdraw takes off only its own amount.
-#[test]
-fn in_flight_tracks_concurrent_intents_withdraws() {
-    let mut c = claimed();
-    // A second taker credit in the same token, under another owner.
-    let other = acc(&"ab".repeat(32));
-    c.credits.insert(
-        CreditKey {
-            token: token(),
-            owner: other.clone(),
-            route: Route::Intents,
-        },
-        7,
-    );
-    at(&acc("anyone.near"), NOW + 5);
-    c.withdraw(token(), taker_account());
-    c.withdraw(token(), other.clone());
-    assert_eq!(c.get_in_flight(token()), U128(AMT + 7));
-    at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Failed]);
-    c.on_withdraw(token(), other.clone(), Route::Intents, U128(7));
-    assert_eq!(c.get_in_flight(token()), U128(AMT));
-    assert_eq!(credit(&c, &other).intents, U128(7));
-    at_with_results(
-        &escrow_id(),
-        NOW + 6,
-        vec![PromiseResult::Successful(vec![])],
-    );
-    c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT));
-    assert_eq!(c.get_in_flight(token()), U128(0));
-    // The direct route does not touch the in-flight sum.
-    at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Failed]);
-    c.on_withdraw(token(), maker(), Route::Direct, U128(5));
-    assert_eq!(c.get_in_flight(token()), U128(0));
-}
-
-#[test]
-fn open_creates_the_in_flight_entry() {
-    let mut c = setup();
-    open(&mut c);
-    assert!(c.in_flight.contains_key(&token()));
-    assert_eq!(c.get_in_flight(token()), U128(0));
-    assert_eq!(c.get_in_flight(acc("other.near")), U128(0));
-}
-
-/// on_deposit gets exactly GAS_ON_DEPOSIT. It must be able to reserve the gas of both its
-/// calls from that, or a credit would be zeroed and never paid or restored.
-#[test]
-fn on_deposit_and_on_sweep_balance_fit_in_their_reserved_gas() {
-    assert!(
-        GAS_ON_DEPOSIT.as_gas()
-            >= GAS_MT_TRANSFER.as_gas() + GAS_ON_WITHDRAW.as_gas() + GAS_ON_DEPOSIT_OWN.as_gas()
-    );
-    let mut c = claimed();
-    testing_env!(
-        ctx(&escrow_id(), NOW + 6)
-            .prepaid_gas(Gas::from_tgas(300))
-            .build(),
-        near_sdk::test_vm_config(),
-        RuntimeFeesConfig::test(),
-        Default::default(),
-        vec![PromiseResult::Failed]
-    );
-    c.on_deposit(token(), taker_account(), U128(AMT));
-    assert_eq!(get_created_receipts().len(), 2);
-    let used = env::used_gas();
-    println!(
-        "on_deposit used {} Tgas in the mock",
-        used.as_gas() as f64 / 1e12
-    );
-    testing_env!(
-        ctx(&escrow_id(), NOW + 6)
-            .prepaid_gas(Gas::from_tgas(300))
-            .build(),
-        near_sdk::test_vm_config(),
-        RuntimeFeesConfig::test(),
-        Default::default(),
-        vec![PromiseResult::Successful(b"\"10\"".to_vec())]
-    );
-    let _ = c.on_sweep_balance(token());
-    assert_eq!(get_created_receipts().len(), 2);
-    let used = env::used_gas();
-    println!(
-        "on_sweep_balance used {:.2} Tgas in the mock",
-        used.as_gas() as f64 / 1e12
-    );
-    assert!(
-        used <= GAS_ON_SWEEP_BALANCE,
-        "on_sweep_balance needs {used:?}"
-    );
-}
-
-#[test]
-fn sweep_reads_the_escrow_intents_balance() {
-    let mut c = claimed();
-    at(&acc("anyone.near"), NOW + 5);
-    let _ = c.sweep(token());
+/// Checks the receipts of one payout start: `mt_transfer(recipient, nep141:<token>,
+/// AMT)` on the Verifier with 1 yoctoNEAR and all spare gas, then `on_payout(id)`.
+fn assert_payout_receipts(id: &[u8; 32], recipient: &AccountId) {
     let r = get_created_receipts();
     assert_eq!(r.len(), 2);
     assert_eq!(r[0].receiver_id, intents());
-    let (method, args, deposit, gas, _) = call_of(&r[0]);
-    assert_eq!(method, "mt_balance_of");
-    assert_eq!(
-        String::from_utf8(args).unwrap(),
-        json!({ "account_id": escrow_id(), "token_id": "nep141:usdc.near" }).to_string()
-    );
-    assert_eq!(deposit, NearToken::from_yoctonear(0));
-    assert_eq!(gas, GAS_MT_BALANCE_OF);
-    let (method, _, _, gas, weight) = call_of(&r[1]);
-    assert_eq!(method, "on_sweep_balance");
-    assert_eq!(gas, GAS_ON_SWEEP_BALANCE);
-    assert_eq!(weight, 0);
-}
-
-/// sweep withdraws only to the escrow itself, and leaves the in-flight sum in Intents.
-#[test]
-fn sweep_returns_only_the_surplus_to_the_escrow() {
-    let mut c = claimed();
-    at(&acc("anyone.near"), NOW + 5);
-    c.withdraw(token(), taker_account());
-    assert_eq!(c.get_in_flight(token()), U128(AMT));
-
-    // Balance above the in-flight sum: ft_withdraw of the difference, to the escrow.
-    let balance = AMT + 250;
-    at_with_results(
-        &escrow_id(),
-        NOW + 6,
-        vec![PromiseResult::Successful(
-            format!("\"{balance}\"").into_bytes(),
-        )],
-    );
-    let _ = c.on_sweep_balance(token());
-    let r = get_created_receipts();
-    assert_eq!(r.len(), 2);
-    assert_eq!(r[0].receiver_id, intents());
-    let (method, args, deposit, gas, _) = call_of(&r[0]);
-    assert_eq!(method, "ft_withdraw");
+    assert_eq!(r[1].receiver_id, escrow_id());
+    let (method, args, deposit, gas, weight) = call_of(&r[0]);
+    assert_eq!(method, "mt_transfer");
     assert_eq!(
         String::from_utf8(args).unwrap(),
         json!({
-            "token": token(),
-            "receiver_id": escrow_id(),
-            "amount": "250",
+            "receiver_id": recipient,
+            "token_id": "nep141:usdc.near",
+            "amount": AMT.to_string(),
+            "approval": null,
             "memo": null,
-            "msg": null,
         })
         .to_string()
     );
     assert_eq!(deposit, NearToken::from_yoctonear(1));
-    assert_eq!(gas, GAS_FT_WITHDRAW);
-    assert_eq!(call_of(&r[1]).0, "on_swept");
-
-    // Balance at or below the in-flight sum, unreadable, or a failed read: nothing moves.
-    for result in [
-        PromiseResult::Successful(format!("\"{AMT}\"").into_bytes()),
-        PromiseResult::Successful(b"\"5\"".to_vec()),
-        PromiseResult::Successful(b"junk".to_vec()),
-        PromiseResult::Failed,
-    ] {
-        at_with_results(&escrow_id(), NOW + 6, vec![result]);
-        match c.on_sweep_balance(token()) {
-            PromiseOrValue::Value(v) => assert_eq!(v, U128(0)),
-            PromiseOrValue::Promise(_) => panic!("no transfer expected"),
-        }
-        assert!(get_created_receipts().is_empty());
-    }
-    // No credit or swap changed.
-    assert_eq!(credit(&c, &taker_account()).intents, U128(0));
-    assert_eq!(c.get_in_flight(token()), U128(AMT));
-}
-
-#[test]
-fn on_swept_logs_the_amount() {
-    let mut c = claimed();
-    for (result, amount) in [
-        (PromiseResult::Successful(b"\"250\"".to_vec()), 250u128),
-        (PromiseResult::Failed, 0),
-    ] {
-        at_with_results(&escrow_id(), NOW + 6, vec![result]);
-        assert_eq!(c.on_swept(token(), U128(300), U128(50)), U128(amount));
-        let ev = events();
-        assert_eq!(ev[0]["event"], "swept");
-        assert_eq!(ev[0]["data"][0]["amount"], amount.to_string());
-    }
-}
-
-#[test]
-fn on_withdraw_never_restores_more_than_sent() {
-    // The token reports more used than sent: clamp, restore nothing.
-    let mut c = claimed();
-    at(&acc("anyone.near"), NOW + 5);
-    c.withdraw(token(), taker_account());
-    let used = format!("\"{}\"", AMT * 2).into_bytes();
-    at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Successful(used)]);
+    assert_eq!(gas, GAS_MT_TRANSFER);
+    assert_eq!(weight, 1, "mt_transfer gets the spare gas");
+    let (method, args, deposit, gas, weight) = call_of(&r[1]);
+    assert_eq!(method, "on_payout");
     assert_eq!(
-        c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT)),
-        U128(AMT)
+        serde_json::from_slice::<serde_json::Value>(&args).unwrap(),
+        json!({ "id": hex::encode(id) })
     );
-    assert_eq!(credit(&c, &taker_account()).intents, U128(0));
-    // A success value that is not a U128: count it as delivered, so nothing is paid twice.
-    for junk in [
-        b"".to_vec(),
-        b"12".to_vec(),
-        b"\"x\"".to_vec(),
-        vec![b'"'; 100],
-    ] {
-        let mut c = claimed();
-        at(&acc("anyone.near"), NOW + 5);
-        c.withdraw(token(), taker_account());
-        at_with_results(&escrow_id(), NOW + 6, vec![PromiseResult::Successful(junk)]);
+    assert_eq!(deposit, NearToken::from_yoctonear(0));
+    assert_eq!(gas, GAS_ON_PAYOUT);
+    assert_eq!(weight, 0);
+}
+
+fn at_with_gas(predecessor: &AccountId, t: u64, gas: Gas) {
+    testing_env!(ctx(predecessor, t).prepaid_gas(gas).build());
+}
+
+/// The payout of `id` as (state, payout, recipient).
+fn payout_of(c: &Escrow, id: &[u8; 32]) -> (State, Payout, Option<AccountId>) {
+    let v = c.get_swap(Hex32(*id)).unwrap();
+    (v.state, v.payout, v.recipient)
+}
+
+/// An open swap, Ready and Locked; returns the escrow and the id.
+fn locked() -> (Escrow, [u8; 32]) {
+    let mut c = setup();
+    let id = open(&mut c);
+    ready(&mut c, &id);
+    commit_at(&mut c, &id, NOW + 5);
+    (c, id)
+}
+
+/// Gas below GAS_PAYOUT_START (the mock burns almost nothing for the checks).
+const LOW_GAS: Gas = Gas::from_tgas(10);
+
+#[test]
+fn claim_without_payout_gas_publishes_a_and_leaves_the_payout_due() {
+    let (mut c, id) = locked();
+    at_with_gas(&acc("anyone.near"), NOW + 6, LOW_GAS);
+    c.claim(Hex32(id), Hex32(le(A_SEC)));
+    assert_eq!(
+        payout_of(&c, &id),
+        (State::Claimed, Payout::Due, Some(taker_account()))
+    );
+    assert_eq!(c.get_swap(Hex32(id)).unwrap().a, Some(Hex32(le(A_SEC))));
+    assert!(
+        get_created_receipts().is_empty(),
+        "no payout without the gas"
+    );
+    // withdraw needs the payout gas too.
+    at_with_gas(&acc("anyone.near"), NOW + 7, LOW_GAS);
+    assert_err("NotEnoughGas", || c.withdraw(Hex32(id)));
+    assert_eq!(payout_of(&c, &id).1, Payout::Due);
+    // Anyone can send it with enough gas; the recipient is fixed by the swap.
+    at(&acc("stranger.near"), NOW + 8);
+    c.withdraw(Hex32(id));
+    assert_eq!(payout_of(&c, &id).1, Payout::Sending);
+    assert_payout_receipts(&id, &taker_account());
+}
+
+#[test]
+fn failed_payout_returns_to_due_and_pays_once_on_retry() {
+    let (mut c, id) = locked();
+    at(&acc("anyone.near"), NOW + 6);
+    c.claim(Hex32(id), Hex32(le(A_SEC)));
+    assert_payout_receipts(&id, &taker_account());
+    // The Verifier refused mt_transfer (paused, or the escrow's account locked): nothing
+    // moved, so the payout is Due again and the owed sum is unchanged.
+    at_with_results(&escrow_id(), NOW + 7, vec![PromiseResult::Failed]);
+    assert!(!c.on_payout(Hex32(id)));
+    assert_eq!(payout_of(&c, &id).1, Payout::Due);
+    assert_eq!(c.get_owed(token()), U128(AMT));
+    assert_eq!(events()[0]["event"], "payout_failed");
+    // Retry by anyone.
+    at(&acc("anyone.near"), NOW + 8);
+    c.withdraw(Hex32(id));
+    assert_payout_receipts(&id, &taker_account());
+    // A second withdraw while the first is in flight is refused.
+    assert_err("BadState", || c.withdraw(Hex32(id)));
+    at_with_results(
+        &escrow_id(),
+        NOW + 9,
+        vec![PromiseResult::Successful(vec![])],
+    );
+    assert!(c.on_payout(Hex32(id)));
+    assert_eq!(payout_of(&c, &id).1, Payout::Paid);
+    assert_eq!(c.get_owed(token()), U128(0));
+    at(&acc("anyone.near"), NOW + 10);
+    assert_err("BadState", || c.withdraw(Hex32(id)));
+}
+
+/// Over any sequence of payout attempts and results, the swap is paid at most once and
+/// the owed sum falls by the amount exactly once.
+#[test]
+fn payout_is_paid_at_most_once_over_retries() {
+    for pattern in 0u32..64 {
+        let (mut c, id) = locked();
+        at_with_gas(&acc("anyone.near"), NOW + 6, LOW_GAS);
+        c.claim(Hex32(id), Hex32(le(A_SEC)));
+        let mut paid = 0u32;
+        for step in 0..6 {
+            at(&acc("anyone.near"), NOW + 7 + step);
+            let started = err_or_ok(|| c.withdraw(Hex32(id)));
+            assert_eq!(started, paid == 0, "a withdraw starts only while Due");
+            if !started {
+                continue;
+            }
+            let success = pattern & (1 << step) != 0;
+            let result = if success {
+                PromiseResult::Successful(vec![])
+            } else {
+                PromiseResult::Failed
+            };
+            at_with_results(&escrow_id(), NOW + 7 + step, vec![result]);
+            assert_eq!(c.on_payout(Hex32(id)), success);
+            if success {
+                paid += 1;
+            }
+        }
+        assert!(paid <= 1);
+        let expect = if paid == 1 { 0 } else { AMT };
+        assert_eq!(c.get_owed(token()), U128(expect));
         assert_eq!(
-            c.on_withdraw(token(), taker_account(), Route::Intents, U128(AMT)),
-            U128(AMT)
+            payout_of(&c, &id).1,
+            if paid == 1 { Payout::Paid } else { Payout::Due }
         );
-        assert_eq!(credit(&c, &taker_account()).intents, U128(0));
     }
 }
 
 #[test]
-fn on_withdraw_restore_adds_to_newer_credit() {
-    // A refund lands between withdraw and its callback; the restore must add, not set.
-    let mut c = setup();
-    let id1 = open(&mut c);
-    at(&maker(), NOW + 1);
-    c.refund(Hex32(id1), Hex32(le(B_SEC)));
-    at(&acc("anyone.near"), NOW + 2);
-    c.withdraw(token(), maker());
-    let mut t = terms(2);
-    t["t0"] = json!(T0);
-    open_with(&mut c, t, 7);
-    let id2 = compute_swap_id(&maker(), &[2; 32]);
-    at(&maker(), NOW + 3);
-    c.refund(Hex32(id2), Hex32(le(B_SEC)));
-    assert_eq!(credit(&c, &maker()).direct, U128(7));
-    at_with_results(&escrow_id(), NOW + 4, vec![PromiseResult::Failed]);
-    c.on_withdraw(token(), maker(), Route::Direct, U128(AMT));
-    assert_eq!(credit(&c, &maker()).direct, U128(AMT + 7));
-}
-
-#[test]
-fn withdraw_pays_both_routes_for_same_owner() {
-    // An owner that is both a maker (direct credit) and a taker (Intents credit).
+fn refund_pays_the_maker_inside_the_verifier() {
     let mut c = setup();
     let id = open(&mut c);
     at(&maker(), NOW + 1);
     c.refund(Hex32(id), Hex32(le(B_SEC)));
-    // Open a second swap whose taker account is the maker's account name. Only possible
-    // when the maker is an implicit account; simulate it by keying the credit directly.
-    let key = CreditKey {
-        token: token(),
-        owner: maker(),
-        route: Route::Intents,
-    };
-    c.add_credit(key, 5);
-    at(&acc("anyone.near"), NOW + 2);
-    c.withdraw(token(), maker());
     assert_eq!(
-        credit(&c, &maker()),
-        CreditView {
-            direct: U128(0),
-            intents: U128(0)
-        }
+        payout_of(&c, &id),
+        (State::Refunded, Payout::Sending, Some(maker()))
     );
-    let r = get_created_receipts();
-    assert_eq!(r.len(), 4);
+    assert_payout_receipts(&id, &maker());
+    at_with_results(
+        &escrow_id(),
+        NOW + 2,
+        vec![PromiseResult::Successful(vec![])],
+    );
+    assert!(c.on_payout(Hex32(id)));
+    assert_eq!(c.get_owed(token()), U128(0));
+    assert_eq!(events()[0]["data"][0]["recipient"], maker().to_string());
+}
+
+#[test]
+fn refund_without_payout_gas_leaves_the_payout_due() {
+    let mut c = setup();
+    let id = open(&mut c);
+    at_with_gas(&maker(), NOW + 1, LOW_GAS);
+    c.refund(Hex32(id), Hex32(le(B_SEC)));
+    assert_eq!(
+        payout_of(&c, &id),
+        (State::Refunded, Payout::Due, Some(maker()))
+    );
+    assert!(get_created_receipts().is_empty());
+    at(&acc("anyone.near"), NOW + 2);
+    c.withdraw(Hex32(id));
+    assert_payout_receipts(&id, &maker());
+}
+
+#[test]
+fn withdraw_needs_an_ended_swap_with_a_due_payout() {
+    let mut c = setup();
+    let id = open(&mut c);
+    at(&acc("anyone.near"), NOW + 1);
+    assert_err("BadState", || c.withdraw(Hex32(id))); // Open
+    assert_err("BadState", || c.withdraw(Hex32([8; 32]))); // unknown
+    ready(&mut c, &id);
+    at(&acc("anyone.near"), NOW + 2);
+    assert_err("BadState", || c.withdraw(Hex32(id))); // Ready
+    commit_at(&mut c, &id, NOW + 3);
+    at(&acc("anyone.near"), NOW + 4);
+    assert_err("BadState", || c.withdraw(Hex32(id))); // Locked
+    assert!(get_created_receipts().is_empty());
+}
+
+#[test]
+fn on_payout_needs_sending() {
+    let (mut c, id) = locked();
+    at(&acc("anyone.near"), NOW + 6);
+    c.claim(Hex32(id), Hex32(le(A_SEC)));
+    // `#[private]` (only the escrow itself may call it) is checked by the generated wasm
+    // entry point, which unit tests bypass; tests/sandbox.rs checks it on chain.
+    // A swap that is not Sending (Due after a failure) is not paid by a stray callback.
+    at_with_results(&escrow_id(), NOW + 8, vec![PromiseResult::Failed]);
+    c.on_payout(Hex32(id));
+    at_with_results(
+        &escrow_id(),
+        NOW + 9,
+        vec![PromiseResult::Successful(vec![])],
+    );
+    assert!(err(|| {
+        c.on_payout(Hex32(id));
+    })
+    .contains("payout is not Sending"));
+    assert_eq!(c.get_owed(token()), U128(AMT));
+}
+
+/// The owed sum is per token and counts every swap whose payout is not Paid.
+#[test]
+fn owed_counts_every_unpaid_swap() {
+    let mut c = setup();
+    let id1 = open(&mut c);
+    assert_eq!(
+        deliver(&mut c, &maker(), &terms(2).to_string(), AMT),
+        vec![U128(0)]
+    );
+    let id2 = compute_swap_id(&maker(), &[2; 32]);
+    assert_eq!(c.get_owed(token()), U128(2 * AMT));
+    assert_eq!(c.get_owed(acc("other-token.near")), U128(0));
+    // id1 refunded and paid.
+    at(&maker(), NOW + 1);
+    c.refund(Hex32(id1), Hex32(le(B_SEC)));
+    at_with_results(
+        &escrow_id(),
+        NOW + 2,
+        vec![PromiseResult::Successful(vec![])],
+    );
+    c.on_payout(Hex32(id1));
+    assert_eq!(c.get_owed(token()), U128(AMT));
+    // id2 claimed; its payout fails: still owed.
+    ready(&mut c, &id2);
+    commit_at(&mut c, &id2, NOW + 3);
+    at(&acc("anyone.near"), NOW + 4);
+    c.claim(Hex32(id2), Hex32(le(A_SEC)));
+    at_with_results(&escrow_id(), NOW + 5, vec![PromiseResult::Failed]);
+    c.on_payout(Hex32(id2));
+    assert_eq!(c.get_owed(token()), U128(AMT));
+    at(&acc("anyone.near"), NOW + 6);
+    c.withdraw(Hex32(id2));
+    at_with_results(
+        &escrow_id(),
+        NOW + 7,
+        vec![PromiseResult::Successful(vec![])],
+    );
+    c.on_payout(Hex32(id2));
+    assert_eq!(c.get_owed(token()), U128(0));
+}
+
+/// on_payout gets exactly GAS_ON_PAYOUT. It must finish within it, or the payout would
+/// stay Sending.
+#[test]
+fn on_payout_fits_in_its_reserved_gas() {
+    for result in [PromiseResult::Successful(vec![]), PromiseResult::Failed] {
+        let (mut c, id) = locked();
+        at(&acc("anyone.near"), NOW + 6);
+        c.claim(Hex32(id), Hex32(le(A_SEC)));
+        testing_env!(
+            ctx(&escrow_id(), NOW + 7)
+                .prepaid_gas(GAS_ON_PAYOUT)
+                .build(),
+            near_sdk::test_vm_config(),
+            RuntimeFeesConfig::test(),
+            Default::default(),
+            vec![result]
+        );
+        c.on_payout(Hex32(id));
+        let used = env::used_gas();
+        println!(
+            "on_payout used {:.2} Tgas in the mock",
+            used.as_gas() as f64 / 1e12
+        );
+        assert!(used <= GAS_ON_PAYOUT);
+    }
+}
+
+#[test]
+fn swap_view_and_nep141_ids() {
+    assert_eq!(nep141_id(&token()), "nep141:usdc.near");
+    assert_eq!(token_of_nep141_id("nep141:usdc.near"), Some(token()));
+    assert_eq!(token_of_nep141_id("nep245:usdc.near:1"), None);
+    assert_eq!(token_of_nep141_id("nep141:"), None);
+    assert_eq!(token_of_nep141_id("usdc.near"), None);
+    let mut c = setup();
+    let id = open(&mut c);
+    let v = serde_json::to_value(c.get_swap(Hex32(id)).unwrap()).unwrap();
+    assert_eq!(v["payout"], "none");
+    assert_eq!(v["recipient"], serde_json::Value::Null);
 }
 
 #[test]
@@ -1675,7 +1559,7 @@ fn poc_tx<F: FnOnce(&mut Escrow)>(c: &mut Escrow, f: F) -> bool {
     ok
 }
 
-/// F-01: only the maker, through the real token, can create the swap at
+/// F-01: only the maker, through the Verifier, can create the swap at
 /// `swap_id(maker, salt)`.
 #[test]
 fn poc_f01_third_party_cannot_take_the_makers_swap_id() {
@@ -1692,11 +1576,17 @@ fn poc_f01_third_party_cannot_take_the_makers_swap_id() {
         c.add_storage_funds(fake.clone(), Some(maker()));
         c.storage_funds.flush();
     });
-    // 2. The fake token calls ft_on_transfer and names the maker as sender, with the
-    //    salt it read from the maker's pending ft_transfer_call (`terms(1)`).
+    // 2. The fake contract calls mt_on_transfer and names the maker as sender, with the
+    //    salt it read from the maker's pending mt_transfer_call (`terms(1)`).
     let squatted = poc_tx(&mut c, |c| {
         at(&fake, NOW);
-        c.ft_on_transfer(maker(), U128(1), terms(1).to_string());
+        c.mt_on_transfer(
+            maker(),
+            vec![maker()],
+            vec![nep141_id(&fake)],
+            vec![U128(1)],
+            terms(1).to_string(),
+        );
         c.storage_funds.flush();
     });
     if let Some(v) = c.get_swap(Hex32(id)) {
@@ -1712,7 +1602,7 @@ fn poc_f01_third_party_cannot_take_the_makers_swap_id() {
         );
     }
     // 3. The maker's real open with the same salt must succeed.
-    assert_eq!(open_with(&mut c, terms(1), AMT), U128(0));
+    assert_eq!(open_with(&mut c, terms(1), AMT), vec![U128(0)]);
     assert_eq!(c.get_swap(Hex32(id)).unwrap().token, token());
 }
 

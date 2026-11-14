@@ -1,0 +1,38 @@
+# Rehearsal of the switch to the light-payout escrow (docs/LIGHT_PAYOUT_SWITCH.md): a new
+# throwaway maker (maker4) on escrow3 that has never used the Verifier and has no storage
+# funds in escrow3, like the hosted maker before the switch. The escrow, token and Verifier
+# exist; deploy only creates and funds maker4. The owner key file in keys_dir is a link to
+# deploy/.keys/testnet/<owner>.json of the main deployment; it is not copied.
+network = "testnet"
+rpc_url = "https://rpc.testnet.fastnear.com"
+faucet_url = "https://helper.testnet.near.org"
+max_faucet_accounts = 6
+owner_account = "zecret-3f109eea1e.testnet"
+keys_dir = "../.keys/testnet-rehearsal"
+deployment_file = "../deployment.testnet-rehearsal.json"
+
+[escrow]
+# The light-payout build (tokens kept in the Verifier, payout by one mt_transfer).
+sub_account = "escrow3"
+wasm = "../../contracts/near-escrow/target/wasm32-unknown-unknown/release/near_escrow.wasm"
+margin_near = "0.2"
+
+[token]
+# The existing stand-in USDC (deploy/test-usdc). Its mint is open to any account.
+deploy = false
+account_id = "usdc.zecret-3f109eea1e.testnet"
+decimals = 6
+open_mint = true
+
+[intents]
+# The existing stand-in Verifier (the code of mainnet intents.near).
+deploy = false
+account_id = "intents.zecret-3f109eea1e.testnet"
+
+[maker]
+sub_account = "maker4"
+initial_balance_near = "1"
+# 200 tUSDC (6 decimals), all as plain token balance: the maker deposits into the Verifier itself.
+token_target = "200000000"
+verifier_target = "0"
+storage_funds_near = "0"

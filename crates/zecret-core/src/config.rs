@@ -190,6 +190,9 @@ pub enum Misbehave {
     LateCommit,
     /// Lock, then never reveal a.
     NoReveal,
+    /// Claim, then never send withdraw: the payout stays Due until another account
+    /// (the maker) sends it.
+    NoWithdraw,
     // maker
     /// Quote a rogue key B = b'·G − A.
     RogueKey,
@@ -247,7 +250,9 @@ pub struct TakerConfig {
     pub min_price: u128,
     /// Largest premium (zatoshis) the taker accepts.
     pub max_premium: u64,
-    /// Smallest stipend (yoctoNEAR) the taker accepts. It must pay for commit_claim and claim.
+    /// Smallest stipend (yoctoNEAR) the taker accepts. It must pay for commit_claim, claim
+    /// and withdraw (the largest balance NEAR checks in that sequence is 0.0278 NEAR at
+    /// today's gas price; docs/experiments/light-payout.md).
     #[serde(with = "u128_str")]
     pub min_stipend: u128,
     /// Largest t2 − open the taker accepts (seconds), rule R1q's horizon H.
@@ -261,8 +266,10 @@ pub struct TakerConfig {
     #[serde(default, deserialize_with = "de_misbehave")]
     pub misbehave: Option<Misbehave>,
     /// Seconds (wall clock) after the claim is final before the engine reports that the
-    /// payout is pending (stage `PayoutPending`, event `payout_pending`). The maker sends
-    /// `withdraw`; the taker's stipend cannot pay its gas. Any NEAR account can send it.
+    /// payout is pending (stage `PayoutPending`, event `payout_pending`). The taker sends
+    /// `withdraw(id)` itself from the stipend and keeps retrying; the stage means that
+    /// the payout still failed (for example the Verifier refuses `mt_transfer`). Any NEAR
+    /// account can send the same call.
     #[serde(default = "default_payout_wait")]
     pub payout_wait_secs: u64,
 }
@@ -352,9 +359,11 @@ pub struct PremiumCheck {
     /// yoctoNEAR for 1 ZEC (10^8 zatoshis). Use a low estimate of the ZEC price.
     #[serde(with = "u128_str")]
     pub yocto_near_per_zec: u128,
-    /// yoctoNEAR the maker spends for each accepted request besides the stipend: the gas
-    /// of `open` (ft_transfer_call), of the refund and of the withdraw, and the escrow
-    /// storage of one swap. Default 0.015 NEAR; measure it on the network in use.
+    /// yoctoNEAR the maker spends for each accepted request besides the stipend: the
+    /// account creation that the stipend transfer pays (0.007 NEAR since protocol 85), the
+    /// gas of its Verifier deposit, `open` (`mt_transfer_call`), `set_ready` and a refund,
+    /// and the escrow storage of one swap. Default 0.015 NEAR; the mainnet template uses
+    /// 0.02 NEAR (docs/MAINNET.md); measure it on the network in use.
     #[serde(default = "default_costs_per_request", with = "u128_str")]
     pub costs_per_request_yocto: u128,
 }

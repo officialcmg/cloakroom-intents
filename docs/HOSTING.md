@@ -50,11 +50,14 @@ token as a repository secret.
 ### Maker and relay (Railway)
 
 - Service settings: source `officialcmg/zecret`, branch `main`, Dockerfile
-  `deploy/maker/railway/Dockerfile`, watch paths `/crates/**` and `/deploy/maker/**`,
-  restart policy "always", one replica.
-- A push to `main` that changes a file under `crates/` or `deploy/maker/` builds the image
-  and restarts the maker. Other pushes do not. Both hosts redeployed this way for commit
-  `908f763`.
+  `deploy/maker/railway/Dockerfile`, watch path `/deploy/maker/**` (since 2026-11-13;
+  before that also `/crates/**`), restart policy "always", one replica.
+- A push to `main` that changes a file under `deploy/maker/` builds the image and
+  restarts the maker. Other pushes do not, also when they change `crates/`. The release
+  rule: to ship maker code or the maker's settings, add one line to
+  `deploy/maker/RELEASE` (the date and what is released) in the same commit
+  (`STATUS.md`, "Maker deploys"). The image always builds the whole commit, so a release
+  also ships every earlier change under `crates/`.
 - The image builds `zecret` (`crates/zecret-node`) in release mode and copies the
   repository's testnet maker settings (`crates/zecret-node/config/testnet-maker.json`) with
   `chains.birthday` set to 4,614,922.
@@ -66,7 +69,17 @@ token as a repository secret.
 - The start script never overwrites the wallet, the request key, the swap records or the
   relay counters. It replaces `config.json` with the image's settings only when no swap is
   open; with an open swap it keeps the old settings, because the maker uses them for that
-  swap's deadlines.
+  swap's deadlines. An open swap is a file `swap/*.json` whose `stage` is a string other
+  than `Swept` or `Refunded` (`Aborted` is stored as an object and does not count; a
+  request in `Quoting` or `Quoted` counts until the maker drops it, at most
+  `quote_ttl_secs`, 1 hour by default). The old settings are kept as
+  `config.json.prev-<time>`. The wallet, `near_key.json`, `rfq_key.json`, `seen.json`,
+  the swap records and the relay counters stay as they are, so the maker's Zcash address,
+  NEAR key and signed directory entry do not change.
+- Since the switch to the light-payout escrow (`docs/LIGHT_PAYOUT_SWITCH.md`) the maker
+  keeps its test USDC in its own account in the stand-in Verifier
+  (`intents.zecret-3f109eea1e.testnet`) and deposits the difference from its plain
+  balance before each open.
 - The relay answers on Railway's HTTPS domain. Its CORS header is
   `Access-Control-Allow-Origin: *`. It refuses to start on mainnet
   (`crates/zecret-node/src/main.rs`, `run_maker`), and the start script refuses any

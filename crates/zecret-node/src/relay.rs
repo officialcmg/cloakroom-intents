@@ -2,12 +2,12 @@
 //!
 //! On networks where 1Click cannot execute the exit, the taker's browser signs one
 //! Verifier intent (an `ft_withdraw` to a NEAR account the user named) and someone must
-//! send it with `execute_intents`. The taker's own account cannot: `ft_withdraw` needs more
-//! than 35 Tgas attached (it works with 40), and what is left of the 0.03 NEAR stipend after
-//! commit and claim (0.0281 NEAR) pays for at most about 25 Tgas at the pessimistic gas
-//! price that NEAR checks before it accepts a transaction (measured in
-//! `crates/zecret-wasm/tests/sandbox.rs`).
-//! So the maker sends it, as it already sends `withdraw` for the taker.
+//! send it with `execute_intents`, which needs 40 Tgas attached (35 fails). NEAR accepts a
+//! transaction only from a signer that holds its attached gas at 10^9 yoctoNEAR per gas:
+//! about 0.041 NEAR here. What a 0.03 NEAR stipend leaves after commit, claim and
+//! withdraw (0.0272 NEAR) cannot pay it; what the 0.06 NEAR stipend leaves (0.0572 NEAR)
+//! can (`crates/zecret-wasm/tests/sandbox.rs`). The engine still hands the exit to this
+//! relay, so the maker pays its gas.
 //!
 //! `POST /execute-intents` with `{"signed": [<one signed payload>]}`. Answers carry
 //! `Access-Control-Allow-Origin: *`. The relay sends a payload only when all of these hold

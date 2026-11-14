@@ -226,10 +226,10 @@ Amounts above 2^53 are decimal strings. The `//` comments explain fields; they a
   "escrow_code_hash": "<base58 sha256 of the reviewed escrow wasm>",
   "min_price": "4990000",                // smallest price (token base units) the user accepts
   "max_premium": 100000,                 // zatoshis
-  "min_stipend": "30000000000000000000000",   // 0.03 NEAR
+  "min_stipend": "30000000000000000000000",   // 0.03 NEAR: pays commit, claim and withdraw at today's gas price
   "max_horizon_secs": 172800,            // R1q horizon H (default 48 h)
   "quote_timeout_secs": 600,             // wait for the quote, and for the escrow after accepting
-  "payout_wait_secs": 300,               // after the claim is final: when to report PayoutPending
+  "payout_wait_secs": 300,               // after the claim is final: when to report PayoutPending (the engine keeps sending withdraw)
   "cover": {"min_secs": 0, "max_secs": 0, "k": 0}   // cover delays (off by default)
 }
 ```
@@ -260,12 +260,12 @@ carries the name.
 |---|---|---|---|
 | `WaitingDeposit` | The swap exists; the wallet waits for `required_deposit` zatoshis. | The balance is enough: the encrypted request memo is built and broadcast. | `RfqSent` |
 | `RfqSent` | Request sent to the maker. | A signed refusal memo arrives: `Aborted("MAKER REFUSED (<code>): <reason>; nothing was funded")` with a `refused` event (`code`: `over_limit`, `under_minimum`, `busy`, `unsupported`). A refusal not signed by the maker's key is ignored. Or a quote memo arrives and passes every check (proof of knowledge of B, escrow and maker ids, the maker's ed25519 signature, price ≥ `min_price`, premium ≤ `max_premium`, stipend ≥ `min_stipend`, R1q: W > F + B_R and t2 − open ≤ H, funding and claim windows long enough). The acceptance memo with the premium is broadcast. Rejection or no quote by `quote_timeout_secs`: `Aborted`, nothing funded. | `Accepted` |
-| `Accepted` | Premium paid; waiting for the escrow. | `open` is at a final block and every stored parameter equals the quote (R1: maker, token, amount, taker key, A, B, state Open; t1 − t0, t2 − t1 and W exactly as quoted, t0 no later than now + the quoted funding window); the escrow account runs `escrow_code_hash`, has no access keys and pays into `chains.intents`; the stipend is in the taker's NEAR account, and NEAR time + ∆fund < t0 (R1b). The joint address is funded. A mismatch, or R1b closing first: `Aborted` (the premium is lost; no ZEC moved). | `Funded` |
+| `Accepted` | Premium paid; waiting for the escrow. | `open` is at a final block and every stored parameter equals the quote (R1: maker, token, amount, taker key, A, B, state Open; t1 − t0, t2 − t1 and W exactly as quoted, t0 no later than now + the quoted funding window); the escrow account runs `escrow_code_hash`, has no access keys and pays into `chains.intents`; at the same final block the escrow's `chains.intents` balance of `nep141:<token>` is at least its `get_owed(token)` (if not, the engine reads again; it aborts only when the funding window is about to close); the stipend is in the taker's NEAR account, and NEAR time + ∆fund < t0 (R1b). The joint address is funded. A mismatch, or R1b closing first: `Aborted` (the premium is lost; no ZEC moved). | `Funded` |
 | `Funded` | ZEC at the joint address. | Ready is final and now + B_R < t1 (R2c): `commit_claim`, signed by the taker key, sent from the taker's own NEAR account. Or the punish path: Open/Ready at a final block from t2. If the maker refunds: recovery. If t1 − B_R passes with no Ready: the engine logs `R2c` and waits for the refund or for t2. | `Committed` (or `Recovering`) |
 | `Committed` | Escrow locked by the taker's commitment. | The lock is final and now + B_R < locked_at + W (R2r): the engine decides to reveal (stored). | `Revealed` |
 | `Revealed` | `a` is public (or about to be). | First tick: R2r again, then `claim(a)` is signed and stored (`claim_raw`, `claim_tx`); nothing is sent. Next tick: R2r again, then the stored bytes are broadcast (`claim_at`). If R2r fails while `claim_at` is None, nothing is sent: the stored claim is dropped and the stage goes back to `Committed` (the maker's R3l refund then gives b). After the broadcast: the claim is final; if it is not on chain after D, a new claim is sent while the window is open. | `Claimed` (or back to `Committed`) |
-| `Claimed` | The claim is final; `a`, the seeds and the joint key are erased (R4). | The payout is in `intents.near` under the taker's account. The maker sends `withdraw`; the taker sends it only if its own account holds the prepaid gas at the pessimistic price (about 0.2 NEAR; the stipend does not). If the payout is not there `payout_wait_secs` after the stage began: `PayoutPending`. | `Completed` or `PayoutPending` |
-| `PayoutPending` | The claim is final, the payout is not in `intents.near`: the maker has not sent `withdraw`. The tokens wait in the escrow as the taker's credit; they can only go to the taker. The `payout_pending` event and the log give the call that any NEAR account can send: `<escrow>.withdraw({"token": <token>, "owner": <taker_account>})`, 200 Tgas, no deposit; the sender needs about 0.2 NEAR free for NEAR's gas check. Polled every 10 s. | The payout arrives. | `Completed` |
+| `Claimed` | The claim is final; `a`, the seeds and the joint key are erased (R4). | A final block shows the swap's `payout` = `paid`. While it shows `due`, the taker's key sends `withdraw(id)` (25 Tgas) from the stipend, again at most every D + F; it does not send while the payout is `sending`. If it is not paid `payout_wait_secs` after the stage began: `PayoutPending`. | `Completed` or `PayoutPending` |
+| `PayoutPending` | The claim is final, the payout is not paid: the taker's own `withdraw` calls did not pay (the Verifier refuses `mt_transfer`, or the key lacks NEAR). The tokens wait in the escrow's Verifier account; they can only go to the taker. The engine keeps sending `withdraw`. The `payout_pending` event and the log give the call that any NEAR account can send: `<escrow>.withdraw({"id": <escrow id>})`, 25 Tgas, no deposit. | A final block shows `paid`. | `Completed` |
 | `Completed` | Terminal. The token is in `intents.near`, owned by `taker_account` (the hex of the NEAR key). | | |
 | `Recovering` | The maker refunded; `b` was read from the escrow; a sweep of a joint note with a + b is broadcast. | Every joint note worth more than the sweep fee is swept, the taker's own funding first, one sweep at a time; each needs k_Z confirmations (a sweep is built again if it expires). The stage ends only when no joint note above the fee is left and no funding of this engine can still be mined (it is mined, or its expiry height + k_Z has passed); `a` is kept until then (R4, security review 2, F2-01). Notes at or below the fee are ignored. If no note was ever funded, the engine goes straight to `Recovered`. | `Recovered` |
 | `Recovered` | Terminal. The ZEC is back in the temporary wallet (minus fees and the premium). | | |
@@ -294,7 +294,7 @@ characters). Amounts in token base units and yoctoNEAR are strings.
 | `warning` | `swap`, `message` | A transient error; the engine retries. |
 | `alert` | `swap`, `message` | Maker only: a swap near t1 or t2 that is not settled. |
 | `refused` | `swap`, `code`, `min_zats`, `max_zats` | The maker refused the request with a signed memo (codes as in 2.2). The swap ends `Aborted`. |
-| `payout_pending` | `swap`, `receiver`, `method` (`withdraw`), `args` (JSON text), `gas` (gas units, string), `deposit` (`"0"`), `credit` | The claim is final and the payout did not arrive within `payout_wait_secs`. Any NEAR account can send this call. |
+| `payout_pending` | `swap`, `receiver`, `method` (`withdraw`), `args` (JSON text, `{"id": ...}`), `gas` (gas units, string), `deposit` (`"0"`), `credit` (the swap's amount) | The claim is final and the payout was not paid within `payout_wait_secs`. Any NEAR account can send this call. |
 | `done` | `swap`, `outcome` (`Completed`, `Recovered`, `Aborted`) | Terminal stage reached. |
 
 Example:
@@ -334,7 +334,7 @@ mapping; the rows marked "not in the core" are done by that layer, as described 
 | `ready` | Not a core stage: the layer reads the escrow state once the funding has k_Z confirmations, and emits `ready` before `committing` otherwise (not on the punish path). |
 | `committing` | `Committed` |
 | `claiming` | `Revealed` |
-| `claimed` | `Claimed`, and `PayoutPending` (the worker stays on `claimed` and shows a `waiting` activity that names the `withdraw` call) |
+| `claimed` | `Claimed`, and `PayoutPending` (the worker stays on `claimed` and shows a `waiting` activity that names the `withdraw(id)` call) |
 | `paid_out` | `Completed` (with the `payout` event) |
 | `exiting`, `done`, `exit_retry` | Not in the core: the exit (the `zecret-intents` crate) runs after `Completed`, with the NEAR key from `TakerSwap.near_sk`: through 1Click on mainnet, and as a direct `ft_withdraw` sent by the maker's relay on networks without 1Click (`crates/zecret-wasm/src/exit.rs`, `crates/zecret-node/src/relay.rs`). |
 | `recovering` | `Recovering` |
@@ -365,21 +365,22 @@ Other differences:
 ## 3. The NEAR side
 
 - The taker's key is ed25519. Its NEAR account and its Intents account are both the
-  lower-case hex of the public key (an implicit account). The maker's stipend (0.03 NEAR)
+  lower-case hex of the public key (an implicit account). The maker's stipend (0.06 NEAR)
   creates the account right after `open`.
-- The taker signs `commit_claim`'s message with this key and sends `commit_claim` and
-  `claim` itself; there is no relayer. A signer must hold the prepaid gas at a pessimistic
-  price (about 10^9 yoctoNEAR per gas): the engine attaches 15 Tgas to `commit_claim` and 25
-  Tgas to `claim` (it burns 16.8 Tgas). Both cost about 0.002 NEAR in total. A 200 Tgas
-  `withdraw` does not fit in the stipend (NEAR wants about 0.2 NEAR held); the maker sends
-  it. The taker does not try unless its account holds that much. If the payout does not
-  arrive, the engine reports `PayoutPending` with the call (section 2.2).
+- The taker signs `commit_claim`'s message with this key and sends `commit_claim`,
+  `claim` and `withdraw(id)` itself; there is no relayer. A signer must hold its attached
+  gas at `min_gas_purchase_price` (10^9 yoctoNEAR per gas): the engine attaches 15 Tgas to
+  `commit_claim`, 25 Tgas to `claim` (it burns 16.6) and 25 Tgas to `withdraw` (it needs
+  19). The largest balance NEAR checks is 0.0278 NEAR; the three calls cost about 0.003
+  NEAR (docs/experiments/light-payout.md). If the payout is not paid in time, the engine
+  reports `PayoutPending` with the call (section 2.2).
 - Transactions are built, borsh-serialized and signed in `near::tx`, and sent with
   `send_tx` (`wait_until: EXECUTED`). Views use `finality: final` or a final block's hash.
-- The direct exit (`ft_withdraw` out of the Verifier) needs 40 Tgas attached; NEAR checks
-  that the signer holds it at the pessimistic price (30 Tgas cost 0.031 NEAR in the
-  sandbox), so what is left of the stipend (0.0281 NEAR) cannot send it. `zecret maker
-  --relay HOST:PORT` serves `POST /execute-intents` for its own takers.
+- The direct exit (`ft_withdraw` out of the Verifier) needs 40 Tgas attached (about
+  0.041 NEAR held). What a 0.03 NEAR stipend leaves (0.0272 NEAR) cannot send it; what the
+  0.06 NEAR stipend leaves (0.0572 NEAR) can (`crates/zecret-wasm/tests/sandbox.rs`). The
+  engine still hands it to the maker's relay: `zecret maker --relay HOST:PORT` serves
+  `POST /execute-intents` for its own takers.
 
 ## 4. The maker (`maker::Maker`)
 
@@ -393,8 +394,11 @@ for request and acceptance memos, then advances every swap:
 k_Z confirmations before t0; refund early only in Open with no sufficient note after the
 taker's funding window (R3e); refund after t1 only from a final block past t1 with
 now + B_R < t2 (R3d); refund a lock only from a final block past locked_at + W (R3l); never
-Ready once b is public; pays the taker's credit into `intents.near` once the claim is
-final; before it sends the stipend it checks that the swap at its id is its own (maker,
+Ready once b is public; sends `withdraw(id)` for the taker only if a final block still
+shows the payout due 2 × (D + F) after it first saw it due (the taker sends it first);
+opens from its own Verifier account and first deposits the difference from its plain
+token balance if that account holds too little (it reads the balance again rather than
+trusting the deposit's result); before it sends the stipend it checks that the swap at its id is its own (maker,
 token, amount, taker key, A, B, reveal window), so a look-alike swap opened by someone
 else gets no stipend. Its `add_storage_funds` is always for its own account.
 `zecret maker` (crates/zecret-node) runs it in a loop.
@@ -439,12 +443,10 @@ Maker settings for requests that nobody has paid for yet (all optional):
 `misbehave` (test-only) is refused unless the binary is built with the cargo feature
 `misbehave`; `harness/run.py` builds it that way, release builds do not.
 
-Withdraws with the escrow of `docs/security/fixes-2.md`: the maker attaches 200 Tgas to
-`withdraw` and 150 Tgas to `sweep`. NEAR checks that the signer holds the prepaid gas at a
-pessimistic price (about 10^9 yoctoNEAR per gas in the sandbox), so the maker's NEAR
-account must keep at least about 0.2 NEAR free besides the stipends it sends. The escrow
-restores a credit when the transfer of a withdraw fails. A swap therefore ends
-(`Swept` or `Refunded`) only when a final block shows the taker's credit, or the maker's
-own credit after a refund, paid. Before it retries a withdraw (at most every D + F
-seconds) the maker calls the public `sweep(token)`, which brings tokens left in the
-escrow's own Intents account back to the escrow, so the retry can pay.
+Payouts with the light-payout escrow (`contracts/near-escrow/README.md`, "Payout"): the
+maker attaches 100 Tgas to `mt_transfer_call` (open), 50 Tgas to `refund` (which pays the
+maker's Verifier account in the same call) and 25 Tgas to `withdraw(id)`. A swap ends
+(`Swept` or `Refunded`) only when a final block shows its payout `paid`; while it shows
+`due`, the maker sends `withdraw(id)` again at most every D + F seconds. The maker's
+inventory is its token balance inside the Verifier plus its plain balance; refunds come
+back inside the Verifier.

@@ -1,15 +1,15 @@
 
 ===== start taker --zats 100000000 =====
-[taker 1794618940] new swap 470e0815 for 100000000 zats; NEAR account 4e439f236c0a891c5fb90d1093f74a9b5691ad63895080dde44b14c2eed6f926; wallet uregtest1p3fww3xdeegmjvuwmuwak5s062qhk480g9ud2q8pw4ngwx8qe2nwe0aas6yxszlc8z5ccz7gwkh46prchkfzre2lqw05sqagjqmvfl22
-[taker 1794618940] 470e0815 stage WaitingDeposit
-[taker 1794618940] balance 208333333 zats
-[taker 1794618940] {"type":"activity","swap":"470e0815107446544bf2249be3d71e87","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794618945] balance 0 zats
-[taker 1794618945] {"type":"zcash_tx","swap":"470e0815107446544bf2249be3d71e87","what":"rfq","txid":"6f726822b5458775d10cf658f4f9ed94fdb56df94b0b7d40cd43381d788d4e3d"}
-[taker 1794618945] 470e0815 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 6f726822b5458775d10cf658f4f9ed94fdb56df94b0b7d40cd43381d788d4e3d
-[taker 1794618945] 470e0815 stage RfqSent
-[taker 1794618947] balance 208323333 zats
-[taker 1794618953] 470e0815 ABORT: QUOTE REJECTED: reveal window 18s too short for finality (R1q needs W > F + B_R = 18s); nothing was funded
-[taker 1794618953] 470e0815 stage Aborted
-[taker 1794618953] 470e0815 DONE Aborted
-[taker 1794618953] finished: Aborted
+[taker 1794634761] new swap 969df075 for 100000000 zats; NEAR account 58bc25699cf3f838083c2d1a65f50924dbe22f1e240616b210566a4dd9b3e9d1; wallet uregtest19c7r9mrdg6fcg3p7y0r765rag4jc0umw6kjdc56ffmfzd5ufjvr6v455eppygt6hufgwkyq2g3dfj0yuezhafufdyqdqhmcwu54d0ruf
+[taker 1794634761] 969df075 stage WaitingDeposit
+[taker 1794634761] balance 208333333 zats
+[taker 1794634761] {"type":"activity","swap":"969df075d89b4ee0dadbaa2dfb1714b1","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794634766] balance 0 zats
+[taker 1794634766] {"type":"zcash_tx","swap":"969df075d89b4ee0dadbaa2dfb1714b1","what":"rfq","txid":"86929416a5b1aa7e5b1099706640f38e9b41a97f6cf196693cbe9eb6451dcbc7"}
+[taker 1794634766] 969df075 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 86929416a5b1aa7e5b1099706640f38e9b41a97f6cf196693cbe9eb6451dcbc7
+[taker 1794634766] 969df075 stage RfqSent
+[taker 1794634767] balance 208323333 zats
+[taker 1794634773] 969df075 ABORT: QUOTE REJECTED: reveal window 18s too short for finality (R1q needs W > F + B_R = 18s); nothing was funded
+[taker 1794634773] 969df075 stage Aborted
+[taker 1794634773] 969df075 DONE Aborted
+[taker 1794634773] finished: Aborted

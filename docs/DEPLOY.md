@@ -30,7 +30,7 @@ Full record: [`deploy/deployment.testnet.json`](../deploy/deployment.testnet.jso
 | Part | Account | Code hash |
 |---|---|---|
 | Owner | `zecret-3f109eea1e.testnet` | none |
-| Escrow | `escrow2.zecret-3f109eea1e.testnet` | `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` |
+| Escrow | `escrow3.zecret-3f109eea1e.testnet` (light payout, current from the switch commit, `docs/LIGHT_PAYOUT_SWITCH.md`); before it `escrow2…` (`DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1`) | `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536` |
 | Token (tUSDC) | `usdc.zecret-3f109eea1e.testnet` | `5znPiqS6ocnsGYgeByDsED99dmFS9kv2b7S8dEaL7bRE` |
 | Verifier | `intents.zecret-3f109eea1e.testnet` | `BtA1BEFNS619KkvXFsgcpQ21Tb5yMm32aaUkn7xNothk` |
 | Maker | `maker.zecret-3f109eea1e.testnet` | none |
@@ -69,7 +69,8 @@ The first `deploy` makes an owner account through the testnet faucet and records
 move `deployment.testnet.json` away. To deploy a new escrow build next to an old one,
 change `escrow.sub_account` in the config: a deployed escrow cannot change. The tool then
 moves the old escrow's record to `retired_escrows` (with `retired_at` and `replaced_by`).
-`configs/testnet.toml` uses `escrow2` for the build with the NV-02 fix.
+`configs/testnet.toml` names `escrow3`, the light-payout build (deployed with
+`configs/testnet-light.toml`); `escrow2` held the build with the NV-02 fix.
 
 If the network drops a transaction (seen once, on a faucet account delete), the tool
 says so after 40 s. Run the same command again. Each step checks the chain first.
@@ -91,6 +92,32 @@ used the owner account plus 2 faucet accounts (30 NEAR).
 | Gas for all deployment transactions (about 210 Tgas) | 0.02 | yes |
 | Each end-to-end run: stipend 0.03, storage of one swap about 0.006, gas | about 0.04 | yes |
 
+## The light-payout escrow on testnet (branch `escrow-light-payout`)
+
+Made on 2026-11-14 next to the live deployment, which it does not change:
+`zecret-deploy deploy --config deploy/configs/testnet-light.toml`. It reuses the owner,
+the stand-in token (`open_mint = true`: the tool mints the maker's tokens through the
+token's open `mint`) and the stand-in Verifier, and adds:
+
+| Part | Account | Code hash |
+|---|---|---|
+| Escrow | `escrow3.zecret-3f109eea1e.testnet` (no access keys) | `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536` (471 730 bytes) |
+| Maker | `maker3.zecret-3f109eea1e.testnet`: 2 NEAR, 200 tUSDC minted, 100 of them deposited into its own Verifier account (`maker.verifier_target`), 0.2 NEAR of escrow storage funds | |
+
+The escrow needs no token registration: it never holds the plain token. The tool's
+record is `deploy/deployment.testnet-light.json`; a copy is the section `light_payout` of
+`deploy/deployment.testnet.json`. `zecret-deploy verify` also checks, at one final
+block, that the escrow's Verifier balance covers its `get_owed(token)`, and reports the
+maker's Verifier balance. The owner's balance was 0.83 NEAR before; the tool added one
+faucet account (10 NEAR); the owner holds 3.90 NEAR after, so 6.93 NEAR went out (escrow account 4.72 for its code + 0.2 margin,
+maker 2, gas). Swaps on it: `docs/TESTNET.md`, "Light payout on testnet". How to move the
+live site and maker to it: `docs/LIGHT_PAYOUT_SWITCH.md`.
+
+`zecret-deploy rehearse --config deploy/configs/sandbox.toml` passes with this branch:
+deploy, a second deploy that sends nothing, verify, and one swap in which the taker key
+sends `commit_claim`, `claim` and `withdraw(id)` from a 0.06 NEAR stipend (0.05719 NEAR
+left), then the signed exit.
+
 ## Mainnet
 
 The runbook is [`docs/MAINNET.md`](MAINNET.md): what to have ready, the decisions, every
@@ -104,13 +131,14 @@ This tool has not been run on mainnet.
 
 ### Before
 
-1. Read [`docs/security/fixes-2.md`](security/fixes-2.md). The escrow build with the
-   NV-02 fix pays a taker credit with `mt_transfer` from the escrow's own Intents
-   account, and the USDC-specific cases (pause and blocklists between deposit and
-   resolve) pass in the sandbox with the USDC code from mainnet. Its section 5 lists
-   what is not covered, including the residual case (an Intents deposit failure and a
-   USDC restriction in the same window). Deploy only a build whose code hash includes
-   this fix (`DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` at the time of writing).
+1. Read [`docs/security/fixes-2.md`](security/fixes-2.md) and
+   [`docs/security/review-5.md`](security/review-5.md). On the branch
+   `escrow-light-payout` the escrow keeps its tokens in `intents.near` and makes no USDC
+   call; its build is `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536`. The engine, maker
+   and site of this code work only with that build (the earlier build
+   `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` has no `payout` field). The maker opens
+   swaps from its own `intents.near` account and deposits into it before an open; set
+   `maker.verifier_target` to deposit a float at deploy time instead.
 2. Pick an owner account that you control, for example `zecret.near`. The escrow will be
    `escrow.zecret.near`. Use a named account, not an implicit hex account (the commit
    message tells networks apart only by the escrow account id).
@@ -147,19 +175,20 @@ Storage is 1 NEAR per 100 kB.
 
 | Item | NEAR | Note |
 |---|---|---|
-| Escrow code storage (about 527 000 bytes: the 525 881-byte wasm plus state) | 5.27 | Locked forever: the account has no keys. Estimate from the wasm size; the first escrow used 474 069 bytes for a 472 515-byte wasm. |
+| Escrow code storage (about 473 000 bytes: the 471 730-byte light-payout wasm plus state) | 4.73 | Locked forever: the account has no keys. Estimate from the wasm size; the first escrow used 474 069 bytes for a 472 515-byte wasm. |
 | Escrow margin (`escrow.margin_near`) | 0.20 | Locked forever. Covers the deploy transaction's prepaid gas. |
-| Maker account (`maker.initial_balance_near`) | 1.00 | Stays with the maker. Pays its gas and the 0.03 NEAR stipends. |
+| Maker account (`maker.initial_balance_near`) | 1.00 | Stays with the maker. Pays its gas and the 0.06 NEAR stipends. |
 | Maker storage funds (`maker.storage_funds_near`) | 0.10 | Pays the storage of about 15 swaps (about 0.006 NEAR each, measured on testnet). Can be withdrawn with `withdraw_storage_funds`. |
-| USDC registration of the escrow and of the maker | 0.0025 | 0.00125 each (USDC `storage_balance_bounds`, read 2026-11-13). |
+| USDC registration of the maker | 0.00125 | USDC `storage_balance_bounds`, read 2026-11-13. The light-payout escrow needs none. |
 | Gas for the deployment (about 60 Tgas, from the testnet run) | 0.006 | |
-| **Total from the owner** | **about 6.58** | of which about 5.47 is locked in the escrow |
+| **Total from the owner** | **about 6.04** (the dry run's exact figure: 5.92476 NEAR plus the 0.1 storage funds, which the tool pays from the maker's 1 NEAR) | of which about 4.93 is locked in the escrow |
 
-Each swap then costs the maker: the 0.03 NEAR stipend to the taker key (most of it stays
-on that key; commit and claim cost about 0.002 NEAR), about 0.006 NEAR of escrow storage,
-and about 0.005 NEAR of gas for open, `set_ready` and `withdraw`. The maker attaches 200
-Tgas to `withdraw` (the two-step Intents withdraw needs at least 110 Tgas); only the gas
-burnt is paid.
+Each swap then costs the maker: the 0.06 NEAR stipend to the taker key (most of it stays
+on that key; commit, claim and `withdraw(id)` cost about 0.0028 NEAR), 0.007 NEAR for the
+creation of that account, about 0.005 NEAR of escrow storage, and about 0.003 NEAR of
+gas for its deposit, open and `set_ready`. The taker's key sends `withdraw(id)`; the
+maker sends it only as a backup. `docs/MAINNET.md` section 2 has the figures of the dry
+run.
 
 ## How to check a deployment
 
@@ -336,7 +365,7 @@ Build-time values (`web/src/vite-env.d.ts`):
 | 1Click API | `VITE_ONECLICK_URL` | `https://1click.chaindefuser.com` | the same (quotes only; there is no execution on testnet) |
 
 The bundled sample `web/public/maker-directory.json` names
-`maker.zecret-3f109eea1e.testnet` and `escrow2.zecret-3f109eea1e.testnet`; its Zcash
+`maker.zecret-3f109eea1e.testnet` and `escrow3.zecret-3f109eea1e.testnet`; its Zcash
 address and request key are sample values. The hosted site reads the hosted maker's
 signed entry from `web/public/config/testnet-directory.json` (`docs/HOSTING.md`).
 
@@ -349,8 +378,8 @@ The browser engine reads these values from the network configuration
 | Zcash network (`chains.network`) | `test` | `main` |
 | Light-wallet server, gRPC-web (`chains.lightwalletd`) | `https://zcash-testnet.chainsafe.dev` (read from the browser in `docs/experiments/browser-wallet.md`; used by the native maker and taker in `docs/TESTNET.md`) | not chosen |
 | NEAR RPC (`chains.near_rpc`) | `https://rpc.testnet.fastnear.com` | `https://rpc.mainnet.fastnear.com` |
-| Escrow (`chains.escrow`) | `escrow2.zecret-3f109eea1e.testnet` | `escrow.<owner>.near` |
-| Escrow code hash (`escrow_code_hash`) | `DuBGKiy8dYPFkVHXLj4VFHLZiZ4ngQzssRUbXTCuPKq1` | the hash of the reviewed build |
+| Escrow (`chains.escrow`) | `escrow3.zecret-3f109eea1e.testnet` | `escrow.<owner>.near` |
+| Escrow code hash (`escrow_code_hash`) | `AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536` | the hash of the reviewed build (the light payout: the same hash) |
 | Token (`chains.token`) | `usdc.zecret-3f109eea1e.testnet` | `17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1` |
 | Intents Verifier (`chains.intents`) | `intents.zecret-3f109eea1e.testnet` | `intents.near` |
 

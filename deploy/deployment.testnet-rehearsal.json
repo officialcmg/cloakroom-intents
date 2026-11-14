@@ -1,0 +1,72 @@
+{
+  "network": "testnet",
+  "rpc_url": "https://rpc.testnet.fastnear.com",
+  "updated_at": "2026-11-14T04:54:36Z",
+  "owner": "zecret-3f109eea1e.testnet",
+  "escrow": {
+    "account_id": "escrow3.zecret-3f109eea1e.testnet",
+    "code_hash": "AqzB7mtMCvNfffA3vgYSPezYa132U7eZ18BdNQNsS536",
+    "wasm_bytes": 471730,
+    "intents_account": "intents.zecret-3f109eea1e.testnet",
+    "access_keys": 0
+  },
+  "token": {
+    "account_id": "usdc.zecret-3f109eea1e.testnet",
+    "code_hash": "5znPiqS6ocnsGYgeByDsED99dmFS9kv2b7S8dEaL7bRE",
+    "wasm_bytes": 0,
+    "deployed_by_this_tool": false,
+    "note": "existing token"
+  },
+  "intents": {
+    "account_id": "intents.zecret-3f109eea1e.testnet",
+    "code_hash": "BtA1BEFNS619KkvXFsgcpQ21Tb5yMm32aaUkn7xNothk",
+    "wasm_bytes": 0,
+    "deployed_by_this_tool": false,
+    "note": "existing Verifier"
+  },
+  "maker": {
+    "account_id": "maker4.zecret-3f109eea1e.testnet",
+    "public_key": "ed25519:AJZTPAudR1b1EfhwfUo2fd1cRyNHMvjVhJDz8fbxbQg9",
+    "token_balance": "200000000",
+    "storage_funds_yocto": "0",
+    "verifier_balance": "0"
+  },
+  "transactions": [
+    {
+      "step": "create maker account",
+      "hash": "6ur3T4iRwvet23EV4PaNqLJpi4siGt9H8X1xeGxMu3zH",
+      "signer": "zecret-3f109eea1e.testnet",
+      "receiver": "maker4.zecret-3f109eea1e.testnet",
+      "block_height": 277610720,
+      "block_hash": "AabLAcE5g7seUxAEGzTCUKtdwBp6eC4WZgCyem6MLjuB",
+      "gas_burnt_tgas": 8.57,
+      "included_ms": 1558,
+      "included_final_ms": 2998,
+      "final_ms": 4081
+    },
+    {
+      "step": "token.storage_deposit for maker4.zecret-3f109eea1e.testnet",
+      "hash": "d6Y7ukMBy4NSnj5jjdjbHhD8nz7bpW8yzywQeXHbBq4",
+      "signer": "zecret-3f109eea1e.testnet",
+      "receiver": "usdc.zecret-3f109eea1e.testnet",
+      "block_height": 277610728,
+      "block_hash": "5LrbXBmtKPKX7qTCWYos6gLRSspEuyGedGfcinoWVoWZ",
+      "gas_burnt_tgas": 2.23,
+      "included_ms": 1239,
+      "included_final_ms": 2348,
+      "final_ms": 3432
+    },
+    {
+      "step": "token.mint 200000000 to maker",
+      "hash": "2BwCnT1GT1aJiRY2JkP5Khc5fYEgws22KyE5sEpEhjPq",
+      "signer": "maker4.zecret-3f109eea1e.testnet",
+      "receiver": "usdc.zecret-3f109eea1e.testnet",
+      "block_height": 277610736,
+      "block_hash": "FRX7UbYkvwFGifSLYNYAQSh9cC4nM4ZxSMP21AyddZMP",
+      "gas_burnt_tgas": 2.41,
+      "included_ms": 1565,
+      "included_final_ms": 2625,
+      "final_ms": 3704
+    }
+  ]
+}

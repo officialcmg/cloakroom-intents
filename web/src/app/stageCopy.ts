@@ -59,7 +59,7 @@ const STAGE_LABEL: Record<Stage, string> = {
   request_sent: 'Request sent to the maker',
   quote_received: 'Firm price received',
   accepted: 'Price accepted, premium paid',
-  escrow_open: 'USDC locked, 0.03 NEAR for gas received',
+  escrow_open: 'USDC locked, 0.06 NEAR for gas received',
   funding_sent: 'ZEC sent to the shared address',
   funding_confirming: 'Zcash confirmations',
   ready: 'Maker set the escrow to Ready',
@@ -142,7 +142,7 @@ export function nowCopy(s: SwapState): NowCopy {
     case 'quote_received':
       return { title: 'Accepting the price', body: `The maker offers ${usdc(s.quote?.usdc)}, at or above your minimum. This browser now sends the acceptance with the premium.`, safety: 'safe', safetyText: SAFE_CLOSE };
     case 'accepted':
-      return { title: 'Waiting for the maker to lock the USDC', body: `The maker puts ${usdc(s.quote?.usdc)} into the escrow on NEAR. It also sends 0.03 NEAR to a new key made in this browser, to pay for your claim.`, safety: 'safe', safetyText: SAFE_CLOSE };
+      return { title: 'Waiting for the maker to lock the USDC', body: `The maker puts ${usdc(s.quote?.usdc)} into the escrow on NEAR. It also sends 0.06 NEAR to a new key made in this browser, to pay for your claim and the payout.`, safety: 'safe', safetyText: SAFE_CLOSE };
     case 'escrow_open':
       return {
         title: 'Sending your ZEC to the shared address',
@@ -154,7 +154,7 @@ export function nowCopy(s: SwapState): NowCopy {
     case 'funding_confirming':
       return {
         title: 'Waiting for Zcash confirmations',
-        body: `The maker waits for ${s.funding?.required ?? 2} Zcash blocks on your payment to the shared address, then sets the escrow to Ready. Each block takes about 75 seconds.`,
+        body: `The maker waits for ${s.funding?.required ?? 2} Zcash blocks on your payment to the shared address, then sets the escrow to Ready. This usually takes a few minutes.`,
         safety: 'come_back',
         safetyText: comeBack,
       };
@@ -177,7 +177,12 @@ export function nowCopy(s: SwapState): NowCopy {
         safetyText: 'Keep this tab open a few more seconds, until the claim is final.',
       };
     case 'claimed':
-      return { title: 'The USDC is yours', body: `The claim is final. The escrow now moves ${usdc(s.quote?.usdc)} into NEAR Intents, under the key made in this browser.`, safety: 'safe', safetyText: SAFE_CLOSE };
+      return {
+        title: 'The USDC is yours',
+        body: `The claim is final. This browser now asks the escrow to move ${usdc(s.quote?.usdc)} to the key made in this browser, inside NEAR Intents. The maker’s NEAR pays for this. No other party is needed.`,
+        safety: 'safe',
+        safetyText: SAFE_CLOSE,
+      };
     case 'paid_out':
       return {
         title: 'Your USDC is in NEAR Intents',

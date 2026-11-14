@@ -9,13 +9,13 @@
 //! ```text
 //! Quoting  --quote memo broadcast-----------------------> Quoted
 //! Quoted   --Accept with premium, seed opens------------> Opening
-//! Opening  --open (ft_transfer_call) + stipend----------> Opened
+//! Opening  --open (mt_transfer_call) + stipend----------> Opened
 //! Opened   --joint note >= amount, k_Z conf, before t0--> Ready
 //! Opened/Ready --claim(a) seen: sweep with a+b----------> Sweeping --k_Z conf--> Swept
 //! Opened   --no note by the end of R1b (R3e)------------> RefundSent
 //! Opened/Ready --final block >= t1, now + B_R < t2 (R3d)> RefundSent
 //! Locked   --final block >= lockedAt + W (R3l)----------> RefundSent
-//! RefundSent --refund final; withdraw-------------------> Refunded
+//! RefundSent --refund final, payout Paid (withdraw if Due)--> Refunded
 //! ```
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -145,15 +145,21 @@ pub struct MakerSwap {
     pub refund_at: Option<u64>,
     pub sweep_txid: Option<String>,
     pub sweep_height: Option<u64>,
+    /// NEAR time of the maker's last `withdraw(id)` for the taker's payout.
     pub taker_withdraw_at: Option<u64>,
     pub log: Vec<String>,
     /// Wall-clock time the request was taken (F2-04: `Quoting` and `Quoted` expire after
     /// `quote_ttl_secs`). Records from before this field get the time of their next tick.
     #[serde(default)]
     pub created_at: Option<u64>,
-    /// NEAR time of the maker's last withdraw of its own credit after a refund.
+    /// NEAR time of the maker's last `withdraw(id)` of its own refund.
     #[serde(default)]
     pub withdraw_at: Option<u64>,
+    /// NEAR time at which the maker first saw the claimed swap's payout Due at a final
+    /// block. The taker sends withdraw itself; the maker sends it only when the payout
+    /// stays Due for a while.
+    #[serde(default)]
+    pub payout_due_at: Option<u64>,
 }
 
 impl MakerSwap {
@@ -588,6 +594,7 @@ impl Maker {
             log: vec![],
             created_at: Some(now),
             withdraw_at: None,
+            payout_due_at: None,
         };
         let tag = c.misbehave.map(|m| format!(" [MISBEHAVE {m:?}]")).unwrap_or_default();
         let line = format!("RFQ for {} zats decrypted and verified; quoting price {} (premium {} zats, stipend {} yocto){tag}", s.zats, s.price, s.premium, s.stipend);
@@ -930,6 +937,24 @@ impl Maker {
         if self.cfg.misbehave == Some(Misbehave::ShortOpen) {
             amount -= 1;
         }
+        // The maker opens from its own Verifier account. If that holds less than the
+        // amount, it deposits the difference from its plain token balance first. The
+        // deposit's result is not trusted (a USDC pause can report failure after the
+        // Verifier credited the maker): the balance is read again on the next try.
+        let esc = self.esc();
+        let in_verifier = esc.intents_balance(&self.cfg.near_account, &At::Optimistic)?;
+        if in_verifier < amount {
+            let short = amount - in_verifier;
+            let plain = esc.ft_balance(&self.cfg.near_account, &At::Optimistic)?;
+            if plain < short {
+                bail!("the maker holds {in_verifier} of {} in the Verifier and {plain} outside it; the swap needs {amount}", self.cfg.chains.token);
+            }
+            let (to, actions) = esc.deposit(short);
+            let out = self.near.transact(&self.signer, &to, actions)?;
+            self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "deposit".into(), hash: out.hash.clone() });
+            self.log(s, format!("deposited {short} {} into the maker's Verifier account before the open, tx {} ({})", self.cfg.chains.token, out.hash, out.failure().unwrap_or("executed")));
+            return Ok(Next::At(0));
+        }
         let taker_pk = keys::unhex32(&s.taker_pk)?;
         let (to, actions) = self.esc().open(amount, &salt, &taker_pk, &ap.to_bytes(), &bp.to_bytes(), t0, t1, t2, w.reveal_secs as u64);
         let out = self.near.transact(&self.signer, &to, actions)?;
@@ -1137,33 +1162,30 @@ impl Maker {
     }
 
     fn on_refunded(&mut self, s: &mut MakerSwap, fin: &crate::near::rpc::BlockInfo, now: u64) -> Result<Next> {
-        // The refund is final (read at a final block). Withdraw the maker's credit, and stay
-        // here until a final block shows it paid: the escrow restores the credit when its
-        // ft_transfer fails, for example while tokens wait in the escrow's own Intents
-        // account. Then the maker sweeps them back and withdraws again.
-        let credit = self.esc().credit(&self.cfg.near_account, &At::Block(fin.hash.clone()))?;
-        if credit.direct > 0 {
+        // The refund is final (read at a final block). Its payout (mt_transfer to the
+        // maker's Verifier account) normally ran in the refund call. If it is Due (too
+        // little gas, or the Verifier refused it), send withdraw(id) and stay here until a
+        // final block shows it Paid.
+        let id = s.id_bytes()?;
+        let v = self.esc().get_swap(&id, &At::Block(fin.hash.clone()))?.ok_or_else(|| anyhow!("escrow swap vanished"))?;
+        if v.payout != escrow::Payout::Paid {
             let t = &self.cfg.timing;
             let due = s.withdraw_at.map(|w| fin.secs() >= w + t.inclusion_secs + t.finality_secs).unwrap_or(true);
-            if due {
-                if s.withdraw_at.is_some() {
-                    self.sweep(s, "the maker's withdraw left its credit in the escrow")?;
-                }
-                let (to, actions) = self.esc().withdraw(&self.cfg.near_account);
+            if v.payout == escrow::Payout::Due && due {
+                let (to, actions) = self.esc().withdraw(&id);
                 s.withdraw_at = Some(fin.secs());
-                let out = self.near.transact(&self.signer, &to, actions)?.ok().context("withdraw")?;
-                self.log(s, format!("refund is final (block <= {}); withdraw of {} for the maker, tx {}", fin.height, credit.direct, out.hash));
+                let out = self.near.transact(&self.signer, &to, actions)?;
+                self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "withdraw".into(), hash: out.hash.clone() });
+                self.log(s, format!("refund is final (block <= {}); withdraw(id) of the refund into the maker's Verifier account, tx {} ({})", fin.height, out.hash, out.failure().unwrap_or("executed")));
             }
             return Ok(Next::At(now + POLL_SECS));
         }
-        let line = if s.withdraw_at.is_some() { "the maker's credit is withdrawn" } else { "nothing left to withdraw" };
-        self.log(s, format!("refund is final (block <= {}); {line}", fin.height));
+        self.log(s, format!("refund is final (block <= {}); {} paid back into the maker's Verifier account", fin.height, v.amount));
         if s.stage != MakerStage::RefundSent {
             // Someone else sent our refund (b was already public): fine, same result.
             self.log(s, "the escrow was refunded".into());
         }
         self.set_stage(s, MakerStage::Refunded);
-        let _ = now;
         Ok(Next::Done)
     }
 
@@ -1202,44 +1224,40 @@ impl Maker {
         Ok(self.pend(s, "sweep", &tx, MakerStage::Sweeping))
     }
 
-    /// Pays the taker's credit into intents.near if nobody has yet. Anyone may call
-    /// `withdraw`; the taker's stipend does not cover its gas, so the maker does it.
-    /// Returns the credit still waiting.
-    /// Calls the escrow's public `sweep(token)` (see contracts/near-escrow/README.md).
-    fn sweep(&mut self, s: &mut MakerSwap, why: &str) -> Result<()> {
-        let (to, actions) = self.esc().sweep();
-        let out = self.near.transact(&self.signer, &to, actions)?;
-        self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "sweep".into(), hash: out.hash.clone() });
-        self.log(s, format!("{why}: SWEEP of the escrow's Intents account before the retry, tx {} ({})", out.hash, out.failure().unwrap_or("executed")));
-        Ok(())
-    }
-
-    fn pay_taker(&mut self, s: &mut MakerSwap) -> Result<u128> {
+    /// Backs up the taker's payout. The taker's key sends `withdraw(id)` itself from the
+    /// stipend; if a final block still shows the payout Due `2 × (D + F)` after the maker
+    /// first saw it Due, the maker sends the same call (anyone may; the tokens can only go
+    /// to the taker). Returns true once the payout is Paid.
+    fn pay_taker(&mut self, s: &mut MakerSwap) -> Result<bool> {
+        let id = s.id_bytes()?;
         let fin = self.near.block(&At::Final)?;
-        let credit = self.esc().credit(&s.taker_account, &At::Block(fin.hash.clone()))?;
-        let due = s.taker_withdraw_at.map(|t| fin.secs() >= t + self.cfg.timing.inclusion_secs + self.cfg.timing.finality_secs).unwrap_or(true);
-        if credit.intents > 0 && due {
-            if s.taker_withdraw_at.is_some() {
-                // The last withdraw ended with the credit restored (its transfer failed);
-                // tokens may wait in the escrow's own Intents account. Bring them back
-                // first so this retry can pay.
-                self.sweep(s, "the taker's credit was restored after a withdraw")?;
-            }
-            let (to, actions) = self.esc().withdraw(&s.taker_account);
+        let v = self.esc().get_swap(&id, &At::Block(fin.hash.clone()))?.ok_or_else(|| anyhow!("escrow swap vanished"))?;
+        if v.payout == escrow::Payout::Paid {
+            return Ok(true);
+        }
+        if v.payout != escrow::Payout::Due {
+            return Ok(false);
+        }
+        let t = &self.cfg.timing;
+        let grace = 2 * (t.inclusion_secs + t.finality_secs);
+        let since = *s.payout_due_at.get_or_insert(fin.secs());
+        let retry = s.taker_withdraw_at.map(|w| fin.secs() >= w + t.inclusion_secs + t.finality_secs).unwrap_or(true);
+        if fin.secs() >= since + grace && retry {
+            let (to, actions) = self.esc().withdraw(&id);
             s.taker_withdraw_at = Some(fin.secs());
             let out = self.near.transact(&self.signer, &to, actions)?;
             self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "withdraw".into(), hash: out.hash.clone() });
-            self.log(s, format!("withdraw for the taker into intents.near, tx {} ({})", out.hash, out.failure().unwrap_or("executed")));
+            self.log(s, format!("the taker's payout is still Due after {grace}s; withdraw(id) for the taker, tx {} ({})", out.hash, out.failure().unwrap_or("executed")));
         }
-        Ok(credit.intents)
+        Ok(false)
     }
 
     fn on_sweeping(&mut self, s: &mut MakerSwap, now: u64) -> Result<Next> {
-        let waiting = self.pay_taker(s)?;
+        let paid = self.pay_taker(s)?;
         let k_z = self.cfg.timing.k_z;
         let tip = self.wallet.height;
         if let Some(h) = s.sweep_height {
-            if tip + 1 - h >= k_z && waiting == 0 {
+            if tip + 1 - h >= k_z && paid {
                 self.log(s, format!("sweep {} has {} confirmations (k_Z = {k_z}); done", s.sweep_txid.clone().unwrap_or_default(), tip + 1 - h));
                 self.set_stage(s, MakerStage::Swept);
                 return Ok(Next::Done);
@@ -1330,7 +1348,8 @@ mod tests {
                 "taker_pk": s.taker_pk, "taker_account": s.taker_account, "a_pub": s.a_pub,
                 "b_pub": hex::encode((keys::g() * keys::scalar_from_hex(&s.b).unwrap()).to_bytes()),
                 "t0": 1, "t1": 2, "t2": 3, "reveal_window": 45, "state": "Open",
-                "locked_at": null, "commitment": null, "a": null, "b": null
+                "locked_at": null, "commitment": null, "a": null, "b": null,
+                "payout": "none", "recipient": null
             }))
             .unwrap()
         };

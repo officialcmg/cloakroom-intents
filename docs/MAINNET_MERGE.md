@@ -45,6 +45,10 @@ touching `contracts/near-escrow`):
   `docs/MAINNET.md`). If the light payout changes what the taker sends with its stipend
   (for example the taker sends `withdraw`), update them and G6. The dry run's cost table
   reads the wasm size at run time.
+  Done on 2026-11-14 in branch `escrow-light-payout` (merge of `main`, then commit
+  "Prepare the switch …"): `stipend_need` models `commit_claim`, `claim` and
+  `withdraw(id)` with the measured burn and `min_gas_purchase_price` from the protocol
+  config; G6 and the amounts in `docs/MAINNET.md` are rewritten.
 
 ## What a merge does to the live testnet services
 

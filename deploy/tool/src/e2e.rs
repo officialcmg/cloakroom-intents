@@ -1,6 +1,7 @@
 //! End-to-end check of a deployment at the contract level, with real transactions:
-//! the taker's checks, open, set_ready, commit_claim and claim by a fresh taker key with
-//! a 0.03 NEAR stipend, withdraw into the Verifier, and a signed `ft_withdraw` built with
+//! the taker's checks, open (mt_transfer_call from the maker's Verifier account),
+//! set_ready, commit_claim, claim and withdraw(id) by a fresh taker key with a 0.06 NEAR
+//! stipend and nothing else, and a signed `ft_withdraw` built with
 //! `zecret-intents` that moves the tokens to a NEAR account. Prints every transaction
 //! and its timings.
 
@@ -25,7 +26,7 @@ const B_PUB: &str = "950e78fd9d3129d85922bdef19d501fbec46b8c0c0f563d8df66f5e5b86
 
 /// 1 token unit of a 6-decimal token.
 const AMOUNT: u128 = 1_000_000;
-const STIPEND: u128 = 3 * ONE_NEAR / 100;
+const STIPEND: u128 = 6 * ONE_NEAR / 100;
 
 fn le_hex(be: &str) -> Res<String> {
     let mut b = hex::decode(be)?;
@@ -85,7 +86,6 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
         .get(&ids.maker)?
         .ok_or_else(|| format!("no key for maker {}", ids.maker))?;
     let maker = ctx.chain.w.account(&ids.maker, maker_sk)?;
-    let token_id: near_workspaces::AccountId = ids.token.parse()?;
     let escrow_id: near_workspaces::AccountId = ids.escrow.parse()?;
     let intents_id: near_workspaces::AccountId = ids.intents.parse()?;
 
@@ -107,7 +107,7 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
     let o = ctx
         .chain
         .track(
-            "maker -> taker stipend 0.03 NEAR",
+            "maker -> taker stipend 0.06 NEAR",
             false,
             maker
                 .batch(taker.id())
@@ -132,15 +132,17 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
         "t2": now + 1800,
         "reveal_window": 600,
     });
+    // The maker opens from its own Verifier account: mt_transfer_call to the escrow.
     let o = ctx
         .chain
         .track(
-            "open: token.ft_transfer_call -> escrow",
+            "open: Verifier.mt_transfer_call -> escrow",
             false,
             maker
-                .call(&token_id, "ft_transfer_call")
+                .call(&intents_id, "mt_transfer_call")
                 .args_json(json!({
                     "receiver_id": ids.escrow,
+                    "token_id": format!("nep141:{}", ids.token),
                     "amount": AMOUNT.to_string(),
                     "msg": terms.to_string(),
                 }))
@@ -150,7 +152,7 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
         )
         .await?
         .require_ok()?;
-    if o.events("near_escrow", "opened").len() != 1 || o.json()? != json!(AMOUNT.to_string()) {
+    if o.events("near_escrow", "opened").len() != 1 || o.json()? != json!([AMOUNT.to_string()]) {
         return Err(format!(
             "open: no opened event or wrong amount used; logs {:?}",
             o.logs
@@ -203,7 +205,7 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
     let o = ctx
         .chain
         .track(
-            "commit_claim (taker key, 10 Tgas)",
+            "commit_claim (taker key, 15 Tgas)",
             false,
             taker
                 .call(&escrow_id, "commit_claim")
@@ -212,7 +214,7 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
                     "commitment": commitment,
                     "signature": hex::encode(sig.to_bytes()),
                 }))
-                .gas(Gas::from_tgas(10))
+                .gas(Gas::from_tgas(15))
                 .transact_async(),
         )
         .await?
@@ -247,22 +249,22 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
     }
     println!("swap state Claimed; a is readable from get_swap");
 
+    // The payout: one mt_transfer inside the Verifier, sent by the taker key itself
+    // from what the stipend left (escrow README, "Payout").
     let o = ctx
         .chain
         .track(
-            "withdraw (taker credit -> Verifier, sent by maker)",
+            "withdraw(id) (taker key, 25 Tgas): mt_transfer escrow -> taker in the Verifier",
             false,
-            maker
+            taker
                 .call(&escrow_id, "withdraw")
-                .args_json(json!({ "token": ids.token, "owner": taker_id }))
-                // The Intents route deposits into the escrow's own Verifier account and
-                // then calls mt_transfer: it needs at least 110 Tgas (escrow README, "Gas").
-                .gas(Gas::from_tgas(200))
+                .args_json(json!({ "id": id }))
+                .gas(Gas::from_tgas(25))
                 .transact_async(),
         )
         .await?
         .require_ok()?;
-    let w = o.events("near_escrow", "withdrawn");
+    let w = o.events("near_escrow", "paid");
     if w.len() != 1 || w[0]["data"][0]["amount"] != json!(AMOUNT.to_string()) {
         return Err(format!("withdraw: unexpected events {w:?}; logs {:?}", o.logs).into());
     }
@@ -284,7 +286,7 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
         "taker holds {AMOUNT} {token_mt} inside the Verifier {}",
         ids.intents
     );
-    // The deposit went through the escrow's own Verifier account; nothing stays there.
+    // The escrow's Verifier balance still covers what it owes.
     let escrow_held = ctx
         .chain
         .rpc
@@ -294,8 +296,17 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
             &json!({ "account_id": ids.escrow, "token_id": token_mt }),
         )
         .await?;
-    if escrow_held != json!("0") {
-        return Err(format!("the escrow holds {escrow_held} in the Verifier, expected 0").into());
+    let owed = ctx
+        .chain
+        .rpc
+        .view_ok(&ids.escrow, "get_owed", &json!({ "token": ids.token }))
+        .await?;
+    let (eh, ow): (u128, u128) = (
+        escrow_held.as_str().unwrap_or("0").parse()?,
+        owed.as_str().unwrap_or("x").parse()?,
+    );
+    if eh < ow {
+        return Err(format!("the escrow holds {eh} in the Verifier but owes {ow}").into());
     }
 
     // The exit: one ft_withdraw signed by the taker key, built by zecret-intents.
@@ -347,7 +358,7 @@ pub async fn run(ctx: &mut Ctx, ids: &Ids) -> Res<E2eReport> {
     println!("destination {destination} received {AMOUNT}; taker holds 0 in the Verifier");
     let taker_left = ctx.chain.rpc.balance(&taker_id).await?;
     println!(
-        "taker key NEAR left after commit_claim and claim: {} of {}",
+        "taker key NEAR left after commit_claim, claim and withdraw: {} of {}",
         fmt_near(taker_left),
         fmt_near(STIPEND)
     );

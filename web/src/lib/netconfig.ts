@@ -113,7 +113,7 @@ export interface NetworkConfig {
     explorer?: string;
   };
   timing: Timing;
-  /** yoctoNEAR: the smallest stipend the engine accepts (0.03 NEAR). */
+  /** yoctoNEAR: the smallest stipend the engine accepts (0.03 NEAR: enough for commit, claim and withdraw at today's gas price). */
   minStipend: string;
   quoteTimeoutSecs?: number;
   maxHorizonSecs?: number;

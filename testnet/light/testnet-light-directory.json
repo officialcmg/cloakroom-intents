@@ -1,0 +1,35 @@
+{
+  "format": "zecret-maker-directory",
+  "version": 1,
+  "network": "testnet",
+  "updatedAt": "2026-11-14T04:20:00Z",
+  "status": "online",
+  "maker": {
+    "name": "Local light-payout test maker",
+    "zcashAddress": "utest1q4tvurndqx8y803cnuwhghz88tmfrpaam9ewsk08565pcu60uaqf90uwpcwvrhsyamty2v8mw6f5gwq5skg324amtcdhrwt7ysjuglpe",
+    "requestKey": "a679b6c9c1a83ec4d06b273625919b0a6bb2615451d46c15f156a9ed0689bc85",
+    "nearAccount": "maker3.zecret-3f109eea1e.testnet",
+    "escrowContract": "escrow3.zecret-3f109eea1e.testnet",
+    "nearPublicKey": "ed25519:FFKBmVcizSdkrJxYJJ2Bty9zjm3n5LguEUy1o5jTEjmx",
+    "epoch": 1,
+    "signedLimits": {
+      "min_zats": 100000,
+      "max_zats": 10000000,
+      "premium_zats": 1000
+    }
+  },
+  "rate": {
+    "usdcPerZec": "30",
+    "validForSeconds": 300
+  },
+  "limits": {
+    "minZec": "0.001",
+    "maxZec": "0.1"
+  },
+  "premium": {
+    "bps": 0,
+    "minZec": "0.00001"
+  },
+  "zcashFeePerSendZec": "0.0001",
+  "signature": "396a1f2ad337a7c5acb0ad99226f293d06f611e7ef049dcadff5e7bc50121fbadab2ec0baf91c890aec2fbb1501070c0e2ae5db90059269603661a972e198604"
+}

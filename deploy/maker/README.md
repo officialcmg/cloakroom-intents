@@ -61,7 +61,7 @@ window values are examples; choose them from `docs/DESIGN.md` §7 and the measur
     "lightwalletd": "https://zcash-testnet.chainsafe.dev",
     "birthday": 0,
     "near_rpc": "https://rpc.testnet.fastnear.com",
-    "escrow": "escrow2.zecret-3f109eea1e.testnet",
+    "escrow": "escrow3.zecret-3f109eea1e.testnet",
     "token": "usdc.zecret-3f109eea1e.testnet",
     "intents": "intents.zecret-3f109eea1e.testnet"
   },
@@ -81,7 +81,7 @@ window values are examples; choose them from `docs/DESIGN.md` §7 and the measur
 }
 ```
 
-The escrow is `escrow2.zecret-3f109eea1e.testnet`, the build with the NV-02 fix.
+The escrow is `escrow3.zecret-3f109eea1e.testnet`, the light-payout build (`docs/LIGHT_PAYOUT_SWITCH.md`; before the switch it was `escrow2`, the build with the NV-02 fix).
 `escrow.zecret-3f109eea1e.testnet` is retired (`docs/DEPLOY.md`); a taker refuses it,
 because its code hash is not the expected one.
 

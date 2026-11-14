@@ -28,17 +28,17 @@
     "before": {
       "maker_zec": 208333333,
       "taker_zec": 208333333,
-      "maker_wnear": 9879998750000000000000000000
+      "maker_wnear": 9969998750000000000000000000
     },
     "after": {
       "maker_zec": 208323333,
       "taker_zec": 208323333,
-      "maker_wnear": 9879998750000000000000000000
+      "maker_wnear": 9969998750000000000000000000
     },
     "zcash_txs": [
       {
-        "txid": "6f726822b5458775d10cf658f4f9ed94fdb56df94b0b7d40cd43381d788d4e3d",
-        "height": 327,
+        "txid": "86929416a5b1aa7e5b1099706640f38e9b41a97f6cf196693cbe9eb6451dcbc7",
+        "height": 79,
         "version": 6,
         "ironwood_actions": 2,
         "ironwood_value_balance": 10000,
@@ -46,8 +46,8 @@
         "transparent_out": 0
       },
       {
-        "txid": "c8d3686371608a925f0595e386e7fe553aca265481114046914ce87cd5f2f8c2",
-        "height": 329,
+        "txid": "9be24cf7d7e433268e32c50417daa0b9164a630ff1b3743c586b5263c62a15e3",
+        "height": 81,
         "version": 6,
         "ironwood_actions": 2,
         "ironwood_value_balance": 10000,
@@ -63,29 +63,29 @@
     ]
   },
   "maker_swap": {
-    "rfq_id": "470e0815107446544bf2249be3d71e87",
+    "rfq_id": "969df075d89b4ee0dadbaa2dfb1714b1",
     "stage": "Quoted",
     "zats": 100000000,
     "price": "30000000000000000000000000",
     "premium": 50000,
-    "stipend": "30000000000000000000000",
-    "taker_pk": "4e439f236c0a891c5fb90d1093f74a9b5691ad63895080dde44b14c2eed6f926",
-    "taker_account": "4e439f236c0a891c5fb90d1093f74a9b5691ad63895080dde44b14c2eed6f926",
-    "a_pub": "fab3787f55bd98b3f40ac0965543124430d5ac0ba6935fe895776cfb163b7715",
-    "commit_s_t": "dfedef4aada2bf511e0942cfc081e78fd7d0c91c000365d3cbccff7ef80e1df0",
+    "stipend": "60000000000000000000000",
+    "taker_pk": "58bc25699cf3f838083c2d1a65f50924dbe22f1e240616b210566a4dd9b3e9d1",
+    "taker_account": "58bc25699cf3f838083c2d1a65f50924dbe22f1e240616b210566a4dd9b3e9d1",
+    "a_pub": "868393467d31216b7884d43a3cb73f56348a6aa7f6136afa84ded6fda74d3905",
+    "commit_s_t": "ecd7de7e2582741d84c5bd42e60d67bd562fd4377c64139196967820b6559b59",
     "b": "<redacted>",
     "s_m": "<redacted>",
     "e_m": "<redacted>",
-    "e_t_pub": "fd64bcf0054255b85476a893c67575fdb944bce6127fb8c4df34cb89d2b700aa",
+    "e_t_pub": "253cdf32461b6e71e67e5ca891699f5fcef376ca0bb24c60cae95e4f42a736b3",
     "quote_memo": "<redacted>",
-    "quote_hash": "94d3a68113c7b6bf9a71f63d57f62ffd16d9bcc5dba69a1347aaaed284d3c1fa",
+    "quote_hash": "0fac006a6615a9cb9c5172769272e79cc692254315799b931dda4efc3d2fe8a8",
     "windows": {
       "t0_secs": 120,
       "t1_secs": 60,
       "t2_secs": 60,
       "reveal_secs": 18
     },
-    "rfq_height": 327,
+    "rfq_height": 79,
     "accept_height": null,
     "negated": false,
     "joint_fvk": null,
@@ -95,8 +95,14 @@
     "t1": null,
     "t2": null,
     "pending_then": null,
-    "pending": null,
-    "quote_txid": "c8d3686371608a925f0595e386e7fe553aca265481114046914ce87cd5f2f8c2",
+    "pending": {
+      "what": "quote",
+      "txid": "9be24cf7d7e433268e32c50417daa0b9164a630ff1b3743c586b5263c62a15e3",
+      "raw_hex": "<omitted>",
+      "expiry_height": 120,
+      "broadcast": true
+    },
+    "quote_txid": "9be24cf7d7e433268e32c50417daa0b9164a630ff1b3743c586b5263c62a15e3",
     "open_tx": null,
     "stipend_tx": null,
     "ready_tx": null,
@@ -106,14 +112,15 @@
     "sweep_height": null,
     "taker_withdraw_at": null,
     "log": [
-      "RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE ShortReveal]",
-      "encrypted QUOTE sent in tx c8d3686371608a925f0595e386e7fe553aca265481114046914ce87cd5f2f8c2"
+      "RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto) [MISBEHAVE ShortReveal]",
+      "encrypted QUOTE sent in tx 9be24cf7d7e433268e32c50417daa0b9164a630ff1b3743c586b5263c62a15e3"
     ],
-    "created_at": 1794618946,
-    "withdraw_at": null
+    "created_at": 1794634767,
+    "withdraw_at": null,
+    "payout_due_at": null
   },
   "taker_swap": {
-    "rfq_id": "470e0815107446544bf2249be3d71e87",
+    "rfq_id": "969df075d89b4ee0dadbaa2dfb1714b1",
     "stage": {
       "Aborted": "QUOTE REJECTED: reveal window 18s too short for finality (R1q needs W > F + B_R = 18s); nothing was funded"
     },
@@ -121,13 +128,13 @@
     "a": "",
     "s_t": "",
     "e_t": "",
-    "e_t_pub": "fd64bcf0054255b85476a893c67575fdb944bce6127fb8c4df34cb89d2b700aa",
+    "e_t_pub": "253cdf32461b6e71e67e5ca891699f5fcef376ca0bb24c60cae95e4f42a736b3",
     "near_sk": "<redacted>",
-    "taker_account": "4e439f236c0a891c5fb90d1093f74a9b5691ad63895080dde44b14c2eed6f926",
-    "reply_index": 352849479,
-    "created_at": 1794618940,
+    "taker_account": "58bc25699cf3f838083c2d1a65f50924dbe22f1e240616b210566a4dd9b3e9d1",
+    "reply_index": 1978703254,
+    "created_at": 1794634761,
     "min_price": "30000000000000000000000000",
-    "stage_at": 1794618953,
+    "stage_at": 1794634773,
     "quote": null,
     "negated": false,
     "joint_fvk": null,
@@ -135,7 +142,7 @@
     "escrow_id": null,
     "pending_then": null,
     "pending": null,
-    "rfq_txid": "6f726822b5458775d10cf658f4f9ed94fdb56df94b0b7d40cd43381d788d4e3d",
+    "rfq_txid": "86929416a5b1aa7e5b1099706640f38e9b41a97f6cf196693cbe9eb6451dcbc7",
     "accept_txid": null,
     "fund_txid": null,
     "fund_expiry": null,
@@ -148,7 +155,7 @@
     "withdraw_tx": null,
     "withdraw_at": null,
     "log": [
-      "encrypted RFQ for 100000000 zats sent to the maker in shielded tx 6f726822b5458775d10cf658f4f9ed94fdb56df94b0b7d40cd43381d788d4e3d",
+      "encrypted RFQ for 100000000 zats sent to the maker in shielded tx 86929416a5b1aa7e5b1099706640f38e9b41a97f6cf196693cbe9eb6451dcbc7",
       "ABORT: QUOTE REJECTED: reveal window 18s too short for finality (R1q needs W > F + B_R = 18s); nothing was funded"
     ]
   }

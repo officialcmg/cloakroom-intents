@@ -44,7 +44,7 @@ FEE = 10_000                      # ZIP 317 fee of every swap transaction (2 act
 PRICE_PER_ZEC = 30 * ONE_NEAR     # 30 wNEAR per ZEC (wNEAR stands in for USDC)
 PRICE = LOT * PRICE_PER_ZEC // 100_000_000
 PREMIUM = 50_000                  # zatoshis paid to the maker with the acceptance
-STIPEND = 3 * ONE_NEAR // 100     # 0.03 NEAR
+STIPEND = 6 * ONE_NEAR // 100     # 0.06 NEAR (docs/experiments/light-payout.md)
 COVER_K = 4
 # NEAR timing for the sandbox (seconds): D, F, R, fund window, k_Z.
 TIMING = {"inclusion_secs": 3, "finality_secs": 3, "reorg_budget": 2, "margin_secs": 0, "fund_secs": 30, "k_z": 2}
@@ -121,6 +121,17 @@ def wnear(acct):
 
 def intents_balance(acct):
     return int(view(state["net"]["intents"], "mt_balance_of", {"account_id": acct, "token_id": "nep141:" + state["net"]["token"]}))
+
+
+def escrow_backed(c):
+    """The escrow's Verifier balance covers what it owes, at one final block."""
+    h = near_block()[0]
+    n = state["net"]
+    q = lambda acct, method, args: json.loads(bytes(nrpc("query", {"request_type": "call_function", "block_id": h, "account_id": acct,
+        "method_name": method, "args_base64": base64.b64encode(json.dumps(args).encode()).decode()})["result"]))
+    bal = int(q(n["intents"], "mt_balance_of", {"account_id": n["escrow"], "token_id": "nep141:" + n["token"]}))
+    owed = int(q(n["escrow"], "get_owed", {"token": n["token"]}))
+    c.ok("the escrow's Verifier balance covers what it owes (one final block)", bal >= owed, f"balance {bal} owed {owed} at block {h}")
 
 
 def warp_to(ts):
@@ -469,12 +480,15 @@ def settle():
 
 def snapshot(maker, taker):
     settle()
-    return {"maker_zec": maker.balance(), "taker_zec": taker.balance(), "maker_wnear": wnear(state["net"]["maker"])}
+    # The maker's tokens: plain wNEAR plus its balance in the Verifier, where it opens
+    # swaps from and where refunds pay it back.
+    mk = state["net"]["maker"]
+    return {"maker_zec": maker.balance(), "taker_zec": taker.balance(), "maker_wnear": wnear(mk) + intents_balance(mk)}
 
 
 # ---------------------------------------------------------------- scenarios
 
-def s1_happy(scen="s1_happy", title="Happy path: request -> quote -> acceptance + premium -> open + stipend -> fund -> set_ready -> commit_claim -> claim -> sweep -> withdraw into intents.near"):
+def s1_happy(scen="s1_happy", title="Happy path: request -> quote -> acceptance + premium -> open (mt_transfer_call from the maker's Verifier account) + stipend -> fund -> set_ready -> commit_claim -> claim -> the taker's own withdraw(id) into intents.near -> sweep"):
     maker, taker = parties(scen)
     c = Checks(scen, title)
     before = snapshot(maker, taker)
@@ -492,7 +506,9 @@ def s1_happy(scen="s1_happy", title="Happy path: request -> quote -> acceptance 
     c.ok("the taker's NEAR account is the hex of its ed25519 key and the stipend created it", near_account(acct) is not None and len(acct) == 64, near_account(acct))
     c.ok("taker sent commit_claim and claim itself (no relayer)", t.get("commit_tx") and t.get("claim_tx"))
     c.ok("taker's balance inside intents.near equals the price", intents_balance(acct) == PRICE, intents_balance(acct))
-    c.ok("escrow credit of the taker is zero after withdraw", int(view(state["net"]["escrow"], "get_credit", {"token": state["net"]["token"], "owner": acct})["intents"]) == 0)
+    c.ok("escrow payout of the swap is Paid", get_swap(t["escrow_id"])["payout"] == "paid", get_swap(t["escrow_id"])["payout"])
+    c.ok("the taker's key sent withdraw itself", any("withdraw(id) sent by the taker" in l for l in t["log"]), t.get("withdraw_tx"))
+    escrow_backed(c)
     c.ok("maker paid exactly the price", before["maker_wnear"] - after["maker_wnear"] == PRICE, before["maker_wnear"] - after["maker_wnear"])
     c.ok("maker ZEC: +lot + premium - quote fee (exact)", after["maker_zec"] - before["maker_zec"] == LOT + PREMIUM - FEE, after["maker_zec"] - before["maker_zec"])
     c.ok("taker ZEC: -(lot + sweep fee) - premium - 3 tx fees (exact)", before["taker_zec"] - after["taker_zec"] == LOT + FEE + PREMIUM + 3 * FEE, before["taker_zec"] - after["taker_zec"])
@@ -554,7 +570,7 @@ def s3_taker_vanishes_after_funding():
 def s4_maker_vanishes_after_open():
     scen = "s4_maker_vanishes_after_open"
     maker, taker = parties(scen)
-    c = Checks(scen, "Punish path: the maker opens and sends the stipend, then disappears (never sets Ready) after the taker funds. From t2 the taker commits and claims; the returning maker sweeps the ZEC and pays the taker's credit into intents.near")
+    c = Checks(scen, "Punish path: the maker opens and sends the stipend, then disappears (never sets Ready) after the taker funds. From t2 the taker commits, claims and sends withdraw(id) itself, and completes while the maker is still away; the returning maker sweeps the ZEC")
     before = snapshot(maker, taker)
     maker.start("--vanish-at", "Opened")
     taker.start("--zats", str(LOT))
@@ -565,17 +581,72 @@ def s4_maker_vanishes_after_open():
     taker.wait_log("punish path", 120)
     taker.wait_log("claim is final", 120)
     claim_final_before = maker.proc.poll() is not None
-    maker.start("--exit-after", "1")  # returns after the claim
-    maker.wait(300)
     taker.wait(300)
+    t = taker.swap()
+    completed_alone = stage_name(t) == "Completed" and maker.proc.poll() is not None
+    maker.start("--exit-after", "1")  # returns after the payout
+    maker.wait(300)
     t, m = taker.swap(), maker.swap()
     after = snapshot(maker, taker)
     c.facts.update(before=before, after=after, escrow_id=m["escrow_id"])
     c.ok("taker locked via the punish path after t2", any("punish path" in l for l in t["log"]))
     c.ok("taker's claim was final before the maker returned (no hostage)", claim_final_before)
-    c.ok("taker reached Completed", stage_name(t) == "Completed", stage_name(t))
+    c.ok("taker completed (payout Paid) while the maker was away", completed_alone, stage_name(t))
+    c.ok("the taker's key sent withdraw itself", any("withdraw(id) sent by the taker" in l for l in t["log"]), t.get("withdraw_tx"))
     c.ok("returning maker swept the ZEC", stage_name(m) == "Swept", stage_name(m))
     c.ok("taker's balance inside intents.near equals the price", intents_balance(t["taker_account"]) == PRICE)
+    c.ok("maker ZEC: +lot + premium - quote fee (exact)", after["maker_zec"] - before["maker_zec"] == LOT + PREMIUM - FEE)
+    escrow_backed(c)
+    return c.save(maker, taker)
+
+
+def tx_signer(tx_hash, sender):
+    """The signer, receiver and first method of a NEAR transaction, read with `tx`."""
+    r = nrpc("tx", {"tx_hash": tx_hash, "sender_account_id": sender, "wait_until": "FINAL"})
+    tx = r["transaction"]
+    method = next((a["FunctionCall"]["method_name"] for a in tx["actions"] if isinstance(a, dict) and "FunctionCall" in a), None)
+    return tx["signer_id"], tx["receiver_id"], method, r["status"]
+
+
+def s25_maker_vanishes_after_claim():
+    scen = "s25_maker_vanishes_after_claim"
+    maker, taker = parties(scen)
+    c = Checks(scen, "The maker process is killed the moment the taker's claim is final. The taker's key sends withdraw(id) from what the stipend left and ends with the tokens under its key in the Verifier, with no other party. On local and testnet networks the exit goes through the maker's relay, so with the maker gone the scenario ends at the tokens in the Verifier. The maker returns afterwards and sweeps the ZEC")
+    before = snapshot(maker, taker)
+    maker.start("--exit-after", "1")
+    taker.start("--zats", str(LOT))
+    taker.wait_log("claim is final", 500)
+    maker.kill()
+    killed_h = near_block()[0]
+    acct = (taker.swap() or {}).get("taker_account")
+    near_at_claim = near_account(acct)
+    log(f"maker killed at NEAR height {killed_h}; taker account {acct} holds {near_at_claim} yoctoNEAR")
+    mlog_at_kill = maker.logtext()
+    taker.wait(300)
+    t = taker.swap()
+    time.sleep(3)  # gas refunds arrive a few blocks later
+    near_after = near_account(acct)
+    sw = get_swap(t["escrow_id"])
+    c.facts.update(before=before, escrow_id=t["escrow_id"], taker_account=acct, maker_killed_at_height=killed_h,
+                   taker_near_at_claim=near_at_claim, taker_near_after_payout=near_after, stipend=STIPEND,
+                   claim_tx=t.get("claim_tx"), withdraw_tx=t.get("withdraw_tx"))
+    c.ok("the maker sent no withdraw before it was killed", "withdraw(id) for the taker" not in mlog_at_kill)
+    c.ok("taker reached Completed with the maker gone", stage_name(t) == "Completed" and maker.proc.poll() is not None, stage_name(t))
+    c.ok("escrow payout Paid to the taker's account", sw["payout"] == "paid" and sw["recipient"] == acct, (sw["payout"], sw["recipient"]))
+    c.ok("the taker's tokens are under its key in the Verifier", intents_balance(acct) == PRICE, intents_balance(acct))
+    signer, receiver, method, status = tx_signer(t["withdraw_tx"], acct)
+    c.facts["withdraw_tx_check"] = {"signer": signer, "receiver": receiver, "method": method, "status": status}
+    c.ok("the withdraw transaction was signed by the taker's key and succeeded", signer == acct and receiver == state["net"]["escrow"] and method == "withdraw" and "SuccessValue" in status, (signer, receiver, method, status))
+    c.ok("the stipend paid for commit_claim, claim and withdraw (NEAR left on the taker key)", near_after is not None and 0 < near_after < STIPEND, f"{near_after} of {STIPEND}")
+    escrow_backed(c)
+    # The maker comes back and takes the ZEC with a + b.
+    maker.start("--exit-after", "1")
+    maker.wait(300)
+    m = maker.swap()
+    after = snapshot(maker, taker)
+    c.facts["after"] = after
+    c.ok("returning maker swept the ZEC", stage_name(m) == "Swept", stage_name(m))
+    c.ok("maker paid exactly the price", before["maker_wnear"] - after["maker_wnear"] == PRICE, before["maker_wnear"] - after["maker_wnear"])
     c.ok("maker ZEC: +lot + premium - quote fee (exact)", after["maker_zec"] - before["maker_zec"] == LOT + PREMIUM - FEE)
     return c.save(maker, taker)
 
@@ -721,9 +792,9 @@ def s11_maker_liveness_violated():
     warp_to(m["t2"] + 1)
     taker.wait_log("punish path", 120)
     taker.wait_log("claim is final", 120)
+    taker.wait(200)
     maker.start("--exit-after", "1")
     maker.wait(200)
-    taker.wait(200)
     t, m = taker.swap(), maker.swap()
     after = snapshot(maker, taker)
     c.facts.update(before=before, after=after, escrow_id=m["escrow_id"])
@@ -1050,7 +1121,7 @@ SCENARIOS = {"s1": s1_happy, "s2": s2_taker_vanishes_before_funding, "s3": s3_ta
              "s16": s16_short_reveal_window, "s17": s17_far_horizon, "s18": s18_late_funding,
              "s19": s19_no_stipend, "s20": s20_short_open, "s21": s21_unexpected_escrow_code,
              "s22": s22_maker_refuses, "s23": s23_refund_with_two_joint_notes,
-             "s24": s24_reorg_under_a_running_maker}
+             "s24": s24_reorg_under_a_running_maker, "s25": s25_maker_vanishes_after_claim}
 
 
 def write_report():

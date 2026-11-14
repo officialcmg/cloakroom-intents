@@ -19,8 +19,9 @@
 //! Revealed       --claim(a) signed and stored; R2r checked
 //!                  again at the broadcast; claim final-> Claimed
 //!                  (R2r fails before anything was sent --> Committed)
-//! Claimed        --payout in intents.near--------------> Completed
-//! Claimed        --no payout after payout_wait_secs----> PayoutPending --payout--> Completed
+//! Claimed        --payout Due: the taker sends withdraw(id);
+//!                  payout Paid (final block)------------> Completed
+//! Claimed        --not Paid after payout_wait_secs------> PayoutPending --Paid--> Completed
 //! any of Funded..Revealed --refund(b) seen-------------> Recovering --k_Z conf--> Recovered
 //! ```
 //!
@@ -60,9 +61,10 @@ pub enum TakerStage {
     Committed,
     Revealed,
     Claimed,
-    /// The claim is final, but the payout is not in the Verifier after `payout_wait_secs`:
-    /// the maker has not sent `withdraw`. Any NEAR account can send it (event
-    /// `payout_pending` has the call). Still polled; ends in `Completed`.
+    /// The claim is final, but the payout is not Paid after `payout_wait_secs`: the
+    /// taker's own `withdraw(id)` calls did not pay (for example the Verifier refuses
+    /// `mt_transfer`, or the taker's key lacks NEAR). The engine keeps retrying. Any NEAR
+    /// account can send the same call (event `payout_pending`). Ends in `Completed`.
     PayoutPending,
     Completed,
     Recovering,
@@ -219,9 +221,9 @@ fn near_only(stage: &TakerStage) -> bool {
     matches!(stage, TakerStage::Funded | TakerStage::Committed | TakerStage::Revealed | TakerStage::Claimed | TakerStage::PayoutPending)
 }
 
-/// yoctoNEAR per gas unit at which NEAR checks that a signer can pay its prepaid gas (a
-/// pessimistic price, about 10^9 in the 2.14.1 sandbox; see `near::escrow`).
-const PESSIMISTIC_GAS_PRICE: u128 = 1_000_000_000;
+/// yoctoNEAR per gas unit at which NEAR checks that a signer can pay its prepaid gas
+/// (`min_gas_purchase_price`; see `near::escrow`).
+const PURCHASE_GAS_PRICE: u128 = escrow::GAS_PURCHASE_PRICE;
 
 impl Taker {
     /// Opens the taker's wallet (creating its key in the store on first use) and the
@@ -903,6 +905,19 @@ impl Taker {
         if let Err(e) = escrow::check_escrow(&self.near, &self.cfg.chains.escrow, &self.cfg.escrow_code_hash, &self.cfg.chains.intents, &At::Block(fin.hash.clone())) {
             return self.abort(s, format!("escrow contract check failed: {e:#}; nothing funded"), now);
         }
+        // The tokens of this swap must be in the escrow's Verifier account and not be
+        // promised to another swap: at this same final block, the escrow's Verifier
+        // balance covers everything it owes in the token. A payout of another swap can
+        // make the balance drop one or two blocks before the owed sum does, so a failed
+        // check waits and reads again; only a check that still fails near the end of the
+        // funding window aborts.
+        if let Err(e) = escrow::check_backing(&self.near, &self.cfg.chains.escrow, &self.cfg.chains.token, &self.cfg.chains.intents, &At::Block(fin.hash.clone())) {
+            if tnow.saturating_add(self.cfg.timing.fund_secs).saturating_add(self.cfg.timing.budget()) >= v.t0 {
+                return self.abort(s, format!("escrow backing check failed: {e:#}; nothing funded"), now);
+            }
+            self.log_once(s, format!("escrow backing check failed at block {}: {e:#}; reading again", fin.height));
+            return Ok(Next::At(now + POLL_SECS));
+        }
         if v.t2 > tnow.saturating_add(self.cfg.max_horizon_secs) {
             return self.abort(s, format!("escrow t2 {} is beyond the taker's horizon; nothing funded", v.t2), now);
         }
@@ -1189,13 +1204,13 @@ impl Taker {
         }
     }
 
-    /// The claim is final: wait for the payout into intents.near. The maker sends
-    /// `withdraw` (200 Tgas; NEAR wants about 0.2 NEAR held for it, and the taker's stipend
-    /// is 0.03 NEAR). The taker sends it only if its own account can pay for it. If the
-    /// payout is not there after `payout_wait_secs`, the stage becomes `PayoutPending` and
-    /// the engine says which call any NEAR account can send.
+    /// The claim is final. The payout is one `mt_transfer` inside the Verifier, sent by
+    /// `withdraw(id)` (25 Tgas). The taker's key sends it from the stipend as soon as a
+    /// final block shows the payout Due, and again after a failed try. The maker may send
+    /// the same call; the escrow starts at most one payout at a time and pays once. The
+    /// swap completes when a final block shows the payout Paid. If it is not Paid after
+    /// `payout_wait_secs`, the stage becomes `PayoutPending` (the engine keeps trying).
     fn on_claimed(&mut self, s: &mut TakerSwap, now: u64) -> Result<Next> {
-        let q = s.quote.clone().ok_or_else(|| anyhow!("no quote"))?;
         // R4: the claim is final, so the taker's share and seeds are no longer needed.
         if !s.a.is_empty() {
             s.a.clear();
@@ -1203,53 +1218,59 @@ impl Taker {
             s.e_t.clear();
             s.claim_raw = None;
         }
+        let id = s.id_bytes()?;
         let fin = self.near.block(&At::Final)?;
         let at = At::Block(fin.hash.clone());
         let esc = self.esc();
-        let credit = esc.credit(&s.taker_account, &at)?;
-        let paid = esc.intents_balance(&s.taker_account, &at)?;
-        if credit.intents == 0 && paid >= q.price() {
-            self.log(s, format!("PAYOUT: {paid} of {} in intents.near, owned by {}", self.cfg.chains.token, s.taker_account));
-            self.ev.push(Event::Payout { swap: s.rfq_id.clone(), account: s.taker_account.clone(), token: self.cfg.chains.token.clone(), amount: paid.to_string() });
+        let v = esc.get_swap(&id, &at)?.ok_or_else(|| anyhow!("escrow swap vanished"))?;
+        if v.payout == escrow::Payout::Paid {
+            let held = esc.intents_balance(&s.taker_account, &at)?;
+            self.log(s, format!("PAYOUT: {} of {} paid into the Verifier, owned by {} (holds {held} now)", v.amount, self.cfg.chains.token, s.taker_account));
+            self.ev.push(Event::Payout { swap: s.rfq_id.clone(), account: s.taker_account.clone(), token: self.cfg.chains.token.clone(), amount: v.amount.to_string() });
             self.set_stage(s, TakerStage::Completed, now);
             return Ok(Next::Done);
         }
         let t = &self.cfg.timing;
         let due = s.withdraw_at.map(|w| fin.secs() >= w.saturating_add(t.inclusion_secs).saturating_add(t.finality_secs)).unwrap_or(true);
-        if credit.intents > 0 && due && s.withdraw_tx.is_none() {
-            // Only when the taker's account holds the prepaid gas at NEAR's pessimistic
-            // price; with the stipend alone it does not, and the RPC would refuse the call.
-            let need = escrow::GAS_WITHDRAW as u128 * PESSIMISTIC_GAS_PRICE;
+        if v.payout == escrow::Payout::Due && due {
+            #[cfg(feature = "misbehave")]
+            let skip = self.cfg.misbehave == Some(Misbehave::NoWithdraw);
+            #[cfg(not(feature = "misbehave"))]
+            let skip = false;
+            // NEAR accepts the call only if the key holds the attached gas at the
+            // purchase price (plus about 1 Tgas of fees).
+            let need = (escrow::GAS_WITHDRAW + crate::near::TGAS) as u128 * PURCHASE_GAS_PRICE;
             let have = self.near.account(&s.taker_account, &at)?.map(|a| a.amount).unwrap_or(0);
             s.withdraw_at = Some(fin.secs());
-            if have >= need {
-                let (to, actions) = self.esc().withdraw(&s.taker_account);
+            if skip {
+                self.log_once(s, "[MISBEHAVE no-withdraw] payout Due; not sending withdraw".into());
+            } else if have >= need {
+                let (to, actions) = esc.withdraw(&id);
                 let signer = self.signer(s)?;
                 match self.near.transact(&signer, &to, actions) {
-                    Ok(out) if out.is_success() => {
+                    Ok(out) => {
+                        self.ev.push(Event::NearTx { swap: s.rfq_id.clone(), what: "withdraw".into(), hash: out.hash.clone() });
                         s.withdraw_tx = Some(out.hash.clone());
-                        self.log(s, format!("withdraw sent by the taker, tx {}", out.hash));
+                        self.log(s, format!("withdraw(id) sent by the taker, tx {} ({})", out.hash, out.failure().unwrap_or("executed")));
                     }
-                    Ok(out) => self.log(s, format!("withdraw by the taker failed ({}); waiting for the maker to withdraw", out.failure().unwrap_or("?"))),
-                    Err(e) => self.log(s, format!("the taker cannot send withdraw ({e:#}); waiting for the maker to withdraw")),
+                    Err(e) => self.log(s, format!("the taker could not send withdraw ({e:#}); trying again")),
                 }
             } else {
-                self.log(s, format!("the taker's account holds {have} yoctoNEAR, less than the {need} that a withdraw needs; the maker sends withdraw"));
+                self.log_once(s, format!("the taker's key holds {have} yoctoNEAR, less than the {need} that withdraw needs; waiting for another account to send it"));
             }
-            s.withdraw_tx.get_or_insert_with(|| "not sent by the taker".into());
         }
-        if credit.intents > 0 && s.stage == TakerStage::Claimed && now >= s.stage_at.saturating_add(self.cfg.payout_wait_secs) {
-            let args = serde_json::json!({"token": self.cfg.chains.token, "owner": s.taker_account}).to_string();
+        if s.stage == TakerStage::Claimed && now >= s.stage_at.saturating_add(self.cfg.payout_wait_secs) {
+            let args = serde_json::json!({"id": hex::encode(id)}).to_string();
             let gas = escrow::GAS_WITHDRAW;
             self.log(
                 s,
                 format!(
-                    "claimed; payout pending: the maker has not sent withdraw after {}s. Any NEAR account can send it: call {} withdraw {args} with {} Tgas and no deposit (the caller needs about {} NEAR free for the gas check). The tokens are safe in the escrow as a credit of {} for {}",
+                    "claimed; payout pending: not paid after {}s (payout {:?}). The engine keeps sending withdraw. Any NEAR account can send it too: call {} withdraw {args} with {} Tgas and no deposit (the caller needs about {} NEAR free for the gas check). The tokens can only go to {}",
                     self.cfg.payout_wait_secs,
+                    v.payout,
                     self.cfg.chains.escrow,
                     gas / crate::near::TGAS,
-                    (gas as u128 * PESSIMISTIC_GAS_PRICE) as f64 / crate::near::ONE_NEAR as f64,
-                    credit.intents,
+                    ((gas + crate::near::TGAS) as u128 * PURCHASE_GAS_PRICE) as f64 / crate::near::ONE_NEAR as f64,
                     s.taker_account
                 ),
             );
@@ -1260,13 +1281,13 @@ impl Taker {
                 args,
                 gas: gas.to_string(),
                 deposit: "0".into(),
-                credit: credit.intents.to_string(),
+                credit: v.amount.to_string(),
             });
             self.set_stage(s, TakerStage::PayoutPending, now);
             return Ok(Next::At(now + POLL_SECS));
         }
-        self.log_once(s, format!("claim final; waiting for the payout (credit {}, in intents {paid})", credit.intents));
-        Ok(Next::At(now + if s.stage == TakerStage::PayoutPending { 5 * POLL_SECS } else { POLL_SECS }))
+        self.log_once(s, format!("claim final; waiting for the payout ({:?})", v.payout));
+        Ok(Next::At(now + POLL_SECS))
     }
 
     /// Joint notes that still need a sweep: unspent, and worth more than the sweep fee

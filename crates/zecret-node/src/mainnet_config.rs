@@ -83,8 +83,16 @@ fn mainnet_maker_requires_and_passes_the_premium_check() {
     let mut low = m.clone();
     low.premium_zats = (need - 1) as u64;
     assert!(low.check_premium().is_err());
-    // The stipend is the one the paper's taker side measured (0.03 NEAR), and the taker accepts the premium.
-    assert_eq!(m.stipend, 3 * ONE_NEAR / 100);
+    // The stipend pays the taker's commit_claim, claim and withdraw(id) with a margin of 2
+    // (docs/experiments/light-payout.md: 0.06 NEAR; the largest balance NEAR checks is
+    // 0.0278 NEAR). The taker accepts 0.03 NEAR, which works at today's gas price.
+    assert_eq!(m.stipend, 6 * ONE_NEAR / 100);
+    assert_eq!(taker().min_stipend, 3 * ONE_NEAR / 100);
+    assert!(m.stipend >= 2 * (27_831 * ONE_NEAR / 1_000_000));
+    // costs_per_request covers the account creation that the stipend transfer pays
+    // (0.007115 NEAR burnt), the swap's escrow storage (522 bytes, 0.00522 NEAR), the
+    // maker's deposit, open and set_ready gas, and a refund.
+    assert!(p.costs_per_request_yocto >= 7_115 * ONE_NEAR / 1_000_000 + 5_220 * ONE_NEAR / 1_000_000 + 5 * ONE_NEAR / 1000);
     assert!(m.premium_zats <= taker().max_premium);
 }
 

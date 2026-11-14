@@ -83,7 +83,8 @@ fn swap_view(state: &str, reveal_window: u64, locked_at: Option<u64>, near: &Nea
         "taker_pk": hex::encode(near.public_bytes()), "taker_account": near.implicit_account(),
         "a_pub": hex::encode((keys::g() * a).to_bytes()), "b_pub": rec.quote.as_ref().unwrap().b_pub,
         "t0": t0, "t1": t0 + 600, "t2": t0 + 1500, "reveal_window": reveal_window, "state": state,
-        "locked_at": locked_at, "commitment": null, "a": null, "b": null
+        "locked_at": locked_at, "commitment": null, "a": null, "b": null,
+        "payout": "none", "recipient": null
     })
 }
 
