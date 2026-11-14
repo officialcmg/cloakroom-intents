@@ -27,3 +27,10 @@
 {"slot": "27", "at": "2026-11-14T09:30:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
 {"slot": "28", "at": "2026-11-14T09:45:00Z", "result": "paused", "note": "maker fault (missed refund under RPC rate limits), fix and release; see NOTES.md"}
 {"slot":"29","at":"2026-11-14T10:00:00Z","result":"missed"}
+{"slot": "30", "at": "2026-11-14T10:21:20Z", "secs": 363, "exit": 0, "result": "done", "stage": "done", "title": "You received 0.2877 test USDC on NEAR", "tail": ""}
+{"slot": "31", "at": "2026-11-14T10:30:00Z", "result": "frozen", "note": "the build machine was suspended from about 10:31 to 11:07 with this swap in flight; test-machine fault"}
+{"slot": "b01", "at": "2026-11-14T11:08:09Z", "secs": 574, "exit": 0, "result": "done", "stage": "done", "title": "You received 0.2877 test USDC on NEAR", "tail": ""}
+{"slot": "b02", "at": "2026-11-14T11:17:52Z", "secs": 409, "exit": 0, "result": "done", "stage": "done", "title": "You received 0.2877 test USDC on NEAR", "tail": ""}
+{"slot": "b03", "at": "2026-11-14T11:24:51Z", "secs": 428, "exit": 0, "result": "done", "stage": "done", "title": "You received 0.2877 test USDC on NEAR", "tail": ""}
+{"slot": "b04", "at": "2026-11-14T11:32:06Z", "secs": 453, "exit": 0, "result": "done", "stage": "done", "title": "You received 0.2877 test USDC on NEAR", "tail": ""}
+{"slot": "b05", "at": "2026-11-14T11:39:52Z", "secs": 364, "exit": 0, "result": "done", "stage": "done", "title": "You received 0.2877 test USDC on NEAR", "tail": ""}
