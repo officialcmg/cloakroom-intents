@@ -45,3 +45,17 @@ were moved to `escrow3`. The slots that fall in this window are recorded as `swi
   as `missed`. Three slots are added at the end (11:30, 11:45, 12:00) in their place.
 - Slot 15's swap was cut off in the test browser. Its recovery file is in
   `.tools/testnet/hosted/` on the build machine.
+
+## 06:39 to 07:27 UTC: the maker missed a refund on `escrow3` (serious; soak paused)
+
+- What happened: the machine restart cut slot 15 off after the maker had opened its
+  escrow (swap `c2b9fa50…`, 0.2877 tUSDC, opened 06:39). The taker never funded. The
+  maker had to refund. It did not: from 06:53 at the latest, every NEAR RPC call of the
+  hosted maker was answered `-429 Rate limits exceeded` by `rpc.testnet.fastnear.com`,
+  including its `send_tx`. The punish deadline t2 (07:18:51) passed with the escrow
+  still Open. The maker's log then repeats "past t2 with the escrow Open: only the
+  taker can settle it now" about once per second.
+- Effect: 0.2877 test USDC of the maker is locked in `escrow3` for a taker key that no
+  longer exists. On mainnet the same fault would let a taker who never paid claim real
+  USDC. The maker also cannot serve new swaps while it is rate-limited.
+- The soak was stopped at 07:27 until this is fixed.
