@@ -1,3 +1,34 @@
 
 ===== start maker --vanish-at Opened =====
-[maker 1794633013] up: UA uregtest13yrrdukf50vlgdt0hqs64z0qc8k7n7sm7a3ztk394wv9xn0xzq5apsun3t4rnzkhvhjdk4lpvlwhzaw7khg87pgjfp2jw3du2ga7wgj4 NEAR maker.test.near key ed25519:FCrGUZecSQSCfrq3NN15kEAj2v4FbAfwBXfnuXnd6GZ5
+[maker 1794634575] up: UA uregtest1jeu9735myyj2xe2dqgr7jk63jqysscd52w2mdzamdv9medwmvrngggu3ujewvuzrfz7yvzzapn9st07uzfheelkws0nt06d0v57l562c NEAR maker.test.near key ed25519:2GTdyop5CtebbY9YoKwkg6AUVbfXAcvkdhUk11HyrNH9
+[maker 1794634589] bd70d995 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto)
+[maker 1794634589] bd70d995 stage Quoting
+[maker 1794634589] {"type":"zcash_tx","swap":"bd70d995f942735ea7eb3d74d98b111c","what":"quote","txid":"c81864403796a804762b316a956fba08d3f72c1aba1222964329e7555a139a77"}
+[maker 1794634589] bd70d995 encrypted QUOTE sent in tx c81864403796a804762b316a956fba08d3f72c1aba1222964329e7555a139a77
+[maker 1794634589] bd70d995 stage Quoted
+[maker 1794634595] bd70d995 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 97ca9749
+[maker 1794634595] bd70d995 stage Opening
+[maker 1794634597] bd70d995 added 100000000000000000000000 yoctoNEAR of storage funds to the escrow, tx DqFtvUqP3WywAsmo9mH42QS6vDWvNCDbDFey33eReboG
+[maker 1794634600] {"type":"near_tx","swap":"bd70d995f942735ea7eb3d74d98b111c","what":"deposit","hash":"4s5T1mrTKC8kyzgGpTyTJeR6wnPbgXsCC4KXWVdMzn8t"}
+[maker 1794634600] bd70d995 deposited 30000000000000000000000000 wrap.test.near into the maker's Verifier account before the open, tx 4s5T1mrTKC8kyzgGpTyTJeR6wnPbgXsCC4KXWVdMzn8t (executed)
+[maker 1794634605] {"type":"near_tx","swap":"bd70d995f942735ea7eb3d74d98b111c","what":"open","hash":"3bix5s3tPUPRU8noKXXhCPAPnBp7jrTFfUJraoPcaMoJ"}
+[maker 1794634605] bd70d995 escrow OPEN id 97ca9749b3c2271695553b795f7ccddbc40cc862a8a5983ccf6c1df9eea097d1 amount 30000000000000000000000000 t0=1794634715 t1=1794634775 t2=1794634835 W=45, tx 3bix5s3tPUPRU8noKXXhCPAPnBp7jrTFfUJraoPcaMoJ
+[maker 1794634605] {"type":"near_tx","swap":"bd70d995f942735ea7eb3d74d98b111c","what":"stipend","hash":"GJFHENzGfMJWLLrfF7C9b35JbTr5AAcs1rjefYRXs73G"}
+[maker 1794634605] bd70d995 STIPEND of 60000000000000000000000 yoctoNEAR sent to 5da71bd2d6819a1f67469327056d2d506989ca088eb858bbdac01ff5b45c6f7b, tx GJFHENzGfMJWLLrfF7C9b35JbTr5AAcs1rjefYRXs73G
+[maker 1794634605] bd70d995 stage Opened
+[maker 1794634605] VANISH at stage Opened (process exits; state is stored)
+
+===== start maker --exit-after 1 =====
+[maker 1794634624] up: UA uregtest1jeu9735myyj2xe2dqgr7jk63jqysscd52w2mdzamdv9medwmvrngggu3ujewvuzrfz7yvzzapn9st07uzfheelkws0nt06d0v57l562c NEAR maker.test.near key ed25519:2GTdyop5CtebbY9YoKwkg6AUVbfXAcvkdhUk11HyrNH9
+[maker 1794634624] {"type":"alert","swap":"bd70d995f942735ea7eb3d74d98b111c","message":"t1 1794634775 is near (NEAR time 1794634778) and the escrow is Open"}
+[maker 1794634624] bd70d995 ALERT: t1 1794634775 is near (NEAR time 1794634778) and the escrow is Open
+[maker 1794634624] bd70d995 final block 260 (t=1794634778) is past t1 with state Open; refunding
+[maker 1794634624] bd70d995 stage RefundSent
+[maker 1794634627] {"type":"alert","swap":"bd70d995f942735ea7eb3d74d98b111c","message":"t1 1794634775 is near (NEAR time 1794634778) and the escrow is Open"}
+[maker 1794634627] bd70d995 ALERT: t1 1794634775 is near (NEAR time 1794634778) and the escrow is Open
+[maker 1794634627] {"type":"near_tx","swap":"bd70d995f942735ea7eb3d74d98b111c","what":"refund","hash":"4opEVvfjUw8dcQpUid5R93pdFtBP9D6TACiu6tFhxKD1"}
+[maker 1794634627] bd70d995 REFUND publishes b, tx 4opEVvfjUw8dcQpUid5R93pdFtBP9D6TACiu6tFhxKD1 (executed); waiting for it to be final
+[maker 1794634629] bd70d995 refund is final (block <= 268); 30000000000000000000000000 paid back into the maker's Verifier account
+[maker 1794634629] bd70d995 stage Refunded
+[maker 1794634629] bd70d995 DONE Refunded
+[maker 1794634629] 1 swap(s) terminal; exiting

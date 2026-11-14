@@ -1,43 +1,45 @@
 
 ===== start taker --zats 100000000 =====
-Error: misbehave is a test-only setting; this build does not accept it (build with the cargo feature `misbehave`)
-
-Stack backtrace:
-   0: <anyhow::Error as core::convert::From<serde_json::error::Error>>::from
-             at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/backtrace.rs:10:14
-   1: <core::result::Result<(), anyhow::Error> as core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, serde_json::error::Error>>>::from_residual
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/result.rs:2189:27
-   2: zecret::run_taker
-             at ./crates/zecret-node/src/main.rs:226:28
-   3: zecret::main
-             at ./crates/zecret-node/src/main.rs:172:20
-   4: <fn() -> core::result::Result<(), anyhow::Error> as core::ops::function::FnOnce<()>>::call_once
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
-   5: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/sys/backtrace.rs:166:18
-   6: std::rt::lang_start::<core::result::Result<(), anyhow::Error>>::{closure#0}
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:206:18
-   7: <&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe as core::ops::function::FnOnce<()>>::call_once
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:287:21
-   8: std::panicking::catch_unwind::do_call::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
-   9: std::panicking::catch_unwind::<i32, &dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
-  10: std::panic::catch_unwind::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
-  11: std::rt::lang_start_internal::{closure#0}
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:175:24
-  12: std::panicking::catch_unwind::do_call::<std::rt::lang_start_internal::{closure#0}, isize>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
-  13: std::panicking::catch_unwind::<isize, std::rt::lang_start_internal::{closure#0}>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
-  14: std::panic::catch_unwind::<std::rt::lang_start_internal::{closure#0}, isize>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
-  15: std::rt::lang_start_internal
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:171:5
-  16: main
-  17: __libc_start_call_main
-             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
-  18: __libc_start_main_impl
-             at ./csu/../csu/libc-start.c:360:3
-  19: _start
+[taker 1794634703] new swap 8e7ab026 for 100000000 zats; NEAR account 0fdc059f1a2406947a63aacf7cc158c62f46ce0a66fa12a1e3b461b41fb9ef98; wallet uregtest19tjef53zkqamr47j3zl0a9vw5wl05qw24uckzvyx46z9f07wzqxsp9sz3terh3hw6sefq75d6xz9z0sy4nxhk79lwwfx8qyxss4t4dt2
+[taker 1794634703] 8e7ab026 stage WaitingDeposit
+[taker 1794634703] balance 208333333 zats
+[taker 1794634703] {"type":"activity","swap":"8e7ab026879d5987a9ddddd2e7b49336","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794634708] balance 0 zats
+[taker 1794634708] {"type":"zcash_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"rfq","txid":"df81c5a372767dfd13799e3bb4f60f70d9e68e1fc61709b06f8dc2083eface86"}
+[taker 1794634708] 8e7ab026 encrypted RFQ for 100000000 zats sent to the maker in shielded tx df81c5a372767dfd13799e3bb4f60f70d9e68e1fc61709b06f8dc2083eface86
+[taker 1794634708] 8e7ab026 stage RfqSent
+[taker 1794634710] balance 208323333 zats
+[taker 1794634716] 8e7ab026 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
+[taker 1794634716] {"type":"quote","swap":"8e7ab026879d5987a9ddddd2e7b49336","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1qezshmptv3pwl2pd9qrefrsyrgh86efd7snqvth9teygt3gjw3na9c7r9z9ydk8pkyktaq0tcq2h2rehq29rdk02wleyl4fypclq85ug"}
+[taker 1794634716] {"type":"activity","swap":"8e7ab026879d5987a9ddddd2e7b49336","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794634718] balance 0 zats
+[taker 1794634718] {"type":"zcash_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"accept","txid":"b900af0397ce8d4e22a0a6486dd71d466790e893fd82963b56c79b93bf096442"}
+[taker 1794634718] 8e7ab026 encrypted ACCEPT with 50000 zats premium sent in tx b900af0397ce8d4e22a0a6486dd71d466790e893fd82963b56c79b93bf096442; joint address uregtest1qezshmptv3pwl2pd9qrefrsyrgh86efd7snqvth9teygt3gjw3na9c7r9z9ydk8pkyktaq0tcq2h2rehq29rdk02wleyl4fypclq85ug
+[taker 1794634718] 8e7ab026 stage Accepted
+[taker 1794634720] balance 208263333 zats
+[taker 1794634724] 8e7ab026 escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)
+[taker 1794634726] 8e7ab026 escrow 08136d81 verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
+[taker 1794634726] {"type":"escrow_verified","swap":"8e7ab026879d5987a9ddddd2e7b49336","escrow_id":"08136d81d086cf810700eef65b8914d7d3abac020b0e6a17ceca7206e71c9d39","t0":1794635154,"t1":1794635214,"t2":1794635274}
+[taker 1794634726] 8e7ab026 [MISBEHAVE free-claim] escrow verified; NOT funding; will try to claim after t0
+[taker 1794634726] 8e7ab026 stage Funded
+[taker 1794634732] 8e7ab026 [MISBEHAVE free-claim] commit_claim without Ready before t2 REJECTED by the escrow: {"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: NotClaimable: commit_claim needs Ready before t1, or any time from t2"}}}} at escrow.test.near; waiting for t2
+[taker 1794634732] 8e7ab026 R2c: claim window closed (NEAR time 1794635267, t1 1794635214, budget 15s); not committing; waiting for the maker's refund or for t2 1794635274
+[taker 1794634736] {"type":"near_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"commit_claim","hash":"BzQ9kokvFceX957uYzWnvDYMLiB4q9hzSu4pLQmca9Xh"}
+[taker 1794634736] 8e7ab026 past t2 with escrow Open: LOCKED via the punish path, tx BzQ9kokvFceX957uYzWnvDYMLiB4q9hzSu4pLQmca9Xh [MISBEHAVE free-claim, never funded]
+[taker 1794634736] 8e7ab026 stage Committed
+[taker 1794634738] 8e7ab026 lock final (block 746); revealing a before the deadline 1794635323
+[taker 1794634738] 8e7ab026 stage Revealed
+[taker 1794634738] 8e7ab026 claim(a) signed and stored, tx 9dg8jdrmTBuuEEKVR9apLyGk365LRkzryz6u3TKD9WZE; it goes out on the next step
+[taker 1794634740] {"type":"near_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"claim","hash":"9dg8jdrmTBuuEEKVR9apLyGk365LRkzryz6u3TKD9WZE"}
+[taker 1794634740] 8e7ab026 REVEALED a with claim, tx 9dg8jdrmTBuuEEKVR9apLyGk365LRkzryz6u3TKD9WZE; waiting for the claim to be final
+[taker 1794634742] 8e7ab026 claim is final (block 753)
+[taker 1794634742] 8e7ab026 stage Claimed
+[taker 1794634745] {"type":"near_tx","swap":"8e7ab026879d5987a9ddddd2e7b49336","what":"withdraw","hash":"23SZetkBgPdDU4F4YixyndVk2jLLXZttwRebJhqJGfCi"}
+[taker 1794634745] 8e7ab026 withdraw(id) sent by the taker, tx 23SZetkBgPdDU4F4YixyndVk2jLLXZttwRebJhqJGfCi (executed)
+[taker 1794634745] 8e7ab026 claim final; waiting for the payout (Due)
+[taker 1794634745] 8e7ab026 claim final; waiting for the payout (Sending)
+[taker 1794634747] 8e7ab026 PAYOUT: 30000000000000000000000000 of wrap.test.near paid into the Verifier, owned by 0fdc059f1a2406947a63aacf7cc158c62f46ce0a66fa12a1e3b461b41fb9ef98 (holds 30000000000000000000000000 now)
+[taker 1794634747] 8e7ab026 payout 30000000000000000000000000 wrap.test.near to 0fdc059f1a2406947a63aacf7cc158c62f46ce0a66fa12a1e3b461b41fb9ef98 in intents
+[taker 1794634747] 8e7ab026 stage Completed
+[taker 1794634747] 8e7ab026 DONE Completed
+[taker 1794634747] finished: Completed

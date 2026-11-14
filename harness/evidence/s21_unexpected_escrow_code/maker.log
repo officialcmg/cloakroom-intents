@@ -1,23 +1,23 @@
 
 ===== start maker --exit-after 1 =====
-[maker 1794628655] up: UA uregtest148r5xjxkpar7vr9ghgmmjhnncwhuq75gw8c9xgcwg7en29t90gg67rtxtjayaltven7dd9ljcakd4wzcsklz8swg2e0umx24zvud8x2n NEAR maker.test.near key ed25519:2W4LfjLe8SV5UHhYitEdgGoSMd4kVDf6WZj1AY94rz99
-[maker 1794628665] 6ff71174 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto)
-[maker 1794628665] 6ff71174 stage Quoting
-[maker 1794628665] {"type":"zcash_tx","swap":"6ff7117431ade7bb6a58866f677a537e","what":"quote","txid":"4cc1beade1cbb3bee13f85c37bc927bc17ba4a9a1fbc7689ffaf2ec2ae488012"}
-[maker 1794628665] 6ff71174 encrypted QUOTE sent in tx 4cc1beade1cbb3bee13f85c37bc927bc17ba4a9a1fbc7689ffaf2ec2ae488012
-[maker 1794628665] 6ff71174 stage Quoted
-[maker 1794628669] 6ff71174 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: false); escrow id cece4754
-[maker 1794628669] 6ff71174 stage Opening
-[maker 1794628675] {"type":"near_tx","swap":"6ff7117431ade7bb6a58866f677a537e","what":"open","hash":"4H7BTtNKD6QrH1dBaYjV23WV3w5mDx259cGuykepGDEB"}
-[maker 1794628675] 6ff71174 escrow OPEN id cece4754c39951ec6e8cadc57f8708f246edf1a45b14fe4b88f6daf1aa1b10be amount 30000000000000000000000000 t0=1794630181 t1=1794630241 t2=1794630301 W=45, tx 4H7BTtNKD6QrH1dBaYjV23WV3w5mDx259cGuykepGDEB
-[maker 1794628675] {"type":"near_tx","swap":"6ff7117431ade7bb6a58866f677a537e","what":"stipend","hash":"E7TexqGNMiqfUbCo6GrrCeE2ZeUzYU5wYva8yp7mNMrC"}
-[maker 1794628675] 6ff71174 STIPEND of 60000000000000000000000 yoctoNEAR sent to 2198b3cb8287b88a18b213d9cb46b6778fd4fe0aecd14fb115928451e44f88b7, tx E7TexqGNMiqfUbCo6GrrCeE2ZeUzYU5wYva8yp7mNMrC
-[maker 1794628675] 6ff71174 stage Opened
-[maker 1794628679] 6ff71174 no funding before t0; refunding
-[maker 1794628679] 6ff71174 stage RefundSent
-[maker 1794628682] {"type":"near_tx","swap":"6ff7117431ade7bb6a58866f677a537e","what":"refund","hash":"p8LBsWgEJqNjShD7dZjJRfXPMW5MxPeT2ZDz5GCcWPQ"}
-[maker 1794628682] 6ff71174 REFUND publishes b, tx p8LBsWgEJqNjShD7dZjJRfXPMW5MxPeT2ZDz5GCcWPQ (executed); waiting for it to be final
-[maker 1794628683] 6ff71174 refund is final (block <= 3240); 30000000000000000000000000 paid back into the maker's Verifier account
-[maker 1794628683] 6ff71174 stage Refunded
-[maker 1794628683] 6ff71174 DONE Refunded
-[maker 1794628683] 1 swap(s) terminal; exiting
+[maker 1794634118] up: UA uregtest1rtu9k4v82288qscmfkt4wjkyg0pr7e8cr8gj9talqraq9gs7tfcwthds9yeqme4scnsntdtn4y6djdw98cvly7tsn5yqgvw9jyg9fl9q NEAR maker.test.near key ed25519:FCrGUZecSQSCfrq3NN15kEAj2v4FbAfwBXfnuXnd6GZ5
+[maker 1794634129] aff030f5 RFQ for 100000000 zats decrypted and verified; quoting price 30000000000000000000000000 (premium 50000 zats, stipend 60000000000000000000000 yocto)
+[maker 1794634129] aff030f5 stage Quoting
+[maker 1794634129] {"type":"zcash_tx","swap":"aff030f52a525269dafa3c6cb2fdbaf3","what":"quote","txid":"9ba492ef3d4af846fa3de5a700b0136b5502a1b89f4ccb76268c5c175396b6bd"}
+[maker 1794634129] aff030f5 encrypted QUOTE sent in tx 9ba492ef3d4af846fa3de5a700b0136b5502a1b89f4ccb76268c5c175396b6bd
+[maker 1794634129] aff030f5 stage Quoted
+[maker 1794634135] aff030f5 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 7e4a2578
+[maker 1794634135] aff030f5 stage Opening
+[maker 1794634140] {"type":"near_tx","swap":"aff030f52a525269dafa3c6cb2fdbaf3","what":"open","hash":"BZ5q9vp7NSRqR7dr2GK5s7nY7a97wofwXKfYtfJhrY3Z"}
+[maker 1794634140] aff030f5 escrow OPEN id 7e4a25782580fb38682cd9007a8a1c0c2c4c50ee48c5db2aad7d144e99607424 amount 30000000000000000000000000 t0=1794635085 t1=1794635145 t2=1794635205 W=45, tx BZ5q9vp7NSRqR7dr2GK5s7nY7a97wofwXKfYtfJhrY3Z
+[maker 1794634140] {"type":"near_tx","swap":"aff030f52a525269dafa3c6cb2fdbaf3","what":"stipend","hash":"q3QL8vqWXrEU6eWhMWLjpvrvk88JswneEvoL8iy38LX"}
+[maker 1794634140] aff030f5 STIPEND of 60000000000000000000000 yoctoNEAR sent to 1c98808c8cff14e18a0753e5bcfefc7e365b71bd9866d63c97501353890442c4, tx q3QL8vqWXrEU6eWhMWLjpvrvk88JswneEvoL8iy38LX
+[maker 1794634140] aff030f5 stage Opened
+[maker 1794634144] aff030f5 no funding before t0; refunding
+[maker 1794634144] aff030f5 stage RefundSent
+[maker 1794634148] {"type":"near_tx","swap":"aff030f52a525269dafa3c6cb2fdbaf3","what":"refund","hash":"5vv11UzRTmcmcPMirCEExE263kNYgo9dCqn5V2uPynM9"}
+[maker 1794634148] aff030f5 REFUND publishes b, tx 5vv11UzRTmcmcPMirCEExE263kNYgo9dCqn5V2uPynM9 (executed); waiting for it to be final
+[maker 1794634149] aff030f5 refund is final (block <= 3259); 30000000000000000000000000 paid back into the maker's Verifier account
+[maker 1794634149] aff030f5 stage Refunded
+[maker 1794634149] aff030f5 DONE Refunded
+[maker 1794634149] 1 swap(s) terminal; exiting

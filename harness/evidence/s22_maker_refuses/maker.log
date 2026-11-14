@@ -1,6 +1,6 @@
 
 ===== start maker  =====
-[maker 1794628704] up: UA uregtest16xn75xsaqa2swypj3hujzcmyuv4mg2mnxegkyvc6aktxen45xye7jwd6ay2whw5e9p7sselyavycqua37vvt6c8uldhqjnyp5gud7c9h NEAR maker.test.near key ed25519:2W4LfjLe8SV5UHhYitEdgGoSMd4kVDf6WZj1AY94rz99
-[maker 1794628714]  RFQ rejected: amount 100000000 outside 1000..=50000000; a refusal reply (over_limit) is queued
-[maker 1794628714] {"type":"zcash_tx","swap":"ae48310bcc9ec2b970f396ac87c2c4dc","what":"refusal","txid":"63661faeed132f99d4eb1fde09fae1e4787b9bd64dcb6953c57a6e4a213c611c"}
-[maker 1794628714] ae48310b REFUSAL (over_limit) sent to the taker in tx 63661faeed132f99d4eb1fde09fae1e4787b9bd64dcb6953c57a6e4a213c611c
+[maker 1794634167] up: UA uregtest1h9gmndk4p67y9tmjvy3tmzs4uj89heccfc5t9p97llk7mqe252rhsvpsuzn9glafyfweq6kskglxqcxdrq4ydwgdpcft3ltneqnys0pc NEAR maker.test.near key ed25519:FCrGUZecSQSCfrq3NN15kEAj2v4FbAfwBXfnuXnd6GZ5
+[maker 1794634178]  RFQ rejected: amount 100000000 outside 1000..=50000000; a refusal reply (over_limit) is queued
+[maker 1794634178] {"type":"zcash_tx","swap":"d8147dcb82247462f2db3b54f864a221","what":"refusal","txid":"82b86a65c4410e4aeb86383eaff526dca8c546e16b6672ee4dac4764b72112f9"}
+[maker 1794634178] d8147dcb REFUSAL (over_limit) sent to the taker in tx 82b86a65c4410e4aeb86383eaff526dca8c546e16b6672ee4dac4764b72112f9

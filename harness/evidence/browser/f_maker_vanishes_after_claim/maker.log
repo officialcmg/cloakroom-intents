@@ -1,17 +1,19 @@
-[maker 1794630421] relay for direct exits on http://127.0.0.1:3410/execute-intents
-[maker 1794630421] up: UA uregtest1na98geu9tlt8ka7ctuqx3gygaxlyvpm8ztjayzeadhx4n45u4us7z2zurewuq82gcmrx80r5p7x88xr5n0kqsv5ffmy56dd3xyray83p NEAR maker.test.near key ed25519:4pVBHemxYrniUFar9MeJaduvoLEGWXZgfakSGpEE1JcF
-[maker 1794630492] ae9a7068 RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
-[maker 1794630492] ae9a7068 stage Quoting
-[maker 1794630492] {"type":"zcash_tx","swap":"ae9a70686de4f564eae2a28d40ddff93","what":"quote","txid":"4e6876762617078916f29ef08f77cf5e6034f196bcaca741bd5b9988096d1610"}
-[maker 1794630492] ae9a7068 encrypted QUOTE sent in tx 4e6876762617078916f29ef08f77cf5e6034f196bcaca741bd5b9988096d1610
-[maker 1794630492] ae9a7068 stage Quoted
-[maker 1794630520] ae9a7068 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id e38e94d5
-[maker 1794630520] ae9a7068 stage Opening
-[maker 1794630525] {"type":"near_tx","swap":"ae9a70686de4f564eae2a28d40ddff93","what":"open","hash":"8AvSyxrLor3rN3bVBQwceJ3mxg8iMctcRUSbTfF8XMp3"}
-[maker 1794630525] ae9a7068 escrow OPEN id e38e94d539dce262c2d7cefd711077663a9d477815cb850df23c906d412df5c5 amount 29988000000000000000000000 t0=1794631210 t1=1794631360 t2=1794631510 W=60, tx 8AvSyxrLor3rN3bVBQwceJ3mxg8iMctcRUSbTfF8XMp3
-[maker 1794630525] {"type":"near_tx","swap":"ae9a70686de4f564eae2a28d40ddff93","what":"stipend","hash":"SGdNZvpw2mAkiekznyceiNXWxB9ixEGDnPzGPxWq4g4"}
-[maker 1794630525] ae9a7068 STIPEND of 30000000000000000000000 yoctoNEAR sent to 35f8e4041cd3142cc2af68e33988367d18afd7e4c7777d6d89af7642fb6e99df, tx SGdNZvpw2mAkiekznyceiNXWxB9ixEGDnPzGPxWq4g4
-[maker 1794630525] ae9a7068 stage Opened
-[maker 1794630559] {"type":"near_tx","swap":"ae9a70686de4f564eae2a28d40ddff93","what":"set_ready","hash":"jG3YiLPpC3Z8hBgj9QLNFpQ3wbxAoY782toTy5hHZnz"}
-[maker 1794630559] ae9a7068 joint note 99970000 zats with 2 confirmations (k_Z = 2); READY, tx jG3YiLPpC3Z8hBgj9QLNFpQ3wbxAoY782toTy5hHZnz
-[maker 1794630559] ae9a7068 stage Ready
+[maker 1794635905] relay for direct exits on http://127.0.0.1:3410/execute-intents
+[maker 1794635905] up: UA uregtest1uagvvzjfvr0kmxggakqqhdjv0f7ghcuyx2ayp85rh80f0vknmuvpc9kc59anvw7tzh7swywhcw2z5n82w7p4rz78sjm6cfg2yqlutq7j NEAR maker.test.near key ed25519:G2uua8e7C23BUeAXfQt2A45fu5r5WVnDg81g2S7iDjFp
+[maker 1794635978] b5341c75 RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794635978] b5341c75 stage Quoting
+[maker 1794635978] {"type":"zcash_tx","swap":"b5341c75c6c5e7b417b366433c724d1e","what":"quote","txid":"a40161ab6b06205e6cd06a9207c896f5a5498b6721a2517e14348a7081e57e0e"}
+[maker 1794635978] b5341c75 encrypted QUOTE sent in tx a40161ab6b06205e6cd06a9207c896f5a5498b6721a2517e14348a7081e57e0e
+[maker 1794635978] b5341c75 stage Quoted
+[maker 1794636012] b5341c75 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id 99b8d3f5
+[maker 1794636012] b5341c75 stage Opening
+[maker 1794636015] {"type":"near_tx","swap":"b5341c75c6c5e7b417b366433c724d1e","what":"deposit","hash":"6vjJZzsgMX7NHH665SKXB8szDfvcZ9nkxWts5JtpLrh"}
+[maker 1794636015] b5341c75 deposited 29988000000000000000000000 wrap.test.near into the maker's Verifier account before the open, tx 6vjJZzsgMX7NHH665SKXB8szDfvcZ9nkxWts5JtpLrh (executed)
+[maker 1794636020] {"type":"near_tx","swap":"b5341c75c6c5e7b417b366433c724d1e","what":"open","hash":"A1h7BcGBhvdUKTo8Ud1kCca2rAopt3ciWbdwd37Nps7q"}
+[maker 1794636020] b5341c75 escrow OPEN id 99b8d3f57a9f34c501344ad46b5419988f8d95622afe4012bedce3621f526f14 amount 29988000000000000000000000 t0=1794636705 t1=1794636855 t2=1794637005 W=60, tx A1h7BcGBhvdUKTo8Ud1kCca2rAopt3ciWbdwd37Nps7q
+[maker 1794636020] {"type":"near_tx","swap":"b5341c75c6c5e7b417b366433c724d1e","what":"stipend","hash":"7WmPwPEbmuXGH5Qzso7iMeAHLEU5eFkJqmvr1DwjbNWh"}
+[maker 1794636020] b5341c75 STIPEND of 30000000000000000000000 yoctoNEAR sent to c4336bb15aa2754252b52b9b55c5fe7eb2cb2b753c39928b1e1467f6acde29ba, tx 7WmPwPEbmuXGH5Qzso7iMeAHLEU5eFkJqmvr1DwjbNWh
+[maker 1794636020] b5341c75 stage Opened
+[maker 1794636055] {"type":"near_tx","swap":"b5341c75c6c5e7b417b366433c724d1e","what":"set_ready","hash":"A5XtELPtjf68AtpHsy52gwNKMwvYgjLWXaTdq52dJ8U4"}
+[maker 1794636055] b5341c75 joint note 99970000 zats with 2 confirmations (k_Z = 2); READY, tx A5XtELPtjf68AtpHsy52gwNKMwvYgjLWXaTdq52dJ8U4
+[maker 1794636055] b5341c75 stage Ready

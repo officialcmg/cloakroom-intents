@@ -84,6 +84,15 @@ with "WIP".
 - The branch's final state is the switch: the testnet maker, taker and site configs name
   `escrow3`, the directory is `paused`, and `deploy/maker/RELEASE` has a new line. Merging
   it into `main` IS the switch. Run it only with `docs/LIGHT_PAYOUT_SWITCH.md`.
+- Checks on the merged tree (05:00 to 06:10 UTC): escrow 53 unit, 9 sandbox, 6 review-5
+  and 6 USDC tests; `zecret-core` 44 unit and 39 integration tests; `zecret-node` 16
+  unit, 9 relay and 1 sandbox test; `zecret-intents` 24 unit, 21 recorded, 2 sandbox;
+  `zecret-wasm` 3 unit, 3 recorded, 3 sandbox; `zecret-deploy` 23; clippy
+  `-D warnings` clean in `crates`, `deploy` and the escrow; start script 19 cases;
+  23 native scenarios; the browser scenarios (`harness/BROWSER_RESULTS.md`); website
+  typecheck, lint, 121 unit tests, build, 96 Playwright tests;
+  `scripts/mainnet-preflight.sh` 24 passed; `zecret-deploy plan` on mainnet passed
+  (read-only). Rehearsal on testnet: one native and one browser swap with maker4.
 
 ## Latest (2026-11-14 01:30 UTC)
 

@@ -1,73 +1,45 @@
 
 ===== start taker --zats 100000000 --vanish-at Funded =====
-[taker 1794633327] new swap 06fd9223 for 100000000 zats; NEAR account 249519dadb75b92eceba3c99c62560743fb6a46fc5c7b14ed602420ebdd81401; wallet uregtest1aq0qlw7w795uynqncg7wcl6ty7jj200rjk80sejkmlxle5xectgdrkc87qtnkqzq5zs9jwttycd9phzwcx2udachl3md57cfpy3ytt6e
-[taker 1794633327] 06fd9223 stage WaitingDeposit
-[taker 1794633327] balance 208333333 zats
-[taker 1794633327] {"type":"activity","swap":"06fd9223d792a0764dc016b4b249307a","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
-[taker 1794633342] balance 0 zats
-[taker 1794633342] {"type":"zcash_tx","swap":"06fd9223d792a0764dc016b4b249307a","what":"rfq","txid":"9cc896b586718020ceec65b1772d65fa6510a5fb1f0fa2b17a1382d71d278a82"}
-[taker 1794633342] 06fd9223 encrypted RFQ for 100000000 zats sent to the maker in shielded tx 9cc896b586718020ceec65b1772d65fa6510a5fb1f0fa2b17a1382d71d278a82
-[taker 1794633342] 06fd9223 stage RfqSent
-[taker 1794633344] balance 208323333 zats
-[taker 1794633352] 06fd9223 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
-[taker 1794633352] {"type":"quote","swap":"06fd9223d792a0764dc016b4b249307a","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1t46eqs2cf02pwcuzam7z8qhuhntsm0f3a7vckqx6rzrkt2p5jrhc5h2yp94fszpzen9gahspwymaz8f95epst6t84845j8094v4xlee9"}
-[taker 1794633353] {"type":"activity","swap":"06fd9223d792a0764dc016b4b249307a","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
-[taker 1794633358] balance 0 zats
-[taker 1794633358] {"type":"zcash_tx","swap":"06fd9223d792a0764dc016b4b249307a","what":"accept","txid":"65daa5f101e416b4ec2ebe031d320b5896b4e1952b70f3b39a29932b719fc3c6"}
-[taker 1794633358] 06fd9223 encrypted ACCEPT with 50000 zats premium sent in tx 65daa5f101e416b4ec2ebe031d320b5896b4e1952b70f3b39a29932b719fc3c6; joint address uregtest1t46eqs2cf02pwcuzam7z8qhuhntsm0f3a7vckqx6rzrkt2p5jrhc5h2yp94fszpzen9gahspwymaz8f95epst6t84845j8094v4xlee9
-[taker 1794633358] 06fd9223 stage Accepted
-[taker 1794633360] balance 208263333 zats
-[taker 1794633364] 06fd9223 escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)
-[taker 1794633366] 06fd9223 escrow 764bc6ae verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
-[taker 1794633366] {"type":"escrow_verified","swap":"06fd9223d792a0764dc016b4b249307a","escrow_id":"764bc6ae5954f2f69e6092e3f4403d69b7550ceadde8d2d9b23bfa7863601ee5","t0":1794634027,"t1":1794634087,"t2":1794634147}
-[taker 1794633366] {"type":"activity","swap":"06fd9223d792a0764dc016b4b249307a","kind":"proving","label":"Building the proof for the payment to the shared address","estimated_secs":25}
-[taker 1794633372] 06fd9223 escrow 764bc6ae verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
-[taker 1794633372] {"type":"escrow_verified","swap":"06fd9223d792a0764dc016b4b249307a","escrow_id":"764bc6ae5954f2f69e6092e3f4403d69b7550ceadde8d2d9b23bfa7863601ee5","t0":1794634027,"t1":1794634087,"t2":1794634147}
-[taker 1794633372] balance 0 zats
-[taker 1794633372] {"type":"zcash_tx","swap":"06fd9223d792a0764dc016b4b249307a","what":"fund","txid":"e1ddf9e6960b500d471958fccdfb5f9eb2051c98406f118131c5bee65e73f6f4"}
-[taker 1794633372] 06fd9223 FUNDED the joint address in fully shielded tx e1ddf9e6960b500d471958fccdfb5f9eb2051c98406f118131c5bee65e73f6f4
-[taker 1794633372] 06fd9223 stage Funded
-[taker 1794633372] VANISH at stage Funded (process exits; state is stored)
+[taker 1794634639] new swap 0f5ef677 for 100000000 zats; NEAR account 80295b0a9abbb1b61fff95295b9943e2253922eba6ff6764d1e5b0f07c433023; wallet uregtest1jvdatzle4umvzzw02vgkplkh635kqhm44ygrlg3ug2r3ht6emqv5ggr0gdqgte0h6hu29tjnkp37xm0mu9tq4hej3sjhfwrhaue4t4h7
+[taker 1794634639] 0f5ef677 stage WaitingDeposit
+[taker 1794634639] balance 208333333 zats
+[taker 1794634639] {"type":"activity","swap":"0f5ef67793e372965e484c9eac313ba7","kind":"proving","label":"Building the proof for the request to the maker","estimated_secs":25}
+[taker 1794634644] balance 0 zats
+[taker 1794634644] {"type":"zcash_tx","swap":"0f5ef67793e372965e484c9eac313ba7","what":"rfq","txid":"f611197716de6c2bfce0229f2a56aefa848b3eb0898392aa7cb876f29c587996"}
+[taker 1794634644] 0f5ef677 encrypted RFQ for 100000000 zats sent to the maker in shielded tx f611197716de6c2bfce0229f2a56aefa848b3eb0898392aa7cb876f29c587996
+[taker 1794634644] 0f5ef677 stage RfqSent
+[taker 1794634646] balance 208323333 zats
+[taker 1794634652] 0f5ef677 QUOTE decrypted and verified (price 30000000000000000000000000, premium 50000 zats, stipend 60000000000000000000000 yocto, maker key valid)
+[taker 1794634652] {"type":"quote","swap":"0f5ef67793e372965e484c9eac313ba7","price":"30000000000000000000000000","premium":50000,"stipend":"60000000000000000000000","joint_address":"uregtest1lk4geqwuwx5x85m7l82p3ueq8tnu77uatfm3ecyq534v8p37qwlplc4cf4cstr8zcpr3m74969f7r23vf9wp2qet3va8afsr3vf7679x"}
+[taker 1794634652] {"type":"activity","swap":"0f5ef67793e372965e484c9eac313ba7","kind":"proving","label":"Building the proof for the acceptance and the premium","estimated_secs":25}
+[taker 1794634654] balance 0 zats
+[taker 1794634654] {"type":"zcash_tx","swap":"0f5ef67793e372965e484c9eac313ba7","what":"accept","txid":"810ad6f1be397e524c57c16a36a40c51be99b5ee6bd66f6377bc30ced65c2879"}
+[taker 1794634654] 0f5ef677 encrypted ACCEPT with 50000 zats premium sent in tx 810ad6f1be397e524c57c16a36a40c51be99b5ee6bd66f6377bc30ced65c2879; joint address uregtest1lk4geqwuwx5x85m7l82p3ueq8tnu77uatfm3ecyq534v8p37qwlplc4cf4cstr8zcpr3m74969f7r23vf9wp2qet3va8afsr3vf7679x
+[taker 1794634654] 0f5ef677 stage Accepted
+[taker 1794634656] balance 208263333 zats
+[taker 1794634660] 0f5ef677 escrow open and final; waiting for the stipend (0 of 60000000000000000000000 yoctoNEAR)
+[taker 1794634662] 0f5ef677 escrow fcfbd939 verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
+[taker 1794634662] {"type":"escrow_verified","swap":"0f5ef67793e372965e484c9eac313ba7","escrow_id":"fcfbd939a0df5184fd025bff733f9a5353fcfc7ab207e767a3b406b920a5aa78","t0":1794634930,"t1":1794634990,"t2":1794635050}
+[taker 1794634662] {"type":"activity","swap":"0f5ef67793e372965e484c9eac313ba7","kind":"proving","label":"Building the proof for the payment to the shared address","estimated_secs":25}
+[taker 1794634664] 0f5ef677 escrow fcfbd939 verified (11 checks) at a final block; stipend of 60000000000000000000000 yoctoNEAR arrived
+[taker 1794634664] {"type":"escrow_verified","swap":"0f5ef67793e372965e484c9eac313ba7","escrow_id":"fcfbd939a0df5184fd025bff733f9a5353fcfc7ab207e767a3b406b920a5aa78","t0":1794634930,"t1":1794634990,"t2":1794635050}
+[taker 1794634664] balance 0 zats
+[taker 1794634664] {"type":"zcash_tx","swap":"0f5ef67793e372965e484c9eac313ba7","what":"fund","txid":"a41c2eb3181af403efb3c0593adacf3ce1089de1164afcda4d1bc9f0ac3680da"}
+[taker 1794634664] 0f5ef677 FUNDED the joint address in fully shielded tx a41c2eb3181af403efb3c0593adacf3ce1089de1164afcda4d1bc9f0ac3680da
+[taker 1794634664] 0f5ef677 stage Funded
+[taker 1794634664] VANISH at stage Funded (process exits; state is stored)
 
 ===== start taker  =====
-Error: misbehave is a test-only setting; this build does not accept it (build with the cargo feature `misbehave`)
-
-Stack backtrace:
-   0: <anyhow::Error as core::convert::From<serde_json::error::Error>>::from
-             at /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/backtrace.rs:10:14
-   1: <core::result::Result<(), anyhow::Error> as core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible, serde_json::error::Error>>>::from_residual
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/result.rs:2189:27
-   2: zecret::run_taker
-             at ./crates/zecret-node/src/main.rs:226:28
-   3: zecret::main
-             at ./crates/zecret-node/src/main.rs:172:20
-   4: <fn() -> core::result::Result<(), anyhow::Error> as core::ops::function::FnOnce<()>>::call_once
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
-   5: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/sys/backtrace.rs:166:18
-   6: std::rt::lang_start::<core::result::Result<(), anyhow::Error>>::{closure#0}
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:206:18
-   7: <&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe as core::ops::function::FnOnce<()>>::call_once
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:287:21
-   8: std::panicking::catch_unwind::do_call::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
-   9: std::panicking::catch_unwind::<i32, &dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
-  10: std::panic::catch_unwind::<&dyn core::ops::function::Fn<(), Output = i32> + core::marker::Sync + core::panic::unwind_safe::RefUnwindSafe, i32>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
-  11: std::rt::lang_start_internal::{closure#0}
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:175:24
-  12: std::panicking::catch_unwind::do_call::<std::rt::lang_start_internal::{closure#0}, isize>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:581:40
-  13: std::panicking::catch_unwind::<isize, std::rt::lang_start_internal::{closure#0}>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:544:19
-  14: std::panic::catch_unwind::<std::rt::lang_start_internal::{closure#0}, isize>
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panic.rs:359:14
-  15: std::rt::lang_start_internal
-             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/rt.rs:171:5
-  16: main
-  17: __libc_start_call_main
-             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
-  18: __libc_start_main_impl
-             at ./csu/../csu/libc-start.c:360:3
-  19: _start
+[taker 1794634679] resuming swap 0f5ef677 at stage Funded
+[taker 1794634682] balance 108243333 zats
+[taker 1794634682] 0f5ef677 [MISBEHAVE late-commit] commit_claim after t1 REVERTED, publishing only a hash: {"ActionError":{"index":0,"kind":{"FunctionCallError":{"ExecutionError":"Smart contract panicked: BadState: swap is not Open or Ready"}}}} at escrow.test.near
+[taker 1794634682] {"type":"activity","swap":"0f5ef67793e372965e484c9eac313ba7","kind":"proving","label":"Building the proof that takes the ZEC back from the shared address","estimated_secs":25}
+[taker 1794634686] 0f5ef677 maker REFUNDED: read b from the escrow; sweeping the joint note of 100010000 zats from tx a41c2eb3181af403efb3c0593adacf3ce1089de1164afcda4d1bc9f0ac3680da
+[taker 1794634686] {"type":"zcash_tx","swap":"0f5ef67793e372965e484c9eac313ba7","what":"sweep","txid":"7e907a9b98a1fc770160d5062c34c9c184015b0bf753d63512fd3ba57603aebe"}
+[taker 1794634686] 0f5ef677 swept the joint note back with (a+b), tx 7e907a9b98a1fc770160d5062c34c9c184015b0bf753d63512fd3ba57603aebe; waiting for 2 confirmations
+[taker 1794634686] 0f5ef677 stage Recovering
+[taker 1794634688] balance 208243333 zats
+[taker 1794634690] 0f5ef677 recovery sweep 7e907a9b98a1fc770160d5062c34c9c184015b0bf753d63512fd3ba57603aebe has 2 confirmations (k_Z = 2); no joint note above the fee is left; done
+[taker 1794634690] 0f5ef677 stage Recovered
+[taker 1794634690] 0f5ef677 DONE Recovered
+[taker 1794634690] finished: Recovered

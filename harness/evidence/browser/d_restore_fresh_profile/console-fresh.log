@@ -1,20 +1,20 @@
-2026-11-14T04:18:20.138Z [zecret-timing] wasm_load 93
-2026-11-14T04:18:20.184Z [zecret-timing] verify_maker 46
-2026-11-14T04:18:22.774Z [zecret-engine] restored swap ad3e0e3c6f70eedfd6ed0fc6268aa365 at Zcash height 255
-2026-11-14T04:18:41.720Z [zecret-timing] proving_key_build 18928
-2026-11-14T04:18:43.805Z [zecret-engine] reconciled the restored swap with the chain at height 261
-2026-11-14T04:18:43.812Z [zecret-engine] restore done at height 261; core stage Funded
-2026-11-14T04:18:46.144Z [zecret-engine] restored: the request was already sent in tx 3a798bd5c966ebf3e0d9514fae6dfcc8c10016e3168d711da868ed76b85c616c (height 230)
-2026-11-14T04:18:46.152Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
-2026-11-14T04:18:46.154Z [zecret-engine] restored: the acceptance was already sent in tx 9b62367d64774042d9dbddcb67542f87482ccb6d30427962f1e55317a89af927 (height 243)
-2026-11-14T04:18:46.157Z [zecret-engine] restored: the joint address was already funded in tx f2fd7ce9717a795efda060d6f2c8fff835ccf2246e5ab40c7a3a59bc548329c5 (height 255)
-2026-11-14T04:18:46.166Z [zecret-engine] escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx CSrN2qtDa8krLLv6YdXDGtksa5ojLZ3XMJ7KVP2Cks23
-2026-11-14T04:18:48.015Z [zecret-engine] lock final (block 1623); revealing a before the deadline 1794630380
-2026-11-14T04:18:48.037Z [zecret-engine] claim(a) signed and stored, tx 2Xyzm9bnDE2yK4dVrENJhAeM3kLetYgLGzwbXKES2Nr9; it goes out on the next step
-2026-11-14T04:18:50.386Z [zecret-engine] REVEALED a with claim, tx 2Xyzm9bnDE2yK4dVrENJhAeM3kLetYgLGzwbXKES2Nr9; waiting for the claim to be final
-2026-11-14T04:18:52.055Z [zecret-engine] claim is final (block 1629)
-2026-11-14T04:18:54.643Z [zecret-engine] withdraw(id) sent by the taker, tx DZYeyqpqqnVUvJEvL2CqJ5DARiDMSGHPuVq41Cq6bgeS (executed)
-2026-11-14T04:18:54.643Z [zecret-engine] claim final; waiting for the payout (Due)
-2026-11-14T04:18:54.671Z [zecret-engine] claim final; waiting for the payout (Sending)
-2026-11-14T04:18:56.022Z [zecret-engine] PAYOUT: 29988000000000000000000000 of wrap.test.near paid into the Verifier, owned by 4ba266fbc2ae8fd1645f8d7fd9790b45e18a3164f81d52d300b9bf0f7064a518 (holds 29988000000000000000000000 now)
-2026-11-14T04:18:58.900Z [zecret-timing] direct_exit_relay 2828
+2026-11-14T05:55:56.566Z [zecret-timing] wasm_load 74
+2026-11-14T05:55:56.625Z [zecret-timing] verify_maker 59
+2026-11-14T05:55:59.146Z [zecret-engine] restored swap c218dc5e5821dab4a686e7cbc5bd099e at Zcash height 256
+2026-11-14T05:56:18.716Z [zecret-timing] proving_key_build 19548
+2026-11-14T05:56:20.793Z [zecret-engine] reconciled the restored swap with the chain at height 262
+2026-11-14T05:56:20.803Z [zecret-engine] restore done at height 262; core stage Funded
+2026-11-14T05:56:23.053Z [zecret-engine] restored: the request was already sent in tx b61cf78ae2f3ba0a19cd992ba42a7221c72e3188997a83342904e2fef0a7de92 (height 232)
+2026-11-14T05:56:23.058Z [zecret-engine] QUOTE decrypted and verified (price 29988000000000000000000000, premium 50000 zats, stipend 30000000000000000000000 yocto, maker key valid)
+2026-11-14T05:56:23.059Z [zecret-engine] restored: the acceptance was already sent in tx d4f4c5c859145dbb094f10f928cc247f9b1a91c6d8393556357b231ddc99044b (height 244)
+2026-11-14T05:56:23.061Z [zecret-engine] restored: the joint address was already funded in tx 6ff14193374dac6696f39fa5e1cecef63bd081d1194fe4daf48ebe5a4ec456a6 (height 256)
+2026-11-14T05:56:23.065Z [zecret-engine] escrow READY (final); LOCKED with commit_claim signed by the taker key (publishes only the commitment), tx 8uadF2kyWBFLtmoc7dNxELNctuwQvdA7qihDVnKZBqxw
+2026-11-14T05:56:25.016Z [zecret-engine] lock final (block 1644); revealing a before the deadline 1794636237
+2026-11-14T05:56:25.040Z [zecret-engine] claim(a) signed and stored, tx cru9wDdHabSQ5TeUdmeqLH2DQDgLuYmChmBjcKAwRsc; it goes out on the next step
+2026-11-14T05:56:27.303Z [zecret-engine] REVEALED a with claim, tx cru9wDdHabSQ5TeUdmeqLH2DQDgLuYmChmBjcKAwRsc; waiting for the claim to be final
+2026-11-14T05:56:29.041Z [zecret-engine] claim is final (block 1650)
+2026-11-14T05:56:31.550Z [zecret-engine] withdraw(id) sent by the taker, tx 9ZXoJrLj5mKGkP6He9RBMTLQB7HWjsFv4PNjxyLHmqt1 (executed)
+2026-11-14T05:56:31.550Z [zecret-engine] claim final; waiting for the payout (Due)
+2026-11-14T05:56:31.585Z [zecret-engine] claim final; waiting for the payout (Sending)
+2026-11-14T05:56:33.020Z [zecret-engine] PAYOUT: 29988000000000000000000000 of wrap.test.near paid into the Verifier, owned by a8db9a5543491ce0e617738d182610b772c0dd2b493f2c011f3790fcab4b9101 (holds 29988000000000000000000000 now)
+2026-11-14T05:56:35.803Z [zecret-timing] direct_exit_relay 2726
