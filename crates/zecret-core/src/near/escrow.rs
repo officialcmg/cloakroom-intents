@@ -16,23 +16,29 @@ pub const DOMAIN_SWAP_ID: &[u8] = b"near-escrow/v1/swap-id";
 pub const DOMAIN_COMMITMENT: &[u8] = b"near-escrow/v1/commitment";
 pub const DOMAIN_COMMIT_CLAIM: &[u8] = b"near-escrow/v1/commit-claim";
 
-/// Gas attached to each call. `claim` and `refund` check a Pallas scalar multiplication
-/// (16.8 Tgas burnt, measured by the contract's sandbox test); `commit_claim` checks one
-/// ed25519 signature (about 2 Tgas). A taker `withdraw` into Intents burns 42.4 Tgas.
-/// The taker's stipend must cover the prepaid gas of its calls. A signer must hold the
-/// prepaid gas at a pessimistic price (about 10^9 yoctoNEAR per gas in the 2.14.1 sandbox,
-/// 10 times the gas price): 25 Tgas needs about 0.025 NEAR, so a 0.03 NEAR stipend pays for
-/// `commit_claim` and `claim` one after the other, but not for a 100 Tgas `withdraw`.
+/// Gas attached to each call (measured in `contracts/near-escrow/tests/sandbox.rs` and
+/// docs/experiments/light-payout.md). `claim` and `refund` check a Pallas scalar
+/// multiplication (16.6 Tgas burnt); `commit_claim` checks one ed25519 signature.
+///
+/// A signer must hold its attached gas at `max(gas price, min_gas_purchase_price)` =
+/// 10^9 yoctoNEAR per gas today, 10 times the gas price: 25 Tgas needs 0.026 NEAR.
+/// The taker's key sends `commit_claim` (15), `claim` (25) and `withdraw` (25) from the
+/// stipend. The largest balance NEAR checks in that sequence is 0.0278 NEAR.
 pub const GAS_OPEN: u64 = 100 * TGAS;
+/// The maker's deposit of plain tokens into its own Verifier account.
+pub const GAS_DEPOSIT: u64 = 100 * TGAS;
 pub const GAS_SET_READY: u64 = 10 * TGAS;
 pub const GAS_COMMIT: u64 = 15 * TGAS;
-pub const GAS_REVEAL: u64 = 25 * TGAS;
-/// The escrow's Intents route (`withdraw` → `on_deposit` → `mt_transfer`) needs at least
-/// 110 Tgas; docs/security/fixes-2.md §8 asks clients to attach 200.
-pub const GAS_WITHDRAW: u64 = 200 * TGAS;
+/// `claim`: 17 Tgas is the measured minimum; with 25 the payout stays Due (it needs 34).
+pub const GAS_CLAIM: u64 = 25 * TGAS;
+/// `refund` with its payout in the same call (34 Tgas minimum).
+pub const GAS_REFUND: u64 = 50 * TGAS;
+/// `withdraw(id)`: one `mt_transfer` inside the Verifier. 19 Tgas is the measured minimum.
+pub const GAS_WITHDRAW: u64 = 25 * TGAS;
 pub const GAS_STORAGE: u64 = 10 * TGAS;
-/// `sweep(token)` needs at least 90 Tgas (contracts/near-escrow/README.md, Sweep).
-pub const GAS_SWEEP: u64 = 150 * TGAS;
+/// The price at which NEAR sells attached gas today (`min_gas_purchase_price`, protocol
+/// 85 and later). A signer must hold `attached gas × this` before NEAR accepts a call.
+pub const GAS_PURCHASE_PRICE: u128 = 1_000_000_000;
 
 /// `sha256(DOMAIN_SWAP_ID ‖ len(maker) as u8 ‖ maker ‖ salt)`.
 pub fn swap_id(maker: &str, salt: &[u8; 32]) -> [u8; 32] {
@@ -57,6 +63,23 @@ pub fn commit_message(escrow: &str, id: &[u8; 32], commitment: &[u8; 32]) -> Vec
     b.extend_from_slice(id);
     b.extend_from_slice(commitment);
     b
+}
+
+/// Checks that the escrow's tokens back everything it owes in `token`, at block `at`: its
+/// balance of `nep141:<token>` in the Verifier is at least its `get_owed(token)`. Every
+/// swap's amount is in `get_owed` until its payout succeeds, and only the escrow can move
+/// tokens out of its Verifier account, so a taker who sees this at a final block knows
+/// that her swap's tokens are there and are not promised to another swap. Returns
+/// (balance, owed).
+pub fn check_backing(rpc: &NearRpc, escrow: &str, token: &str, intents: &str, at: &At) -> Result<(u128, u128)> {
+    let owed = rpc.view(escrow, "get_owed", &json!({"token": token}), at)?;
+    let owed: u128 = owed.as_str().ok_or_else(|| anyhow!("get_owed: {owed}"))?.parse()?;
+    let bal = rpc.view(intents, "mt_balance_of", &json!({"account_id": escrow, "token_id": format!("nep141:{token}")}), at)?;
+    let bal: u128 = bal.as_str().ok_or_else(|| anyhow!("mt_balance_of: {bal}"))?.parse()?;
+    if bal < owed {
+        anyhow::bail!("escrow {escrow} holds {bal} of {token} in the Verifier but owes {owed}");
+    }
+    Ok((bal, owed))
 }
 
 /// Checks that the escrow cannot change under the taker and pays out where it should: at
@@ -88,6 +111,20 @@ pub enum SwapState {
     Refunded,
 }
 
+/// Where the tokens of a swap are after it ended (`get_swap(id).payout`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Payout {
+    /// The swap has not ended.
+    None,
+    /// Ended; the tokens are still in the escrow's Verifier account. `withdraw(id)` pays.
+    Due,
+    /// The payout's `mt_transfer` is in flight.
+    Sending,
+    /// Paid to the recipient's Verifier account. Final.
+    Paid,
+}
+
 fn de_u128<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<u128, D::Error> {
     let s = String::deserialize(d)?;
     s.parse().map_err(serde::de::Error::custom)
@@ -116,12 +153,9 @@ pub struct SwapView {
     pub a: Option<String>,
     /// The maker's share, once refunded.
     pub b: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Credit {
-    pub direct: u128,
-    pub intents: u128,
+    pub payout: Payout,
+    /// The taker's account after a claim, the maker after a refund.
+    pub recipient: Option<String>,
 }
 
 /// The escrow, its token and the Intents contract, as one client.
@@ -141,10 +175,10 @@ impl Escrow<'_> {
         Ok(Some(serde_json::from_value(v)?))
     }
 
-    pub fn credit(&self, owner: &str, at: &At) -> Result<Credit> {
-        let v = self.rpc.view(&self.escrow, "get_credit", &json!({"token": self.token, "owner": owner}), at)?;
-        let get = |k: &str| -> Result<u128> { Ok(v[k].as_str().ok_or_else(|| anyhow!("credit without {k}"))?.parse()?) };
-        Ok(Credit { direct: get("direct")?, intents: get("intents")? })
+    /// The sum of the amounts of the escrow's swaps in the token whose payout is not Paid.
+    pub fn owed(&self, at: &At) -> Result<u128> {
+        let v = self.rpc.view(&self.escrow, "get_owed", &json!({"token": self.token}), at)?;
+        Ok(v.as_str().ok_or_else(|| anyhow!("get_owed"))?.parse()?)
     }
 
     pub fn storage_funds(&self, owner: &str, at: &At) -> Result<u128> {
@@ -167,7 +201,9 @@ impl Escrow<'_> {
     // ------------------------------------------------------------------ actions
     // Each returns (receiver, actions) for `NearRpc::sign`.
 
-    /// `open`: `ft_transfer_call` on the token with the swap terms in `msg`.
+    /// `open`: `mt_transfer_call` on the Verifier, from the maker's Verifier account to the
+    /// escrow, with the swap terms in `msg`. The escrow's `mt_on_transfer` stores the swap
+    /// only after the Verifier moved the tokens; on bad terms the Verifier gives them back.
     #[allow(clippy::too_many_arguments)]
     pub fn open(&self, amount: u128, salt: &[u8; 32], taker_pk: &[u8; 32], a_pub: &[u8; 32], b_pub: &[u8; 32], t0: u64, t1: u64, t2: u64, reveal_window: u64) -> (String, Vec<Action>) {
         let terms = json!({
@@ -180,8 +216,17 @@ impl Escrow<'_> {
             "t2": t2,
             "reveal_window": reveal_window,
         });
-        let args = json!({"receiver_id": self.escrow, "amount": amount.to_string(), "msg": terms.to_string()});
-        (self.token.clone(), vec![Action::call("ft_transfer_call", &args, GAS_OPEN, 1)])
+        let args = json!({"receiver_id": self.escrow, "token_id": format!("nep141:{}", self.token), "amount": amount.to_string(), "msg": terms.to_string()});
+        (self.intents.clone(), vec![Action::call("mt_transfer_call", &args, GAS_OPEN, 1)])
+    }
+
+    /// The maker's deposit of `amount` plain tokens into its own Verifier account
+    /// (`ft_transfer_call` on the token, empty `msg`). With USDC the call's result can be
+    /// a failure after the Verifier credited the maker (docs/security/nv02-usdc.md), so a
+    /// caller reads its Verifier balance afterwards instead of trusting the result.
+    pub fn deposit(&self, amount: u128) -> (String, Vec<Action>) {
+        let args = json!({"receiver_id": self.intents, "amount": amount.to_string(), "msg": ""});
+        (self.token.clone(), vec![Action::call("ft_transfer_call", &args, GAS_DEPOSIT, 1)])
     }
 
     pub fn add_storage_funds(&self, deposit: u128) -> (String, Vec<Action>) {
@@ -197,22 +242,17 @@ impl Escrow<'_> {
     }
 
     pub fn claim(&self, id: &[u8; 32], a: &[u8; 32]) -> (String, Vec<Action>) {
-        self.call("claim", json!({"id": hex::encode(id), "a": hex::encode(a)}), GAS_REVEAL)
+        self.call("claim", json!({"id": hex::encode(id), "a": hex::encode(a)}), GAS_CLAIM)
     }
 
     pub fn refund(&self, id: &[u8; 32], b: &[u8; 32]) -> (String, Vec<Action>) {
-        self.call("refund", json!({"id": hex::encode(id), "b": hex::encode(b)}), GAS_REVEAL)
+        self.call("refund", json!({"id": hex::encode(id), "b": hex::encode(b)}), GAS_REFUND)
     }
 
-    pub fn withdraw(&self, owner: &str) -> (String, Vec<Action>) {
-        self.call("withdraw", json!({"token": self.token, "owner": owner}), GAS_WITHDRAW)
-    }
-
-    /// Public `sweep(token)`: brings tokens left in the escrow's own Intents account (a
-    /// deposit whose `mt_transfer` failed) back to the escrow's token balance. It pays
-    /// nobody and changes no credit.
-    pub fn sweep(&self) -> (String, Vec<Action>) {
-        self.call("sweep", json!({"token": self.token}), GAS_SWEEP)
+    /// `withdraw(id)`: sends a Due payout (one `mt_transfer` inside the Verifier to the
+    /// swap's recipient). Anyone may send it; the recipient is fixed by the swap.
+    pub fn withdraw(&self, id: &[u8; 32]) -> (String, Vec<Action>) {
+        self.call("withdraw", json!({"id": hex::encode(id)}), GAS_WITHDRAW)
     }
 
     fn call(&self, method: &str, args: Value, gas: u64) -> (String, Vec<Action>) {
@@ -247,11 +287,16 @@ mod tests {
             "id": "00", "maker": "m.near", "token": "wrap.near", "amount": "3000000",
             "taker_pk": "ab", "taker_account": "ab", "a_pub": "01", "b_pub": "02",
             "t0": 1, "t1": 2, "t2": 3, "reveal_window": 4, "state": "Locked",
-            "locked_at": 5, "commitment": "cc", "a": null, "b": null
+            "locked_at": 5, "commitment": "cc", "a": null, "b": null,
+            "payout": "none", "recipient": null
         });
         let s: SwapView = serde_json::from_value(v).unwrap();
         assert_eq!(s.amount, 3_000_000);
         assert_eq!(s.state, SwapState::Locked);
         assert_eq!(s.locked_at, Some(5));
+        assert_eq!(s.payout, Payout::None);
+        for (j, p) in [("due", Payout::Due), ("sending", Payout::Sending), ("paid", Payout::Paid)] {
+            assert_eq!(serde_json::from_value::<Payout>(json!(j)).unwrap(), p);
+        }
     }
 }

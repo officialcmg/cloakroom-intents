@@ -65,8 +65,8 @@ struct Chains {
     mock: Rc<Mock>,
     near_time: Rc<Cell<u64>>,
     zcash_down: Cell<bool>,
-    /// (direct, intents) credit that `get_credit` reports for any owner.
-    credit: Rc<Cell<(u64, u64)>>,
+    /// The payout state that `get_swap` reports for the victim swap.
+    payout: Rc<Cell<&'static str>>,
 }
 
 impl Transport for Chains {
@@ -82,17 +82,16 @@ impl Transport for Chains {
 fn chains(escrow_state: &'static str) -> Rc<Chains> {
     let near_time = Rc::new(Cell::new(T1 + 10));
     let nt = near_time.clone();
-    let credit = Rc::new(Cell::new((0u64, 0u64)));
-    let cr = credit.clone();
+    let payout = Rc::new(Cell::new(match escrow_state {
+        "Claimed" | "Refunded" => "paid",
+        _ => "none",
+    }));
+    let po = payout.clone();
     let mock = Rc::new(Mock::new(move |m, p| match m {
         "getblockcount" => json!(100),
         "block" => block_result(nt.get()),
         "query" => match p["request_type"].as_str() {
-            Some("call_function") if p["method_name"] == "get_swap" => view_result(&victim_view(escrow_state)),
-            Some("call_function") if p["method_name"] == "get_credit" => {
-                let (d, i) = cr.get();
-                view_result(&json!({"direct": d.to_string(), "intents": i.to_string()}))
-            }
+            Some("call_function") if p["method_name"] == "get_swap" => view_result(&victim_view(escrow_state, po.get())),
             Some("view_access_key") => json!({"nonce": 7, "permission": "FullAccess", "block_height": 1, "block_hash": "11111111111111111111111111111111"}),
             _ => Value::Null,
         },
@@ -104,15 +103,16 @@ fn chains(escrow_state: &'static str) -> Rc<Chains> {
         }),
         _ => Value::Null,
     }));
-    Rc::new(Chains { mock, near_time, zcash_down: Cell::new(false), credit })
+    Rc::new(Chains { mock, near_time, zcash_down: Cell::new(false), payout })
 }
 
-fn victim_view(state: &str) -> Value {
+fn victim_view(state: &str, payout: &str) -> Value {
     json!({
         "id": "00".repeat(32), "maker": "maker.near", "token": "usdc.near", "amount": "300000",
         "taker_pk": "09".repeat(32), "taker_account": "09".repeat(32), "a_pub": "00".repeat(32), "b_pub": "00".repeat(32),
         "t0": T1 - 600, "t1": T1, "t2": T2, "reveal_window": 600, "state": state,
-        "locked_at": null, "commitment": null, "a": null, "b": null
+        "locked_at": null, "commitment": null, "a": null, "b": null,
+        "payout": payout, "recipient": null
     })
 }
 
@@ -387,16 +387,17 @@ fn misbehave_is_refused_without_the_feature() {
     serde_json::from_value::<zecret_core::config::TakerConfig>(t).unwrap();
 }
 
-fn sweeps(events: &[Event]) -> usize {
-    events.iter().filter(|e| matches!(e, Event::NearTx { what, .. } if what == "sweep")).count()
+fn withdraws(events: &[Event]) -> usize {
+    events.iter().filter(|e| matches!(e, Event::NearTx { what, .. } if what == "withdraw")).count()
 }
 
-/// New escrow (docs/security/fixes-2.md): a withdraw can end with the credit restored while
-/// tokens wait in the escrow's own Intents account. The maker then sweeps and retries the
-/// taker's withdraw, and finishes only when the credit is paid.
+/// The taker sends its own withdraw. If a final block still shows the taker's payout Due
+/// 2 × (D + F) after the maker first saw it Due, the maker sends withdraw(id) too, and
+/// again after D + F while it stays Due. The maker's swap ends when the payout is Paid.
 #[test]
-fn restored_taker_credit_is_swept_and_retried() {
+fn due_taker_payout_is_sent_by_the_maker_after_a_grace() {
     let c = chains("Claimed");
+    c.payout.set("due");
     let mut j = swap_json(VICTIM, "Sweeping", [0; 32]);
     j["sweep_txid"] = json!("ab".repeat(32));
     j["sweep_height"] = json!(90);
@@ -404,33 +405,42 @@ fn restored_taker_credit_is_swept_and_retried() {
     put_json(&mut store2, &format!("swap/{VICTIM}"), &j).unwrap();
     let mut m2 = Maker::open(cfg(), c.clone(), &mut store2).unwrap();
     m2.wallet.height = 100;
-    c.credit.set((0, 300_000));
     let t = m2.tick(1_000_000, &mut store2);
-    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (0, 1), "first try: withdraw only");
+    assert_eq!((withdraws(&t.events), c.mock.count("send_tx")), (0, 0), "the taker gets the first chance");
+    c.near_time.set(c.near_time.get() + 100);
     let t = m2.tick(1_000_001, &mut store2);
-    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (0, 1), "no retry before D + F");
-    c.near_time.set(c.near_time.get() + 41);
+    assert_eq!((withdraws(&t.events), c.mock.count("send_tx")), (1, 1), "still Due after the grace: the maker sends it");
     let t = m2.tick(1_000_002, &mut store2);
-    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (1, 3), "credit still there: sweep, then withdraw again");
-    c.credit.set((0, 0));
-    m2.tick(1_000_003, &mut store2);
+    assert_eq!(withdraws(&t.events), 0, "no retry before D + F");
+    c.near_time.set(c.near_time.get() + 41);
+    let t = m2.tick(1_000_003, &mut store2);
+    assert_eq!(withdraws(&t.events), 1, "still Due: again");
+    assert_eq!(victim(&m2), MakerStage::Sweeping, "not Swept while the payout is Due");
+    c.payout.set("sending");
+    c.near_time.set(c.near_time.get() + 41);
+    let t = m2.tick(1_000_004, &mut store2);
+    assert_eq!(withdraws(&t.events), 0, "a payout in flight is not sent again");
+    c.payout.set("paid");
+    m2.tick(1_000_005, &mut store2);
     assert_eq!(victim(&m2), MakerStage::Swept);
 }
 
-/// The same for the maker's own credit after a refund: it stays in RefundSent until a
-/// final block shows the credit paid, sweeping before each retry.
+/// The maker's refund normally pays in the same call. If a final block shows its payout
+/// Due, the maker sends withdraw(id) and stays in RefundSent until it is Paid.
 #[test]
-fn restored_maker_credit_is_swept_and_retried() {
+fn due_refund_payout_is_withdrawn_until_paid() {
     let c = chains("Refunded");
+    c.payout.set("due");
     let (mut m, mut store) = maker_with(0, Some("RefundSent"), 0, &c, cfg());
-    c.credit.set((300_000, 0));
     let t = m.tick(1_000_000, &mut store);
-    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (0, 1));
-    assert_eq!(victim(&m), MakerStage::RefundSent, "not Refunded while the credit is unpaid");
-    c.near_time.set(c.near_time.get() + 41);
+    assert_eq!((withdraws(&t.events), c.mock.count("send_tx")), (1, 1));
+    assert_eq!(victim(&m), MakerStage::RefundSent, "not Refunded while the payout is Due");
     let t = m.tick(1_000_001, &mut store);
-    assert_eq!((sweeps(&t.events), c.mock.count("send_tx")), (1, 3));
-    c.credit.set((0, 0));
-    m.tick(1_000_002, &mut store);
+    assert_eq!(withdraws(&t.events), 0, "no retry before D + F");
+    c.near_time.set(c.near_time.get() + 41);
+    let t = m.tick(1_000_002, &mut store);
+    assert_eq!(withdraws(&t.events), 1);
+    c.payout.set("paid");
+    m.tick(1_000_003, &mut store);
     assert_eq!(victim(&m), MakerStage::Refunded);
 }

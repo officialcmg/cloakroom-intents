@@ -143,6 +143,11 @@ fn open_ready_commit_claim_withdraw_and_refund() {
     let e = Escrow { rpc: &rpc, escrow: net.escrow.clone(), token: net.token.clone(), intents: net.intents.clone() };
     let (to, actions) = e.add_storage_funds(ONE_NEAR / 10);
     rpc.transact(&maker, &to, actions).unwrap().ok().unwrap();
+    // The maker keeps its tokens in its own Verifier account and opens from there.
+    let (to, actions) = e.deposit(10 * ONE_NEAR);
+    rpc.transact(&maker, &to, actions).unwrap().ok().unwrap();
+    std::thread::sleep(Duration::from_secs(2));
+    assert_eq!(e.intents_balance(&net.maker, &At::Final).unwrap(), 10 * ONE_NEAR);
 
     // ---------------------------------------------------------------- claim path
     let a = keys::random_scalar();
@@ -161,9 +166,13 @@ fn open_ready_commit_claim_withdraw_and_refund() {
     let v = e.get_swap(&id, &At::Optimistic).unwrap().expect("swap stored");
     assert_eq!((v.amount, v.state, v.taker_account.clone()), (amount, SwapState::Open, taker.implicit_account()));
     assert_eq!(v.a_pub, hex::encode(a_pub));
+    assert_eq!(v.payout, escrow::Payout::None);
+    std::thread::sleep(Duration::from_secs(2));
+    let (bal, owed) = escrow::check_backing(&rpc, &net.escrow, &net.token, &net.intents, &At::Final).unwrap();
+    assert_eq!((bal, owed), (amount, amount), "the escrow's Verifier balance backs the swap");
 
-    // stipend: 0.03 NEAR creates the taker's implicit account
-    let stipend = 3 * ONE_NEAR / 100;
+    // stipend: 0.06 NEAR creates the taker's implicit account
+    let stipend = 6 * ONE_NEAR / 100;
     rpc.transact(&maker, &taker.implicit_account(), vec![Action::Transfer { deposit: stipend }]).unwrap().ok().unwrap();
     let (to, actions) = e.set_ready(&id);
     rpc.transact(&maker, &to, actions).unwrap().ok().unwrap();
@@ -192,24 +201,25 @@ fn open_ready_commit_claim_withdraw_and_refund() {
     std::thread::sleep(Duration::from_secs(2)); // gas refunds arrive a few blocks later
     let left = rpc.account(&taker.implicit_account(), &At::Final).unwrap().unwrap().amount;
     println!("stipend left after commit_claim and claim: {left} of {stipend} yoctoNEAR (spent {})", stipend - left);
-    assert_eq!(e.credit(&taker.implicit_account(), &At::Final).unwrap().intents, amount);
-    // the taker tries the withdraw itself; if its stipend is not enough, the maker does it
-    let (to, actions) = e.withdraw(&taker.implicit_account());
-    match rpc.transact(&tsigner, &to, actions.clone()) {
-        Ok(o) if o.is_success() => println!("the taker paid for its own withdraw"),
-        r => {
-            println!("the taker could not withdraw ({:?}); the maker withdraws for it", r.map(|o| o.failure().map(str::to_string)));
-            rpc.transact(&maker, &to, actions).unwrap().ok().unwrap();
-        }
-    }
+    assert_eq!(v.payout, escrow::Payout::Due, "claim with 25 Tgas leaves the payout Due");
+    // The taker's key sends the payout itself, from what the stipend left.
+    let (to, actions) = e.withdraw(&id);
+    rpc.transact(&tsigner, &to, actions).map_err(|e| format!("{e:#}")).unwrap().ok().unwrap();
     std::thread::sleep(Duration::from_secs(3));
+    assert_eq!(e.get_swap(&id, &At::Final).unwrap().unwrap().payout, escrow::Payout::Paid);
     assert_eq!(e.intents_balance(&taker.implicit_account(), &At::Final).unwrap(), amount, "the payout is in intents.near under the taker key");
-    assert_eq!(e.credit(&taker.implicit_account(), &At::Final).unwrap().intents, 0);
+    assert_eq!(e.owed(&At::Final).unwrap(), 0);
+    let left = rpc.account(&taker.implicit_account(), &At::Final).unwrap().unwrap().amount;
+    println!("stipend left after commit_claim, claim and withdraw: {left} of {stipend} yoctoNEAR (spent {})", stipend - left);
+    // A second withdraw is refused.
+    let (to, actions) = e.withdraw(&id);
+    let again = rpc.transact(&maker, &to, actions).unwrap();
+    assert!(again.failure().map(|f| f.contains("payout is not Due")).unwrap_or(false), "{again:?}");
 
     // ---------------------------------------------------------------- refund path
     let salt2: [u8; 32] = zecret_core::random_bytes();
     let id2 = escrow::swap_id(&net.maker, &salt2);
-    let before = e.ft_balance(&net.maker, &At::Final).unwrap();
+    let before = e.intents_balance(&net.maker, &At::Final).unwrap();
     let now = rpc.block(&At::Final).unwrap().secs();
     let (to, actions) = e.open(amount, &salt2, &taker.public_bytes(), &a_pub, &b_pub, now + 60, now + 120, now + 600, 60);
     rpc.transact(&maker, &to, actions).unwrap().ok().unwrap();
@@ -224,8 +234,8 @@ fn open_ready_commit_claim_withdraw_and_refund() {
     rpc.transact(&maker, &to, actions).unwrap().ok().unwrap();
     let v = wait_final(&e, &id2, SwapState::Refunded);
     assert_eq!(v.b.unwrap(), hex::encode(b_bytes), "b is readable from contract state");
-    let (to, actions) = e.withdraw(&net.maker);
-    rpc.transact(&maker, &to, actions).unwrap().ok().unwrap();
-    std::thread::sleep(Duration::from_secs(3));
-    assert_eq!(e.ft_balance(&net.maker, &At::Final).unwrap(), before, "the refund returned the maker's tokens");
+    assert_eq!(v.payout, escrow::Payout::Paid, "refund with 50 Tgas pays in the same call");
+    std::thread::sleep(Duration::from_secs(2));
+    assert_eq!(e.intents_balance(&net.maker, &At::Final).unwrap(), before, "the refund returned the maker's tokens to its Verifier account");
+    assert_eq!(e.owed(&At::Final).unwrap(), 0);
 }
