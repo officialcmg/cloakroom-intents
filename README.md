@@ -49,8 +49,8 @@ Built at NEAR HACKATHON (2026-11-01 to 2026-11-14).
 | Temporary wallet | A Zcash wallet that the browser makes for one swap. The user pays into it once. |
 | Shared address | The Zcash address that holds the user's ZEC during the swap. It is spent with the key `a + b`. |
 | Key half | The taker holds `a`, the maker holds `b`. A key half alone cannot spend from the shared address. |
-| Escrow | The NEAR contract in `contracts/near-escrow`. It holds the maker's USDC for one swap and has two exits: `claim(a)` and `refund(b)`. Each exit publishes one key half and turns the USDC into a credit for one side; a separate `withdraw` call pays the credit out. |
-| Stipend | 0.03 NEAR that the maker sends to the taker's new NEAR key after it opens the escrow. It pays the gas of the taker's own `commit_claim` and `claim`. |
+| Escrow | The NEAR contract in `contracts/near-escrow`. It holds the maker's USDC for one swap, inside NEAR Intents, and has two exits: `claim(a)` and `refund(b)`. Each exit publishes one key half and makes the payout due: one `mt_transfer` inside NEAR Intents to the taker or to the maker. A light `withdraw(id)` call (19 Tgas) sends a due payout. |
+| Stipend | 0.06 NEAR that the maker sends to the taker's new NEAR key after it opens the escrow. It pays the gas of the taker's own `commit_claim`, `claim` and `withdraw(id)`. |
 | Premium | A small ZEC payment from the taker to the maker, sent with the taker's acceptance of a quote. It pays for the maker's costs. |
 | Verifier | The NEAR Intents contract: `intents.near` on mainnet; on testnet a stand-in, `intents.zecret-3f109eea1e.testnet`, that runs the same code. It holds token balances per account and executes signed messages (intents). |
 | 1Click | The NEAR Intents API (`1click.chaindefuser.com`) that quotes and delivers a swap to another chain. |
@@ -76,7 +76,7 @@ This is the only status table in this file. It follows `STATUS.md` as of 2026-11
 | Exit through NEAR Intents on mainnet | **Not verified.** The library is tested against the live `intents.near` code in a sandbox, and against recorded answers of the live 1Click API. Quote, generate and submit answered without an API key. No exit with real funds was run. On testnet the exit is a direct withdrawal from a stand-in Verifier, because NEAR Intents has no testnet. | [`docs/INTENTS.md`](docs/INTENTS.md) |
 | Mainnet deployment | **Not done.** Nothing is deployed on mainnet. It needs real funds (about 6.6 NEAR) and the owner's approval. | [`docs/DEPLOY.md`](docs/DEPLOY.md) |
 | Wallet apps as the payer | **Not tested.** Zkool and Zingo (Android) offer testnet wallets and support the Ironwood pool per their release notes. Zodl, Cake and Edge ship no testnet app. | [`docs/WEB.md`](docs/WEB.md) |
-| Security reviews | **Three reviews; fix reports cover every confirmed finding.** Review 1 (escrow, Intents library), the follow-up on the real USDC contract (a double payment), review 2 (swap engines, maker and taker side) and review 3 (website, browser engine, relay). A fourth, read-only review found no new finding. The taker-side fixes of review 2 were checked by tests, not by a new review. Open by decision: one trusted NEAR RPC endpoint, and the taker cannot pay for `withdraw` itself. | [`docs/security/`](docs/security/), [Security](#security) |
+| Security reviews | **Three reviews; fix reports cover every confirmed finding.** Review 1 (escrow, Intents library), the follow-up on the real USDC contract (a double payment), review 2 (swap engines, maker and taker side) and review 3 (website, browser engine, relay). A fourth, read-only review found no new finding. The taker-side fixes of review 2 were checked by tests, not by a new review. Open by decision: one trusted NEAR RPC endpoint. | [`docs/security/`](docs/security/), [Security](#security) |
 
 ## Try it
 
@@ -309,20 +309,24 @@ with `npx playwright install firefox webkit`). They have not been run.
 3. The taker sends a request to the maker. The maker answers with a quote. The taker
    accepts and pays the premium. All three messages are encrypted memos in shielded
    Zcash transactions.
-4. The maker locks the USDC in the escrow and sends the stipend to the taker's NEAR key.
-5. The taker checks the escrow on NEAR and sends the ZEC to the shared address.
+4. The maker locks the USDC in the escrow: it moves the USDC from its own NEAR Intents
+   account to the escrow's. It sends the stipend to the taker's NEAR key.
+5. The taker checks the escrow on NEAR (code, keys, terms, and that the escrow's USDC in
+   NEAR Intents covers everything it owes) and sends the ZEC to the shared address.
 6. The maker sees the ZEC and sets the escrow to Ready.
 7. The taker sends `commit_claim` and `claim(a)` from its own NEAR key. The claim
    publishes `a`. The maker takes the ZEC with `a + b`.
-8. The USDC goes into NEAR Intents, owned by the taker's key. The browser signs one
+8. The taker's key sends `withdraw(id)`: the escrow moves the USDC inside NEAR Intents
+   to the taker's key. The stipend pays for it; nobody else is needed. The browser signs one
    message. On mainnet, NEAR Intents (1Click) then delivers the destination token; this
    step is built and not yet run with real funds. On testnet the message is a direct
    withdrawal of test USDC to a NEAR testnet account.
 
 If the maker refunds the escrow, the refund publishes `b` and the taker takes its ZEC
 back. If the maker goes quiet after the ZEC reached the shared address, the taker claims
-the USDC after a deadline (the punish path); paying out that credit needs a `withdraw`
-call from an account with about 0.2 NEAR (see [Security](#security)). Full rules:
+the USDC after a deadline (the punish path) and pays it out to itself with the stipend.
+If the maker stops after the claim, the taker also finishes alone; on testnet the last
+transfer to a NEAR account then waits for the maker's relay. Full rules:
 [`docs/DESIGN.md`](docs/DESIGN.md), "The design in plain words".
 
 ## How NEAR is used
@@ -331,11 +335,16 @@ call from an account with about 0.2 NEAR (see [Security](#security)). Full rules
 
 `contracts/near-escrow` is a Rust port of Cloakroom's Solidity escrow (near-sdk 5.30).
 
-- The maker opens a swap with `ft_transfer_call` on the USDC contract. The escrow
-  records exactly the amount that arrived.
-- `claim(a)` checks `a·G = A` on the Pallas curve (16.8 Tgas) and stores `a` in contract
-  state. `refund(b)` does the same for `b`. Neither makes a cross-contract call, so a
-  token problem cannot stop a key half from being published.
+- The maker opens a swap with `mt_transfer_call` on the NEAR Intents Verifier, from its
+  own Verifier account. Only the Verifier can open a swap, and only after it moved the
+  USDC to the escrow's Verifier account. The escrow records exactly that amount.
+- `claim(a)` checks `a·G = A` on the Pallas curve (16.6 Tgas) and stores `a` in contract
+  state. `refund(b)` does the same for `b`. Each then makes the payout due. The key half
+  is stored before any cross-contract call, so a failed payout cannot stop it from being
+  published.
+- The payout is one `mt_transfer` inside the Verifier, then a callback that records
+  `paid` (final) or `due` again. `withdraw(id)` starts a due payout; anyone can send it.
+  No escrow call touches the USDC contract.
 - `commit_claim` checks an ed25519 signature by the taker's key with NEAR's native
   `ed25519_verify` (2.6 Tgas for the call).
 - The escrow has no owner and no upgrade method. One transaction deploys the code, calls
@@ -346,15 +355,17 @@ call from an account with about 0.2 NEAR (see [Security](#security)). Full rules
 
 - The taker's NEAR key is a fresh ed25519 key. Its NEAR account id is the hex of the
   public key (an implicit account). The account does not exist until NEAR arrives.
-- After `open`, the maker sends 0.03 NEAR to that account id. The transfer creates the
-  account. The taker then sends `commit_claim` and `claim` itself. There is no claim
-  relayer.
+- After `open`, the maker sends 0.06 NEAR to that account id. The transfer creates the
+  account. The taker then sends `commit_claim`, `claim` and `withdraw(id)` itself. There
+  is no claim relayer, and the payout needs no other party.
 - The maker already knows that the swap exists, so the stipend links nothing new. The
   user's own NEAR accounts never pay gas for the swap, so no gas payment links them to
   it. Timing, amounts, the destination address and network metadata can still link them.
-- Why 0.03 NEAR: NEAR accepts a transaction only if the sender holds the attached gas at
-  a pessimistic price; with 0.01 NEAR, `commit_claim` is refused. Commit and claim
-  really cost about 0.002 NEAR (measured on testnet).
+- Why 0.06 NEAR: NEAR accepts a transaction only if the sender holds its attached gas at
+  `min_gas_purchase_price` (10^9 yoctoNEAR per gas, 10 times today's gas price). The
+  largest balance the taker's key needs is 0.0278 NEAR, before `withdraw`; 0.06 NEAR
+  gives a margin of 2.16. The three calls really cost about 0.003 NEAR
+  ([`docs/experiments/light-payout.md`](docs/experiments/light-payout.md)).
 - On Base, Cloakroom needed a relayer or a funded payout address for this step. The
   paper lists the relayer as an open item.
 
@@ -377,11 +388,10 @@ submit to all receipts final, median 4.5 s, max 6.9 s (`docs/DESIGN.md` §7,
 
 ### 4. NEAR Intents as the payout and the exit
 
-- The escrow pays the taker in two steps: it deposits the USDC into its own account
-  inside the Verifier, then moves it to the taker's account there with `mt_transfer`. In
-  the sandbox tests with the USDC code from mainnet, the payout happened exactly once
-  also when USDC was paused or an account blocklisted at the wrong moment
-  (`docs/security/fixes-2.md`). One residual case is listed under [Security](#security).
+- The USDC stays in the escrow's own account inside the Verifier for the whole swap. The
+  payout moves it to the taker's account there with one `mt_transfer`. A USDC pause or
+  blocklist can only make the maker's deposit into the Verifier fail, before any swap
+  exists (sandbox tests with the USDC code from mainnet, `contracts/near-escrow/tests/usdc.rs`).
 - Inside the Verifier, the taker's account is the same hex key as its NEAR account. It
   needs no NEAR to move the tokens: it signs one intent (`raw_ed25519` or `nep413`), and
   another party submits it and pays the gas: 1Click on mainnet, the maker's relay on
@@ -482,15 +492,14 @@ signing internals, the TLA+ model against the code, and the Railway start script
   maker can show an escrow that does not exist and take the taker's ZEC. Options
   (several endpoints, light-client proofs) are in `docs/security/fixes-2-core.md` §4. Not
   built.
-- **The taker cannot pay for `withdraw`** (open by decision). `withdraw` needs 200 Tgas,
-  so the sender must hold about 0.2 NEAR; the stipend leaves about 0.028 NEAR. The maker
-  sends `withdraw` after the claim. If it does not within 5 minutes, the app shows a
-  payout-pending state with the exact call. Any account can send it, and the tokens can
-  only go to the taker.
-- **A residual USDC case.** If the Intents deposit fails and USDC's resolve step panics
-  in the same window, the tokens stay in the Intents contract credited to nobody, and
-  the last USDC withdraw from the escrow fails until the Intents operators return them.
-  Nobody is paid twice. Not tested (`docs/security/fixes-2.md` §5).
+- **NEAR Intents operators.** They can pause transfers in the Verifier or lock the
+  escrow's account there. Then no payout and no refund moves until they stop; the payout
+  stays due and is paid once later. The taker's USDC in NEAR Intents already depends on
+  them.
+- **The testnet exit uses the maker's relay.** If the maker stops after the claim, the
+  taker's key still moves the USDC into its own NEAR Intents account, but the last
+  transfer to a NEAR testnet account waits for the relay. On mainnet 1Click submits the
+  exit.
 - **Keys in browser storage.** The temporary wallet key, `a` and the NEAR key are kept in
   the browser's storage and in the recovery file, which is not encrypted. Script injected
   into the site's origin could read them. A cleared browser without the recovery file
@@ -538,7 +547,7 @@ disclosure.
 | Part | Baseline (Cloakroom) | Built in the hackathon window |
 |---|---|---|
 | Protocol | The split-key swap, its wallet rules, proofs and TLA+ model | No change to the rules. The claim relayer and its fee are removed; the stipend replaces them (the testnet exit relay is a different part). A signed refusal memo and signed maker limits are added. |
-| Escrow | Solidity on Base | A new Rust contract for NEAR: NEP-141 open, ed25519 commit, key halves stored in state, prepaid storage, two-step payout into NEAR Intents, `sweep` |
+| Escrow | Solidity on Base | A new Rust contract for NEAR: open through the NEAR Intents Verifier (`mt_transfer_call`), ed25519 commit, key halves stored in state, prepaid storage, a payout of one `mt_transfer` inside NEAR Intents that the taker's key sends |
 | Client | Rust maker and taker for Base, shelling out to `cast`, blocking HTTP | `zecret-core`: no I/O, runs in steps, builds for WebAssembly; a NEAR client (transactions, RPC, escrow calls); the stipend; checks of the escrow's code, keys and Intents account before funding; maker limits on unpaid requests and the premium check; the maker's relay for the testnet exit |
 | Browser | None (Cloakroom's UI drove a local client) | A taker engine in a Web Worker; a new website with a landing page |
 | Exit to other chains | None | `zecret-intents`: 1Click quote, check before signing, signed exit |

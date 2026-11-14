@@ -120,11 +120,11 @@ the page ends the worker and starts a new one, which resumes from storage.
 | `funding_sent` | Core `Funded`. |
 | `funding_confirming` | The wallet's scan height minus the funding's height, up to k_Z. |
 | `ready` | The escrow reads `Ready` at a final block once the funding has k_Z confirmations, or the core commits (not on the punish path). |
-| `committing`, `claiming`, `claimed`, `paid_out` | Core `Committed`, `Revealed`, `Claimed`, `Completed` (with `payout`). `claim.punishPath` from the core's log. Core `PayoutPending` (the claim is final, but the maker has not sent `withdraw` within 5 minutes) stays on `claimed` with a `waiting` activity that names the call any NEAR account can send: the escrow's `withdraw` for the taker key, 200 Tgas. |
+| `committing`, `claiming`, `claimed`, `paid_out` | Core `Committed`, `Revealed`, `Claimed`, `Completed` (with `payout`). `claim.punishPath` from the core's log. In `Claimed` the core's taker key sends the escrow's `withdraw(id)` (25 Tgas) from the stipend; `Completed` follows when a final block shows the payout `paid`. Core `PayoutPending` (the payout is not paid 5 minutes after the claim is final, for example because NEAR Intents refuses the transfer) stays on `claimed` with a `waiting` activity that names the call any NEAR account can send: the escrow's `withdraw` with the swap's escrow id, 25 Tgas. The core keeps sending it. |
 | `recovering`, `recovered` | Core `Recovering`, `Recovered`. |
 | `refunding`, `refunded` | After `Recovered` or `Aborted`: `returnLeftover` to the return address; `refunded` once that transaction is mined. When the node refuses a refund or leftover send, the engine opens the swap again from storage before it retries: the wallet keeps the notes of a built transaction reserved until it expires, so without that the balance would read 0 and the step would end with nothing sent. A core `Aborted` reason that starts with `MAKER REFUSED` (the maker's signed refusal memo: over its limit, under its minimum, busy, unsupported) becomes `refund.reason` and `lastError` `MAKER_CHECK_FAILED`, with the maker's reason in the message. |
 | `exiting`, `exit_retry`, `done` | The exit (1Click or direct) after `Completed`. |
-| `paid_out`, `done` with `exit.doneElsewhere` | Core `Claimed` or `PayoutPending`, while the escrow shows the payout made (swap state `Claimed`, the taker's Intents credit 0) and the taker key's Verifier balance reads 0, at one final block, for 30 s: the exit happened before this browser followed the swap (a restore after the exit). `payout.usdc` is the escrow's amount; `deliveredAmount` and the delivery transaction are not set. The leftover step follows. |
+| `paid_out`, `done` with `exit.doneElsewhere` | In `claimed` (core `Claimed` or `PayoutPending`, checked every 10 s) and in `paid_out` before the exit starts (always checked; a failed read makes the exit wait): the escrow shows the payout `paid` (swap state `Claimed`) and the taker key's Verifier balance reads 0, at one final block. `paid` is set only after the transfer to the taker key succeeded, and only that key can move the tokens out, so the exit happened before this browser followed the swap (a restore after the exit). `payout.usdc` is the escrow's amount; `deliveredAmount` and the delivery transaction are not set. The leftover step follows. |
 
 Activities: `proving` before each proof (from the core's `activity` event, and before a
 refund), `waiting` while the swap waits on a chain or the maker, `syncing` after a reload or
@@ -143,13 +143,13 @@ stage: `taker` steps need the page open; `network` steps happen anyway.
 | `request_sent` | Request memo sent (send 1 of 3). | network (maker) | may close |
 | `quote_received` | Firm quote `quote.usdc` ≥ `minUsdc`. The acceptance proof starts. | taker | may close |
 | `accepted` | Acceptance and premium sent (send 2 of 3). | network (maker) | may close |
-| `escrow_open` | Escrow opened, 0.03 NEAR stipend received (`escrow`). The funding proof starts. | taker | may close |
+| `escrow_open` | Escrow opened and its tokens back it, 0.06 NEAR stipend received (`escrow`). The funding proof starts. | taker | may close |
 | `funding_sent` | ZEC sent to the shared address (send 3 of 3). `deadlines` set. | network | come back before `deadlines.readyBy` |
 | `funding_confirming` | `funding.confirmations` of `funding.required`. | network | come back before `deadlines.readyBy` |
 | `ready` | The maker set the escrow to Ready. | taker | **keep open** |
 | `committing` | `commit_claim` sent. `claim.punishPath` is true when the maker vanished and the deadline passed. | taker | **keep open** |
 | `claiming` | `claim(a)` sent. | network | **keep open** |
-| `claimed` | The claim is final. The maker sends `withdraw`; if it does not within 5 minutes, a `waiting` activity names the call that any NEAR account can send. | network (maker) | may close |
+| `claimed` | The claim is final. The taker key sends `withdraw(id)` from the stipend; the escrow moves the USDC inside NEAR Intents to that key. If it is not paid within 5 minutes, a `waiting` activity names the call that any NEAR account can send. | taker | may close |
 | `paid_out` | USDC is in `intents.near` under the taker key (`payout`). The engine starts the exit by itself. | taker | may close |
 | `exiting` | The exit runs; `exit.phase` says where (below). | taker, then 1Click | may close |
 | `done` | Delivered (`exit.deliveredAmount`), or `exit.doneElsewhere`: the exit happened before a restore, and the engine did not see the delivery. A `leftover` may follow to the return address; a reload at `done` sends it if it was not sent. | – | – |
@@ -227,10 +227,11 @@ whose configuration says `exit.mode: "direct"` (local and testnet), the exit is:
 | `delivering` | Signs one `ft_withdraw` with the taker key and hands it to the maker's relay (`zecret maker --relay`), which sends `execute_intents` and pays the gas. Resending after a reload sends the same signed bytes; a used nonce means it executed. | a `TxRef` for `execute_intents` |
 | `done` | The receiver's token balance rose by the amount, or (a receiver that moves the tokens on at once) the taker's Verifier balance reads zero for 15 s. | `deliveredAmount` |
 
-The taker's own NEAR account cannot send `execute_intents`: an `ft_withdraw` needs 40 Tgas
-attached (35 fails), and what is left of the 0.03 NEAR stipend pays for at most about
-25 Tgas at the pessimistic price NEAR checks first (measured in
-`crates/zecret-wasm/tests/sandbox.rs`). The relay sends only a payload with exactly one
+The engine does not send `execute_intents` from the taker's own NEAR account: an
+`ft_withdraw` needs 40 Tgas attached (35 fails), about 0.041 NEAR held at the price NEAR
+checks first. What a 0.03 NEAR stipend leaves (0.0272 NEAR) cannot pay it; what the 0.06
+NEAR stipend leaves (0.0572 NEAR) can (`crates/zecret-wasm/tests/sandbox.rs`), but the
+engine still uses the relay. The relay sends only a payload with exactly one
 `ft_withdraw` of the maker's token, for at most the swap's price, signed by the taker of
 one of its maker's swaps that paid out (maker stage `Sweeping` or `Swept`, or a recorded
 `withdraw` for the taker), that `simulate_intents` accepts; at most 3 transactions per swap
