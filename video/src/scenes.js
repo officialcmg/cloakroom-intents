@@ -30,12 +30,12 @@
 
   // ---------- brand ----------
   for (const id of ['s1mark', 's6mark']) $(id).innerHTML = BRAND.MARK_SVG;
-  for (const id of ['s1word', 's6word']) $(id).textContent = BRAND.name;
+  for (const id of ['s1word', 's6word']) $(id).innerHTML = `<span class="wp" style="display:inline-block">${BRAND.word1}</span><span class="wp serif" style="display:inline-block;font-size:1.12em;letter-spacing:0;margin-left:0.22em">${BRAND.word2}</span>`;
   $('s6url').innerHTML = `${BRAND.url} ${svg('M5 12h14M13 6l6 6-6 6', 40, 2.2)}`;
 
   // ---------- scene 1: cold open ----------
   const s1a = chars($('s1a'));
-  const s1wordChars = chars($('s1word'));
+  const s1wordChars = [...$('s1word').children];
   function scene1(t) {
     T($('s1glow'), { x: Math.sin(t * 0.35) * 60 + t * 18, y: Math.cos(t * 0.3) * 30, o: 0.55 + 0.45 * prog(t, 0, 2.5, ease.inOutSine) });
     T($('s1arc'), { y: (1 - prog(t, 0, 3.5, ease.outCubic)) * 200 - t * 6, o: prog(t, 0.2, 2.5) });
@@ -57,8 +57,8 @@
     const m = prog(t, 4.15, 1.1, ease.spring);
     T($('s1mark'), { s: lerp(0.55, 1, m), r: lerp(-14, 0, m), o: prog(t, 4.15, 0.4), blur: (1 - prog(t, 4.15, 0.5)) * 8 });
     s1wordChars.forEach((c, i) => {
-      const p = prog(t, 4.35 + i * 0.028, 0.9, ease.outExpo);
-      T(c, { x: (1 - p) * 30, o: p, blur: (1 - p) * 10 });
+      const p = prog(t, 4.35 + i * 0.3, 1.0, ease.outExpo);
+      T(c, { x: (1 - p) * 40, o: p, blur: (1 - p) * 10 });
     });
     appear($('s1eye'), prog(t, 5.0, 0.9, ease.outQuint), { dy: 20 });
   }
@@ -95,7 +95,7 @@
       html += `<div class="abs" id="s2l${i}" style="left:${a}px;top:${NY - 1}px;width:${b - a}px;height:3px;background-image:linear-gradient(90deg, ${i === 0 ? 'var(--warn)' : 'var(--ink-2)'} 0 60%, transparent 60% 100%);background-size:14px 3px;opacity:.55"></div>
         <div class="abs mono" id="s2t${i}" style="left:${a}px;width:${b - a}px;top:${NY - 54}px;text-align:center;font-size:24px;color:${i === 0 ? 'var(--warn)' : 'var(--ink-2)'}">${l}</div>`;
     });
-    html += `<div class="abs mono" id="s2tag" style="left:${NODES[1].x - 150}px;width:300px;top:${NY - 150}px;text-align:center"><span style="display:inline-block;padding:10px 18px;border-radius:999px;background:#fbf0da;color:var(--warn);font-size:22px">Leaves the shielded pool</span></div>`;
+    html += `<div class="abs mono" id="s2tag" style="left:${NODES[1].x - 250}px;width:500px;top:${NY - 150}px;text-align:center"><span style="display:inline-block;white-space:nowrap;padding:10px 18px;border-radius:999px;background:#fbf0da;color:var(--warn);font-size:22px">Leaves the shielded pool</span></div>`;
     d.innerHTML = html;
   }
   function scene2(t) {
@@ -134,9 +134,9 @@
     'An escrow on NEAR releases the USDC to whoever reveals the right half.',
     'The USDC lands in NEAR Intents under a key made in your browser. One signature sends it on.',
   ];
-  $('s3beats').innerHTML = BEATS.map((b, i) => `<li id="s3b${i}" style="display:flex;gap:28px;margin:0 0 40px">
+  $('s3beats').innerHTML = BEATS.map((b, i) => `<li id="s3b${i}" style="display:flex;gap:28px;margin:0 0 28px">
       <span class="mono" style="font-size:24px;color:var(--mint-300);padding-top:14px">0${i + 1}</span>
-      <span class="body" style="color:#fff">${b}</span></li>`).join('');
+      <span class="body" style="color:#fff;line-height:1.18">${b}</span></li>`).join('');
   const CX = 1340; // centre of the drawing
   const KEY_SVG = `<svg width="400" height="130" viewBox="0 0 400 130" fill="none" stroke="#9fe3c6" stroke-width="14" stroke-linecap="round"><circle cx="78" cy="65" r="44"/><circle cx="78" cy="65" r="10" stroke-width="8"/><path d="M122 65H362M304 65v32M344 65v22"/></svg>`;
   const CHAINS = window.CHAIN_NAMES;
@@ -152,16 +152,16 @@
       <div class="abs" id="s3keyR" style="left:${CX - 200}px;top:500px;width:400px;height:130px;clip-path:polygon(222px 0,400px 0,400px 130px,222px 130px,200px 98px,222px 65px,200px 33px)">${KEY_SVG}</div>
       <div class="abs" id="s3lblL" style="left:${CX - 420}px;width:400px;top:668px;text-align:center"><span class="chip" style="font-size:32px;padding:14px 26px">Your browser</span></div>
       <div class="abs" id="s3lblR" style="left:${CX + 20}px;width:400px;top:668px;text-align:center"><span class="chip" style="font-size:32px;padding:14px 26px">The maker</span></div>
-      <div class="gcard" id="s3escrow" style="left:${CX - 300}px;top:780px;width:600px;height:168px;display:flex;align-items:center;gap:28px;padding:0 36px">
+      <div class="gcard" id="s3escrow" style="left:${CX - 340}px;top:780px;width:680px;height:168px;display:flex;align-items:center;gap:28px;padding:0 36px">
         <div style="position:relative;width:76px;height:76px;color:#fff;flex:none">
           <svg class="ic" width="76" height="76" viewBox="0 0 24 24" stroke-width="1.7"><path d="${ICON.lockBody}"/></svg>
           <svg class="ic abs" id="s3shackle" style="left:0;top:0" width="76" height="76" viewBox="0 0 24 24" stroke-width="1.7"><path d="${ICON.shackle}"/></svg>
         </div>
-        <div style="flex:1"><div class="display" style="font-size:44px;letter-spacing:-0.03em">Escrow on NEAR</div>
-          <div class="mono" id="s3escrowNote" style="font-size:22px;color:var(--mint-300);margin-top:10px">The maker locks USDC first</div></div>
+        <div style="flex:1;min-width:0;padding-right:110px"><div class="display" style="font-size:44px;letter-spacing:-0.03em">Escrow on NEAR</div>
+          <div class="mono" id="s3escrowNote" style="white-space:nowrap;font-size:22px;color:var(--mint-300);margin-top:10px">The maker locks USDC first</div></div>
       </div>
-      <div class="coin usdc" id="s3usdc" style="left:${CX + 196}px;top:864px">USDC</div>
-      <div class="gcard" id="s3intents" style="left:${CX - 330}px;top:190px;width:660px;height:200px;padding:36px 40px">
+      <div class="coin usdc" id="s3usdc" style="left:${CX + 282}px;top:864px">USDC</div>
+      <div class="gcard" id="s3intents" style="left:${CX - 370}px;top:190px;width:740px;height:200px;padding:36px 40px">
         <div class="display" style="font-size:52px;letter-spacing:-0.035em">NEAR Intents</div>
         <div style="display:flex;gap:12px;margin-top:22px"><span class="chip" style="font-size:24px">${svg(ICON.key, 26, 2)}&nbsp; Key made in your browser</span><span class="chip" style="font-size:24px">Gas from the maker</span></div>
       </div>
@@ -217,7 +217,7 @@
     // The left half (the browser's) later flies into the escrow's lock.
     const fly = prog(t, 5.9, 1.0, ease.inOutCubic);
     const lx = -split * 220, ly = 0;
-    const lockX = CX - 300 + 36 + 38 - CX, lockY = 780 + 84 - 565; // lock centre relative to the key centre
+    const lockX = CX - 340 + 36 + 38 - CX, lockY = 780 + 84 - 565; // lock centre relative to the key centre
     T($('s3keyL'), {
       x: lerp(lx, lockX + 60, fly), y: lerp(ly, lockY, fly) - Math.sin(fly * Math.PI) * 120,
       s: k * lerp(1, 0.32, fly), r: -split * 8 + fly * -20, o: prog(t, 2.3, 0.3) * (1 - prog(t, 6.75, 0.25)), blur: (1 - prog(t, 2.3, 0.5)) * 8,
@@ -230,13 +230,13 @@
     T($('s3escrow'), { y: (1 - e) * 60 + fade3 * 40, s: lerp(0.92, 1, e), o: prog(t, 5.0, 0.4) * (1 - fade3), blur: (1 - prog(t, 5.0, 0.6)) * 10 + fade3 * 10 });
     const open = prog(t, 6.8, 0.6, ease.spring);
     T($('s3shackle'), { y: -open * 9, r: open * 0, origin: '30% 50%' });
-    if (t > 6.9) $('s3escrowNote').textContent = 'Released: a key half was revealed';
+    if (t > 6.9) $('s3escrowNote').textContent = 'Your half revealed: released';
     else $('s3escrowNote').textContent = 'The maker locks USDC first';
     // The USDC coin: sits in the escrow, leaves when it opens, lands in NEAR Intents.
     const u0 = prog(t, 5.3, 0.8, ease.spring);
     const rel = prog(t, 7.2, 0.9, ease.inOutCubic);
     const land = prog(t, 9.3, 1.1, ease.inOutCubic);
-    const ux = lerp(lerp(0, 200, rel), CX + 236 - (CX + 196), land);
+    const ux = lerp(lerp(0, 140, rel), -46, land);
     const uy = lerp(-rel * 150, 290 - 864 - 0, land);
     const arcY = -Math.sin(land * Math.PI) * 60;
     T($('s3usdc'), { x: ux, y: uy + arcY, s: lerp(0.4, 1, u0) * lerp(1, 0.8, land), o: prog(t, 5.3, 0.3) * (1 - prog(t, 10.3, 0.3)) });
@@ -286,7 +286,7 @@
 
   // ---------- scene 6: end card ----------
   const s6h = words($('s6h'));
-  const s6chars = chars($('s6word'));
+  const s6chars = [...$('s6word').children];
   function scene6(t) {
     const r = prog(t, 0, 1.0, ease.inOutQuint);
     $('s6').style.clipPath = r < 1 ? `circle(${r * 1300}px at 960px 540px)` : 'none';
@@ -295,8 +295,8 @@
     const m = prog(t, 0.5, 1.0, ease.spring);
     T($('s6mark'), { s: lerp(0.6, 1, m), r: lerp(-12, 0, m), o: prog(t, 0.5, 0.35), blur: (1 - prog(t, 0.5, 0.5)) * 8 });
     s6chars.forEach((c, i) => {
-      const p = prog(t, 0.65 + i * 0.025, 0.9, ease.outExpo);
-      T(c, { x: (1 - p) * 26, o: p, blur: (1 - p) * 8 });
+      const p = prog(t, 0.65 + i * 0.3, 1.0, ease.outExpo);
+      T(c, { x: (1 - p) * 34, o: p, blur: (1 - p) * 8 });
     });
     revealWords(s6h, t, 1.3, { stagger: 0.06, d: 1.0 });
     appear($('s6url'), prog(t, 2.2, 0.9, ease.spring), { dy: 24, s0: 0.94 });

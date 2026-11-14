@@ -197,7 +197,7 @@ async function pollBoxes() {
         const r = (el) => { if (!el) return null; const q = el.getBoundingClientRect(); return q.width ? [Math.round(q.x), Math.round(q.y), Math.round(q.width), Math.round(q.height)] : null; };
         const one = (sel) => r(document.querySelector(sel));
         const out = { scrollY: Math.round(scrollY) };
-        for (const [k, sel] of Object.entries({ price: '[data-testid=price-line]', qr: '.qr-plate', deposit: '[data-testid=deposit-address]', now: 'section.now', nowTitle: '[data-testid=now-title]', stepsCard: '.steps-card', summary: '.progress-top', done: '[data-testid=done-title]', banner: '.site-banner', payAmount: 'input[aria-label="You pay"], #amount', form: 'form' })) {
+        for (const [k, sel] of Object.entries({ price: '[data-testid=price-line]', qr: '.qr-plate', deposit: '[data-testid=deposit-address]', now: 'section.now', nowTitle: '[data-testid=now-title]', stepsCard: '.steps-card', summary: '.progress-top', done: '[data-testid=done-title]', banner: '.site-banner', payAmount: '.amount-input', form: 'form' })) {
           const v = one(sel); if (v) out[k] = v;
         }
         const steps = [...document.querySelectorAll('ol.steps > li')].map((li) => ({ box: r(li), dot: r(li.querySelector('.step-dot')), cls: li.className, title: (li.querySelector('.step-title')?.firstChild?.textContent || '').trim() }));
