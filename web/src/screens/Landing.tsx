@@ -245,17 +245,17 @@ export function Landing() {
             </p>
           </div>
           <ul className="stat-cards" data-reveal>
-            <Stat tag="Testnet · website" value="5" title="Swaps through this website" featured>
-              With the hosted maker, 2026-11-13 and 14. For example: 0.05 testnet ZEC for 1.4877 test USDC in 493 s, 0.01 for 0.2877 in 392 s, and one paid by the faucet with no wallet.
+            <Stat tag="Testnet · website" value="37" title="Swaps through this website" featured>
+              With the hosted maker, 2026-11-13 and 14. Most took 6 to 9 minutes. Two ran at the same time, and one that was abandoned on purpose was refunded in 5 minutes.
             </Stat>
             <Stat tag="Testnet · command line" value="0.1 → 3" title="One swap with the command-line programs">
               0.1 testnet ZEC for 3 test USDC, end to end on the public test networks.
             </Stat>
-            <Stat tag="Local networks" value="5" title="Browser scenarios pass">
-              A full swap, a refund, reloads during a swap, a restore from the recovery file and a price below the minimum.
+            <Stat tag="Local networks" value="6" title="Browser scenarios pass">
+              A full swap, a refund, reloads during a swap, a restore from the recovery file, a price below the minimum, and the maker stopping right after the claim.
             </Stat>
-            <Stat tag="Reviews" value="3" title="Security reviews done">
-              A fourth read of the source by a second reviewer found nothing new. Open issues are in the README. One of them: the browser trusts a single NEAR RPC endpoint.
+            <Stat tag="Reviews" value="6" title="Security reviews done">
+              Each confirmed finding has a fix report. Open issues are in the README. No outside audit was done.
             </Stat>
           </ul>
         </section>
@@ -269,7 +269,7 @@ export function Landing() {
               {MAINNET_BUILD ? 'Zodl, Zingo, Zkool, Edge and Cake pay into the Ironwood pool per their release notes.' : 'On testnet, the Fauzec faucet can also pay 1 test ZEC to the swap’s address.'}
             </Faq>
             <Faq q="How long does a swap take?">
-              The one swap on the public test networks took 222 s from the start to the USDC, and 322 s with the exit (2026-11-13, command-line programs). Zcash testnet blocks come
+              Most swaps through this website on the public test networks took 6 to 9 minutes; the fastest took 314 s (2026-11-13 and 14). Zcash testnet blocks come
               every 20 s on average, but some took up to 538 s. In the browser, the engine prepares its keys once per visit (about 20 s), and each Zcash proof takes about 30 s
               (measured in Chromium on local test networks).
             </Faq>
