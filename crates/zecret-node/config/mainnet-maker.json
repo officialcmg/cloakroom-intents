@@ -12,7 +12,7 @@
   "near_account": "maker.OWNER.near",
   "price_per_zec": "0",
   "min_zats": 200000,
-  "max_zats": 2000000,
+  "max_zats": 500000,
   "premium_zats": 40000,
   "premium_check": {
     "yocto_near_per_zec": "200000000000000000000000000",

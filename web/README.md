@@ -177,6 +177,9 @@ browser (no key; CORS is open).
 | 1Click API | `https://1click.chaindefuser.com` | `oneClickUrl` in the network configuration (`public/config/*.json`): an http(s) URL, or a path on this site for the proxy (`../docs/ONECLICK_PROXY.md`) |
 | Engine | simulated (demo) | a network configuration: `?config=local`, `?config=testnet`, or `VITE_ZECRET_CONFIG` at build time (any other `?config=` only in development, see above); `?demo=1` forces the demo |
 | Mainnet escrow | none (mainnet refused) | `VITE_MAINNET_ESCROW`, `VITE_MAINNET_ESCROW_CODE_HASH` at build time |
+| Network switch in the header | testnet: `https://cloakroom.chrismg.dev`; mainnet: unset ("Mainnet is not deployed yet") | `VITE_ZECRET_TESTNET_URL`, `VITE_ZECRET_MAINNET_URL` at build time: the https origin of each deployment. Only the origin is used; the link keeps the path and drops the query. |
+| Site cap per swap | none (testnet); `"maxSwapZats": "500000"` (mainnet, required) | `maxSwapZats` in the network configuration: the largest payment in zatoshis. The form and the engine refuse more, whatever the maker's directory says. |
+| Maker liquidity on the form | read from NEAR (`mt_balance_of` in the Verifier plus `ft_balance_of`, `src/lib/liquidity.ts`) | the demo shows `demo.makerLiquidityUsdc` from its directory |
 
 The directory format is `MakerDirectory` in `src/lib/directory.ts`: maker name, Zcash
 unified address, request key, NEAR account, escrow contract, indicative rate in USDC per

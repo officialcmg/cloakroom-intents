@@ -11,8 +11,20 @@
     "nearAccount": "maker.zecret-3f109eea1e.testnet",
     "escrowContract": "escrow3.zecret-3f109eea1e.testnet"
   },
-  "rate": { "usdcPerZec": "940.00", "validForSeconds": 300 },
-  "limits": { "minZec": "0.01", "maxZec": "2" },
-  "premium": { "bps": 0, "minZec": "0.0045" },
-  "zcashFeePerSendZec": "0.0001"
+  "rate": {
+    "usdcPerZec": "940.00",
+    "validForSeconds": 300
+  },
+  "limits": {
+    "minZec": "0.01",
+    "maxZec": "2"
+  },
+  "premium": {
+    "bps": 0,
+    "minZec": "0.0045"
+  },
+  "zcashFeePerSendZec": "0.0001",
+  "demo": {
+    "makerLiquidityUsdc": "5000.00"
+  }
 }

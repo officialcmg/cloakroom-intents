@@ -37,11 +37,12 @@ import {
 import type { EngineBackend } from '../rpc';
 import { reduceSwap } from '../reducer';
 import { KEY_BUILD_MS, PROOF_MS, NEAR_FINAL_MS } from '../timeline';
-import { parseDirectory, type MakerDirectory, type MakerTerms } from '../../lib/directory';
+import { effectiveTerms, parseDirectory, type MakerDirectory, type MakerTerms } from '../../lib/directory';
 import { validateZcashReturnAddress } from '../../lib/address/zcash';
 import { validateDestinationAddress } from '../../lib/address/chains';
 import { paymentUri } from '../../lib/zip321';
-import { coreNetwork, explorerUrl, nearRpcs, oneClickBase, safeLink, type NetworkConfig } from '../../lib/netconfig';
+import { formatZec } from '../../lib/units';
+import { coreNetwork, explorerUrl, nearRpcs, oneClickBase, safeLink, siteCapZats, type NetworkConfig } from '../../lib/netconfig';
 import { StaleWriteError, type RecordStore } from './idb';
 import { judgePayout, readPayoutFacts, type PayoutReader } from './payoutCheck';
 import { afterFinalStatus, believeSuccess, planExitAmount, REFUND_WATCH_MS, restoredExit } from './exitPlan';
@@ -422,7 +423,8 @@ export class RealEngine implements EngineBackend {
         throw new EngineError('INIT_FAILED', 'The maker directory has no signed entry (maker.nearPublicKey, maker.epoch, signature).');
       this.cfg = cfg;
       this.directory = d;
-      this.terms = parsed.terms;
+      // The same payment range as the form: the signed limits as a payment, and the site's cap.
+      this.terms = effectiveTerms(parsed.terms, d, siteCapZats(cfg));
       try {
         const t = now();
         this.wasm = this.guardWasm(await this.load(this.base));
@@ -518,6 +520,10 @@ export class RealEngine implements EngineBackend {
       if (!isUint(params.amountZats) || !isUint(params.minUsdc) || !isUint(params.minDestinationAmount) || !isUint(params.shown?.premiumZats))
         throw new EngineError('INVALID_PARAMS', 'Amounts must be whole numbers of base units.');
       const amount = BigInt(params.amountZats);
+      // The site's own cap, checked on its own as well (defence in depth: it holds even if
+      // the terms were built some other way).
+      const cap = siteCapZats(cfg);
+      if (cap !== undefined && amount > cap) throw new EngineError('INVALID_PARAMS', `This site takes at most ${formatZec(cap)} ZEC per swap.`);
       if (amount < terms.minZats || amount > terms.maxZats) throw new EngineError('INVALID_PARAMS', 'The amount is outside the maker’s limits.');
       if (BigInt(params.minUsdc) <= 0n) throw new EngineError('INVALID_PARAMS', 'minUsdc must be positive.');
       const d = params.destination;

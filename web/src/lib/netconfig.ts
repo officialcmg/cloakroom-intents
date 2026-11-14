@@ -144,9 +144,48 @@ export interface NetworkConfig {
       };
   /** Plain sentences on what is real on this network, shown on the page. */
   honesty?: string[];
+  /**
+   * The site's own largest payment per swap, in zatoshis (a decimal string). The form and
+   * the engine refuse a larger amount even when the maker's directory entry allows more.
+   * Required on mainnet; optional elsewhere.
+   */
+  maxSwapZats?: string;
 }
 
 export class NetConfigError extends Error {}
+
+/** The site's cap on one payment (zatoshis), or undefined when the configuration sets none. */
+export function siteCapZats(c?: Pick<NetworkConfig, 'maxSwapZats'>): bigint | undefined {
+  return c?.maxSwapZats ? BigInt(c.maxSwapZats) : undefined;
+}
+
+/**
+ * The network switch in the header links to the other network's deployment. Each build
+ * serves one network; the URLs are set at build time only (VITE_ZECRET_TESTNET_URL,
+ * VITE_ZECRET_MAINNET_URL), never from the page's address. Only the origin is kept: the
+ * link names a path on it and carries no query.
+ */
+export function parseSiteUrl(v: string | undefined): string | undefined {
+  if (!v) return undefined;
+  try {
+    const u = new URL(v);
+    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    if (u.protocol !== 'https:' && !(u.protocol === 'http:' && local)) return undefined;
+    if (u.username || u.password) return undefined;
+    return u.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The live testnet site: the default for VITE_ZECRET_TESTNET_URL. */
+export const TESTNET_SITE_DEFAULT = 'https://cloakroom.chrismg.dev';
+
+/** The origin of each network's deployment, or undefined when it is not deployed. */
+export const NETWORK_SITES: { testnet?: string; mainnet?: string } = {
+  testnet: parseSiteUrl(import.meta.env.VITE_ZECRET_TESTNET_URL ?? TESTNET_SITE_DEFAULT),
+  mainnet: parseSiteUrl(import.meta.env.VITE_ZECRET_MAINNET_URL),
+};
 
 /** Every NEAR RPC endpoint of a configuration, in order. */
 export function nearRpcs(c: Pick<NetworkConfig, 'near'>): string[] {
@@ -219,6 +258,8 @@ function parseFile(json: unknown, anchors: MainnetAnchors): NetworkConfig {
   if (json.exit.mode === 'direct') str(json.exit.relayUrl, 'exit.relayUrl');
   else if (json.exit.mode !== 'oneclick') throw new NetConfigError('exit.mode must be oneclick or direct');
   if (network === 'mainnet' && json.exit.mode !== 'oneclick') throw new NetConfigError('mainnet exits through 1Click');
+  if (json.maxSwapZats !== undefined && (typeof json.maxSwapZats !== 'string' || !/^[1-9]\d{0,15}$/.test(json.maxSwapZats)))
+    throw new NetConfigError('maxSwapZats must be a whole number of zatoshis above zero, as a string');
   // Explorer links become links on the page: https only (review 3, H3).
   for (const [k, v] of [['zcash.explorer', json.zcash.explorer], ['near.explorer', json.near.explorer]] as const) {
     if (v !== undefined && !isHttps(v)) throw new NetConfigError(`${k} must be an https: URL`);
@@ -291,6 +332,7 @@ function checkMainnet(c: NetworkConfig, anchors: MainnetAnchors): void {
   for (const k of ['escrow', 'escrowCodeHash', 'token', 'verifier'] as const) {
     if (c.near[k] !== anchors[k]) throw new NetConfigError(`on mainnet near.${k} must be ${anchors[k]}, the value built into this page; the file says ${c.near[k]}`);
   }
+  if (c.maxSwapZats === undefined) throw new NetConfigError('on mainnet maxSwapZats is required: the site caps every swap');
 }
 
 /** Where this page load's configuration comes from. */

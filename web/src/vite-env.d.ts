@@ -12,6 +12,10 @@ interface ImportMetaEnv {
   /** The mainnet escrow account and its code hash that the page trusts (unset: no mainnet swaps). */
   readonly VITE_MAINNET_ESCROW?: string;
   readonly VITE_MAINNET_ESCROW_CODE_HASH?: string;
+  /** Origin of the testnet deployment, for the network switch in the header. Default: https://cloakroom.chrismg.dev. */
+  readonly VITE_ZECRET_TESTNET_URL?: string;
+  /** Origin of the mainnet deployment, for the network switch. Unset: the switch shows mainnet as not deployed. */
+  readonly VITE_ZECRET_MAINNET_URL?: string;
 }
 
 interface ImportMeta {

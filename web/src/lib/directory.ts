@@ -48,6 +48,8 @@ export interface MakerDirectory {
    * full-access key of `maker.nearAccount` on NEAR. Not read by the page.
    */
   signature?: string;
+  /** The simulated demo only: values that the real engine reads from the chains. */
+  demo?: { makerLiquidityUsdc?: string };
 }
 
 /** The directory in base units, ready for price math. */
@@ -64,6 +66,10 @@ export interface MakerTerms {
   premiumMinZats: bigint;
   feePerSendZats: bigint;
   updatedAt: Date;
+  /** Who sets `maxZats`: the maker's entry, or this site's own cap (`maxSwapZats` in the network configuration). */
+  maxBy?: 'maker' | 'site';
+  /** The simulated demo only: a fixed maker liquidity in micro-USDC, from `demo.makerLiquidityUsdc`. */
+  demoLiquidityMicroUsdc?: bigint;
 }
 
 export class DirectoryError extends Error {}
@@ -122,6 +128,17 @@ export function parseDirectory(json: unknown): { directory: MakerDirectory; term
   if (d.signature !== undefined && typeof d.signature !== 'string') throw new DirectoryError('signature must be a string');
   if (maker.nearPublicKey !== undefined && (typeof maker.nearPublicKey !== 'string' || !maker.nearPublicKey.startsWith('ed25519:'))) throw new DirectoryError('maker.nearPublicKey must be an ed25519: key');
   if (maker.epoch !== undefined && (typeof maker.epoch !== 'number' || !Number.isInteger(maker.epoch) || maker.epoch < 0)) throw new DirectoryError('maker.epoch must be a non-negative integer');
+  if (maker.signedLimits !== undefined) {
+    const l = obj(maker.signedLimits, 'maker.signedLimits');
+    for (const k of ['min_zats', 'max_zats', 'premium_zats']) {
+      if (!Number.isSafeInteger(l[k]) || (l[k] as number) < 0) throw new DirectoryError(`maker.signedLimits.${k} must be a whole number of zatoshis`);
+    }
+  }
+  let demoLiquidity: bigint | undefined;
+  if (d.demo !== undefined) {
+    const demo = obj(d.demo, 'demo');
+    if (demo.makerLiquidityUsdc !== undefined) demoLiquidity = amount(demo.makerLiquidityUsdc, 'demo.makerLiquidityUsdc', USDC_DECIMALS);
+  }
   return {
     directory: json as MakerDirectory,
     terms: {
@@ -136,8 +153,43 @@ export function parseDirectory(json: unknown): { directory: MakerDirectory; term
       premiumMinZats: premiumMin,
       feePerSendZats: fee,
       updatedAt,
+      maxBy: 'maker',
+      ...(demoLiquidity !== undefined ? { demoLiquidityMicroUsdc: demoLiquidity } : {}),
     },
   };
+}
+
+/** Zcash fee units a swap reserves from the payment (as `FEE_UNITS_PER_SWAP` in price.ts and `required_deposit` in the core). */
+const FEE_UNITS = 4n;
+
+/**
+ * The payment range that the form shows and checks, and the engine checks again: one
+ * source for both.
+ *
+ * - The maker's signed limits (`maker.signedLimits`) apply to the ZEC sold, which is the
+ *   payment less the Zcash fees and the premium (`start` in crates/zecret-core/src/taker.rs).
+ *   As a payment they are the signed limit plus those costs, with the smallest premium.
+ * - The unsigned `limits` of the directory narrow the range further.
+ * - `siteCap` (the network configuration's `maxSwapZats`) is this site's own largest
+ *   payment. It applies even when the maker's entry allows more.
+ */
+export function effectiveTerms(terms: MakerTerms, directory: Pick<MakerDirectory, 'maker'>, siteCap?: bigint): MakerTerms {
+  let minZats = terms.minZats;
+  let maxZats = terms.maxZats;
+  let maxBy: 'maker' | 'site' = 'maker';
+  const l = directory.maker.signedLimits;
+  if (l) {
+    const costs = terms.feePerSendZats * FEE_UNITS + terms.premiumMinZats;
+    const signedMin = BigInt(l.min_zats) + costs;
+    const signedMax = BigInt(l.max_zats) + costs;
+    if (signedMin > minZats) minZats = signedMin;
+    if (signedMax < maxZats) maxZats = signedMax;
+  }
+  if (siteCap !== undefined && siteCap < maxZats) {
+    maxZats = siteCap;
+    maxBy = 'site';
+  }
+  return { ...terms, minZats, maxZats, maxBy };
 }
 
 export const DEFAULT_DIRECTORY_URL = '/maker-directory.json';

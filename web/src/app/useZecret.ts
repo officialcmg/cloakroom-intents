@@ -3,8 +3,8 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { createEngine, type EngineClient, type EngineErrorData, type InitStatus, type SwapState } from '../engine';
 import { reduceSwap } from '../engine/reducer';
-import { directoryUrl, fetchDirectory, type MakerDirectory, type MakerTerms } from '../lib/directory';
-import { chooseConfig, fetchNetworkConfig, type ConfigChoice, type NetworkConfig } from '../lib/netconfig';
+import { directoryUrl, effectiveTerms, fetchDirectory, type MakerDirectory, type MakerTerms } from '../lib/directory';
+import { chooseConfig, fetchNetworkConfig, siteCapZats, type ConfigChoice, type NetworkConfig } from '../lib/netconfig';
 import { readSettings, type PageSettings } from './settings';
 import { setPayToken } from './stageCopy';
 
@@ -85,6 +85,8 @@ class Store {
       this.set({ phase: 'failed', failure: { kind: 'directory', message: (e as Error).message } });
       return;
     }
+    // One payment range for the form, the notices and the engine (effectiveTerms).
+    terms = effectiveTerms(terms, directory, siteCapZats(network));
     if (network) setPayToken(network.near.tokenSymbol === 'USDC' ? 'USDC' : network.near.tokenSymbol);
     this.set({ directory, terms, network });
     // One tab runs the engine of this browser at a time (review 3, NV3-02). A second tab

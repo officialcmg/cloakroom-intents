@@ -82,6 +82,7 @@ describe('NV3-01: what a configuration file may say', () => {
     zcash: { lightwalletd: 'https://zec.example' },
     near: { ...hostile.near, rpc: 'https://rpc.mainnet.example', escrow: anchors.escrow, escrowCodeHash: anchors.escrowCodeHash, token: anchors.token, verifier: anchors.verifier, tokenSymbol: 'USDC' },
     exit: { mode: 'oneclick', oneClickUrl: 'https://1click.chaindefuser.com' },
+    maxSwapZats: '500000',
   };
 
   it('a mainnet file with the built-in contracts and https endpoints passes', () => {

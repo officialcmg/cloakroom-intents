@@ -27,18 +27,21 @@ test('the swap app loads the mainnet settings and shows the real-money notice un
   const notice = page.getByTestId('mainnet-notice');
   await expect(notice).toContainText('Real money. Unaudited hackathon software.');
   await expect(notice).toContainText('Zcash mainnet and NEAR mainnet. Real ZEC and real USDC move.');
-  await expect(notice).toContainText('The maker takes at most 0.02 ZEC per swap.');
+  await expect(notice).toContainText('This site takes at most 0.005 ZEC per swap.');
   await expect(notice).toContainText('No security audit was done');
   await expect(notice).toContainText('had not run with real funds');
   await expect(notice).toContainText('one NEAR RPC endpoint');
   await expect(page.getByTestId('network-banner')).toHaveCount(0);
   await expect(page.getByTestId('demo-banner')).toHaveCount(0);
-  await expect(page.locator('.pill-main')).toHaveText('Mainnet');
+  const sw = page.getByRole('navigation', { name: 'Network' });
+  await expect(sw.getByRole('link', { name: 'Mainnet' })).toHaveAttribute('aria-current', 'page');
+  // The build sets VITE_ZECRET_TESTNET_URL (playwright.mainnet.config.ts): a plain link to that site's app, no query.
+  await expect(sw.getByRole('link', { name: /^Testnet/ })).toHaveAttribute('href', 'https://testnet.example.org/swap');
 
   await notice.getByRole('button', { name: 'I understand' }).click();
   await expect(notice).toHaveCount(0);
   const banner = page.getByTestId('mainnet-banner');
-  await expect(banner).toContainText('Mainnet. Real money. Unaudited hackathon software, at most 0.02 ZEC per swap.');
+  await expect(banner).toContainText('Mainnet. Real money. Unaudited hackathon software, at most 0.005 ZEC per swap.');
   await page.reload();
   await expect(page.getByTestId('mainnet-banner')).toBeVisible();
   await expect(page.getByTestId('mainnet-notice')).toHaveCount(0);
@@ -60,4 +63,7 @@ test('the mainnet landing page says real money and has no faucet hint', async ({
   await expect(page.getByRole('link', { name: 'Fauzec faucet' })).toHaveCount(0);
   await expect(page.getByText('Testnet · test money only')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Try it on mainnet' })).toBeVisible();
+  const sw = page.getByRole('navigation', { name: 'Network' });
+  await expect(sw.getByRole('link', { name: 'Mainnet' })).toHaveAttribute('aria-current', 'page');
+  await expect(sw.getByRole('link', { name: /^Testnet/ })).toHaveAttribute('href', 'https://testnet.example.org/');
 });
