@@ -1,7 +1,33 @@
-[maker 1794629330] relay for direct exits on http://127.0.0.1:3410/execute-intents
-[maker 1794629330] up: UA uregtest1e89asznfemfecxurv5cz5qm94slsv9e4543w7h3d4ru0h9aszg90qf6rkrhfse4d687tnny9etacgq7nvvz42ad6uzzut3xt3sh6hlea NEAR maker.test.near key ed25519:6SUXuHGPrREbHHW8o8pNDBM8UxCknmDziCN1gmLkCGDW
-[maker 1794629406] 3be229a1 RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE NeverReady]
-[maker 1794629406] 3be229a1 stage Quoting
-[maker 1794629406] {"type":"zcash_tx","swap":"3be229a1d4b4897249467efdbe3883f0","what":"quote","txid":"8463b4225f3b251d5c5a195ba99d04d5a6fbe43d127ac11f78e8a8229a19f1ba"}
-[maker 1794629406] 3be229a1 encrypted QUOTE sent in tx 8463b4225f3b251d5c5a195ba99d04d5a6fbe43d127ac11f78e8a8229a19f1ba
-[maker 1794629406] 3be229a1 stage Quoted
+[maker 1794630190] relay for direct exits on http://127.0.0.1:3410/execute-intents
+[maker 1794630190] up: UA uregtest10pytdngx5pz5lrp5hqujvapx5w8va5fu9a0x9trtnzfnnhppw53egey83arnv8rw32ugfx9v4p5m8qweql0k87uc0xgajxgcaczj2ysa NEAR maker.test.near key ed25519:4pVBHemxYrniUFar9MeJaduvoLEGWXZgfakSGpEE1JcF
+[maker 1794630263] f02f2002 RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto) [MISBEHAVE NeverReady]
+[maker 1794630263] f02f2002 stage Quoting
+[maker 1794630263] {"type":"zcash_tx","swap":"f02f2002ccf2b3fa2e8ee69b975310db","what":"quote","txid":"d8edd90f0148475cff2f09116411db64edcc32e6ed8a0a2b4dfe30c8fc6f0b22"}
+[maker 1794630263] f02f2002 encrypted QUOTE sent in tx d8edd90f0148475cff2f09116411db64edcc32e6ed8a0a2b4dfe30c8fc6f0b22
+[maker 1794630263] f02f2002 stage Quoted
+[maker 1794630293] f02f2002 ACCEPT decrypted (premium 50000 zats received, seed commitment opens, negated: true); escrow id e0f0f780
+[maker 1794630293] f02f2002 stage Opening
+[maker 1794630296] f02f2002 added 100000000000000000000000 yoctoNEAR of storage funds to the escrow, tx Cp2fN3gKRwxa8fgKAQyU9SwmMUzpLVtGqghHz795iLum
+[maker 1794630299] {"type":"near_tx","swap":"f02f2002ccf2b3fa2e8ee69b975310db","what":"deposit","hash":"DimbvWbVRRLnRTFG73K1HBpkbPddvnDX3Nw48v6PwAi"}
+[maker 1794630299] f02f2002 deposited 29988000000000000000000000 wrap.test.near into the maker's Verifier account before the open, tx DimbvWbVRRLnRTFG73K1HBpkbPddvnDX3Nw48v6PwAi (executed)
+[maker 1794630304] {"type":"near_tx","swap":"f02f2002ccf2b3fa2e8ee69b975310db","what":"open","hash":"Co2TC3L3eyM2akSiJ3ngbmsaRRAqMtmyNZ4sTke41LMQ"}
+[maker 1794630304] f02f2002 escrow OPEN id e0f0f780fbf1c88248267f7662f52a57de712a8039680ce8009a7e20865ded37 amount 29988000000000000000000000 t0=1794630594 t1=1794630744 t2=1794630894 W=60, tx Co2TC3L3eyM2akSiJ3ngbmsaRRAqMtmyNZ4sTke41LMQ
+[maker 1794630304] {"type":"near_tx","swap":"f02f2002ccf2b3fa2e8ee69b975310db","what":"stipend","hash":"ENgtYaqN7EA3nWKpKsALEZYHHDBSimW8PHabo1CDJSva"}
+[maker 1794630304] f02f2002 STIPEND of 30000000000000000000000 yoctoNEAR sent to a9d063c67b06044c0720c0c2cebd2c5be4cb856fdb4f3e6a9d098115db0c95ec, tx ENgtYaqN7EA3nWKpKsALEZYHHDBSimW8PHabo1CDJSva
+[maker 1794630304] f02f2002 stage Opened
+[maker 1794630337] f02f2002 [MISBEHAVE never-ready] joint note confirmed; not setting Ready
+[maker 1794630350] {"type":"alert","swap":"f02f2002ccf2b3fa2e8ee69b975310db","message":"t1 1794630744 is near (NEAR time 1794630728) and the escrow is Open"}
+[maker 1794630350] f02f2002 ALERT: t1 1794630744 is near (NEAR time 1794630728) and the escrow is Open
+[maker 1794630352] {"type":"alert","swap":"f02f2002ccf2b3fa2e8ee69b975310db","message":"t1 1794630744 is near (NEAR time 1794630740) and the escrow is Open"}
+[maker 1794630352] f02f2002 ALERT: t1 1794630744 is near (NEAR time 1794630740) and the escrow is Open
+[maker 1794630354] {"type":"alert","swap":"f02f2002ccf2b3fa2e8ee69b975310db","message":"t1 1794630744 is near (NEAR time 1794630745) and the escrow is Open"}
+[maker 1794630354] f02f2002 ALERT: t1 1794630744 is near (NEAR time 1794630745) and the escrow is Open
+[maker 1794630354] f02f2002 final block 610 (t=1794630745) is past t1 with state Open; refunding
+[maker 1794630354] f02f2002 stage RefundSent
+[maker 1794630357] {"type":"alert","swap":"f02f2002ccf2b3fa2e8ee69b975310db","message":"t1 1794630744 is near (NEAR time 1794630745) and the escrow is Open"}
+[maker 1794630357] f02f2002 ALERT: t1 1794630744 is near (NEAR time 1794630745) and the escrow is Open
+[maker 1794630357] {"type":"near_tx","swap":"f02f2002ccf2b3fa2e8ee69b975310db","what":"refund","hash":"DLsypPqjDaRro5JFMZCXoRwviSFMcH7gYv5de7woSJVZ"}
+[maker 1794630357] f02f2002 REFUND publishes b, tx DLsypPqjDaRro5JFMZCXoRwviSFMcH7gYv5de7woSJVZ (executed); waiting for it to be final
+[maker 1794630359] f02f2002 refund is final (block <= 618); 29988000000000000000000000 paid back into the maker's Verifier account
+[maker 1794630359] f02f2002 stage Refunded
+[maker 1794630359] f02f2002 DONE Refunded

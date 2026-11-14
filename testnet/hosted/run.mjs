@@ -81,7 +81,9 @@ result.facts.payerBefore = payerUa;
 log(`payer ${payerUa.ua.slice(0, 20)}… holds ${payerUa.zats} zats at height ${payerUa.height}`);
 
 const browser = await chromium.launch({ headless: true });
-const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY } : undefined;
+// ZECRET_PROXY_BYPASS (for example 127.0.0.1,localhost): hosts the browser reaches without the
+// proxy, for a site and a relay served on this computer (docs/TESTNET.md, "Light payout on testnet").
+const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, ...(process.env.ZECRET_PROXY_BYPASS ? { bypass: process.env.ZECRET_PROXY_BYPASS } : {}) } : undefined;
 const ctx = await browser.newContext({ acceptDownloads: true, viewport: { width: 1100, height: 820 }, proxy });
 const page = await ctx.newPage();
 const consoleLog = fs.createWriteStream(path.join(PRIVATE, 'console.log'), { flags: 'a' });

@@ -38,32 +38,32 @@
       "stages": [
         {
           "stage": "awaiting_deposit",
-          "at": "2026-11-13T09:35:29.262Z",
-          "secs": 11.8
+          "at": "2026-11-14T04:19:33.166Z",
+          "secs": 7.3
         },
         {
           "stage": "deposit_seen",
-          "at": "2026-11-13T09:35:41.062Z",
+          "at": "2026-11-14T04:19:40.478Z",
           "secs": 0
         },
         {
           "stage": "deposit_confirmed",
-          "at": "2026-11-13T09:35:41.064Z",
-          "secs": 34.9
+          "at": "2026-11-14T04:19:40.479Z",
+          "secs": 26.9
         },
         {
           "stage": "request_sent",
-          "at": "2026-11-13T09:36:15.933Z",
-          "secs": 9.1
+          "at": "2026-11-14T04:20:07.385Z",
+          "secs": 7.7
         },
         {
           "stage": "refunding",
-          "at": "2026-11-13T09:36:25.049Z",
-          "secs": 35.8
+          "at": "2026-11-14T04:20:15.048Z",
+          "secs": 29.3
         },
         {
           "stage": "refunded",
-          "at": "2026-11-13T09:37:00.897Z",
+          "at": "2026-11-14T04:20:44.324Z",
           "secs": null
         }
       ],
@@ -74,30 +74,30 @@
         },
         {
           "what": "verify_maker",
-          "secs": 0.1
+          "secs": 0
         },
         {
           "what": "proving_key_build",
-          "secs": 21.6
+          "secs": 19.5
         },
         {
           "what": "proof_request",
-          "secs": 34.6
+          "secs": 26.6
         },
         {
           "what": "proof_refund",
-          "secs": 32.7
+          "secs": 26.2
         }
       ],
-      "total_secs": 92
+      "total_secs": 71
     },
     "zcash_txs": [
-      "d95515512275456c9bf0b8950eb4738ceddf8afd6fcc58c6a7ad4f291b9edbd1",
-      "636d57490da525989925e1ae39cfb7755c0d6594c828f8e0e797c6fabb6e0a12",
-      "3d3125531a13c42c3c16ca134e52293941910615e56dc67c6510da3b4041344b",
-      "739ebc66435311ecde434961bb26b94cf70fa4aa33dcb9cc5324735094cbc267"
+      "a7be122ed9a3ed966a550de7948325abb7bdd9ef9684597966c209910643b4dd",
+      "91852b2f34cd326773fc67782734cf43e4bd3a12fbd8d4b491726bb13db5d6ac",
+      "0495582af2d152144e797b7a9313d1af0172d1f28920451ae8782bf36e98fbb4",
+      "8e415fa149e71bc2966057175cb034a80fb9d78e8de1dd6a7dbd7470f379a791"
     ]
   },
-  "secs": 129,
-  "ran_at": "2026-11-13T09:37:05.496Z"
+  "secs": 107,
+  "ran_at": "2026-11-14T04:20:48.780Z"
 }

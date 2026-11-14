@@ -1,0 +1,54 @@
+{
+  "scenario": "f_maker_vanishes_after_claim",
+  "title": "The maker process is killed the moment the browser shows the claim final. The browser engine sends withdraw(id) from the taker key with what the stipend left, and the USDC ends under the taker key in the Verifier with no other party. The local exit goes through the maker's relay, so with the maker gone the swap stops at the exit; the scenario ends there",
+  "checks": [
+    {
+      "check": "the maker sent no withdraw before it was killed",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "the page reached paid_out with the maker gone",
+      "pass": true,
+      "detail": "awaiting_deposit,deposit_seen,deposit_confirmed,request_sent,quote_received,accepted,escrow_open,funding_sent,funding_confirming,ready,committing,claiming,claimed,paid_out,exiting"
+    },
+    {
+      "check": "escrow payout Paid to the taker key",
+      "pass": true,
+      "detail": "paid 35f8e4041cd3142cc2af68e33988367d18afd7e4c7777d6d89af7642fb6e99df"
+    },
+    {
+      "check": "the taker key holds exactly the price in the Verifier",
+      "pass": true,
+      "detail": "29988000000000000000000000 vs 29988000000000000000000000"
+    },
+    {
+      "check": "the browser sent commit_claim, claim and withdraw itself",
+      "pass": true,
+      "detail": "request,accept,funding,commit,claim,withdraw"
+    },
+    {
+      "check": "the exit did not complete without the relay (expected on local networks)",
+      "pass": true,
+      "detail": "exiting"
+    },
+    {
+      "check": "privacy audit: all 5 Zcash transactions (user payment, browser taker, maker) are fully shielded Ironwood, no transparent or Sapling parts",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "facts": {
+    "taker_account": "35f8e4041cd3142cc2af68e33988367d18afd7e4c7777d6d89af7642fb6e99df",
+    "stage": "exiting",
+    "zcash_txs": [
+      "4a470f15bff54676e50f05dc91d20c7a29f6c9c77d3abbdeeb73d63c2af331dd",
+      "444f93a5fcd09b68d19bbbe387302580af4960bbed90b3bfe7e32e8a7f12003f",
+      "47368415ceb4bdb12452dc04b35f43ba57f9490d0b5a8d805641497ecef76f70",
+      "5b0738575b12c324aecec013d85aba3c160881723c28f170b87a02d1c67c5b34",
+      "4e6876762617078916f29ef08f77cf5e6034f196bcaca741bd5b9988096d1610"
+    ]
+  },
+  "secs": 153,
+  "ran_at": "2026-11-14T04:29:34.429Z"
+}

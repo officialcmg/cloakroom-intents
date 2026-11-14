@@ -1,12 +1,11 @@
-2026-11-13T09:35:06.566Z [zecret-timing] wasm_load 66
-2026-11-13T09:35:06.619Z [zecret-timing] verify_maker 53
-2026-11-13T09:35:29.222Z [zecret-timing] proving_key_build 21581
-2026-11-13T09:35:29.283Z [zecret-engine] swap c59fc4f296baa35d77e163b98db07d66 created: sells 99960000 zats, deposit 100050000 to uregtest1k09p8aya8dmxaeq2s05aevv7ttkg7mudfznm02m5th2dn0xk5gwxm0sa9nn26wyqg3qpkaye5hyr2n9djnajfxnlwl5xwhjfzvw9nds0
-2026-11-13T09:35:32.423Z [zecret-engine] tick took 3121 ms
-2026-11-13T09:35:32.424Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest1k09p8aya8dmxaeq2s05aevv7ttkg7mudfznm02m5th2dn0xk5gwxm0sa9nn26wyqg3qpkaye5hyr2n9djnajfxnlwl5xwhjfzvw9nds0
-2026-11-13T09:35:39.346Z [zecret-engine] tick took 5344 ms
-2026-11-13T09:36:15.621Z [zecret-timing] proof_request 34553
-2026-11-13T09:36:15.625Z [zecret-engine] tick took 34546 ms
-2026-11-13T09:36:15.937Z [zecret-engine] encrypted RFQ for 99960000 zats sent to the maker in shielded tx 636d57490da525989925e1ae39cfb7755c0d6594c828f8e0e797c6fabb6e0a12
-2026-11-13T09:36:25.048Z [zecret-engine] ABORT: QUOTE REJECTED: price 29988000000000000000000000 below the taker's minimum 31670496000000000000000000; nothing was funded
-2026-11-13T09:36:57.743Z [zecret-timing] proof_refund 32679
+2026-11-14T04:19:12.589Z [zecret-timing] wasm_load 98
+2026-11-14T04:19:12.638Z [zecret-timing] verify_maker 49
+2026-11-14T04:19:33.138Z [zecret-timing] proving_key_build 19479
+2026-11-14T04:19:33.169Z [zecret-engine] swap 2e9fdd7810ec29513bf35d299a0759fd created: sells 99960000 zats, deposit 100050000 to uregtest1d7sgklehas34mjvfv9s8rxfq2fvr2ap23ew9ap3utjmzydzlejhyxwj4as4vggzv3uyjhurfjxw93prlwjkkqeldz2crs4v395zynr77
+2026-11-14T04:19:35.308Z [zecret-engine] waiting for a deposit: 0 of 100050000 zats in uregtest1d7sgklehas34mjvfv9s8rxfq2fvr2ap23ew9ap3utjmzydzlejhyxwj4as4vggzv3uyjhurfjxw93prlwjkkqeldz2crs4v395zynr77
+2026-11-14T04:19:40.446Z [zecret-engine] tick took 3446 ms
+2026-11-14T04:20:07.118Z [zecret-timing] proof_request 26637
+2026-11-14T04:20:07.118Z [zecret-engine] tick took 26624 ms
+2026-11-14T04:20:07.386Z [zecret-engine] encrypted RFQ for 99960000 zats sent to the maker in shielded tx 91852b2f34cd326773fc67782734cf43e4bd3a12fbd8d4b491726bb13db5d6ac
+2026-11-14T04:20:15.048Z [zecret-engine] ABORT: QUOTE REJECTED: price 29988000000000000000000000 below the taker's minimum 31667328000000000000000000; nothing was funded
+2026-11-14T04:20:41.243Z [zecret-timing] proof_refund 26183

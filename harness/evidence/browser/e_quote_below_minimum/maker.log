@@ -1,7 +1,7 @@
-[maker 1794562496] relay for direct exits on http://127.0.0.1:3410/execute-intents
-[maker 1794562496] up: UA uregtest1ctrcqfs3nsseernjv9ph8gdnnvjuw7a5nccrgpsgpjj6edvdg8smt0hvfz438mrpss03pt3n064ysn30pq8p3785jsfdmjnyaye9yfpn NEAR maker.test.near key ed25519:AkzU771d2b8WNTfvn9CW91JWTrqxraefDMAoiqph6HNU
-[maker 1794562582] c59fc4f2 RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
-[maker 1794562582] c59fc4f2 stage Quoting
-[maker 1794562583] {"type":"zcash_tx","swap":"c59fc4f296baa35d77e163b98db07d66","what":"quote","txid":"739ebc66435311ecde434961bb26b94cf70fa4aa33dcb9cc5324735094cbc267"}
-[maker 1794562583] c59fc4f2 encrypted QUOTE sent in tx 739ebc66435311ecde434961bb26b94cf70fa4aa33dcb9cc5324735094cbc267
-[maker 1794562583] c59fc4f2 stage Quoted
+[maker 1794629942] relay for direct exits on http://127.0.0.1:3410/execute-intents
+[maker 1794629942] up: UA uregtest1x8n2c2jugzyyc6vaj5965zw55e4ptdsj0ne5zqw7kpw0jv5s976nw4pnfyret6a2j7yvanu3grkemsu4pag2auqlta4f2nhxmvwvsxc7 NEAR maker.test.near key ed25519:6SUXuHGPrREbHHW8o8pNDBM8UxCknmDziCN1gmLkCGDW
+[maker 1794630014] 2e9fdd78 RFQ for 99960000 zats decrypted and verified; quoting price 29988000000000000000000000 (premium 50000 zats, stipend 30000000000000000000000 yocto)
+[maker 1794630014] 2e9fdd78 stage Quoting
+[maker 1794630014] {"type":"zcash_tx","swap":"2e9fdd7810ec29513bf35d299a0759fd","what":"quote","txid":"8e415fa149e71bc2966057175cb034a80fb9d78e8de1dd6a7dbd7470f379a791"}
+[maker 1794630014] 2e9fdd78 encrypted QUOTE sent in tx 8e415fa149e71bc2966057175cb034a80fb9d78e8de1dd6a7dbd7470f379a791
+[maker 1794630014] 2e9fdd78 stage Quoted
