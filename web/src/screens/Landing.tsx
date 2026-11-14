@@ -263,28 +263,32 @@ export function Landing() {
         <section id="faq" className="section faq-section" aria-labelledby="faq-title">
           <SectionHead id="faq" eyebrow="Questions" title="Questions and answers" />
           <div className="faq" data-reveal>
-            <Faq q="Which wallets can pay?">
-              A wallet that can send shielded ZEC to a unified address on the same network. On testnet, use testnet ZEC. In the tests, the payment came from the project’s own
-              command-line wallet. No wallet app has been tested yet.{' '}
-              {MAINNET_BUILD ? 'Zodl, Zingo, Zkool, Edge and Cake pay into the Ironwood pool per their release notes.' : 'On testnet, the Fauzec faucet can also pay 1 test ZEC to the swap’s address.'}
-            </Faq>
-            <Faq q="How long does a swap take?">
-              Most swaps through this website on the public test networks took 6 to 9 minutes; the fastest took 314 s (2026-11-13 and 14). Zcash testnet blocks come
-              every 20 s on average, but some took up to 538 s. In the browser, the engine prepares its keys once per visit (about 20 s), and each Zcash proof takes about 30 s
-              (measured in Chromium on local test networks).
+            <Faq q="What if the swap does not finish?">
+              You get the USDC, or you get your ZEC back, less network fees. If the maker goes quiet, the page takes the ZEC back by itself. If you close the page, open it again
+              in the same browser, or load the recovery file in any browser.
             </Faq>
             <Faq q="What is the recovery file?">
-              A file with the keys of your swap: the temporary wallet key, your key half, the NEAR key and the swap settings. With it, any browser can finish the swap or take your ZEC
-              back. It is not encrypted: keep it private, and delete it when the swap is done.
+              A file that holds the keys of your swap. With it, any browser can finish the swap or take your ZEC back. It is not encrypted: keep it private, and delete it when
+              the swap is done.
+            </Faq>
+            <Faq q="How long does a swap take?">
+              6 to 9 minutes for most swaps on testnet. Most of that is waiting for Zcash blocks: they come every 20 s on average, but some took up to 538 s. Your browser also
+              prepares its keys once per visit (about 20 s) and needs about 30 s for each Zcash proof.
             </Faq>
             <Faq q="What does it cost?">
-              You pay four Zcash network fees (three sends from the temporary wallet, and one spend from the shared address) and the maker’s premium. The maker’s rate and the NEAR
-              Intents step set how much you receive. The swap form shows each amount before you pay. The maker’s stipend pays your gas on NEAR.
+              Four Zcash network fees and the maker’s premium. The swap form shows every amount before you pay. You pay no gas on NEAR: the maker’s stipend covers it.
+            </Faq>
+            <Faq q="Which wallets can pay?">
+              Any wallet that sends shielded ZEC to a unified address.{' '}
+              {MAINNET_BUILD
+                ? 'Zodl, Zingo, Zkool, Edge and Cake pay into the Ironwood pool per their release notes.'
+                : 'On testnet, use testnet ZEC, or let the Fauzec faucet pay 1 test ZEC to the swap’s address.'}{' '}
+              In the tests, the payment came from the project’s own command-line wallet. No wallet app has been tested yet.
             </Faq>
             <Faq q="Do I need a NEAR account?">
               {MAINNET_BUILD
                 ? 'No. The USDC lands in NEAR Intents under a new key that your browser makes, and NEAR Intents sends the tokens to your address on the chain you chose.'
-                : 'On testnet, yes: the tokens go to a NEAR testnet account that is registered with the test USDC token. The swap itself uses a new NEAR key that your browser makes.'}
+                : 'On testnet, yes: the test USDC goes to a NEAR testnet account that is registered with the test USDC token. The swap itself uses a new NEAR key that your browser makes, so your account signs nothing.'}
             </Faq>
           </div>
         </section>
