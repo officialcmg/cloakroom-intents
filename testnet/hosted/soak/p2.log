@@ -1,0 +1,39 @@
+[hosted 18:47:24 +12s] payer utest1zdyw8dscgrelws… holds 143479000 zats at height 4620262
+[hosted 18:47:27 +16s] PASS  the site opened with the real engine on testnet by default (network banner) Testnet. Test money only. Details
+[hosted 18:47:50 +39s] PASS  the recovery file was saved 
+[hosted 18:47:50 +39s] stage awaiting_deposit
+[hosted 18:47:50 +39s] PASS  the page shows a testnet deposit address and amount 1000000 zats
+Error: transaction refused: lightwalletd refused the transaction: -25 failed to validate tx: WtxId("private"), error: transaction did not pass consensus validation: could not contextually validate transaction on best chain: ironwood double-spend: duplicate nullifier: Nullifier(0x2191a9d6fb2b200d3e1077e4bbf5a3ca6855d525ef49fb6c76c622dd931509ec), in finalized state: false
+
+Stack backtrace:
+   0: <anyhow::Error>::msg::<alloc::string::String>
+   1: anyhow::__private::format_err
+   2: <zecret_core::wallet::Wallet>::pay
+   3: zecret::main
+   4: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>
+   5: std::rt::lang_start::<core::result::Result<(), anyhow::Error>>::{closure#0}
+   6: std::rt::lang_start_internal
+   7: main
+   8: __libc_start_call_main
+             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+   9: __libc_start_main_impl
+             at ./csu/../csu/libc-start.c:360:3
+  10: _start
+[hosted 18:48:14 +63s] FAIL  the flow ran to the end Command failed: /home/user/zecret/.tools/soak/zecret pay --dir .tools/testnet/taker --to utest1p2m52djkjfu786pzj4ayz8lw2xau9352djtgql6k3k30l8j6stfgnavurcu0k3cdud9wdvjwsmgmf20t8d9hdxf8c6k43kxhtge9yv78 --zats 1000000
+Error: transaction refused: lightwalletd refused the transaction: -25 failed to validate tx: WtxId("private"), error: transaction did not pass consensus validation: could not contextually validate transaction on best chain: ironwood double-spend: duplicate nullifier: Nullifier(0x2191a9d6fb2b200d3e1077e4bbf5a3ca6855d525ef49fb6c76c622dd931509ec), in finalized state: false
+
+Stack backtrace:
+   0: <anyhow::Error>::msg::<alloc::string::String>
+   1: anyhow::__private::format_err
+   2: <zecret_core::wallet::Wallet>::pay
+   3: zecret::main
+   4: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>
+   5: std::rt::lang_start::<core::result::Result<(), anyhow::Error>>::{closure#0}
+   6: std::rt::lang_start_internal
+   7: main
+   8: __libc_start_call_main
+             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+   9: __libc_start_main_impl
+             at ./csu/../csu/libc-start.c:360:3
+  10: _start
+

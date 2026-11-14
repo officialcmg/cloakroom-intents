@@ -31,7 +31,7 @@
   // ---------- brand ----------
   // The end card has four designs. Pick one here; `?endcard=B` in the page URL (or
   // ENDCARD=B for render.mjs) overrides it for a test render.
-  const ENDCARD = new URLSearchParams(location.search).get('endcard') || 'A';
+  const ENDCARD = new URLSearchParams(location.search).get('endcard') || 'D';
 
   const MARKS = ['s1mark', 'eAmark', 'eBmark', 'eCmark', 'eDmark'];
   const WORDS = ['s1word', 'eAword', 'eBword', 'eCword', 'eDword'];

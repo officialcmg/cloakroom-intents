@@ -56,6 +56,13 @@ those film times.
 - Scene 4: the callouts are `CALLOUTS` in `src/product.js`.
 - Name, URL, logo: `src/brand.js`.
 
+## End card
+
+Scene 6 has four designs, A to D (`video/endcard-options.png`). `ENDCARD` at the top of
+`src/scenes.js` picks one. `ENDCARD=B node video/render.mjs stills ...` renders another
+for one run. The QR code is `src/qr.js`, written by `node video/make_qr.mjs` from the URL
+(error correction Q, quiet zone of 4 modules). It is still from 65.0 s to the end.
+
 Every claim must have a source: add it to `launch-facts.json` when you change one.
 
 ## Swap the footage

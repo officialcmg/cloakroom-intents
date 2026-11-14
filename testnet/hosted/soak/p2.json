@@ -1,0 +1,51 @@
+{
+  "site": "https://zecret.chrismg.dev",
+  "amountZec": "0.01",
+  "nearAccount": "zecret-3f109eea1e.testnet",
+  "startedAt": "2026-11-14T18:47:11.755Z",
+  "checks": [
+    {
+      "check": "the site opened with the real engine on testnet by default (network banner)",
+      "pass": true,
+      "detail": "Testnet. Test money only. Details"
+    },
+    {
+      "check": "the recovery file was saved",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "check": "the page shows a testnet deposit address and amount",
+      "pass": true,
+      "detail": "1000000 zats"
+    },
+    {
+      "check": "the flow ran to the end",
+      "pass": false,
+      "detail": "Command failed: /home/user/zecret/.tools/soak/zecret pay --dir .tools/testnet/taker --to utest1p2m52djkjfu786pzj4ayz8lw2xau9352djtgql6k3k30l8j6stfgnavurcu0k3cdud9wdvjwsmgmf20t8d9hdxf8c6k43kxhtge9yv78 --zats 1000000\nError: transaction refused: lightwalletd refused the transaction: -25 failed to validate tx: WtxId(\"private\"), error: transaction did not pass consensus validation: could not contextually validate transaction on best chain: ironwood double-spend: duplicate nullifier: Nullifier(0x2191a9d6fb2b200d3e1077e4bbf5a3ca6855d525ef49fb6c76c622dd931509ec), in finalized state: false\n\nStack backtrace:\n   0: <anyhow::Error>::msg::<alloc::string::String>\n   1: anyhow::__private::format_err\n   2: <zecret_core::wallet::Wallet>::pay\n   3: zecret::main\n   4: std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), anyhow::Error>, core::result::Result<(), anyhow::Error>>\n   5: std::rt::lang_start::<core::result::Result<(), anyhow::Error>>::{closure#0}\n   6: std::rt::lang_start_internal\n   7: main\n   8: __libc_start_call_main\n             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16\n   9: __libc_start_main_impl\n             at ./csu/../csu/libc-start.c:360:3\n  10: _start\n"
+    }
+  ],
+  "facts": {
+    "payerBefore": {
+      "height": 4620262,
+      "ua": "utest1zdyw8dscgrelws7muvgznaa2xwld5aysr50w7xy46p4aqyrvlw7t2ejxllda8j6qp9dtc557f6cnnj7uypn8wkmqknzmcd225ca9ca04",
+      "zats": 143479000
+    },
+    "preview": "You pay 0.01 ZEC. You receive at least 0.2795 USDC on Base.",
+    "deposit": {
+      "expectedZats": 1000000
+    },
+    "lastState": {
+      "stage": "awaiting_deposit",
+      "history": [
+        {
+          "stage": "awaiting_deposit",
+          "at": 1794682069659
+        }
+      ],
+      "txs": []
+    }
+  },
+  "finishedAt": "2026-11-14T18:48:14.913Z",
+  "totalSecs": 63
+}
