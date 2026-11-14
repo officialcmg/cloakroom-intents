@@ -57,8 +57,9 @@ with "WIP".
   any case at least 12 swaps after the switch (`testnet/hosted/soak.sh <start> 12`, with
   `SOAK_OUT`-style separate results: copy the script's output folder first). No mainnet
   step on a flow that has not passed its own soak.
-- Branch `mainnet-ready` (worktree `/home/user/zecret-mainnet`): runbook, configs and
-  no-funds checks for mainnet. Not merged. Nothing is done on mainnet without the owner.
+- Mainnet preparation is merged (commit `61336ff`, 03:52 UTC): runbook `docs/MAINNET.md`,
+  configs, `zecret-deploy plan`, `scripts/mainnet-preflight.sh`. The soak swaps from slot
+  05 on run on this code. Nothing is done on mainnet without the owner.
 
 ## Latest (2026-11-14 01:30 UTC)
 
