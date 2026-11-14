@@ -9,3 +9,14 @@
 [hosted 04:18:08 +187s] stage request_sent
 [hosted 04:20:03 +302s] stage quote_received
 [hosted 04:20:32 +332s] stage accepted
+[hosted 04:21:05 +364s] stage escrow_open
+[hosted 04:21:35 +394s] stage funding_sent
+[hosted 04:22:17 +436s] stage funding_confirming
+[hosted 04:24:01 +540s] stage ready
+[hosted 04:24:06 +545s] stage committing
+[hosted 04:24:07 +546s] stage claiming
+[hosted 04:24:14 +553s] stage claimed
+[hosted 04:24:21 +560s] stage exiting
+[hosted 04:24:27 +566s] stage done
+[hosted 04:24:27 +566s] PASS  the page reached done done ""
+[hosted 04:24:27 +566s] PASS  no Content-Security-Policy violation 
