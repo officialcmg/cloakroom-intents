@@ -13,3 +13,5 @@
 [hosted 03:04:19 +259s] stage funding_sent
 [hosted 03:05:01 +301s] stage funding_confirming
 [hosted 03:05:39 +338s] stage claiming
+[hosted 03:05:47 +346s] stage claimed
+[hosted 03:05:53 +352s] stage exiting
